@@ -1,0 +1,12 @@
+{
+  "name": "claude-code-mods",
+  "owner": { "name": "FairCat-GD" },
+  "description": "The owner's Claude Code mods: plugins that change Claude Code's own interface or behaviour through its function-hooks API.",
+  "plugins": [
+    {
+      "name": "cartoon-fx",
+      "source": "./mods/cartoon-fx",
+      "description": "Cartoon animations in the conversation for accepted plans, commits, pushes, passing tests, finished code reviews, review fixes, compaction, subagents and a context window entering the yellow and red zones."
+    }
+  ]
+}
