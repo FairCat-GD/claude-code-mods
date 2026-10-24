@@ -1,6 +1,14 @@
 {
   "root": false,
   "extends": "//",
-  "formatter": { "enabled": false },
-  "linter": { "rules": { "correctness": { "noUnusedFunctionParameters": "off" } } }
+  "overrides": [
+    {
+      "includes": ["hooks/detect.ts", "hooks/fx.ts", "hooks/register.tsx", "tests/cartoon-fx.test.tsx"],
+      "formatter": { "enabled": false }
+    },
+    {
+      "includes": ["hooks/register.tsx"],
+      "linter": { "rules": { "correctness": { "noUnusedFunctionParameters": "off" } } }
+    }
+  ]
 }

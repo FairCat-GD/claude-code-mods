@@ -13,25 +13,21 @@ No code changes and no version: cartoon-fx stays at 0.10.1.
 ## State you need that is not in the specs
 
 - **Round 1 is the repository setup.** Sessions 0, 1 and 2 are done; Sessions 3 and 4 remain.
-- **Push status.** `origin/main` holds everything through `review: types re-reads the CLI after
-  its session, and 9 smaller`. Session 2's commits wait for the owner's push approval at its end:
-  - `feat(cartoon-fx): import cartoon-fx as it runs today, at 0.10.1`;
-  - `docs: Session 2 done-note and handoff`;
-  - its review commit.
-
-  List `origin/main..HEAD` before any push. **If they are not on `origin/main`,** the install
-  cannot run. The owner then chooses (the block's *Ask at the start*): push now, or run the docs
-  half alone and move the switch to a session inserted after it. Either way, log the choice as an
-  amendment.
+- **Push status.** Everything is pushed: `origin/main` holds everything through
+  `review(cartoon-fx): the Biome exception covers four files, and 4 smaller`, so
+  `origin/main..HEAD` is empty and the install can run. List it again before any push.
 - **What Session 2 left that Session 3 builds on:**
   - **`mods/cartoon-fx/`** is the live mod byte for byte, plus two lines of `plugin.json`
     (`author`, `license`) and these new files:
     - `CLAUDE.md`, `CHANGELOG.md` (one `[0.10.1]` entry) and `README.md`;
     - `docs/BACKLOG.md` and `docs/next-session-prompt.md`;
     - its own `biome.json`.
-  - **Its `biome.json`** (`root: false`, `extends: "//"`) turns off the formatter and
-    `noUnusedFunctionParameters` for the folder. The owner chose this over reformatting the
-    copied code; the reformat is in its backlog.
+  - **Its `biome.json`** (`root: false`, `extends: "//"`) narrows two exceptions to the files
+    that need them:
+    - the formatter is off for the four copied source files Biome would change;
+    - `noUnusedFunctionParameters` is off for `register.tsx` alone.
+
+    The owner chose this over reformatting the copied code; the reformat is in its backlog.
   - **`.claude-plugin/marketplace.json`** lists cartoon-fx, source `./mods/cartoon-fx`. The
     install line is
     `claude plugin install cartoon-fx --marketplace FairCat-GD/claude-code-mods`, or the
@@ -42,8 +38,9 @@ No code changes and no version: cartoon-fx stays at 0.10.1.
     - the `$.store` keys `placement` and `fxTakes`, which are the owner's data.
   - **cartoon-fx's handoff** says that its next session is its round 2 intake, after this one.
 - **What the spec said that turned out wrong or harder:**
-  - **`npx biome format mods/cartoon-fx` on its own exits 1** ("no files were processed"), because
-    its formatter is off. `verify` passes it with the tooling's paths beside it.
+  - **A nested `biome.json` that turns the formatter off for a whole folder** makes
+    `npx biome format <folder>` alone exit 1 ("no files were processed"). An `overrides` list
+    naming the files avoids it.
   - **An `eval` at module load fails `claude plugin test` too:** the engine refuses it, so that
     falsification fails `lint` and `tests` together.
 - **Decisions written down nowhere else:**
@@ -52,7 +49,8 @@ No code changes and no version: cartoon-fx stays at 0.10.1.
     written into the repository.
   - **cartoon-fx as found at intake** is at `~/.claude/mods/cartoon-fx`. It loads live in every
     session through `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json`. It is eight files, and
-    it has no `.claude-plugin/types/`, which Session 2 checked again after `npm run types`.
+    it had no `.claude-plugin/types/` when Session 2 checked, while its `npm run types` session
+    was still open. Check again before the switch.
   - **The plugin-authoring skill writes the desktop build's declarations beside itself** under
     `/private/tmp/claude-501/bundled-skills/<version>/…/plugin-authoring/types/claude-code.d.ts`.
     It is one file, and is not what `tsc` uses here. The `<version>` folder there names the
@@ -69,6 +67,10 @@ No code changes and no version: cartoon-fx stays at 0.10.1.
 
     Session 3 moves none of these.
 - **Not done:** nothing in Session 2's scope.
+- **Carry to Session 4's handoff:** `mods/cartoon-fx/CLAUDE.md` points at the root's
+  `docs/spec/SPEC.md` §8 for the practices, as the template's does. Session 4's block moves §8 into
+  `CLAUDE.md` and changes the root's and the template's pointers, but not this one. It needs the
+  same change when the round closes.
 
 ## Watch for
 

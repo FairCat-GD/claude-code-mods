@@ -511,6 +511,31 @@ checkout beside this one (`../krita-art-mcp`), read-only.
   - Tooling tests: 48 (±0).
   - cartoon-fx: 28 tests in one file.
   - Template: 1 test (±0).
+- **Review (`/code-review high`), 5 findings: 5 fixed and 0 skipped.** The owner chose to fix all.
+  - **The folder's `biome.json` was wider than the import needed.** It is now two `overrides`:
+    - the formatter is off for `detect.ts`, `fx.ts`, `register.tsx` and the test file;
+    - `noUnusedFunctionParameters` is off for `register.tsx`.
+
+    Every other file in the folder, and any new one, is checked. `npx biome format
+    mods/cartoon-fx` alone now checks 5 files and passes, and the "no files were processed" quirk
+    is gone.
+  - **The changelog's `[0.10.1]` link** points at the import commit, `8d06df2` (decision 8).
+  - **cartoon-fx's `CLAUDE.md` points at the root `SPEC.md` §8,** which Session 4 deletes. Its
+    block changes only the root's and the template's pointers, so the handoff carries this one to
+    Session 4.
+  - **The handoff said the live folder was checked "after `npm run types`".** That session was
+    still open; the handoff now says so, and asks Session 3 to check again.
+  - **`/fx` did two things nobody documented:** an unknown name lists the names it has, and
+    `/fx place middle` works like `place conversation`. Both are now in the changelog's entry and
+    the README.
+  - **Falsified,** copying files aside and back:
+    - a misformatted line in `types/index.d.ts` failed `format`;
+    - an unused parameter in `detect.ts` failed `lint`;
+    - both failed in the same run, and no other stage failed.
+
+    Restored, `diff -r` against the source again shows only the two `plugin.json` lines.
+  - **Numbers after the review:** `npm run verify` 14 stages, all PASS (CLI 2.1.310); tooling tests
+    48; cartoon-fx 28; template 1.
 
 ---
 

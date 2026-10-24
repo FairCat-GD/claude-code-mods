@@ -22,11 +22,15 @@ These keep their spelling, because installs and stored data live under them:
 
 ## Its own Biome settings
 
-`biome.json` in this folder turns off the formatter and `noUnusedFunctionParameters` here alone,
-and extends the root's for everything else. The code came into the repository byte for byte, and
-Biome's format and its `($, e, next)` catch handlers disagreed with it. Reformatting it and
-deleting this file is in `docs/BACKLOG.md`. Until then, `npx biome format mods/cartoon-fx` on
-its own reports that no files were processed; `verify` passes it with the tooling's paths.
+`biome.json` in this folder extends the root's, with two exceptions for the code that came into the
+repository byte for byte:
+- the formatter is off for `detect.ts`, `fx.ts`, `register.tsx` and the test file, whose layout
+  Biome's would change;
+- `noUnusedFunctionParameters` is off for `register.tsx`, whose `($, e, next)` catch handlers
+  leave `$` unused.
+
+Every other file, and every new one, is checked as anywhere else. Reformatting these and deleting
+the file is in `docs/BACKLOG.md`.
 
 ## Read order
 

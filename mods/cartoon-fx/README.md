@@ -26,6 +26,6 @@ In the desktop app: + beside the prompt, then Plugins, then Add marketplace.
 | Command | Does |
 |---|---|
 | `/fx` or `/fx all` | Plays every animation in turn. |
-| `/fx <name>` | Plays one: `plan`, `commit`, `push`, `tests`, `review`, `fixes`, `compact`, `helpers`, `context` or `redzone`. |
+| `/fx <name>` | Plays one: `plan`, `commit`, `push`, `tests`, `review`, `fixes`, `compact`, `helpers`, `context` or `redzone`. Any other name gets this list. |
 | `/fx place bottom` | Plays every effect in the strip above the prompt, from now on and in later sessions. |
-| `/fx place conversation` | Plays effects under the row that set them off again, which is the default. |
+| `/fx place conversation` | Plays effects under the row that set them off again, which is the default. `/fx place middle` does the same. |

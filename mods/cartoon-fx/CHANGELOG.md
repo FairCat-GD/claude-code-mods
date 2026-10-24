@@ -34,7 +34,10 @@ and are not recorded. The entry below lists what it does at this version.
   to the strip above the prompt. The terminal shows a row of coloured glyphs around the words in
   that strip.
 - **`/fx` replays the animations.** `/fx <name>` plays one, and `/fx` or `/fx all` plays them all
-  in turn, each in that run's own output row.
+  in turn, each in that run's own output row. A name it does not have gets the list of the ones
+  it has.
 - **`/fx place bottom` keeps every effect in the strip above the prompt,** and
-  `/fx place conversation` puts them back under their rows. The choice is remembered across
-  sessions.
+  `/fx place conversation` (or `/fx place middle`) puts them back under their rows. The choice is
+  remembered across sessions.
+
+[0.10.1]: https://github.com/FairCat-GD/claude-code-mods/commit/8d06df29d90548a3daed1bea4fd5273cef789b45

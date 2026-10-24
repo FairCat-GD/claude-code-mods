@@ -9,7 +9,8 @@ up, it moves out of this file.
 
 - **Reformat the code with Biome, and delete this folder's `biome.json`.** Left out at the
   import, which copied the code byte for byte. At width 160, Biome changes 139 lines in
-  `detect.ts`, `fx.ts`, `register.tsx` and the test file. Lint wants the five
+  `detect.ts`, `fx.ts`, `register.tsx` and the test file, the four files whose formatting the
+  folder's `biome.json` turns off. Lint wants the five
   `.catch(($, e, next) => next(e))` handlers to name their unused `$` as `_$`. Nobody using the
   mod sees either change, so it cuts no version.
 
