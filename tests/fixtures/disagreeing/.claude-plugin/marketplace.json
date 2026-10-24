@@ -1,0 +1,9 @@
+{
+  "name": "claude-code-mods",
+  "owner": { "name": "FairCat-GD" },
+  "description": "A fictional marketplace.",
+  "plugins": [
+    { "name": "alpha", "source": "./mods/alpha", "description": "A fictional mod." },
+    { "name": "beta", "source": "./mods/beta", "description": "A fictional mod with no folder." }
+  ]
+}

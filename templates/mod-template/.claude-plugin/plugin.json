@@ -1,0 +1,7 @@
+{
+  "name": "mod-template",
+  "version": "0.1.0",
+  "description": "Where a new mod starts: a slash command that answers with text, its test, and the mod's workflow files.",
+  "author": { "name": "FairCat-GD" },
+  "license": "MIT"
+}

@@ -18,7 +18,10 @@ on a mod goes there.
   owner's review and push approval stand behind it.
 - **Going public.** Left out at the round 1 intake. Making the repository public is the owner's
   call. Before it happens, run hygiene over the whole history once more, and check that the
-  install lines work for an account with no access to the private repository.
+  install lines work for an account with no access to the private repository. `claude plugin
+  validate` already reports what Anthropic's plugin directory would refuse a submission for (its
+  `directory.findings`: a README, a LICENSE and an icon per plugin), which the gate does not
+  judge.
 - **Sharing mods with anyone but the owner.** Left out at the round 1 intake. The install lines for
   other people, and what a private repository asks of them, wait until the repository goes
   public.

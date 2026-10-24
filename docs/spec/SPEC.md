@@ -71,6 +71,10 @@ beside the decision it changes, as an **Amended <date> by the owner** note.
    - The lockfile is committed, and `npm ci` restores it.
    - The tooling's own tests run under `node --test`.
    - No dependency is added before it is used.
+
+   **Amended 2026-10-24 by the owner, in Session 1.** A third exact pin, `@types/node`, joins
+   the two: the tooling's `types` stage cannot type `node:` modules without it. TypeScript is
+   pinned at 6.0.3, because 7.x moves the JS API the import scan parses with under `unstable/`.
 6. **Hygiene is ported from krita-art-mcp with its behaviour unchanged.**
    - **What it checks.** Tracked and untracked files, their paths, and the staged contents are
      checked against hashed private terms. Every commit message on `HEAD` is checked for
@@ -100,6 +104,13 @@ beside the decision it changes, as an **Amended <date> by the owner** note.
    - A mod session runs `verify -- <mod>`. The full run is the gate before any push.
    - A stage that cannot start (no `claude`, no API declarations) fails with a message that names
      the fix.
+
+   **Amended 2026-10-24 by the owner, in Session 1.** `validate` fails on every error and warning
+   but one: "CLAUDE.md at the plugin root is not loaded as project context", which every mod
+   draws from the workflow `CLAUDE.md` decision 3 puts in its folder (CLI 2.1.310). That file
+   is for the sessions that develop the mod, not context it ships. The owner left the choice to
+   the session's advice, which was a named exception rather than moving each plugin down a
+   level or dropping `--strict`.
 8. **Versions belong to mods.**
    - **Where the version lives.** In a mod's `plugin.json` only, which is where Claude Code's
      plugin manager shows it from. Marketplace entries carry no version. A mod with a command may
@@ -300,6 +311,10 @@ The function-hooks API is early access, and it changes between Claude Code relea
   - `owner` `{ "name": "FairCat-GD" }`;
   - `plugins`, one entry per mod in folder-name order, each `{ "name", "source": "./mods/<name>",
     "description" }`. An entry has no version.
+
+  **Amended 2026-10-24 by the owner, in Session 1.** The marketplace also has a top-level
+  `description`. `claude plugin validate --strict` warns without one, and the marketplace stage
+  checks it.
 - **A mod's `CHANGELOG.md`.** It follows the workflow's template. Its newest version entry names
   the version in `plugin.json`.
 - **Stored data.** A mod's `$.store` values persist across the owner's sessions, under a key the

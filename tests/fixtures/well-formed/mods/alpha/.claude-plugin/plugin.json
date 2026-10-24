@@ -1,0 +1,7 @@
+{
+  "name": "alpha",
+  "version": "0.1.0",
+  "description": "A fictional mod that greets.",
+  "author": { "name": "FairCat-GD" },
+  "license": "MIT"
+}

@@ -176,6 +176,167 @@ checkout beside this one (`../krita-art-mcp`), read-only.
   to warnings.
 - **Don't add a dependency before it is used.**
 
+**Done (2026-10-24, no version).**
+- **Decided with the owner at the start:**
+  - **The declarations come from the engine.** `npm run types` starts an interactive `claude`
+    with one `--plugin-dir` per mod and the template. It keeps the owner's live mods out three ways:
+    `CLAUDE_CODE_PLUGIN_DIRS` removed from its env, `--setting-sources project,local`, and
+    `--settings` emptying the variable. The owner types `/exit`, and the script checks every
+    folder. It is the one step a fresh clone needs after `npm ci`.
+  - **`@types/node` is a third exact pin** (SPEC decision 5, amended).
+  - **Stale declarations fail.** A folder's `types` stage fails when the laid declarations'
+    `// Written by Claude Code X` line differs from `claude --version`, naming both and the fix.
+  - **Mid-session, the marketplace gets a top-level `description`** (SPEC §5, amended).
+  - **Mid-session, `validate` allows one warning by name** (SPEC decision 7, amended):
+    "CLAUDE.md at the plugin root is not loaded as project context". The owner asked for the
+    best practice, and the session advised a named exception over moving each plugin down a
+    level or dropping `--strict`.
+- **The toolchain.**
+  - `package.json`: `private`, `"type": "module"`, `engines.node` `>=26`, scripts `verify` and
+    `types`.
+  - Exact pins: `typescript` 6.0.3, `@biomejs/biome` 2.5.15 and `@types/node` 26.6.5;
+    `package-lock.json` committed.
+  - The tooling's `tsconfig.json`: strict, `noEmit`, `erasableSyntaxOnly`,
+    `verbatimModuleSyntax`, `allowImportingTsExtensions`, `nodenext`; `tests/fixtures` excluded.
+  - `biome.json`: spaces, indent 2, width 160, single quotes, double quotes in JSX, semicolons
+    and arrow parens as needed; `jsxRuntime` `transparent` with `h` and `Fragment` as globals;
+    recommended lint rules; `docs`, every `.claude-plugin/types` and the lockfile left out.
+- **`verify`** (`scripts/verify.ts`).
+  - Repo stages: `format`, `lint` (`--error-on-warnings`), `types`, `tooling-tests`
+    (`node --test "tests/*.test.ts"`), `marketplace` and `hygiene`.
+  - Then `validate`, `types`, `tests` and `imports` for each `mods/<name>` and for
+    `mod-template`.
+  - `-- <name>` scopes `format` and `lint` to the tooling plus that folder, and runs that
+    folder's four only. An unknown name exits 2.
+  - Every command runs; a stage that cannot start fails alone with its fix; a summary with each
+    stage's time follows.
+  - The `claude` stages run with `CLAUDE_CODE_PLUGIN_DIRS` removed.
+  - `scripts/repo.ts` holds what the scripts share: the root, the folders, and the
+    declarations' versions and messages.
+- **Hygiene** (`scripts/hygiene.ts`, `scripts/hygiene_terms.txt`).
+  - A port of krita-art-mcp's `hygiene.py`: the same tokens, scans, attribution patterns
+    (assembled from pieces) and messages.
+  - Python's `splitlines` boundaries, so the line numbers agree.
+  - The terms file is krita's, byte for byte: its comment and the seven hashes.
+- **The marketplace stage** (`scripts/marketplace.ts`).
+  - The marketplace file: its name, owner and description, one entry per folder in folder
+    order, names, sources, no versions.
+  - Every `plugin.json` (the template's too) against §5, and its changelog's newest entry.
+  - No tracked path under any `.claude-plugin/types/`.
+  - When a marketplace file exists, the stage also runs `claude plugin validate --strict .`.
+- **The import scan** (`scripts/imports.ts`). Specifiers come from `ts.preProcessFile`.
+  - A relative import must resolve to a file inside the folder.
+  - A bare import must name a module some top-level `declare module` in the folder's laid
+    declarations declares, read with TypeScript's parser.
+- **`validate`** (`scripts/validate.ts`). It prints the readable report, then judges
+  `--json`: every error and warning fails, but the named one.
+  - The report's `directory.findings`, which are checks for submitting to Anthropic's plugin
+    directory, are not judged, as the CLI's own result does not count them.
+- **`npm run types`** (`scripts/types.ts`). It exits 0 and says so when every folder is fresh,
+  and refuses without a terminal.
+- **The template** (`templates/mod-template/`).
+  - `plugin.json` at 0.1.0 with §5's fields, `hooks/hooks.json`, and `hooks/register.ts`.
+    The module registers `/hello` at `session.start` and answers it in its own `command.run`
+    hook.
+  - One test of both, and `tsconfig.json` extending the laid one.
+  - Skeleton `CLAUDE.md`, `CHANGELOG.md`, `README.md`, `docs/BACKLOG.md`, and a handoff saying
+    the next session is the mod's intake.
+- **Fixtures** (`tests/fixtures/`): `well-formed/`, `disagreeing/`, `leaky-mod/`,
+  `declarations/` and a README, all fictional.
+- **Repository files.** `LICENSE` (MIT, FairCat-GD), `README.md`, `CLAUDE.md` (the Commands
+  table, and the declarations paragraph as measured).
+  - **The `.gitignore` fix.** Its `.claude-plugin/types/` line held a slash, so git anchored it to
+    the root and it ignored no mod's declarations. It is now `**/.claude-plugin/types/`.
+- **No marketplace file is committed.** See the marketplace measurements below.
+- **Amendments:**
+  - **`@types/node` added; the marketplace's `description`; `validate`'s named exception.**
+    Amended in the session, with the owner (SPEC decisions 5 and 7, and §5).
+  - **The import scan's passing bare import is `claude-code/testing`, not
+    `claude-code-tools`.** The engine declares two modules, `claude-code` and
+    `claude-code/testing`; `claude-code-tools/` and `claude-code-mcp/` are folders of
+    additions to `claude-code`. A test now shows `claude-code-tools` is refused, and another
+    that a module only the fixture declares passes, so the list is read, not kept. This was the
+    session's own finding, from the laid files.
+  - **Script names chosen:** `scripts/repo.ts` and `scripts/validate.ts` beside the planned
+    four, and `tests/support.ts` for the temp folders.
+- **Measured** (CLI 2.1.296, then 2.1.310 after it updated itself mid-session; desktop 2.1.308):
+  - **The declarations.**
+    - **Where they come from.** No `claude plugin` command writes them. An interactive
+      `claude --plugin-dir <folder>` lays `.claude-plugin/types/` in that folder: on 2.1.296,
+      `claude-code/index.d.ts` (15,990 lines), `claude-code-tools/` (5,471) and
+      `claude-code-mcp/` (10). It also lays a `tsconfig.json` (`typeRoots` `.`, types those
+      three, include `../../hooks`, `../../types` and `../../tests`) and a `.gitignore` of `*`,
+      and writes the mod's own top-level `tsconfig.json` when it has none.
+    - **At 2.1.310** they are 16,981, 5,590 and 109 lines. The MCP file lists the session's
+      connected servers.
+    - **The skill's copy** (2.1.308) is one 22,511-line file, wiped at reboot.
+    - **The guard held.** With the three guards, `~/.claude/mods/cartoon-fx` stayed unchanged
+      through both interactive runs (`ls -la` before and after).
+    - **The trust prompt.** The first interactive run in this checkout asked Claude Code's
+      folder-trust question, which the owner answered.
+  - **The marketplace.**
+    - `claude plugin validate .` at a root reads `.claude-plugin/marketplace.json`.
+    - An empty `plugins` list is a warning, not an error, so `--strict` fails it. So Session 1
+      commits no marketplace file, and "no file and no mods" is consistent.
+    - A missing top-level `description` is a warning too.
+    - validate checks neither that an entry's folder exists nor that it has no version; the
+      marketplace stage does.
+  - **The shell's environment.** It carries `CLAUDE_CODE_PLUGIN_DIRS=~/.claude/mods/cartoon-fx`
+    from the desktop app. A `claude` started from it loads the live mod.
+  - **TypeScript 7.0.2** exposes its JS API only under `unstable/`; 6.0.3 has `preProcessFile`.
+  - **Biome on a scratch copy of cartoon-fx.** These are the lines it would change, removed and
+    added, by width:
+
+    | Width | Removed | Added | Files |
+    |---|---|---|---|
+    | 100 | 111 | 558 | 5 |
+    | 120 | 52 | 226 | 5 |
+    | 160 | 51 | 88 | 4 |
+    | 200 | 94 | 96 | 4 |
+    | 240 | 139 | 106 | 4 |
+    | 282 | 174 | 107 | 4 |
+    | 320 | 213 | 110 | 4 |
+
+    - **At 160,** the changes are in `detect.ts`, `fx.ts`, `register.tsx` and the test file.
+      Biome joins arrow bodies that cartoon-fx breaks after `=>`, splits `+` chains it groups
+      several to a line, and expands short tuple arrays.
+    - **Lint** (recommended, warnings failing): 5 `noUnusedFunctionParameters` in
+      `register.tsx` (lines 236, 251, 265, 283, 301; `.catch(($, e, next) => next(e))`-style
+      handlers), and nothing else.
+    - This is the input to Session 2's *Ask at the start*.
+  - **cartoon-fx at 2.1.310, on a scratch copy** with the template's laid declarations:
+    - `tsc` clean;
+    - the import scan clean;
+    - `validate` counts one warning, no author, which Session 2 fixes;
+    - 12 hooks, 5 gating, all with `.catch`, and 4 state keys;
+    - `claude plugin test`: 28 pass.
+  - **The template at 2.1.310:** `validate` lists 2 hooks, 1 that answers its own command, 0
+    gating, and calls `$.command.register`.
+- **Checked by hand:** the owner answered the trust prompt in the probe's terminal. Nothing else
+  in Session 1 has a hand check.
+- **Falsified,** each stage once on `verify -- mod-template`, copying files aside and back:
+  - **Failed alone at their own stage:**
+    - a mis-indented line (`format`);
+    - `eval('1')` (`lint`);
+    - a tooling type error (`types`);
+    - a template type error (`mod-template: types`);
+    - a wrong expected version (`tooling-tests`);
+    - a wrong expected greeting (`mod-template: tests`);
+    - an unknown `plugin.json` field (`mod-template: validate`, as a warning);
+    - a throwaway word and its hash (`hygiene`, naming only the hash);
+    - a marketplace entry with no folder (`marketplace`; the CLI's validate passed it).
+  - **An import leaving the template's folder** failed `mod-template: imports`, and also
+    `validate` and `tests`: the engine refuses it too, the second layer of invariant 2.
+  - **Missing declarations** made `mod-template: types` and `imports` fail, naming
+    `npm run types`.
+  - **Each new test:** with every assertion in `tests/*.test.ts` flipped, all 40 tooling tests
+    failed; restored, all 40 passed. The template's one test was falsified with its stage.
+- **Numbers.**
+  - `npm run verify`: 10 stages (6 repo, 4 for `mod-template`), all PASS.
+  - Tooling tests: 40 in 6 files (hygiene 8, marketplace 12, imports 7, verify 6, types 3,
+    validate 4).
+  - Template tests: 1.
+
 ---
 
 ## 2: Import cartoon-fx

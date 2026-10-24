@@ -132,13 +132,17 @@ The why for each is in `docs/spec/SPEC.md` §6.
 
 - **It changes between Claude Code releases.**
   - The declarations of the running build are the authority. The engine lays them in
-    `<mod>/.claude-plugin/types/` when it loads a mod from a folder it watches; the plugin-authoring
-    skill writes them beside itself as it loads.
-  - About 14,000 lines: grep them for the name at hand (`'tool.call'`, `Pane: {`).
-  - They are never committed (invariant 5).
+    `<mod>/.claude-plugin/types/` only when an *interactive* session loads the mod from a folder
+    it hot-reloads; no `claude plugin` command, `claude -p` or desktop session writes them.
+    `npm run types` does it for every mod and the template.
+  - They are `claude-code/index.d.ts`, `claude-code-tools/` and `claude-code-mcp/` (additions to
+    `claude-code`, not modules to import), and a `tsconfig.json` each mod's own extends. About
+    22,700 lines at 2.1.310: grep them for the name at hand (`'tool.call'`, `Pane: {`).
+  - They are never committed (invariant 5); the engine writes a `.gitignore` of `*` beside them.
 - **Two builds run here.**
-  - `claude plugin validate` and `claude plugin test` run the `claude` CLI on PATH, 2.1.296 at
-    intake.
+  - `claude plugin validate` and `claude plugin test` run the `claude` CLI on PATH, which
+    updates itself: 2.1.296 at intake, 2.1.310 by Session 1's end. `tsc` types against the
+    declarations that same CLI laid, and verify fails when they are from another build.
   - The desktop app runs its own engine, 2.1.308 at intake.
   - A done-note records the versions its checks ran on.
 - **A hooks module runs in the engine's environment.**
@@ -166,7 +170,20 @@ contents against hashed private terms, and checks commit messages for attributio
 
 | Command | Does |
 |---|---|
-| <filled in by Session 1> | |
+| `npm ci` | Restores the pinned toolchain from `package-lock.json`: TypeScript, Biome and Node's types. |
+| `npm run types` | Starts an interactive `claude` that loads every mod and the template, so the engine lays this CLI build's declarations beside each; type `/exit` once its prompt shows, then it checks each folder. Run it in a terminal after a clone, a CLI update or a new mod. It keeps the owner's live mods out (no `CLAUDE_CODE_PLUGIN_DIRS`, user settings skipped), and says so and exits when every folder is fresh. A first run in a checkout asks Claude Code's folder-trust question. |
+| `npm run verify` | The gate. Repo stages `format`, `lint`, `types`, `tooling-tests`, `marketplace` and `hygiene`, then `validate`, `types`, `tests` and `imports` for each `mods/<name>` and `mod-template`. Every stage runs; a summary follows; exit 1 on any failure. A stage that cannot start names its fix. |
+| `npm run verify -- <name>` | The repo stages, with `format` and `lint` over the tooling and that folder only, then that mod's four stages. `<name>` is a folder under `mods/` or `mod-template`; an unknown one exits 2. |
+| `npx biome format --write <path>` | Applies the formatting `format` checks. `npx biome lint --write <path>` applies lint's safe fixes. |
+| `node --test "tests/*.test.ts"` | The tooling's tests alone. Keep the quotes and the top-level pattern: Node expands it, and it never reaches `tests/fixtures/` or a mod's tests, which run only under `claude plugin test`. |
+| `node scripts/hygiene.ts` | Hygiene alone, for example after a commit to check its message. |
+| `node scripts/validate.ts <folder>` | `claude plugin validate` as the gate judges it: every error and warning fails, but the one a mod's own `CLAUDE.md` draws ("not loaded as project context"). |
+| `node scripts/imports.ts <folder>` | The import scan alone, against the folder's laid declarations. |
+
+`claude` started from a shell inside the desktop app inherits `CLAUDE_CODE_PLUGIN_DIRS`, so it
+loads the owner's live mods; an interactive one would also lay declarations into them. The gate's
+`claude` stages and `npm run types` remove it; anything else run by hand should too
+(`env -u CLAUDE_CODE_PLUGIN_DIRS claude …`).
 
 ## Git
 

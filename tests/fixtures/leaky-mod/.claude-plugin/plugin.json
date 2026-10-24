@@ -1,0 +1,7 @@
+{
+  "name": "leaky-mod",
+  "version": "0.1.0",
+  "description": "A fictional mod that reaches outside itself.",
+  "author": { "name": "FairCat-GD" },
+  "license": "MIT"
+}
