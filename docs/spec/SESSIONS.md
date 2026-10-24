@@ -72,6 +72,11 @@ checkout beside this one (`../krita-art-mcp`), read-only.
 - **The marketplace and the mod checks** (decision 12, invariants 2–5).
   - `.claude-plugin/marketplace.json`: `name` `claude-code-mods`, `owner` `FairCat-GD`, and an
     empty `plugins` list (cartoon-fx joins in Session 2).
+    - **Measure first** whether `claude plugin validate` accepts an empty `plugins` list.
+    - If it does not, Session 1 commits no marketplace file. Its stage is tested against fixtures
+      only, and treats "no marketplace file and no folders under `mods/`" as consistent. Session 2
+      then writes the file with cartoon-fx's entry.
+    - No placeholder entry is ever committed.
   - **The `marketplace` stage:**
     - every folder under `mods/` has exactly one entry, and every entry has its folder;
     - names agree with folders and `plugin.json`, and each source is `./mods/<name>`;
@@ -79,15 +84,20 @@ checkout beside this one (`../krita-art-mcp`), read-only.
     - each mod's `plugin.json` version is named by the newest entry of its `CHANGELOG.md`;
     - each `plugin.json` has the fields of SPEC §5;
     - no tracked path lies under `.claude-plugin/types/`.
-  - **The import scan:** every `import` in a mod's or the template's sources resolves inside that
-    folder, or is `claude-code` or `claude-code/testing`.
+  - **The import scan,** over a mod's or the template's sources:
+    - every relative import resolves inside that folder;
+    - every bare import names a module the engine declares. At intake those were `claude-code`,
+      `claude-code/testing`, `claude-code-tools` and `claude-code-mcp`, plus the contract of each
+      plugin under the mod's `dependencies`.
+    - The scan reads that list from the laid declarations, not from a list kept in the script, so
+      a new build's modules pass without an edit.
   - **Measure** whether `claude plugin validate .` at the root checks the marketplace file. If it
     does, add it to the stage.
-- **The mod template** (decision 4). `templates/mod/` is a minimal working mod:
+- **The mod template** (decision 4). `templates/mod-template/` is a minimal working mod:
   - **The plugin:** a `plugin.json` with every field of SPEC §5, the name `mod-template` and
     version `0.1.0`; `hooks/hooks.json`; and a small hooks module (one fictional slash command
     that answers with text).
-  - **Its gate:** one test of that command, looped over `['terminal', 'desktop']`, and its
+  - **Its gate:** one test of that command, written to SPEC §8's test practices, and its
     `tsconfig.json`.
   - **Its workflow files:** skeletons of `CLAUDE.md`, `CHANGELOG.md` (an empty `[Unreleased]` and
     `[0.1.0]`), `README.md` and `docs/`. The `docs/` skeleton has `BACKLOG.md` and a handoff
@@ -96,7 +106,7 @@ checkout beside this one (`../krita-art-mcp`), read-only.
     `mods/`.
 - **The API declarations for `tsc`.** See *Ask at the start*.
 - **Fixtures.** `tests/fixtures/` holds the fictional inputs the tooling's tests need:
-  - a well-formed mod;
+  - a well-formed mod, which may carry its own `*.test.ts` (`tooling-tests` never collects it);
   - a marketplace that disagrees with its folders;
   - a mod importing from outside itself;
   - a `README.md` saying that fixtures are fictional and that tests never read `docs/`.
@@ -125,7 +135,10 @@ checkout beside this one (`../krita-art-mcp`), read-only.
   - the marketplace stage: a missing entry, an extra entry, a mismatched name, a version in an
     entry, a `plugin.json` missing a field, a changelog that does not name the version, and a
     tracked file under `.claude-plugin/types/`;
-  - the import scan: a relative import that leaves the folder, and one that stays inside;
+  - the import scan: a relative import that leaves the folder, one that stays inside, a bare
+    import of `claude-code-tools` (passes), and a bare import of an unknown module (fails);
+  - `tooling-tests` collects nothing under `tests/fixtures/`, even where a fixture holds a
+    `*.test.ts`;
   - `verify -- <mod>` scoping: a mod's stages run only for the mod named.
 - Each stage falsified once, failing at its own step and nowhere else:
   - a misformatted line, and a lint error;
@@ -141,8 +154,11 @@ checkout beside this one (`../krita-art-mcp`), read-only.
 **Watch for:**
 - **The CLI and the desktop engine are different builds** (2.1.296 and 2.1.308 at intake).
   `validate` and `test` run the CLI on PATH. Record its version in the done-note.
-- **`node --test` with no arguments also finds the mods' `*.test.ts` files.** Point it at `tests/`
-  only. The mods' tests run under `claude plugin test`, in the engine's environment, not in Node.
+- **`node --test` with no arguments finds every `*.test.ts` in the tree.** That includes the mods',
+  the template's and any fixture mod's, which import `claude-code/testing` and fail in Node.
+  - Give it the top level of `tests/` only (a pattern like `tests/*.test.ts`, never
+    `tests/**`).
+  - The mods' tests run under `claude plugin test`, in the engine's environment, not in Node.
 - **Node strips types, and only erasable syntax survives.** No enums, namespaces or parameter
   properties. Relative imports name their `.ts` extension.
 - **A mod's `tsconfig.json` extends `./.claude-plugin/types/tsconfig.json`,** which the engine
@@ -164,7 +180,8 @@ checkout beside this one (`../krita-art-mcp`), read-only.
 
 ## 2: Import cartoon-fx
 
-**Read:** `SPEC.md` §2 (decisions 8–10, 12–14), §4, §5, §6, §8; `CLAUDE.md`; `templates/mod/`.
+**Read:** `SPEC.md` §2 (decisions 8–10, 12–14), §4, §5, §6, §8; `CLAUDE.md`;
+`templates/mod-template/`.
 
 - **The copy** (decision 13).
   - Copy `~/.claude/mods/cartoon-fx/` into `mods/cartoon-fx/` byte for byte. At intake it held
@@ -181,7 +198,8 @@ checkout beside this one (`../krita-art-mcp`), read-only.
 - **`plugin.json`** (decision 12). Add `author` and `license`, and nothing else; the version stays
   `0.10.1`. `validate`'s warnings go from one to none.
 - **The shared files** (decision 10): cartoon-fx's entry in `.claude-plugin/marketplace.json`, and
-  its row in the root `README.md`.
+  its row in the root `README.md`. If Session 1 could not commit an empty marketplace, this session
+  writes the file, with this entry as its first.
 - **The mod's workflow files,** from the template.
   - **`mods/cartoon-fx/CLAUDE.md`:**
     - what the mod is;
@@ -190,6 +208,10 @@ checkout beside this one (`../krita-art-mcp`), read-only.
     - its read order.
   - **`CHANGELOG.md`.** One `[0.10.1]` entry, with the lead paragraph decision 13 describes. Under
     *Added* it lists what the mod does at 0.10.1, written for the person using it.
+    - Its link reference points at this session's import commit, the first that holds the
+      manifest at 0.10.1 (decision 8).
+    - The import commit is not final until committed, so the review commit adds the link. Without
+      a review commit, the next commit adds it.
   - **`README.md`:** what it does, the install lines, and `/fx`.
   - **`docs/BACKLOG.md`**, and **`docs/next-session-prompt.md`** from the between-rounds template.
     The handoff says no round is in progress, and that the next cartoon-fx session is the round 2
@@ -225,7 +247,8 @@ checkout beside this one (`../krita-art-mcp`), read-only.
 - **Don't load the repo copy beside the live one.** No `--plugin-dir` session on `mods/cartoon-fx`
   while the live copy runs under the same name. This session needs no live run.
 - **Session 3 installs from GitHub,** so it needs this session's work pushed. Ask for the push
-  approval at the end, after the review.
+  approval at the end, after the review. If the owner declines, the handoff says so, and names the
+  choice Session 3 then starts with.
 
 ---
 
@@ -236,22 +259,40 @@ checkout beside this one (`../krita-art-mcp`), read-only.
 
 - **The switch to the installed release** (decision 11). The owner is at the keyboard, and every
   step that changes their setup waits for their OK.
-  1. `gh auth status`. A private repository installs only where git holds a credential for
+  1. **Record what the owner has now,** before anything changes. The owner runs `/fx commit` in a
+     current session. The done-note keeps two things:
+     - the take number its row shows (`(take N)`, from `$.store` key `fxTakes`);
+     - where it played: in the conversation, or in the strip above the prompt (the stored
+       `placement`).
+  2. **Measure how `$.store` values are keyed,** from the declarations: by the plugin's name, or by
+     its id, which differs between a folder copy and `cartoon-fx@claude-code-mods`. If they are
+     keyed by id, stop and ask the owner before installing: the stored values would not carry
+     over, and decision 14 needs an amendment.
+  3. `gh auth status`. A private repository installs only where git holds a credential for
      github.com; whether to run `gh auth setup-git` is the owner's call.
-  2. The owner installs cartoon-fx at user scope:
+  4. The owner installs cartoon-fx at user scope:
      `claude plugin install cartoon-fx --marketplace FairCat-GD/claude-code-mods`.
-  3. With the owner's OK, remove the `CLAUDE_CODE_PLUGIN_DIRS` entry that names
-     `~/.claude/mods/cartoon-fx` from `~/.claude/settings.json`, so that one copy loads. Show the
-     exact edit first.
-  4. **Checked by hand.** The owner starts a new session, in the desktop app and in a terminal,
+  5. **Remove the old entry.** With the owner's OK, remove the `CLAUDE_CODE_PLUGIN_DIRS` entry
+     that names `~/.claude/mods/cartoon-fx` from `~/.claude/settings.json`, so that one copy loads.
+     - Show the exact edit first, and keep the removed line in the done-note, so it can be put
+       back.
+     - Steps 4 and 5 run back to back, before any new session starts, so that no session loads two
+       copies.
+  6. **Checked by hand.** The owner starts a new session, in the desktop app and in a terminal,
      and runs `/fx all`. Each outcome goes in the done-note:
      - every effect plays;
-     - the placement and the take numbers stored under `cartoon-fx` carried over.
-  5. **Measure** what a `claude --plugin-dir mods/cartoon-fx` terminal session does beside the
-     installed copy: does it load both, replace it, or refuse? That is the unpushed-build path of
-     decision 11. Record the answer in the root `CLAUDE.md`, in cartoon-fx's `CLAUDE.md` and in
-     the done-note.
-  6. `~/.claude/mods/cartoon-fx` stays. The done-note says the owner may remove it.
+     - it plays where step 1's did, and its take number follows step 1's.
+
+     If the stored values did not carry over, stop. The owner chooses: set the placement again with
+     `/fx place`, or put the removed line back and uninstall.
+  7. **Measure what the installed copy holds.** List the install path that `claude plugin list`
+     shows, and record which of the mod's files it holds. Correct SPEC §4's "How a mod reaches the
+     owner" by amendment if it differs.
+  8. **Measure the unpushed-build path** of decision 11. What does a
+     `claude --plugin-dir mods/cartoon-fx` terminal session do beside the installed copy: load
+     both, replace it, or refuse? Record the answer in the root `CLAUDE.md`, in cartoon-fx's
+     `CLAUDE.md` and in the done-note.
+  9. `~/.claude/mods/cartoon-fx` stays. The done-note says the owner may remove it.
 - **The as-built docs.**
   - **`mods/cartoon-fx/docs/ARCHITECTURE.md`**, from the template:
     - the overview, and each hook and what it reacts to;
@@ -269,12 +310,16 @@ checkout beside this one (`../krita-art-mcp`), read-only.
     *Deferred*, and what nobody checked under *Not yet checked by hand*.
   - The mod's `CLAUDE.md` gets the ARCHITECTURE read paragraph, and the README stays true.
 - **No code changes, and no version.** cartoon-fx stays at 0.10.1.
-- **Ask at the start of 3:** the owner pastes the note from cartoon-fx's original chat. Without
-  one, the docs come from the code alone, and the done-note says so.
+- **Ask at the start of 3:**
+  - **The note.** The owner pastes the note from cartoon-fx's original chat. Without one, the docs
+    come from the code alone, and the done-note says so.
+  - **If Session 2's work is not on `origin/main`,** the switch cannot run. The owner chooses: push
+    now, or run the docs half alone and move the switch to a session inserted after it. Either way
+    the choice is logged as an amendment.
 
 **Gates:**
 - `npm run verify` green, with cartoon-fx's counts unmoved.
-- The hand checks of step 4, recorded.
+- The hand checks of step 6, recorded, against the values recorded in step 1.
 
 **Watch for:**
 - **`~/.claude/settings.json` belongs to the owner.** Change only the one entry, and only after

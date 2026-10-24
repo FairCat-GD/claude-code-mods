@@ -9,8 +9,9 @@ mods from. It is run by one developer, on macOS, in Claude Code's desktop app an
 Machine identifiers keep their spelling, because installs and stored data live under them:
 - the marketplace `claude-code-mods` (installs are `<mod>@claude-code-mods`) and the repository
   `FairCat-GD/claude-code-mods`;
-- each mod's name: its folder, its `plugin.json` `name`, the key its `$.state` and `$.store` values
-  live under, and its slash commands.
+- each mod's name: its folder, its `plugin.json` `name`, its install id and its slash commands. A
+  rename very likely loses its stored `$.store` values too, though how they are keyed is not yet
+  measured (`docs/spec/SPEC.md` decision 14).
 
 **Read `docs/spec/SPEC.md` before changing code.** `docs/DEVELOPMENT-WORKFLOW.md` is the
 session-based workflow this repo follows, at two levels. `docs/BACKLOG.md` lists what has been
@@ -143,9 +144,8 @@ The why for each is in `docs/spec/SPEC.md` §6.
 - **A hooks module runs in the engine's environment.**
   - There is no DOM, no Node and no `import()`; it reaches everything outside itself through `$`.
   - JSX compiles against the global `h`, and elements come from `$.ui.resolve(e)`.
-- **A mod's tests run under `claude plugin test`, not Node.**
-  - They import their kit from `claude-code/testing`.
-  - A UI test names its surface, looping over `['terminal', 'desktop']`.
+- **A mod's tests run under `claude plugin test`, not Node.** The practices every mod follows,
+  its tests included, are in `docs/spec/SPEC.md` §8.
 
 ## This repository will be public: nothing private goes in
 

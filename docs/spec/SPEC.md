@@ -59,7 +59,9 @@ beside the decision it changes, as an **Amended <date> by the owner** note.
      handoff and writes that level's files. Decision 10 gives the one exception.
 4. **The layout** is §4's.
    - `mods/<name>/` is the whole plugin, plus its workflow files.
-   - `templates/mod/` is where a new mod starts. The gate checks it like a mod, so it never rots.
+   - `templates/mod-template/` is where a new mod starts. The gate checks it like a mod, so it
+     never rots. Its folder and its `plugin.json` name are both `mod-template`, so the template
+     follows the same naming rule as every mod.
 5. **The tooling is TypeScript on Node 26.**
    - Node runs the `.ts` files directly by stripping their types, so there is no build step and
      no `tsx`.
@@ -85,10 +87,11 @@ beside the decision it changes, as an **Amended <date> by the owner** note.
    - **Repo stages:**
      - `format` and `lint` (Biome), over the tooling and over the folders being verified;
      - `types` (`tsc`) for the tooling;
-     - `tooling-tests` (`node --test`, over `tests/` only);
+     - `tooling-tests` (`node --test`, over the top level of `tests/` only, so it never collects
+       a fixture mod's `*.test.ts` under `tests/fixtures/`);
      - `marketplace`, invariants 3 and 4;
      - `hygiene`, over the whole tree.
-   - **Per-mod stages,** for each folder under `mods/` and for `templates/mod/`:
+   - **Per-mod stages,** for each folder under `mods/` and for `templates/mod-template/`:
      - `validate` (`claude plugin validate`, failing on any error or warning);
      - `types` (`tsc -p <mod>`);
      - `tests` (`claude plugin test <mod>`);
@@ -105,6 +108,11 @@ beside the decision it changes, as an **Amended <date> by the owner** note.
      for behaviour, a fix bump for fixes, none for what no user sees.
    - **The changelog.** Each mod keeps its own `CHANGELOG.md`, from the workflow's template, with
      link references to this repository's commits and tags once the remote exists.
+     - A version's link points at the commit that first put that version in the mod's
+       `plugin.json` in this repository. For cartoon-fx's 0.10.1, that is the import commit.
+     - A commit cannot name its own sha, so the session's review commit adds the link. If there is
+       no review commit, the next commit adds it.
+     - The push note's amend changes only the last commit, which is never the one linked.
    - **The repo level** cuts no version and keeps no changelog, because no mod's user sees the
      tooling.
 9. **Commits and tags.**
@@ -157,10 +165,14 @@ beside the decision it changes, as an **Amended <date> by the owner** note.
 14. **Machine identifiers, never renamed:**
     - the marketplace `claude-code-mods` (installs are `<mod>@claude-code-mods`);
     - the repository `FairCat-GD/claude-code-mods`;
-    - each mod's name: its folder, its `plugin.json` `name`, the key its `$.state` and `$.store`
-      values live under, and its slash commands. For cartoon-fx that is `cartoon-fx` and `/fx`;
-      its `$.store` holds the owner's placement and take numbers. A rename loses stored data and
-      breaks installs.
+    - each mod's name: its folder, its `plugin.json` `name`, its install id, its settings key, and
+      its slash commands. For cartoon-fx that is `cartoon-fx` and `/fx`. A rename breaks installs.
+    - **The `$.store` key is not yet measured.** A mod's `$.store` values (cartoon-fx's are the
+      owner's `placement` and `fxTakes`) live under a key the engine derives from the plugin. That
+      key is either its name or its id, and the id differs between a folder copy and
+      `cartoon-fx@claude-code-mods`.
+      - Session 3 measures which, before the switch. A rename very likely loses stored data
+        either way.
 15. **Round 1 has four sessions** (`SESSIONS.md`):
     1. the scaffold;
     2. the cartoon-fx import;
@@ -206,7 +218,7 @@ claude-code-mods/
 ├── biome.json, tsconfig.json         format, lint and type settings
 ├── scripts/                          verify, hygiene, the marketplace and import checks
 ├── tests/                            the tooling's tests; tests/fixtures/ is fictional
-├── templates/mod/                    where a new mod starts; checked by the gate
+├── templates/mod-template/           where a new mod starts; checked by the gate
 ├── docs/                             the repo level's workflow files
 │   ├── DEVELOPMENT-WORKFLOW.md       the one copy
 │   ├── spec/                         the repo level's round in progress
@@ -257,8 +269,9 @@ A mod is a Claude Code plugin of function hooks.
 3. The owner installs a mod from it, and Claude Code keeps the installed copy in its own plugin
    cache. That copy runs in every desktop and terminal session the owner starts, until
    `claude plugin update`.
-4. The installed copy includes the mod's whole folder, its docs among them. A mod keeps nothing
-   there that it would not publish.
+4. **What the installed copy holds of the mod's folder is not yet measured.** It may be every file,
+   docs and handoffs included. Session 3 lists it and corrects this paragraph by amendment. Until
+   then, a mod keeps nothing in its folder that it would not publish.
 
 ### The plugin API
 
@@ -289,9 +302,9 @@ The function-hooks API is early access, and it changes between Claude Code relea
     "description" }`. An entry has no version.
 - **A mod's `CHANGELOG.md`.** It follows the workflow's template. Its newest version entry names
   the version in `plugin.json`.
-- **Stored data.** A mod's `$.store` values persist across the owner's sessions, under its name.
-  They are the owner's data. A change to a stored value's shape still reads the old shape, which
-  makes it forward-only.
+- **Stored data.** A mod's `$.store` values persist across the owner's sessions, under a key the
+  engine derives from the plugin (decision 14). They are the owner's data. A change to a stored
+  value's shape still reads the old shape, which makes it forward-only.
 
 ## 6. Invariants
 
@@ -363,6 +376,9 @@ it.
 These are the general practices of the request, binding on every mod whatever it does.
 `docs/USER-GUIDE.md` and `docs/MOD-KICKOFF.md` carry them into each new mod's intake (Session 4).
 
+This section is their one home while round 1 runs. `CLAUDE.md` and the session blocks point here,
+rather than restating them. Session 4 then moves them into `CLAUDE.md`, which becomes their home.
+
 1. **The full workflow, at the mod level** (decision 3). The mod's `CLAUDE.md` holds its own
    rules and commands, and its `docs/` hold its rounds.
 2. **The folder of §4, the manifest of §5, and the invariants of §6.**
@@ -390,7 +406,7 @@ These are the general practices of the request, binding on every mod whatever it
   - its `validate` reports no warnings, its 28 tests pass, and `tsc` is clean;
   - the owner runs it from the installed release, checked by hand;
   - the `CLAUDE_CODE_PLUGIN_DIRS` entry is gone.
-- `templates/mod/` passes the per-mod stages.
+- `templates/mod-template/` passes the per-mod stages.
 - **The docs, as built:**
   - at the root: `ARCHITECTURE.md` with its baseline, `USER-GUIDE.md`, `MOD-KICKOFF.md` and the
     README;

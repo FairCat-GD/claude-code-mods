@@ -13,7 +13,7 @@ on a mod goes there.
 - **New mods.** Left out at the round 1 intake. Each new mod starts with its own intake in
   `mods/<name>/`, once round 1 has built the template and `docs/MOD-KICKOFF.md`.
 - **A script that starts a new mod from the template.** Left out at the round 1 intake. Copying
-  `templates/mod/` and renaming it is short enough until a second mod shows what varies.
+  `templates/mod-template/` and renaming it is short enough until a second mod shows what varies.
 - **CI.** Left out at the round 1 intake. The workflow holds the gate in the session, and the
   owner's review and push approval stand behind it.
 - **Going public.** Left out at the round 1 intake. Making the repository public is the owner's

@@ -4,7 +4,7 @@ do Session 1 of docs/spec/SESSIONS.md: the scaffold. Session 1 has six parts:
 - `npm run verify`, with its repo stages and per-mod stages, and `verify -- <mod>`;
 - hygiene, ported from krita-art-mcp with its tests;
 - the marketplace file, the marketplace stage and the import scan;
-- `templates/mod/`, checked by the gate;
+- `templates/mod-template/`, checked by the gate;
 - `LICENSE`, `README.md`, `tests/fixtures/`, and the Commands table in `CLAUDE.md`.
 
 Before planning, measure how the API declarations reach a fresh checkout for `tsc`, then ask the
@@ -13,16 +13,30 @@ owner (the block's *Ask at the start*). No release: repo-level sessions cut no v
 ## State you need that is not in the specs
 
 - **Round 1 is the repository setup.** Session 0, the intake, is done. Sessions 1–4 remain.
-- **Nothing has been pushed, and there is no remote yet.** At Session 0's close the owner may
-  approve creating the private `FairCat-GD/claude-code-mods` and pushing to it. This line is
-  rewritten before that push.
+- **Everything is pushed.** `origin` is the private GitHub repository
+  `FairCat-GD/claude-code-mods`, created at Session 0's close with the owner's approval.
+  `origin/main` holds everything through `review: the switch records stored values first, and 9
+  smaller`, so `origin/main..HEAD` is empty. List it again before any push.
 - **What exists is documents only:**
   - `docs/spec/SPEC.md` and `docs/spec/SESSIONS.md`; there is no `PDD.md` (decision 2);
   - `CLAUDE.md`, `docs/DEVELOPMENT-WORKFLOW.md`, `docs/BACKLOG.md` and `.gitignore`.
 
   There is no `package.json` and no code.
-- **What the spec said that turned out wrong or harder:** nothing yet. One thing is open: how
-  `tsc` gets the API declarations in a checkout that no engine has loaded.
+- **What the spec said that turned out wrong or harder:** nothing yet. Two things are open for
+  this session to measure:
+  - how `tsc` gets the API declarations in a checkout that no engine has loaded;
+  - whether `claude plugin validate` accepts a marketplace with an empty `plugins` list. If it
+    does not, this session commits no marketplace file (see the block).
+- **The intake's review** (`/code-review high`) found ten gaps, all fixed in the plan before this
+  session:
+  - the template's folder is now `templates/mod-template/`, so its name follows the mod rule;
+  - `tooling-tests` takes the top level of `tests/` only;
+  - the import scan allows every module the engine declares, read from the declarations;
+  - the empty marketplace is measured first;
+  - changelog links are added by the review commit;
+  - Session 3 records the owner's stored values before switching, measures how `$.store` is
+    keyed, and has a fallback if Session 2 is not pushed;
+  - SPEC §8 is the one home of the mod practices.
 - **Decisions written down nowhere else:**
   - **The hygiene term hashes.** These are krita-art-mcp's seven, unchanged. Each is the SHA-256 of
     a lowercase term's UTF-8 bytes, and they go into `scripts/hygiene_terms.txt`. The terms
@@ -85,7 +99,8 @@ owner (the block's *Ask at the start*). No release: repo-level sessions cut no v
     nothing under `~/.claude/dev-mods/`.
   - **Nothing private in any file or commit message** (`CLAUDE.md`).
 - **Session 1's own traps** are in its block:
-  - `node --test` must not reach the mods' tests;
+  - `node --test` must not reach the mods', the template's or the fixtures' tests;
+  - the import scan reads the engine's module list from the declarations;
   - only erasable TypeScript runs under Node;
   - a mod's `tsconfig.json` extends an engine-written file;
   - hygiene must not flag itself;
