@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 
 import { cliVersion, declarationsProblem, laidVersion } from '../scripts/repo.ts'
-import { launchCommand } from '../scripts/types.ts'
+import { launchCommand, outcome } from '../scripts/types.ts'
 import { temporaryFolder } from './support.ts'
 
 const lay = (folder: string, firstLine: string) => {
@@ -47,4 +47,11 @@ test('missing or stale declarations name the fix', t => {
   )
   lay(folder, '// Written by Claude Code 2.1.296.')
   assert.equal(declarationsProblem(folder, 'mods/alpha', '2.1.296'), undefined)
+})
+
+test('a CLI that updated itself during the session asks for another run', () => {
+  assert.deepEqual(outcome('2.1.296', '2.1.296', []), { lines: ['types: declarations laid from Claude Code 2.1.296'], ok: true })
+  const updated = outcome('2.1.296', '2.1.310', ["mods/alpha's API declarations are from Claude Code 2.1.296, the CLI is 2.1.310: run `npm run types`"])
+  assert.equal(updated.ok, false)
+  assert.ok(updated.lines.includes('types: the CLI updated itself from 2.1.296 to 2.1.310 during the session; run `npm run types` again'))
 })

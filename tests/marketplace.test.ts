@@ -4,7 +4,7 @@ import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { type TestContext, test } from 'node:test'
 
-import { check, trackedPaths } from '../scripts/marketplace.ts'
+import { check, newestVersion, trackedPaths } from '../scripts/marketplace.ts'
 import { FIXTURES, temporaryFolder } from './support.ts'
 
 const MARKETPLACE = '.claude-plugin/marketplace.json'
@@ -125,4 +125,10 @@ test('a marketplace with no description is reported', t => {
     delete json.description
   })
   assert.deepEqual(check(dir, []), [`${MARKETPLACE}: no description`])
+})
+
+test("a version heading inside a fenced example is not the changelog's newest entry", () => {
+  const changelog = '# Changelog\n\nEach entry looks like:\n\n```markdown\n## [9.9.9] — <date>\n```\n\n## [Unreleased]\n\n## [0.2.0] — 2026-01-02\n'
+  assert.equal(newestVersion(changelog), '0.2.0')
+  assert.equal(newestVersion('~~~\n## [1.0.0]\n~~~\n## [0.3.0]\n'), '0.3.0')
 })

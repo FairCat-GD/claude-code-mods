@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { judge } from '../scripts/validate.ts'
+import { describe, judge } from '../scripts/validate.ts'
 
 const CLAUDE_MD = {
   path: 'root',
@@ -27,4 +27,9 @@ test('an error fails', () => {
 
 test('a report that did not succeed fails, even with nothing listed', () => {
   assert.deepEqual(judge(report([], [], false)), ['validate did not succeed'])
+})
+
+test('the readable report lists the notes, and marks the allowed warning', () => {
+  const lines = describe({ manifest: { notes: [] }, contents: [{ warnings: [CLAUDE_MD] }, { notes: ['./register.ts hooks: session.start'] }] })
+  assert.deepEqual(lines, [`  warning at root: ${CLAUDE_MD.message} (expected)`, '  ./register.ts hooks: session.start'])
 })

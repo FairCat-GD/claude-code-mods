@@ -2,11 +2,11 @@
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { ROOT } from './repo.ts'
+import { isFile, ROOT } from './repo.ts'
 
 export const TERMS_FILE = fileURLToPath(new URL('hygiene_terms.txt', import.meta.url))
 const RUN = /[a-z0-9]+/g
@@ -55,14 +55,6 @@ function* termHits(text: string, terms: Terms): Generator<[number, string]> {
     for (const token of line.match(SUBTOKEN) ?? []) tokens.add(token.toLowerCase())
     const hits = new Set([...tokens].map(digest).filter(hash => terms.has(hash)))
     for (const hash of [...hits].sort()) yield [index + 1, hash]
-  }
-}
-
-const isFile = (path: string) => {
-  try {
-    return statSync(path).isFile()
-  } catch {
-    return false
   }
 }
 

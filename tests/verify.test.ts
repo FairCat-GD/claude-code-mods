@@ -95,3 +95,29 @@ test('tooling-tests collects nothing under tests/fixtures/, even a fixture test 
   assert.match(run.stdout, /top-level test ran/)
   assert.doesNotMatch(run.stdout, /fixture test ran/)
 })
+
+test('any error that stops a stage starting fails that stage alone', () => {
+  const lines: string[] = []
+  const throwing: Stage = {
+    name: 'throwing',
+    commands: () => {
+      throw new Error('Command failed: claude --version')
+    },
+  }
+  assert.equal(
+    main([], [throwing, { name: 'fine', commands: () => [exits(0)] }], line => lines.push(line)),
+    1,
+  )
+  assert.ok(lines.includes('verify: throwing cannot start: Command failed: claude --version'))
+  assert.ok(lines.some(line => /^fine\s+PASS/.test(line)))
+})
+
+test('a directory named claude on PATH is passed over for the CLI further down', t => {
+  const first = join(temporaryFolder(t), 'first')
+  const second = join(temporaryFolder(t), 'second')
+  mkdirSync(join(first, 'claude'), { recursive: true })
+  mkdirSync(second)
+  writeFileSync(join(second, 'claude'), '#!/bin/sh\n', { mode: 0o755 })
+  assert.equal(findClaude(`${first}:${second}`), join(second, 'claude'))
+  assert.throws(() => findClaude(first), SetupError)
+})

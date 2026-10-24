@@ -12,9 +12,9 @@ No release: cartoon-fx stays at 0.10.1 (decision 13).
 ## State you need that is not in the specs
 
 - **Round 1 is the repository setup.** Sessions 0 and 1 are done; Sessions 2–4 remain.
-- **Push status.** `origin/main` holds everything through `review: the switch records stored
-  values first, and 9 smaller`. Session 1's commit and its review commit are local, not pushed.
-  List `origin/main..HEAD` before any push.
+- **Push status.** Everything is pushed: `origin/main` holds everything through `review: types
+  re-reads the CLI after its session, and 9 smaller`, so `origin/main..HEAD` is empty. List it
+  again before any push.
 - **What Session 1 left that Session 2 builds on:**
   - **`npm run verify -- <name>`.** It runs `format`, `lint`, `types`, `tooling-tests`,
     `marketplace` and `hygiene`, then the folder's `validate`, `types`, `tests` and `imports`.
@@ -43,7 +43,8 @@ No release: cartoon-fx stays at 0.10.1 (decision 13).
   - **The declarations come only from an interactive session.**
     - No `claude plugin` command, `claude -p` or desktop session writes them.
     - `npm run types` starts an interactive `claude` loading every folder. Type `/exit` once its
-      prompt shows. Ctrl-C sent from a tool does not end it.
+      prompt shows. Ctrl-C sent from a tool does not end it. It reads `claude --version` again
+      afterwards, and asks for another run when the CLI updated itself meanwhile.
     - It keeps the owner's live mods out. With cartoon-fx under `mods/`, it loads the repo copy
       alone. Its hooks run in that session: read its `session.start` (it reads `$.store`
       `placement`) and decide whether that is acceptable before running it.
@@ -87,7 +88,7 @@ No release: cartoon-fx stays at 0.10.1 (decision 13).
     sets `includeCoAuthoredBy: false` and empty `attribution`.
 - **Baseline** (Session 1's done-note):
   - `npm run verify`: 10 stages, all PASS. With cartoon-fx: 14.
-  - Tooling tests: 40 in 6 files.
+  - Tooling tests: 48 in 6 files.
   - Template tests: 1.
   - cartoon-fx must keep 28 tests in one file.
 - **Not done:** nothing in Session 1's scope.

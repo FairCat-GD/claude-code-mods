@@ -1,6 +1,6 @@
 // Where the repository keeps its mods, and the API declarations the engine lays beside each.
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -8,6 +8,22 @@ export const ROOT = fileURLToPath(new URL('..', import.meta.url))
 export const TEMPLATE = 'templates/mod-template'
 export const DECLARATIONS = '.claude-plugin/types'
 export const TYPES_FIX = 'run `npm run types`'
+
+export type Folder = { name: string; path: string }
+
+export const isFile = (path: string) => {
+  try {
+    return statSync(path).isFile()
+  } catch {
+    return false
+  }
+}
+
+// The owner's live mods never load into a `claude` the tooling starts.
+export const hermeticEnv = (env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv => {
+  const { CLAUDE_CODE_PLUGIN_DIRS: _, ...rest } = env
+  return rest
+}
 
 export const modNames = (root = ROOT): string[] => {
   const mods = join(root, 'mods')
@@ -19,7 +35,7 @@ export const modNames = (root = ROOT): string[] => {
 }
 
 // Every folder the per-mod stages check, by the name `verify -- <name>` takes.
-export const modFolders = (root = ROOT): { name: string; path: string }[] => [
+export const modFolders = (root = ROOT): Folder[] => [
   ...modNames(root).map(name => ({ name, path: `mods/${name}` })),
   ...(existsSync(join(root, TEMPLATE)) ? [{ name: 'mod-template', path: TEMPLATE }] : []),
 ]
@@ -40,3 +56,10 @@ export const declarationsProblem = (folder: string, label: string, cli: string):
   if (laid !== cli) return `${label}'s API declarations are from Claude Code ${laid || 'an unknown build'}, the CLI is ${cli}: ${TYPES_FIX}`
   return undefined
 }
+
+// The folders whose declarations cannot type them against the CLI's build, each with why.
+export const staleFolders = (folders: readonly Folder[], cli: string, root = ROOT) =>
+  folders.flatMap(folder => {
+    const problem = declarationsProblem(join(root, folder.path), folder.path, cli)
+    return problem ? [{ folder, problem }] : []
+  })

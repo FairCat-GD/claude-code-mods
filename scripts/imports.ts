@@ -1,14 +1,16 @@
 // Keeps a mod self-contained: every relative import resolves inside its folder, and every bare
 // import names a module the engine's declarations declare.
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import ts from 'typescript'
 
-import { DECLARATIONS, TYPES_FIX } from './repo.ts'
+import { DECLARATIONS, isFile, TYPES_FIX } from './repo.ts'
 
 const SOURCE = /\.(?:[cm]?[jt]s|[jt]sx)$/
 const CANDIDATES = ['', '.ts', '.tsx', '.d.ts', '.js', '.jsx', '.mjs', '.mts', '/index.ts', '/index.tsx', '/index.d.ts', '/index.js']
+// A JavaScript suffix may name the TypeScript source it compiles from, as bundler resolution allows.
+const SOURCE_OF: Record<string, string[]> = { '.js': ['.ts', '.tsx'], '.jsx': ['.tsx'], '.mjs': ['.mts'], '.cjs': ['.cts'] }
 
 const walk = (dir: string, skip: (path: string) => boolean): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
@@ -29,7 +31,11 @@ export const declaredModules = (declarations: string): Set<string> => {
   return names
 }
 
-const isFile = (path: string) => existsSync(path) && statSync(path).isFile()
+const resolves = (target: string) => {
+  const suffix = Object.keys(SOURCE_OF).find(js => target.endsWith(js))
+  const sources = suffix ? (SOURCE_OF[suffix] ?? []).map(source => target.slice(0, -suffix.length) + source) : []
+  return [...CANDIDATES.map(candidate => target + candidate), ...sources].some(isFile)
+}
 
 export const scanImports = (folder: string, declared: ReadonlySet<string>): string[] => {
   const root = resolve(folder)
@@ -39,14 +45,20 @@ export const scanImports = (folder: string, declared: ReadonlySet<string>): stri
   for (const file of files.sort()) {
     const text = readFileSync(file, 'utf8')
     const info = ts.preProcessFile(text, true, true)
-    for (const reference of [...info.importedFiles, ...info.referencedFiles]) {
+    // `/// <reference path>` always names a file, and `/// <reference types>` always a module.
+    const references = [
+      ...info.importedFiles.map(reference => ({ reference, isPath: reference.fileName.startsWith('.') || isAbsolute(reference.fileName) })),
+      ...info.referencedFiles.map(reference => ({ reference, isPath: true })),
+      ...info.typeReferenceDirectives.map(reference => ({ reference, isPath: false })),
+    ].sort((a, b) => a.reference.pos - b.reference.pos)
+    for (const { reference, isPath } of references) {
       const spec = reference.fileName
       const where = `${relative(root, file)}:${text.slice(0, reference.pos).split('\n').length}`
-      if (spec.startsWith('.') || isAbsolute(spec)) {
+      if (isPath) {
         const target = resolve(dirname(file), spec)
         const inside = relative(root, target)
-        if (inside.startsWith('..') || isAbsolute(inside)) problems.push(`${where}: '${spec}' leaves the mod's folder`)
-        else if (!CANDIDATES.some(suffix => isFile(target + suffix))) problems.push(`${where}: '${spec}' resolves to no file`)
+        if (inside === '..' || inside.startsWith(`..${sep}`) || isAbsolute(inside)) problems.push(`${where}: '${spec}' leaves the mod's folder`)
+        else if (!resolves(target)) problems.push(`${where}: '${spec}' resolves to no file`)
       } else if (!declared.has(spec)) {
         problems.push(`${where}: '${spec}' is no module the engine declares (${[...declared].sort().join(', ')})`)
       }

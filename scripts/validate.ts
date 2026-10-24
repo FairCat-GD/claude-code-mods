@@ -31,16 +31,34 @@ export const judge = (report: unknown): string[] => {
   return problems
 }
 
+// The report as lines to read: what each file hooks and calls, then what it was faulted for.
+export const describe = (report: unknown): string[] => {
+  const files = [(report as { manifest?: unknown })?.manifest, ...(((report as { contents?: unknown[] })?.contents ?? []) as unknown[])]
+  return files.flatMap(file => {
+    const { notes = [], errors = [], warnings = [] } = (file ?? {}) as { notes?: string[]; errors?: Finding[]; warnings?: Finding[] }
+    return [
+      ...notes.map(note => `  ${note}`),
+      ...errors.map(error => `  error at ${error.path}: ${error.message}`),
+      ...warnings.map(warning => `  warning at ${warning.path}: ${warning.message}${isExpected(warning) ? ' (expected)' : ''}`),
+    ]
+  })
+}
+
 if (import.meta.main) {
   const folder = process.argv[2] ?? '.'
-  // The readable report first, then the JSON one, which the stage is judged by.
-  const shown = spawnSync('claude', ['plugin', 'validate', folder], { stdio: 'inherit' })
-  const json = spawnSync('claude', ['plugin', 'validate', '--json', folder], { encoding: 'utf8' })
+  const run = spawnSync('claude', ['plugin', 'validate', '--json', folder], { encoding: 'utf8' })
   let problems: string[]
   try {
-    problems = shown.error || json.error ? [`cannot run claude: ${(shown.error ?? json.error)?.message}`] : judge(JSON.parse(json.stdout))
-  } catch {
-    problems = [`validate printed no JSON report: ${json.stderr.trim() || json.stdout.trim()}`]
+    if (run.error) throw run.error
+    const report: unknown = JSON.parse(run.stdout)
+    for (const line of describe(report)) console.log(line)
+    problems = judge(report)
+  } catch (error) {
+    problems = [
+      run.error
+        ? `cannot run claude: ${run.error.message}`
+        : `validate printed no JSON report: ${run.stderr.trim() || run.stdout.trim() || (error as Error).message}`,
+    ]
   }
   for (const problem of problems) console.log(`validate: ${problem}`)
   console.log(`validate: ${problems.length} problem(s)`)

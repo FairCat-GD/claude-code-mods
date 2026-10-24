@@ -336,6 +336,29 @@ checkout beside this one (`../krita-art-mcp`), read-only.
   - Tooling tests: 40 in 6 files (hygiene 8, marketplace 12, imports 7, verify 6, types 3,
     validate 4).
   - Template tests: 1.
+- **Review (`/code-review high`), 10 findings: 10 fixed and 0 skipped.** The owner chose to fix
+  all.
+  - **`npm run types` read the CLI's version only before its session.** A CLI that updates itself
+    mid-session (as it did in the probe) was missed. It now reads it again afterwards, and asks
+    for another run when it changed.
+  - **A start error other than `SetupError` crashed all of verify,** for example a failing
+    `claude --version`. Now any error that stops a stage starting fails that stage alone.
+  - **The import scan:**
+    - `./x.js` naming `x.ts` now resolves to that source, as bundler resolution allows;
+    - a path starting `..name` inside the folder is no longer taken as leaving it;
+    - `/// <reference types>` is checked as a module, and `/// <reference path>` as a file.
+  - **`validate` runs once per folder.** It prints the readable lines from the same `--json`
+    report it judges, marking the allowed warning.
+  - **`findClaude` passes over a directory named `claude`** on PATH.
+  - **The changelog check skips fenced examples** when it looks for the newest entry.
+  - **One home each** in `scripts/repo.ts` for the env guard (`hermeticEnv`), `isFile`, `Folder`,
+    and the stale-folder list that `npm run types` uses before and after its session.
+  - **Falsified:** each fix was undone alone, and its own test failed, and no other.
+  - **Numbers after the review:**
+    - `npm run verify` 10 stages, all PASS (CLI 2.1.310);
+    - tooling tests 48 (+8: types 4, verify 8, imports 10, validate 5, marketplace 13; hygiene
+      unchanged at 8);
+    - template tests 1.
 
 ---
 

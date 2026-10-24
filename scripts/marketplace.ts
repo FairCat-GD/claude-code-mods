@@ -33,8 +33,19 @@ const readJson = (file: string, problems: string[], label: string): Json | undef
 const isText = (value: unknown) => typeof value === 'string' && value.trim() !== ''
 const ownerName = (value: unknown) => (value && typeof value === 'object' ? (value as Json).name : undefined)
 
-// The newest version a changelog has an entry for, past [Unreleased].
-export const newestVersion = (changelog: string) => /^## \[(\d+\.\d+\.\d+)\]/m.exec(changelog)?.[1]
+// The newest version a changelog has an entry for, past [Unreleased]; a fenced example is no entry.
+export const newestVersion = (changelog: string) => {
+  let fence: string | undefined
+  for (const line of changelog.split('\n')) {
+    const marker = /^\s*(`{3,}|~{3,})/.exec(line)?.[1]
+    if (marker && (fence === undefined || marker.startsWith(fence))) fence = fence === undefined ? marker : undefined
+    else if (fence === undefined) {
+      const version = /^## \[(\d+\.\d+\.\d+)\]/.exec(line)?.[1]
+      if (version) return version
+    }
+  }
+  return undefined
+}
 
 const checkManifest = (root: string, folder: string): string[] => {
   const problems: string[] = []

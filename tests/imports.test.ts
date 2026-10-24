@@ -53,3 +53,30 @@ test('claude-code-tools is a folder of additions to claude-code, not a module to
     "hooks/register.ts:1: 'claude-code-tools' is no module the engine declares (claude-code, claude-code/testing, fictional-noun)",
   ])
 })
+
+test('a folder inside whose name starts with two dots stays inside', t => {
+  const dir = temporaryFolder(t)
+  mkdirSync(join(dir, 'hooks'))
+  mkdirSync(join(dir, '..shared'))
+  writeFileSync(join(dir, '..shared/util.ts'), "export const util = 'inside'\n")
+  writeFileSync(join(dir, 'hooks/register.ts'), "export { util } from '../..shared/util'\n")
+  assert.deepEqual(scanImports(dir, DECLARED), [])
+})
+
+test('a .js specifier resolves to the TypeScript source it names', t => {
+  const dir = temporaryFolder(t)
+  mkdirSync(join(dir, 'hooks'))
+  writeFileSync(join(dir, 'hooks/fx.ts'), "export const fx = 'drawn'\n")
+  writeFileSync(join(dir, 'hooks/register.ts'), "export { fx } from './fx.js'\nexport { gone } from './gone.js'\n")
+  assert.deepEqual(scanImports(dir, DECLARED), ["hooks/register.ts:2: './gone.js' resolves to no file"])
+})
+
+test('reference directives are scanned: a path names a file, a types reference a module', t => {
+  const dir = temporaryFolder(t)
+  mkdirSync(join(dir, 'hooks'))
+  writeFileSync(join(dir, 'hooks/local.d.ts'), 'export {}\n')
+  writeFileSync(join(dir, 'hooks/register.ts'), '/// <reference path="local.d.ts" />\n/// <reference types="node" />\nexport const register = () => {}\n')
+  assert.deepEqual(scanImports(dir, DECLARED), [
+    "hooks/register.ts:2: 'node' is no module the engine declares (claude-code, claude-code/testing, fictional-noun)",
+  ])
+})

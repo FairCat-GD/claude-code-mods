@@ -7,13 +7,12 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { accessSync, constants, existsSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 
-import { cliVersion, declarationsProblem, modFolders, ROOT } from './repo.ts'
+import { cliVersion, declarationsProblem, type Folder, hermeticEnv, isFile, modFolders, ROOT } from './repo.ts'
 
 export class SetupError extends Error {}
 
 export type Command = { argv: string[]; env?: NodeJS.ProcessEnv }
 export type Stage = { name: string; commands: () => Command[] }
-type Folder = { name: string; path: string }
 
 export const TOOLING_TESTS = ['--test', 'tests/*.test.ts']
 const TOOLING_PATHS = ['scripts', 'tests', '.claude-plugin', 'package.json', 'tsconfig.json', 'biome.json']
@@ -27,6 +26,7 @@ const bin = (name: string) => {
 export const findClaude = (path = process.env.PATH ?? '') => {
   for (const dir of path.split(delimiter).filter(Boolean)) {
     const file = join(dir, 'claude')
+    if (!isFile(file)) continue
     try {
       accessSync(file, constants.X_OK)
       return file
@@ -35,19 +35,13 @@ export const findClaude = (path = process.env.PATH ?? '') => {
   throw new SetupError("claude not found on PATH: install Claude Code's CLI, which runs `claude plugin validate` and `claude plugin test`")
 }
 
-// The owner's live mods never load into a stage's run.
-const hermetic = (): NodeJS.ProcessEnv => {
-  const { CLAUDE_CODE_PLUGIN_DIRS: _, ...env } = process.env
-  return env
-}
-
 let cli: string | undefined
 const claudeVersion = () => {
-  cli ??= cliVersion(execFileSync(findClaude(), ['--version'], { encoding: 'utf8', env: hermetic() }))
+  cli ??= cliVersion(execFileSync(findClaude(), ['--version'], { encoding: 'utf8', env: hermeticEnv(), timeout: 60_000 }))
   return cli
 }
 
-const claude = (...args: string[]): Command => ({ argv: [findClaude(), ...args], env: hermetic() })
+const claude = (...args: string[]): Command => ({ argv: [findClaude(), ...args], env: hermeticEnv() })
 const node = (...args: string[]): Command => ({ argv: [process.execPath, ...args] })
 
 const repoStages = (scope: Folder[] | undefined): Stage[] => {
@@ -73,7 +67,7 @@ const folderStages = ({ name, path }: Folder): Stage[] => [
     name: `${name}: validate`,
     commands: () => {
       findClaude()
-      return [{ ...node('scripts/validate.ts', path), env: hermetic() }]
+      return [{ ...node('scripts/validate.ts', path), env: hermeticEnv() }]
     },
   },
   {
@@ -110,8 +104,8 @@ export const runStage = (stage: Stage, log: (line: string) => void = console.log
   try {
     commands = stage.commands()
   } catch (error) {
-    if (!(error instanceof SetupError)) throw error
-    log(`verify: ${stage.name} cannot start: ${error.message}`)
+    // Whatever stops a stage starting fails that stage alone; the others still run.
+    log(`verify: ${stage.name} cannot start: ${(error as Error).message}`)
     return [false, (performance.now() - start) / 1000]
   }
   // Every command runs, even after one fails, so each reports its own errors.
