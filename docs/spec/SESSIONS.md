@@ -434,6 +434,84 @@ checkout beside this one (`../krita-art-mcp`), read-only.
   approval at the end, after the review. If the owner declines, the handoff says so, and names the
   choice Session 3 then starts with.
 
+**Done (2026-10-25, no version; cartoon-fx stays 0.10.1).**
+- **Decided with the owner at the start:**
+  - **Formatting and lint: the mod's own `biome.json`.** The inputs were measured again,
+    read-only, on the live source (Biome 2.5.15, width 160). `format` would change 139 lines (51
+    removed, 88 added) in `detect.ts`, `fx.ts`, `register.tsx` and the test file. `lint` flags 5
+    `noUnusedFunctionParameters` in `register.tsx`, and nothing else. The owner chose a nested
+    `mods/cartoon-fx/biome.json` (`root: false`, `extends: "//"`) that turns off the formatter and
+    that one rule for the folder, over a root `overrides` entry or reformatting the mod. The config
+    lives with the mod, so its round 2 can reformat and delete it.
+  - **Type errors: none.** `tsc` is clean at 2.1.310, so no 0.10.2.
+  - **Two commits, one level each.** The import commit holds the mod, the marketplace file and the
+    README table. The done-note and the handoff follow in a `docs:` commit.
+  - **The README's table of mods drops its Version column**, because decision 8 puts a mod's
+    version in `plugin.json` alone, and nothing checks the column.
+  - **`npm run types` with cartoon-fx is acceptable.** Its `session.start` sets the session's
+    `shown` to null, reads the stored `placement` and registers `/fx`. `$.store` is written only
+    when `/fx` runs, and the owner types only `/exit` there.
+- **The copy.** `rsync -a --exclude '.claude-plugin/types'` from `~/.claude/mods/cartoon-fx/`:
+  - the eight files of the block, with SHA-256 equal to the source's;
+  - hygiene ran over the copy first (0 problems);
+  - the source folder was never written.
+- **`plugin.json`.** Two lines, `author` and `license`, after `description`; still `0.10.1`.
+- **The shared files.**
+  - `.claude-plugin/marketplace.json`, new, holds:
+    - `name`, `owner` and a top-level `description`;
+    - cartoon-fx as its first entry, with its `plugin.json` description.
+  - The README's table of mods has cartoon-fx's row.
+- **cartoon-fx's workflow files,** from the template:
+  - `CLAUDE.md`:
+    - what it is;
+    - its machine identifiers: `cartoon-fx`, `/fx`, the `$.state` keys `shown`, `isYellow`,
+      `isRed` and `placement`, and the `$.store` keys `placement` and `fxTakes`;
+    - why it has its own `biome.json`;
+    - the read order and the commands.
+  - `CHANGELOG.md`: one `[0.10.1]` entry, with decision 13's lead paragraph and twelve *Added*
+    lines; the link waits for the review commit.
+  - `README.md`: what it does, the install lines, and a `/fx` table.
+  - `docs/BACKLOG.md`: the Biome reformat, under *Deferred*.
+  - `docs/next-session-prompt.md`, between rounds: the next cartoon-fx session is its round 2
+    intake, after repo Session 3.
+- **Amendments:**
+  - **The README's Version column is gone,** and the table edit rode in the mod commit with the
+    first row. Amended at plan time, with the owner.
+  - **Two commits, not one.** `CLAUDE.md`'s one-level-per-commit rule and the workflow's
+    one-commit-per-session disagreed for a repo session that writes a mod. The owner chose the
+    level rule. Amended at plan time, with the owner.
+  - **The folder's `biome.json` is a new file** beyond the workflow files. `diff -r` lists it
+    with them.
+- **Measured** (CLI 2.1.310 throughout; desktop 2.1.308):
+  - **Biome's nested config.**
+    - It works in 2.5.15: `lint` checks 9 files in the folder, and `format` skips them.
+    - `npx biome format mods/cartoon-fx` alone exits 1 ("no files were processed"). The gate
+      always passes the tooling's paths beside it, so its `format` passes. The mod's `CLAUDE.md`
+      says so.
+  - **`validate`.**
+    - No warning but the allowed `CLAUDE.md` one; it does not flag `biome.json`.
+    - 12 hooks, 5 gating (all with `.catch`) and 4 state keys, the same as at intake.
+  - **`npm run types`** laid 2.1.310's declarations in `mods/cartoon-fx` alone (the template's
+    were fresh), as soon as its session loaded. The live folder gained no declarations (`ls -la`
+    of its `.claude-plugin`).
+  - **`diff -r` against the source** shows:
+    - the two `plugin.json` lines;
+    - "Only in" for `CHANGELOG.md`, `CLAUDE.md`, `README.md`, `biome.json`, `docs` and the
+      git-ignored `.claude-plugin/types`.
+- **Checked by hand:** nothing. The declarations were laid as the `npm run types` session loaded,
+  and the gate ran while that session still waited for the owner's `/exit`.
+- **Falsified,** copying files aside and back:
+  - **The marketplace stage, against the real entry.** With `plugins` emptied, `marketplace` alone
+    failed ("mods/cartoon-fx has no entry"); restored with `cmp`.
+  - **The folder's exception is no wider than meant.** `eval('1')` appended to `register.tsx`
+    failed `lint` (`noGlobalEval`). It also failed `cartoon-fx: tests`, since the engine refuses
+    `eval` at module load. Restored, the seven code files hash equal to the source again.
+- **Numbers.**
+  - `npm run verify`: 14 stages (6 repo, 4 for cartoon-fx, 4 for `mod-template`), all PASS (+4).
+  - Tooling tests: 48 (±0).
+  - cartoon-fx: 28 tests in one file.
+  - Template: 1 test (±0).
+
 ---
 
 ## 3: cartoon-fx as an installed release, and its as-built docs
