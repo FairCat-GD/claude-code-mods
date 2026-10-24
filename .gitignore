@@ -1,0 +1,9 @@
+node_modules/
+*.log
+
+# Written by the engine for the build that loads a mod; never committed.
+.claude-plugin/types/
+
+.DS_Store
+
+.claude/settings.local.json
