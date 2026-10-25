@@ -44,9 +44,10 @@ at 0.10.1, in the desktop app and in a terminal.
   one "×N helpers!". Covered by their tests.
 - **`/fx place bottom` across sessions** (0.10.1): set in one session, it applies in another open
   one from its next effect. Covered by the two placement tests.
-- **The update path** (0.10.1): after the next push, `claude plugin update cartoon-fx` brings the
-  installed copy to the pushed commit, and a new session runs it. The bare name resolves to the
-  install (`claude plugin details cartoon-fx`); the update itself has not run.
+- **An update to a new version** (0.10.1): after the next version is pushed,
+  `claude plugin update cartoon-fx` installs it in a new `<version>/` folder, and a new session
+  runs it, with the stored values kept, since the id is unchanged. With no new version it was
+  checked: the marketplace clone refreshed and the install stayed as it was.
 
 ## Directions
 

@@ -206,14 +206,17 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
   `cartoon-fx@claude-code-mods`, at user scope. The installed copy is the mod's tracked files at
   the pushed commit, all 14 of them, byte for byte. That includes `CLAUDE.md`, `docs/` and the
   tests. It lives in `~/.claude/plugins/cache/claude-code-mods/cartoon-fx/<version>/`, and changes
-  only on `claude plugin update cartoon-fx`.
+  only when `claude plugin update cartoon-fx` finds a new version.
 - **An unpushed build.** A `claude --plugin-dir mods/cartoon-fx` session replaces the installed
   copy for that session (the engine logs `Plugin "cartoon-fx" from --plugin-dir overrides
   installed version`; measured interactive and headless, CLI 2.1.310). It runs as
   `cartoon-fx@inline`, against its own store, so trying a build never touches the release's
   stored values.
-- **Updating.** `claude plugin update cartoon-fx` picks up pushed work; the bare name resolves to
-  `cartoon-fx@claude-code-mods` (`claude plugin details cartoon-fx`). A new session loads it.
+- **Updating.** `claude plugin update cartoon-fx` refreshes the marketplace clone, then installs
+  the pushed `plugin.json` version only if it differs from the installed one. A push that keeps
+  the version, docs alone or a fix without a bump, never reaches the installed copy; it reports
+  "already at the latest version". So every change meant for the owner cuts a version. The bare
+  name resolves to `cartoon-fx@claude-code-mods`. A new session loads the update.
 
 ## Deliberate decisions
 

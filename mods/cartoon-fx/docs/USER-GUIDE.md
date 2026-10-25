@@ -76,7 +76,9 @@ The strip steps aside while Claude Code shows a survey there.
 - **Install once,** at user scope: `claude plugin install cartoon-fx --marketplace
   FairCat-GD/claude-code-mods`. In the desktop app it's + beside the prompt, then Plugins, then
   Add marketplace.
-- **Update** with `claude plugin update cartoon-fx`, then start a new session.
+- **Update** with `claude plugin update cartoon-fx`, then start a new session. It installs a new
+  version when one has been pushed; otherwise it says the install is already at the latest
+  version and changes nothing.
 - **Try an unpushed build** with `claude --plugin-dir <repo>/mods/cartoon-fx`, run as a shell
   command in a terminal. For that session it replaces the installed copy. It keeps its own take
   number and placement, so trying a build leaves the installed one's alone.

@@ -23,7 +23,8 @@ the owner's request down verbatim, ask what it leaves open, and plan the round i
 - **Open items live in `docs/BACKLOG.md`:**
   - *Deferred:* the Biome reformat, detection by printed output, the `drawnRows` clear, and the
     casts;
-  - *Not yet checked by hand:* the real triggers on the installed release, and the update path.
+  - *Not yet checked by hand:* the real triggers on the installed release, and an update to a new
+    version.
 - **Baseline** (`docs/ARCHITECTURE.md`; CLI 2.1.310):
   - 28 tests in `tests/cartoon-fx.test.tsx`;
   - `validate`: 12 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
@@ -45,7 +46,8 @@ the owner's request down verbatim, ask what it leaves open, and plan the round i
   repository's root.
 - **`placement` and `fxTakes` are the owner's data** in `$.store` (`docs/ARCHITECTURE.md`,
   *Values*). Read them forward-only, and never drop one without a changelog line.
-- **The owner's update path is `claude plugin update cartoon-fx`,** after a push. What they run
-  every day is what was pushed.
+- **The owner's update path is `claude plugin update cartoon-fx`,** and it installs only a new
+  `plugin.json` version (`docs/ARCHITECTURE.md`, *Packaging*). A change meant for the owner cuts a
+  version, or it never reaches their sessions.
 - **This folder has its own `biome.json`** (see this mod's `CLAUDE.md`).
 - **Comments state the present.** No session ids, no "used to", no review stories.
