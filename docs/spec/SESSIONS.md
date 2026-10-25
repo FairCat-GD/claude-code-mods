@@ -620,6 +620,102 @@ checkout beside this one (`../krita-art-mcp`), read-only.
 - **Docs describe the code as it is.** Where the note and the code disagree, the code wins, and the
   done-note records the difference.
 
+**Done (2026-10-25, no version; cartoon-fx stays 0.10.1).**
+- **Decided with the owner at the start:**
+  - **The store is keyed by id, so install and start fresh.** Measured in plan mode, before
+    anything changed (below). Nothing was stored, so nothing could carry over. The owner chose to
+    install and amend decision 14 over copying a store file or holding the switch.
+  - **No note.** The note from cartoon-fx's original chat was not available, so the as-built docs
+    come from the code alone. With no note, nothing disagreed with the code.
+  - **Two commits, one level each,** as in Session 2: the mod's docs, then the repo's files.
+- **The switch** (CLI 2.1.310; desktop engine 2.1.308):
+  1. **Before anything changed,** `~/.claude/plugins/store/` did not exist. The owner ran
+     `/fx commit` in this session's chat, on the folder copy: **take 1, played in the
+     conversation** under its output row. It created `cartoon-fx_inline-7a58292beebc.json` holding
+     `{ "fxTakes": 1 }`, the file name the code predicts for `cartoon-fx@inline`.
+  2. **`$.store` keying** (measured from both engines' code, then on disk): above.
+  3. **The credential was already in place.** `gh` is signed in, and git's helper for github.com
+     is `gh auth git-credential`. The install cloned over SSH anyway
+     (`git@github.com:FairCat-GD/claude-code-mods.git`).
+  4. **The install**, run from this session with the owner's OK:
+     `claude plugin install cartoon-fx --marketplace FairCat-GD/claude-code-mods`. It added the
+     marketplace (declared in user settings) and installed `cartoon-fx@claude-code-mods` 0.10.1 at
+     user scope, from commit `3f79906`. Against snapshots taken first, it wrote:
+     - in `~/.claude/settings.json`, `enabledPlugins: { "cartoon-fx@claude-code-mods": true }`
+       and `claude-code-mods` under `extraKnownMarketplaces`;
+     - the install's entry in `~/.claude/plugins/installed_plugins.json`;
+     - the marketplace's entry in `~/.claude/plugins/known_marketplaces.json`.
+  5. **The old entry, removed straight after,** with the owner's OK, the edit shown first. This
+     line left `env` in `~/.claude/settings.json`, leaving `"env": {}`:
+     `"CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/cartoon-fx"`.
+     `env -u CLAUDE_CODE_PLUGIN_DIRS claude plugin list` then showed `cartoon-fx@claude-code-mods`
+     alone.
+  6. **Checked by hand,** in new sessions, with the session transcripts and the store files backing
+     each:
+     - **Desktop app:** `/fx all` played all ten effects under its output row, take 1.
+     - **Terminal:** `claude` in `~`, `/fx all`, glyphs in the strip above the prompt, take 2.
+     - The installed id's store file then held `fxTakes` 2, and the `@inline` file still 1.
+  7. **What the installed copy holds:** the 14 tracked files of `mods/cartoon-fx` at `3f79906`,
+     byte for byte (`cmp` each), plus the engine's `.in_use` marker.
+     - It is in `~/.claude/plugins/cache/claude-code-mods/cartoon-fx/0.10.1/`, docs, handoff,
+       `CLAUDE.md`, `biome.json` and tests included.
+     - No `.claude-plugin/types/` appeared there after the hand-check sessions.
+     - The marketplace is a clone of the whole repository, in
+       `~/.claude/plugins/marketplaces/claude-code-mods/`.
+     - SPEC §4 point 4 is amended.
+  8. **The unpushed-build path.** `claude --plugin-dir mods/cartoon-fx` replaces the installed
+     copy:
+     - With a debug file, `claude -p --plugin-dir mods/cartoon-fx "/fx push"` at the repository's
+       root logged `Plugin "cartoon-fx" from --plugin-dir overrides installed version`.
+     - It loaded the hooks module `cartoon-fx@inline` alone, answered once (`playing push
+       (take 2)`), and wrote `fxTakes` to the `@inline` store. The installed one's stayed at 3.
+     - `claude --plugin-dir … plugin list` shows both copies, which does not show which one runs.
+     - Recorded in the root `CLAUDE.md` and cartoon-fx's `CLAUDE.md`.
+  9. **`~/.claude/mods/cartoon-fx` was never written,** and the owner may remove it. The `@inline`
+     store file is what `--plugin-dir` sessions use. Desktop sessions started before the switch
+     keep the folder copy until they end.
+- **The as-built docs,** from the code alone:
+  - `mods/cartoon-fx/docs/ARCHITECTURE.md`, following the workflow's outline: overview, the 12 hooks,
+    detection, the drawings, playing and placement, `$.state` and `$.store`, reach, testing,
+    packaging, deliberate decisions, known debt and the baseline;
+  - `mods/cartoon-fx/docs/USER-GUIDE.md`: what plays when, `/fx`, where effects play, the terminal
+    and the desktop app, and installing, updating and trying a build;
+  - `mods/cartoon-fx/docs/BACKLOG.md`:
+    - *Deferred:* three items of debt read from the code;
+    - *Not yet checked by hand:* seven items;
+    - *Directions:* empty, with no note;
+  - `mods/cartoon-fx/CLAUDE.md`: the ARCHITECTURE read paragraph, the store's key, *Trying an
+    unpushed build*, and the `npm run types` row;
+  - its handoff, rewritten: the round 2 intake may start now.
+  - The README stays as it was, and there is no changelog entry, since no user sees a change.
+- **The repo's files:**
+  - SPEC decision 14 and §4 point 4, each with an amendment by the owner;
+  - the root `CLAUDE.md`: the store sentence under machine identifiers, and the paragraph after
+    Commands on the installed release and `--plugin-dir`;
+  - the handoff, for Session 4.
+- **Amendments:**
+  - **Step 6's expectation.** The block expected the take number to follow step 1's. The store is
+    keyed by id, so the installed copy started fresh (take 1). Amended at plan time, with the
+    owner.
+  - **Step 3 needed nothing.** The credential helper was already set.
+  - **Step 8 was measured headless, not in an interactive terminal session.** The owner's attempt
+    was typed as a prompt inside a `claude` in `~`, not run as a shell command, so it loaded the
+    installed copy alone (take 3, the installed store). The headless run loads plugins the same
+    way. The interactive case is under *Not yet checked by hand* in cartoon-fx's backlog.
+  - **The install ran from this session,** at the owner's word, rather than in the owner's own
+    terminal.
+- **Measured, beyond the steps:** `env -u CLAUDE_CODE_PLUGIN_DIRS claude …` never kept the folder
+  copy out while `settings.json` set the variable. Settings' `env` applies after the shell's, so
+  `claude plugin list` still showed `cartoon-fx@inline` before the switch. With the entry gone,
+  this no longer matters. The root `CLAUDE.md` says so.
+- **Falsified:** nothing. This session added no checks.
+- **Numbers** (CLI 2.1.310):
+  - `npm run verify`: 14 stages, all PASS (±0);
+  - tooling tests 48 (±0);
+  - cartoon-fx 28 tests in one file, and `validate` 12 hooks, 5 gating (each with a `.catch`), 4
+    state keys (±0);
+  - template 1 (±0).
+
 ---
 
 ## 4: The repo's documentation pass; close the round

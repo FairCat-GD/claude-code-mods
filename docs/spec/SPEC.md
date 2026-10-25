@@ -184,6 +184,16 @@ beside the decision it changes, as an **Amended <date> by the owner** note.
       `cartoon-fx@claude-code-mods`.
       - Session 3 measures which, before the switch. A rename very likely loses stored data
         either way.
+
+    **Amended 2026-10-25 by the owner, in Session 3.** `$.store` is keyed by the plugin's id,
+    `<name>@<marketplace>`, not its name, in both the CLI (2.1.310) and the desktop engine
+    (2.1.308).
+    - Each id has one JSON file in `~/.claude/plugins/store/`.
+    - The engine carries a store to a new id only for renamed built-in plugins.
+    - So a change of the mod's name or of the marketplace it installs from starts it with no stored
+      values, and a folder copy (`<name>@inline`) never shares the release's.
+    - At the switch, cartoon-fx had no store file at all, so nothing was lost. The owner chose to
+      install and start fresh.
 15. **Round 1 has four sessions** (`SESSIONS.md`):
     1. the scaffold;
     2. the cartoon-fx import;
@@ -283,6 +293,15 @@ A mod is a Claude Code plugin of function hooks.
 4. **What the installed copy holds of the mod's folder is not yet measured.** It may be every file,
    docs and handoffs included. Session 3 lists it and corrects this paragraph by amendment. Until
    then, a mod keeps nothing in its folder that it would not publish.
+
+**Amended 2026-10-25 by the owner, in Session 3.** The installed copy holds every tracked file of
+the mod's folder at the pushed commit, byte for byte: docs, handoff, `CLAUDE.md` and tests
+included.
+- It lives in `~/.claude/plugins/cache/<marketplace>/<mod>/<version>/`.
+- The marketplace itself is a clone of the whole repository, in
+  `~/.claude/plugins/marketplaces/claude-code-mods/`.
+- So everything in a mod's folder ships to whoever installs it, and the rule above stands as a
+  rule: a mod keeps nothing in its folder that it would not publish.
 
 ### The plugin API
 

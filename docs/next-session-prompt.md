@@ -1,76 +1,57 @@
-Read docs/spec/SPEC.md (§2 decisions 11, 13, 14, with their amendments; §6 invariant 7; §7; §8),
-CLAUDE.md, mods/cartoon-fx/CLAUDE.md and cartoon-fx's sources, then this file, and do Session 3
-of docs/spec/SESSIONS.md: cartoon-fx as an installed release, and its as-built docs. Session 3 has
-two parts:
-- the switch: record the owner's stored values, measure how `$.store` is keyed, install from the
-  marketplace, remove the `CLAUDE_CODE_PLUGIN_DIRS` entry with the owner's OK, check by hand, and
-  measure what the installed copy holds and what a `--plugin-dir` session does beside it;
-- the as-built docs: cartoon-fx's `docs/ARCHITECTURE.md` and `docs/USER-GUIDE.md`, its backlog,
-  and its `CLAUDE.md`'s ARCHITECTURE paragraph.
-
-No code changes and no version: cartoon-fx stays at 0.10.1.
+Read docs/spec/SPEC.md in full (with its amendments), CLAUDE.md, every done-note in
+docs/spec/SESSIONS.md, and mods/cartoon-fx/docs/ARCHITECTURE.md, then this file, and do Session 4
+of docs/spec/SESSIONS.md: the repo's documentation pass, then close round 1. It writes
+`docs/ARCHITECTURE.md` (with its measured baseline), `docs/USER-GUIDE.md` and
+`docs/MOD-KICKOFF.md`, makes the README truthful, and moves SPEC §8 into `CLAUDE.md`. Then
+`docs/BACKLOG.md` gets what is still open, and a separate `docs: close round 1` commit deletes
+`docs/spec/` and rewrites this handoff between rounds.
 
 ## State you need that is not in the specs
 
-- **Round 1 is the repository setup.** Sessions 0, 1 and 2 are done; Sessions 3 and 4 remain.
-- **Push status.** Everything is pushed: `origin/main` holds everything through
-  `review(cartoon-fx): the Biome exception covers four files, and 4 smaller`, so
-  `origin/main..HEAD` is empty and the install can run. List it again before any push.
-- **What Session 2 left that Session 3 builds on:**
-  - **`mods/cartoon-fx/`** is the live mod byte for byte, plus two lines of `plugin.json`
-    (`author`, `license`) and these new files:
-    - `CLAUDE.md`, `CHANGELOG.md` (one `[0.10.1]` entry) and `README.md`;
-    - `docs/BACKLOG.md` and `docs/next-session-prompt.md`;
-    - its own `biome.json`.
-  - **Its `biome.json`** (`root: false`, `extends: "//"`) narrows two exceptions to the files
-    that need them:
-    - the formatter is off for the four copied source files Biome would change;
-    - `noUnusedFunctionParameters` is off for `register.tsx` alone.
-
-    The owner chose this over reformatting the copied code; the reformat is in its backlog.
-  - **`.claude-plugin/marketplace.json`** lists cartoon-fx, source `./mods/cartoon-fx`. The
-    install line is
-    `claude plugin install cartoon-fx --marketplace FairCat-GD/claude-code-mods`, or the
-    `cartoon-fx@claude-code-mods` id.
-  - **The README's table of mods** is `Mod | What it does`. It no longer has a Version column.
-  - **cartoon-fx's machine identifiers** are in its `CLAUDE.md`:
-    - the `$.state` keys `shown`, `isYellow`, `isRed` and `placement`;
-    - the `$.store` keys `placement` and `fxTakes`, which are the owner's data.
-  - **cartoon-fx's handoff** says that its next session is its round 2 intake, after this one.
-- **What the spec said that turned out wrong or harder:**
-  - **A nested `biome.json` that turns the formatter off for a whole folder** makes
-    `npx biome format <folder>` alone exit 1 ("no files were processed"). An `overrides` list
-    naming the files avoids it.
-  - **An `eval` at module load fails `claude plugin test` too:** the engine refuses it, so that
-    falsification fails `lint` and `tests` together.
+- **Round 1 is the repository setup.** Sessions 0–3 are done; Session 4, the last, remains.
+- **Push status.** Session 3's commits are local. `origin/main` holds everything through
+  `review(cartoon-fx): the Biome exception covers four files, and 4 smaller`. List
+  `git log origin/main..HEAD` before any push, and name any commit that is not this session's.
+- **What Session 3 left that Session 4 builds on:**
+  - **The owner runs cartoon-fx as the installed release,** `cartoon-fx@claude-code-mods`
+    0.10.1, at user scope, from commit `3f79906`. The `CLAUDE_CODE_PLUGIN_DIRS` entry is gone from
+    `~/.claude/settings.json`, which now has `"env": {}`. The removed line is in Session 3's
+    done-note.
+  - **Distribution, as measured** (for `docs/ARCHITECTURE.md` and `docs/USER-GUIDE.md`):
+    - the installed copy is every tracked file of the mod's folder at the pushed commit, in
+      `~/.claude/plugins/cache/claude-code-mods/<mod>/<version>/` (SPEC §4, amended);
+    - the marketplace is a clone of the whole repository, in
+      `~/.claude/plugins/marketplaces/claude-code-mods/`, added in user settings by
+      `claude plugin install … --marketplace FairCat-GD/claude-code-mods`;
+    - `$.store` is keyed by the plugin id, one file per id in `~/.claude/plugins/store/`
+      (SPEC decision 14, amended);
+    - a `claude --plugin-dir mods/<name>` session replaces the installed copy, as `<name>@inline`,
+      with its own store (root `CLAUDE.md`). This was measured headless; the interactive case is in
+      cartoon-fx's backlog.
+  - **cartoon-fx's as-built docs exist:** `docs/ARCHITECTURE.md` (with its baseline),
+    `docs/USER-GUIDE.md` and its backlog. The repo docs point at them and never restate the mod's
+    internals.
 - **Decisions written down nowhere else:**
   - **To falsify the hygiene stage,** add a throwaway word and its hash to
-    `scripts/hygiene_terms.txt`, watch the stage fail, then remove both. The terms are never
-    written into the repository.
-  - **cartoon-fx as found at intake** is at `~/.claude/mods/cartoon-fx`. It loads live in every
-    session through `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json`. It is eight files, and
-    it had no `.claude-plugin/types/` when Session 2 checked, while its `npm run types` session
-    was still open. Check again before the switch.
+    `scripts/hygiene_terms.txt`, watch the stage fail, then remove both.
   - **The plugin-authoring skill writes the desktop build's declarations beside itself** under
     `/private/tmp/claude-501/bundled-skills/<version>/…/plugin-authoring/types/claude-code.d.ts`.
-    It is one file, and is not what `tsc` uses here. The `<version>` folder there names the
-    desktop build: 2.1.308.
-  - **`gh` is signed in** as `FairCat-GD` (HTTPS, `repo` scope). `~/.claude/settings.json` already
-    sets `includeCoAuthoredBy: false` and empty `attribution`.
-- **Baseline** (Session 2's done-note, CLI 2.1.310):
+    It is one file, and is not what `tsc` uses here.
+  - **`gh` is signed in** as `FairCat-GD`, and git's helper for github.com is
+    `gh auth git-credential`. The marketplace clone uses SSH.
+  - **The owner may remove `~/.claude/mods/cartoon-fx`** when they choose; nothing loads it now.
+- **Baseline** (Session 3's done-note, CLI 2.1.310), to measure again, not copy:
   - `npm run verify`: 14 stages, all PASS (6 repo, 4 for cartoon-fx, 4 for `mod-template`).
   - Tooling tests: 48 in 6 files.
-  - Template tests: 1.
-  - cartoon-fx: 28 tests in one file. `validate` reports:
-    - 12 hooks, 5 gating (all with `.catch`) and 4 state keys;
-    - no warning but the allowed `CLAUDE.md` one.
-
-    Session 3 moves none of these.
-- **Not done:** nothing in Session 2's scope.
-- **Carry to Session 4's handoff:** `mods/cartoon-fx/CLAUDE.md` points at the root's
-  `docs/spec/SPEC.md` §8 for the practices, as the template's does. Session 4's block moves §8 into
-  `CLAUDE.md` and changes the root's and the template's pointers, but not this one. It needs the
-  same change when the round closes.
+  - Template tests: 1. Its `validate` lists 2 hooks, 0 gating, and calls `$.command.register`.
+  - cartoon-fx: 28 tests in one file. `validate` lists 12 hooks, 5 gating (all with `.catch`) and
+    4 state keys, with no warning but the allowed `CLAUDE.md` one.
+- **Not done:** nothing in Session 3's scope. Its interactive `--plugin-dir` check is a backlog item
+  of cartoon-fx's.
+- **Carry to the close:** `mods/cartoon-fx/CLAUDE.md` points at the root's `docs/spec/SPEC.md` §8
+  for the practices, as the template's does. Session 4's block moves §8 into `CLAUDE.md` and
+  changes the root's and the template's pointers. cartoon-fx's needs the same change, as a mod
+  file touched by a repo session, in its own scoped commit, as in Sessions 2 and 3.
 
 ## Watch for
 
@@ -81,40 +62,31 @@ No code changes and no version: cartoon-fx stays at 0.10.1.
   - **The toolchain on this Mac:**
     - node 26.7.0 and npm 11.19.0 in `/opt/homebrew/bin`;
     - `claude` at `~/.local/bin/claude`, a link to the newest of `~/.local/share/claude/versions/`
-      (2.1.310 at Session 2's end);
+      (2.1.310 at Session 3's end);
     - `gh` 2.97.0 and uv 0.12.3 in `~/.local/bin`;
     - git 2.50.1;
     - no global `tsc` or bun; use `npx tsc` and `npx biome`.
   - **The CLI and the desktop engine are different builds,** and the CLI updates itself. Record
     the version each check ran on, from `claude --version`.
-  - **A shell in the desktop app exports `CLAUDE_CODE_PLUGIN_DIRS`.** A `claude` started from it
-    loads the owner's live cartoon-fx, and an interactive one would lay declarations into
-    `~/.claude/mods/cartoon-fx`. The gate and `npm run types` remove it; by hand, run
-    `env -u CLAUDE_CODE_PLUGIN_DIRS claude …`.
-  - **The owner's Claude Code setup is live:**
-    - `~/.claude/settings.json`;
-    - `~/.claude/mods/cartoon-fx`, running in every session;
-    - the installed plugins.
-
-    No session changes any of it without the owner's OK (invariant 7).
+  - **The installed cartoon-fx runs in every session the owner starts.** A commit stamps, and
+    `npm run verify` shows the checkmark. That is the release working, not a fault.
+  - **A desktop session started before the switch** still exports `CLAUDE_CODE_PLUGIN_DIRS` to its
+    shells and runs the folder copy until it ends. The gate and `npm run types` remove the
+    variable; leave those guards in place.
+  - **The owner's Claude Code setup is live:** `~/.claude/settings.json`, the installed plugins
+    and marketplaces, `~/.claude/mods/`, and a mod's stored values. No session changes any of it
+    without the owner's OK (invariant 7).
   - **Loading the plugin-authoring skill starts a watch on this session's mods folder.** Write
     nothing under `~/.claude/dev-mods/`.
-  - **The file-writing tool writes ` ` and ` ` escapes as the characters themselves.**
-    Inside a regex that breaks the line. Check with `od -c`, and fix with
+  - **The file-writing tool writes the `\u2028` and `\u2029` escapes as the characters
+    themselves.** Inside a regex that breaks the line. Check with `od -c`, and fix with
     `perl -CSD -pi -e 's/\x{2028}/\\u2028/g'`.
   - **Nothing private in any file or commit message** (`CLAUDE.md`).
-- **Session 3's own traps** are in its block:
-  - the owner is at the keyboard for every change to their setup;
-  - plugins load when a session starts, so checking the installed copy takes a new session;
-  - a private repository installs only where git holds a credential for github.com;
-  - the note from cartoon-fx's original chat may name people or projects, so keep the reasons
-    and drop the names;
-  - where the note and the code disagree, the code wins.
-- **The stored values come first.** Record `/fx commit`'s take number and where it played
-  before anything changes. Steps 4 and 5 (install, then remove the old entry) run back to back,
-  so that no session loads two copies.
-- **cartoon-fx reacts to this repo's own work.** In the owner's sessions a commit stamps, and
-  `npm run verify` shows the checkmark. That is the live mod working, not a fault.
+- **Session 4's own traps** are in its block:
+  - the baseline is measured, not copied;
+  - the repo docs never describe a mod's internals;
+  - the review follows the close, so its findings go in the review commit and the handoff.
+- **Every path and command the new docs name** is checked to exist or to run.
 - **Comments state the present, briefly.** No session ids, no "used to", no review stories, no
   paragraphs.
 - **Every push needs its own approval.** List `origin/main..HEAD` first.

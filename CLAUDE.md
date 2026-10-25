@@ -10,8 +10,9 @@ Machine identifiers keep their spelling, because installs and stored data live u
 - the marketplace `claude-code-mods` (installs are `<mod>@claude-code-mods`) and the repository
   `FairCat-GD/claude-code-mods`;
 - each mod's name: its folder, its `plugin.json` `name`, its install id and its slash commands. A
-  rename very likely loses its stored `$.store` values too, though how they are keyed is not yet
-  measured (`docs/spec/SPEC.md` decision 14).
+  rename loses its stored `$.store` values too: the engine keys them by the plugin id,
+  `<name>@<marketplace>`, so a new name or a new marketplace starts empty (`docs/spec/SPEC.md`
+  decision 14, amended).
 
 **Read `docs/spec/SPEC.md` before changing code.** `docs/DEVELOPMENT-WORKFLOW.md` is the
 session-based workflow this repo follows, at two levels. `docs/BACKLOG.md` lists what has been
@@ -180,10 +181,16 @@ contents against hashed private terms, and checks commit messages for attributio
 | `node scripts/validate.ts <folder>` | `claude plugin validate` as the gate judges it: every error and warning fails, but the one a mod's own `CLAUDE.md` draws ("not loaded as project context"). |
 | `node scripts/imports.ts <folder>` | The import scan alone, against the folder's laid declarations. |
 
-`claude` started from a shell inside the desktop app inherits `CLAUDE_CODE_PLUGIN_DIRS`, so it
-loads the owner's live mods; an interactive one would also lay declarations into them. The gate's
-`claude` stages and `npm run types` remove it; anything else run by hand should too
-(`env -u CLAUDE_CODE_PLUGIN_DIRS claude …`).
+The owner runs each mod as the release installed from this marketplace, at user scope, so every
+`claude` the owner starts loads it. `npm run types` loads each folder with `--plugin-dir`, which
+replaces an installed copy of the same name.
+- **Trying an unpushed build.** A terminal session started with `claude --plugin-dir mods/<name>`
+  replaces the installed copy of that mod for the session. The engine logs `Plugin "<name>" from
+  --plugin-dir overrides installed version`. The copy runs as `<name>@inline`, with its own
+  `$.store`, so the release's stored values are left alone.
+- **`CLAUDE_CODE_PLUGIN_DIRS` is not set** in the owner's settings any more. The gate's `claude`
+  stages and `npm run types` still remove it, in case a shell exports it. `env -u` alone never
+  kept it out while user settings set it: settings' `env` applies after the shell's.
 
 ## Git
 
