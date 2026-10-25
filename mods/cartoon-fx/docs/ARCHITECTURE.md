@@ -23,16 +23,16 @@ One effect is on show at a time. A new one replaces any still playing.
 
 | File | Lines | Holds |
 |---|---|---|
-| `hooks/register.tsx` | 513 | the hooks, playing and placement |
-| `hooks/detect.ts` | 84 | the Bash readers, `isReviewFix`, `tokens` |
-| `hooks/fx.ts` | 801 | the ten drawings and their SMIL helpers |
+| `hooks/register.tsx` | 514 | the hooks, playing and placement |
+| `hooks/detect.ts` | 82 | the Bash readers, `isReviewFix`, `tokens` |
+| `hooks/fx.ts` | 830 | the ten drawings and their SMIL helpers |
 | `types/index.d.ts` | 25 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 678 | 35 tests |
+| `tests/cartoon-fx.test.tsx` | 687 | 35 tests |
 
 ## The invariants
 
 1. **An effect's fault never costs a call its result.** Every gating hook awaits `next(e)` first,
-   then plays. Its `.catch(($, e, next) => next(e))` lets the call go on unchanged if the mod
+   then plays. Its `.catch((_$, e, next) => next(e))` lets the call go on unchanged if the mod
    throws. The context check runs beside the result (`void watchContext(…).catch(…)`), so no call
    waits on it. *Enforced by* `claude plugin validate`, which lists 5 gating hooks, each with a
    `.catch`.
@@ -152,6 +152,9 @@ One effect is on show at a time. A new one replaces any still playing.
     the row of the effect on show is never the one let go.
   - The desktop reports no `onScreen` (measured, desktop 2.1.308), so there a drawn row always
     counts.
+  - The engine gives a mod's `tool.call` and `ui.render` hooks one module memory (measured,
+    desktop 2.1.308). So the fallback, timed from the call's hook, sees the marks the rows leave
+    in `drawnRows`.
 - **The terminal** draws no SVG. The strip shows five glyphs (`✦ • ▪ ✶ ✧ ◆ ∗ ❋`) on each side of
   the words, coloured from the same seed. Rows are left alone.
 - **`/fx`** replays from `SAMPLES`, fixed words and values, in the order of `/fx all`. Each starts
@@ -266,14 +269,10 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
   call to the message id of the reply before it, so `rowBefore` matches that reply by its text.
 - **A review's effect is awaited before the report's result returns.** Run beside the result, it
   raced the test kit, which does not wait for it, and the read it costs comes once per review.
-- **The four copied source files keep their own layout.** The folder's `biome.json` turns Biome's
-  formatter off for them, and `noUnusedFunctionParameters` off for `register.tsx` (mod
-  `CLAUDE.md`).
 
 ## Known debt, deliberately deferred
 
 In `docs/BACKLOG.md` under *Deferred*:
-- the Biome reformat of the four copied files, and deleting the folder's `biome.json`;
 - detection by reading printed output, which a change to git's or a runner's wording would break,
   where the engine gives no `gitOperation`;
 - a cast where the declarations don't name the shape: `awaitingLeaderApproval`.

@@ -286,7 +286,7 @@ export const register: Register = on => {
     }
 
     return ran
-  }).catch(($, e, next) => next(e)) // an effect's fault never costs the call its result
+  }).catch((_$, e, next) => next(e)) // an effect's fault never costs the call its result
 
   // A plan the person accepted; one they turned down comes back as an error,
   // and a teammate's still waits on its lead.
@@ -301,7 +301,7 @@ export const register: Register = on => {
     }
 
     return ran
-  }).catch(($, e, next) => next(e))
+  }).catch((_$, e, next) => next(e))
 
   // Every finished call: a code review's report, and the context window it may have grown.
   // The context check runs beside the result rather than before it, so no
@@ -317,7 +317,7 @@ export const register: Register = on => {
     void watchContext($, row).catch(() => undefined)
 
     return ran
-  }).catch(($, e, next) => next(e))
+  }).catch((_$, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
@@ -335,7 +335,7 @@ export const register: Register = on => {
     }
 
     return done
-  }).catch(($, e, next) => next(e))
+  }).catch((_$, e, next) => next(e))
 
   on('agent.spawn', async ($, e, next) => {
     const started = await next(e)
@@ -353,7 +353,7 @@ export const register: Register = on => {
     }
 
     return started
-  }).catch(($, e, next) => next(e))
+  }).catch((_$, e, next) => next(e))
 
   on('command.run', { command: 'fx' }, async ($, e) => {
     const wanted = e.args.trim().toLowerCase().replace(/\s+/g, ' ') || 'all'
@@ -495,7 +495,8 @@ export const register: Register = on => {
         <Box justifyContent="center">
           {bits('l')}
           <Text bold color="#FFD23F">
-            {' '}{words}{' '}
+            {' '}
+            {words}{' '}
           </Text>
           {bits('r')}
         </Box>

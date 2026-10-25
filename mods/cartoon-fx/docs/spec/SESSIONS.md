@@ -228,6 +228,10 @@ Never push without being asked.
   - The reformat commit (`refactor(cartoon-fx): …`, no version) carries the last done-note.
   - A separate `docs(cartoon-fx): close round 2` commit deletes this folder's files and rewrites
     the handoff to say no round is in progress, naming the reformat commit.
+  - *Amended at plan time, with the owner:* the close follows the review, not the reverse. The
+    0.10.2 check in the desktop runs at this session's `/code-review high`, and if it fails, the
+    round stays open for an inserted fix session. The review commit carries the done-note's
+    *Review* section, and the close names it too.
 - **Docs.**
   - `ARCHITECTURE.md`: *Deliberate decisions* loses "the four copied source files keep their own
     layout", and *Overview*'s line counts change.
@@ -245,3 +249,44 @@ Never push without being asked.
   change.
 - **The installed 0.10.2 keeps the old layout.** C1 cuts no version, so the release in the
   owner's plugin cache differs from `HEAD` in layout only. That is expected.
+
+**Done (2026-10-25, no version; cartoon-fx stays 0.10.2).**
+- **Decided with the owner at the start:**
+  - 0.10.2 had not been checked in the desktop. The check moves into this session: the owner's
+    `/code-review high` here runs in a desktop session started after the update.
+  - The close follows that check (amendment below).
+  - A review with no findings shows only "Reviewed!". That is recorded, the round closes anyway,
+    and "Bugs squashed! N review defects fixed" stays under *Not yet checked by hand*.
+  - Repo Session 4 is not running, and its repoint of this mod's `CLAUDE.md` is not committed.
+    C1 went ahead, and edited only the *Its own Biome settings* section.
+- **The reformat.**
+  - `biome.json` is deleted, and the five `.catch` handlers name the unused `$` as `_$`.
+  - `npx biome format --write mods/cartoon-fx` fixed the four files;
+    `npx biome lint --write mods/cartoon-fx` applied nothing.
+  - Biome joined arrow bodies broken after `=>`, put `+` chains one term a line, expanded tuple
+    arrays and long calls, dropped one `return ( … )`'s parentheses in `fx.ts`, and put the
+    strip's `{words}` on its own JSX line.
+- **Docs.**
+  - This mod's `CLAUDE.md` lost *Its own Biome settings*.
+  - `ARCHITECTURE.md`: the line counts, invariant 1's handler, the copied-layout decision and
+    the Biome debt gone.
+  - It gained one line from F1's measurement: the call's hooks and the rows' hooks share one
+    module memory, which the fallback relies on.
+- **Amendments:**
+  - **The close follows the review.** The block, like the workflow's *Close*, put the close
+    first. The 0.10.2 check moved into this session's review, and a failed check must keep the
+    round open for an inserted fix session. Amended at plan time, with the owner.
+- **Measured** (CLI 2.1.310, Biome 2.5.15):
+  - Lines: `detect.ts` 84 → 82, `fx.ts` 801 → 830, `register.tsx` 513 → 514, the test file
+    678 → 687. Biome's diff over them, read-only over stdin before the edit, matched.
+  - **The same syntax trees.** A one-off script parsed each file at `HEAD` and after, with the
+    repo's TypeScript. It compared node kinds and identifier and literal text, skipping
+    parentheses, whitespace-only JSX text, and `_$` for `$`. All four were equal (539, 7,064,
+    3,472 and 6,119 nodes).
+  - `validate`'s listing is identical before and after: hooks, gating hooks, calls and state.
+- **Checked by hand:** nothing yet. The 0.10.2 check comes at the review.
+- **Falsified:** no new gate check. The one-off tree comparison, once: with `'Reviewed!'` changed
+  to `'Reviewed?'` in a scratch copy of `register.tsx`, it named the differing literal and exited
+  1.
+- **Numbers:** 35 tests (±0), 13 hooks (±0), 5 gating, each with a `.catch` (±0), 4 state keys
+  (±0); `tsc` and the import scan clean; no warning but the allowed `CLAUDE.md` one.

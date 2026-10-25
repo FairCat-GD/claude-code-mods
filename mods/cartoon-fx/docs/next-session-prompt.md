@@ -1,48 +1,46 @@
 Read docs/spec/FEATURE-review-effects.md, the root CLAUDE.md, this mod's CLAUDE.md,
-docs/ARCHITECTURE.md, then this file. Then do Session C1 of docs/spec/SESSIONS.md: the Biome
-reformat of the four copied files, and the close of round 2. C1 has two parts:
-- the reformat (decision 6), which changes no baseline count;
-- the close: anything open moves to `docs/BACKLOG.md`, and the spec files are deleted.
+docs/ARCHITECTURE.md, then this file. Session C1 of docs/spec/SESSIONS.md is under way: its
+reformat is committed, and two parts remain, both in C1's own chat:
+- the owner's `/code-review high` of the reformat commit, which is also the 0.10.2 check in the
+  desktop, then a `review(cartoon-fx): …` commit with the done-note's *Review* section;
+- the close, only if the check passes: anything open moves to `docs/BACKLOG.md`, the spec files
+  are deleted, and this file says no round is in progress.
 
 C1 cuts no version. All paths here are inside `mods/cartoon-fx/`; run
 `npm run verify -- cartoon-fx` from the repository's root.
 
 ## State you need that is not in the specs
 
-- **Round 2 is the code-review effects that never show.** F1 is done (0.10.2); C1 remains.
+- **Round 2 is the code-review effects that never show.** F1 is done (0.10.2). C1's reformat is
+  done (`refactor(cartoon-fx): format the copied files with Biome`); its review and the close
+  remain.
+- **The close follows the review** (amended in the C1 block, with the owner). If the review's
+  check shows the effects still hidden, the round stays open, and a fix session is inserted with
+  the owner (*Rounds*, step 4) before the close.
+- **The 0.10.2 check, by hand in the desktop, under `placement: conversation`:**
+  - "Reviewed!" plays under the reply or call just before the findings card;
+  - with fixes applied, "Bugs squashed! N review defects fixed" plays the same way. The review
+    commit's own "Bugs squashed! review fixes · <sha>", under its Bash row, is a different
+    trigger.
+  - If the review finds nothing, only "Reviewed!" is seen. That is recorded, the round closes
+    anyway, and the fixes effect stays under *Not yet checked by hand* (decided with the owner).
+  - It closes *A review's effects beside its card*, *A new session runs an update*, and the
+    `/code-review` part of *Real triggers on the installed release*, as far as each was seen.
+- **For the close, beyond decision 8's two items:** one F1 measurement goes to *Not yet checked by
+  hand*. With the desktop window not in front, a turn's rows came in one burst about 39 s late
+  (desktop 2.1.308), past the 900 ms fallback. What plays then was not looked at.
 - **Push status.** `origin/main` holds everything through `ed3aaa6`, F1's review commit. The
-  `docs(cartoon-fx)` commit that records the update is local, not pushed. List `origin/main..HEAD`
-  before any push: parallel sessions share this checkout.
-- **0.10.2 is pushed and installed, but not checked in the desktop yet.**
-  - `origin/main` was at `ed3aaa6` after F1's push. `claude plugin update cartoon-fx` installed
-    0.10.2 from it, recorded in *Packaging*.
-  - Still to do: in a new desktop session, the owner runs a `/code-review` with findings, then its
-    fixes. That closes two BACKLOG items, *A review's effects beside its card* and *A new session
-    runs an update*.
-  - **If that look shows the effects still hidden,** a fix session is inserted before C1
-    (*Rounds*, step 4), and C1 waits.
-- **What F1 left that C1 touches:**
-  - `hooks/register.tsx` (513 lines) gained `OWN_CARDS`, `rowBefore`, `replyRow`, `bound`,
-    `markDrawn`, `noteReply`/`isNewestReply` and an `AssistantMessage` render hook;
-  - `tests/cartoon-fx.test.tsx` (678 lines) gained `told`, `replyRow` and seven tests.
-  - Both still keep the copied layout (2-space, no semicolons, long lines), which C1's reformat
-    changes.
-- **What the spec said that turned out wrong:**
-  - The declarations do name `ReportFindings` (`BuiltinToolInputs`, in the laid
-    `claude-code-tools/index.d.ts`). This is amended in the F1 block, and no cast is left for it.
-  - Nothing can draw under the desktop's findings card. The review plays in the row just before
-    the card instead, which the owner chose.
-- **The owner's stored placement is `conversation` again** (they ran `/fx place conversation`
-  during F1).
+  `docs(cartoon-fx)` commit that records the update (`b8ab073`, from F1) and C1's commits are
+  local. List `origin/main..HEAD` before any push: parallel sessions share this checkout.
+- **The installed 0.10.2 keeps the old layout.** C1 cuts no version, so the release differs from
+  `HEAD` in layout only.
+- **Repo Session 4** has not yet repointed this mod's `CLAUDE.md` at the root `CLAUDE.md` (lines
+  9–10, the root SPEC §8 pointer). Leave that line to it.
 - **Baseline** (`docs/ARCHITECTURE.md`, v0.10.2, CLI 2.1.310):
   - 35 tests in `tests/cartoon-fx.test.tsx`;
   - `validate`: 13 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
     allowed `CLAUDE.md` one;
   - `tsc` and the import scan are clean.
-  - C1 must move none of these.
-- **Repo Session 4** (the repo's documentation pass) may still be open. It touches this mod only
-  to repoint its `CLAUDE.md`. Start C1 once that change is committed, and leave its uncommitted
-  changes alone.
 
 ## Watch for
 
@@ -54,8 +52,7 @@ C1 cuts no version. All paths here are inside `mods/cartoon-fx/`; run
     the version each check ran on, and run `npm run types` again when the `types` stage asks.
 - **The installed release runs in every session the owner starts,** this mod's own development
   sessions included. So a commit stamps, and `npm run verify` shows the checkmark.
-- **The reformat must not change behaviour.** Run the 35 tests before and after it. A count that
-  moves is the finding.
+- **Biome now formats every file in this folder.** There is no folder `biome.json` any more.
 - **`placement` and `fxTakes` are the owner's data** in `$.store`. Read them forward-only.
 - **Comments state the present.** No session ids, no "used to", no review stories.
 - **Every push needs its own approval.** List `origin/main..HEAD` first, because parallel

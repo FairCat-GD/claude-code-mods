@@ -66,8 +66,7 @@ function engine(on: Parameters<TestBody>[1], result: object, percent = 10, isErr
 }
 
 // `/fx <args>` as typed at the prompt of a desktop session.
-const fx = (args: string) =>
-  ({ command: 'fx', args, origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 98 } }) as const
+const fx = (args: string) => ({ command: 'fx', args, origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 98 } }) as const
 
 const start = ($: Parameters<TestBody>[0]) => $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
 
@@ -105,7 +104,14 @@ test('once the desktop folds the call into a group, the group row plays it', asy
       component: 'ToolGroup',
       requestId: 'group:t1',
       surface: 'desktop',
-      props: { calls: [{ ...call, tool_use_id: 't1' }, { ...call, tool_use_id: 't2' }], isActive: false, isExpanded },
+      props: {
+        calls: [
+          { ...call, tool_use_id: 't1' },
+          { ...call, tool_use_id: 't2' },
+        ],
+        isActive: false,
+        isExpanded,
+      },
     }) as const
 
   const folded = await $.ui.mount(group(false))
@@ -549,9 +555,7 @@ test('/fx place bottom keeps effects in the strip, and is remembered', async ($,
   expect(await row.find({ type: 'Svg' })).toBeUndefined()
   expect((await band.find({ type: 'Svg' }))?.props.alt).toBe('Pushed! main')
 
-  expect((await $.command.run(fx('place conversation'))).text).toBe(
-    'cartoon-fx: animations play in the conversation, under what set them off.',
-  )
+  expect((await $.command.run(fx('place conversation'))).text).toBe('cartoon-fx: animations play in the conversation, under what set them off.')
   expect(kept.placement).toBe('conversation')
   for (const ui of [row, band]) await ui.unmount()
 })
@@ -660,7 +664,12 @@ test('what counts as a push, a commit and a passing test run', () => {
   expect(committed('git commit -m x', out(COMMITTED.stdout))).toEqual({ sha: '5e81772', isAmend: false, subject: 'Add squish effect' })
   expect(committed('git commit -n -m x', out('[main (root-commit) abc1234] x'))).toEqual({ sha: 'abc1234', isAmend: false, subject: 'x' })
   expect(committed('git commit --amend --no-edit', out('[main 9f8e7d6] x'))).toEqual({ sha: '9f8e7d6', isAmend: true, subject: 'x' })
-  expect(committed('git commit -F msg.txt', { ...out('[main 976cd29] review: the toast survives, and 6 smaller'), gitOperation: { commit: { sha: '976cd29f00', kind: 'committed' } } })).toEqual({ sha: '976cd29', isAmend: false, subject: 'review: the toast survives, and 6 smaller' })
+  expect(
+    committed('git commit -F msg.txt', {
+      ...out('[main 976cd29] review: the toast survives, and 6 smaller'),
+      gitOperation: { commit: { sha: '976cd29f00', kind: 'committed' } },
+    }),
+  ).toEqual({ sha: '976cd29', isAmend: false, subject: 'review: the toast survives, and 6 smaller' })
 
   expect(isReviewFix('review: a malformed journal line no longer blocks calls, and 9 smaller')).toBe(true)
   expect(isReviewFix('fix: architecture review II: a panic beside a refresh halts with a note')).toBe(true)

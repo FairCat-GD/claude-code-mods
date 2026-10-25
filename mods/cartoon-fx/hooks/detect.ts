@@ -12,8 +12,7 @@ export type BashOutput = {
 // push of `git commit -m x && git push`), so flags elsewhere in the line are not
 // read as its own. A word "push" or "commit" in some other git command still
 // needs git's own report in the output to count.
-const gitPart = (command: string, sub: 'push' | 'commit') =>
-  command.split(/&&|\|\||[;|\n]/).find(part => new RegExp(`\\bgit\\b.*\\b${sub}\\b`).test(part))
+const gitPart = (command: string, sub: 'push' | 'commit') => command.split(/&&|\|\||[;|\n]/).find(part => new RegExp(`\\bgit\\b.*\\b${sub}\\b`).test(part))
 const PUSH_DRY_RUN = /\s(--dry-run|-n)(\s|$)/
 const DRY_RUN = /\s--dry-run(\s|$)/
 
@@ -77,8 +76,7 @@ export function testsPassed(command: string, out: BashOutput): string | undefine
 }
 
 // A commit of fixes a code review found: `review: ...`, or a `fix:` that names a review.
-export const isReviewFix = (subject: string) =>
-  /^review\b/i.test(subject) || (/^fix\b/i.test(subject) && /\breview\b/i.test(subject))
+export const isReviewFix = (subject: string) => /^review\b/i.test(subject) || (/^fix\b/i.test(subject) && /\breview\b/i.test(subject))
 
 // 142318 → "142k".
 export const tokens = (count: number) => (count >= 1000 ? `${Math.round(count / 1000)}k` : String(count))

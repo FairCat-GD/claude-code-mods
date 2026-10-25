@@ -48,8 +48,7 @@ export function random(seed: number): () => number {
 
 const n = (v: number) => String(Math.round(v * 10) / 10)
 
-const escapeXml = (s: string) =>
-  s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c] ?? c)
+const escapeXml = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c] ?? c)
 
 // ---- SMIL helpers ----------------------------------------------------------
 
@@ -162,8 +161,10 @@ function rays(rnd: () => number, o: RayOptions): string {
     out +=
       `<line x1="${ax1}" y1="${ay1}" x2="${ax2}" y2="${ay2}" stroke="${colors[i % colors.length] ?? INK}" ` +
       `stroke-width="4" stroke-linecap="round" opacity="0">` +
-      animate('x1', [ax1, bx1], t) + animate('y1', [ay1, by1], t) +
-      animate('x2', [ax2, bx2], t) + animate('y2', [ay2, by2], t) +
+      animate('x1', [ax1, bx1], t) +
+      animate('y1', [ay1, by1], t) +
+      animate('x2', [ax2, bx2], t) +
+      animate('y2', [ay2, by2], t) +
       animate('opacity', [1, 1, 0], { dur: 0.38, begin, keyTimes: [0, 0.5, 1] }) +
       `</line>`
   }
@@ -192,7 +193,8 @@ function streaks(cx: number, ys: number[], gap: number, begin: number): string {
         return (
           `<line x1="${n(x1)}" y1="${n(y)}" x2="${n(x1 + side * 10)}" y2="${n(y)}" stroke="${INK}" stroke-width="3" ` +
           `stroke-linecap="round" opacity="0">` +
-          animate('x1', [x1, x1 + side * 26], t) + animate('x2', [x1 + side * 10, x1 + side * 44], t) +
+          animate('x1', [x1, x1 + side * 26], t) +
+          animate('x2', [x1 + side * 10, x1 + side * 44], t) +
           animate('opacity', [1, 1, 0], { dur: 0.35, begin, keyTimes: [0, 0.5, 1] }) +
           `</line>`
         )
@@ -404,14 +406,18 @@ const EYES = '#2B1A12'
 
 // A tiny pixel helper in a ninja headband, facing right, its feet at (0, 0).
 function ninja(band: string): string {
-  const px = (x: number, y: number, w: number, h: number, fill: string) =>
-    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}"/>`
+  const px = (x: number, y: number, w: number, h: number, fill: string) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}"/>`
   return (
     `<g transform="scale(3) translate(-6.5 -8)" shape-rendering="crispEdges">` +
-    px(1, 0, 11, 6, BODY) + px(0, 2, 1, 2, BODY) + px(12, 2, 1, 2, BODY) +
+    px(1, 0, 11, 6, BODY) +
+    px(0, 2, 1, 2, BODY) +
+    px(12, 2, 1, 2, BODY) +
     [2, 4, 8, 10].map(x => px(x, 6, 1, 2, BODY)).join('') +
-    px(1, 1, 11, 1, band) + px(-1, 1, 2, 1, band) + px(-2, 0, 1, 1, band) +
-    px(4, 2, 1, 2, EYES) + px(9, 2, 1, 2, EYES) +
+    px(1, 1, 11, 1, band) +
+    px(-1, 1, 2, 1, band) +
+    px(-2, 0, 1, 1, band) +
+    px(4, 2, 1, 2, EYES) +
+    px(9, 2, 1, 2, EYES) +
     `</g>`
   )
 }
@@ -421,16 +427,30 @@ function helper(rnd: () => number, i: number): string {
   const dist = 70 + Math.floor(i / 2) * 28 + rnd() * 10
   const begin = 0.18 + i * 0.08
   const dur = 1.5
-  const hops: [number, number][] = [[0, 0], [0.22, -20], [0.45, 0], [0.68, -14], [0.86, 0], [1.25, -8]]
+  const hops: [number, number][] = [
+    [0, 0],
+    [0.22, -20],
+    [0.45, 0],
+    [0.68, -14],
+    [0.86, 0],
+    [1.25, -8],
+  ]
   const keyTimes = [0, 0.18, 0.36, 0.54, 0.7, 1]
   const band = COLORS[(i * 3) % COLORS.length] ?? INK
   const trail = [-6, -11, -16]
-    .map((y, k) => `<line x1="${-24 - k * 3}" y1="${y * 1.25}" x2="${-40 - k * 5}" y2="${y * 1.25}" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity="0.5"/>`)
+    .map(
+      (y, k) =>
+        `<line x1="${-24 - k * 3}" y1="${y * 1.25}" x2="${-40 - k * 5}" y2="${y * 1.25}" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity="0.5"/>`,
+    )
     .join('')
   return (
     `<g transform="translate(${CX} 146)" opacity="0">` +
     animate('opacity', [1, 1, 0], { dur, begin, keyTimes: [0, 0.7, 1] }) +
-    `<g>${animateTransform('translate', hops.map(([f, h]) => `${n(dir * dist * f)} ${h}`), { dur, begin, keyTimes })}` +
+    `<g>${animateTransform(
+      'translate',
+      hops.map(([f, h]) => `${n(dir * dist * f)} ${h}`),
+      { dur, begin, keyTimes },
+    )}` +
     `<g transform="scale(${dir} 1)">${trail}${ninja(band)}</g></g></g>`
   )
 }
@@ -539,13 +559,7 @@ function review(rnd: () => number, title: string, subtitle: string, findings: nu
     sparkle(CX - 80 + i * 40 + rnd() * 10, top - 10 + rnd() * 16, 5 + rnd() * 4, i % 2 ? '#4D96FF' : '#FFD23F', 1.3 + rnd() * 0.3),
   ).join('')
 
-  return (
-    thePage +
-    marks +
-    theLens +
-    twinkles +
-    label(title, subtitle, { y: 162, fill: '#6FB6FF', begin: 1.3, dur: 1.4, size: 26, rotate: -4 })
-  )
+  return thePage + marks + theLens + twinkles + label(title, subtitle, { y: 162, fill: '#6FB6FF', begin: 1.3, dur: 1.4, size: 26, rotate: -4 })
 }
 
 // ---- fixes: a bug walks in and gets swatted -------------------------------
@@ -556,9 +570,7 @@ const GROUND = 128
 // A cartoon beetle facing right, its feet at (0, 0); its eyes come apart so
 // they can be swapped for crosses.
 function beetle(): { body: string; eyesOpen: string; eyesCrossed: string } {
-  const legs = [-13, -1, 11]
-    .map(x => `<path d="M${x},-7 L${x - 5},0" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`)
-    .join('')
+  const legs = [-13, -1, 11].map(x => `<path d="M${x},-7 L${x - 5},0" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`).join('')
   return {
     body:
       legs +
@@ -567,9 +579,7 @@ function beetle(): { body: string; eyesOpen: string; eyesCrossed: string } {
       `<path d="M-5,-30 Q-1,-17 -5,-4" fill="none" stroke="${INK}" stroke-width="2"/>` +
       `<ellipse cx="-10" cy="-23" rx="7" ry="3.5" fill="#9C82F0"/>` +
       `<circle cx="22" cy="-18" r="9" fill="${BUG}" stroke="${INK}" stroke-width="3"/>`,
-    eyesOpen:
-      `<circle cx="25" cy="-20" r="3.5" fill="#FFFFFF" stroke="${INK}" stroke-width="1.5"/>` +
-      `<circle cx="26" cy="-20" r="1.6" fill="${INK}"/>`,
+    eyesOpen: `<circle cx="25" cy="-20" r="3.5" fill="#FFFFFF" stroke="${INK}" stroke-width="1.5"/>` + `<circle cx="26" cy="-20" r="1.6" fill="${INK}"/>`,
     eyesCrossed: `<path d="M22,-23 l6,6 M28,-23 l-6,6" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>`,
   }
 }
@@ -665,7 +675,11 @@ function clapper(rnd: () => number, title: string, subtitle: string): string {
   const snap = { dur: 1, keyTimes: [0, 0.45, 0.55, 0.63, 0.72, 1] }
   const arm =
     `<g transform="rotate(-24 -56 -41)">` +
-    animateTransform('rotate', ['-24', '-24', '3', '-2', '0', '0'].map(a => `${a} -56 -41`), snap) +
+    animateTransform(
+      'rotate',
+      ['-24', '-24', '3', '-2', '0', '0'].map(a => `${a} -56 -41`),
+      snap,
+    ) +
     bar(-56, 'arm') +
     `</g>`
   const shake = animateTransform('translate', ['0 0', '0 0', '0 4', '0 -2', '0 0', '0 0'], {
@@ -731,11 +745,18 @@ function gauge(rnd: () => number, title: string, subtitle: string, percent: numb
     `<circle r="8" fill="${INK}" stroke="${zone}" stroke-width="3"/></g>`
   const dial =
     `<path d="M${gx - R - 14},${gy} A${R + 14},${R + 14} 0 0 1 ${gx + R + 14},${gy} Z" fill="${CLOUD}" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>` +
-    arc(0, 60, '#2FBF71') + arc(60, 90, YELLOW_ZONE, isRed ? '' : pulse) + arc(90, 100, RED_ZONE, isRed ? pulse : '') +
-    ticks + needle
+    arc(0, 60, '#2FBF71') +
+    arc(60, 90, YELLOW_ZONE, isRed ? '' : pulse) +
+    arc(90, 100, RED_ZONE, isRed ? pulse : '') +
+    ticks +
+    needle
   // The red one rattles on its base as the needle hits the stop.
   const rattle = isRed
-    ? animateTransform('rotate', ['0', '-4', '4', '-4', '3', '-2', '0'].map(a => `${a} ${gx} ${gy}`), { dur: 0.7, begin: 1.05 })
+    ? animateTransform(
+        'rotate',
+        ['0', '-4', '4', '-4', '3', '-2', '0'].map(a => `${a} ${gx} ${gy}`),
+        { dur: 0.7, begin: 1.05 },
+      )
     : ''
   const theGauge =
     `<g transform="translate(${gx} ${gy})"><g transform="scale(0)">` +
@@ -784,15 +805,23 @@ function gauge(rnd: () => number, title: string, subtitle: string, percent: numb
 export function drawFx(kind: FxKind, seed: number, title: string, subtitle = '', value = 0): string {
   const rnd = random(seed)
   const body =
-    kind === 'push' ? confetti(rnd, title, subtitle)
-    : kind === 'commit' ? stamp(rnd, title, subtitle)
-    : kind === 'tests' ? check(rnd, title, subtitle)
-    : kind === 'compact' ? squish(rnd, title, subtitle)
-    : kind === 'helpers' ? helpers(rnd, title, subtitle, value)
-    : kind === 'plan' ? clapper(rnd, title, subtitle)
-    : kind === 'fixes' ? swat(rnd, title, subtitle)
-    : kind === 'review' ? review(rnd, title, subtitle, value)
-    : gauge(rnd, title, subtitle, value, kind === 'redzone')
+    kind === 'push'
+      ? confetti(rnd, title, subtitle)
+      : kind === 'commit'
+        ? stamp(rnd, title, subtitle)
+        : kind === 'tests'
+          ? check(rnd, title, subtitle)
+          : kind === 'compact'
+            ? squish(rnd, title, subtitle)
+            : kind === 'helpers'
+              ? helpers(rnd, title, subtitle, value)
+              : kind === 'plan'
+                ? clapper(rnd, title, subtitle)
+                : kind === 'fixes'
+                  ? swat(rnd, title, subtitle)
+                  : kind === 'review'
+                    ? review(rnd, title, subtitle, value)
+                    : gauge(rnd, title, subtitle, value, kind === 'redzone')
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW_X} 0 ${VIEW_WIDTH} ${HEIGHT}" width="${VIEW_WIDTH * SCALE}" height="${HEIGHT * SCALE}">` +
