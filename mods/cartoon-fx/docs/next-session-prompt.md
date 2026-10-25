@@ -10,16 +10,15 @@ C1 cuts no version. All paths here are inside `mods/cartoon-fx/`; run
 ## State you need that is not in the specs
 
 - **Round 2 is the code-review effects that never show.** F1 is done (0.10.2); C1 remains.
-- **Push status.** `origin/main` holds everything through `d23450f`. These are local, not pushed:
-  - the intake's commit and its review commit;
-  - F1's `fix(cartoon-fx): … (0.10.2)` commit and its `review(cartoon-fx): …` commit.
-  - List `origin/main..HEAD` before any push: parallel sessions share this checkout.
-- **0.10.2 is not checked in the desktop yet.** The installed release is still 0.10.1.
-  - Once the owner approves the push, they run `claude plugin update cartoon-fx`, then a
-    `/code-review` with findings, and its fixes, in a new desktop session.
-  - That closes two BACKLOG items, *A review's effects beside its card* and *An update to a new
-    version*. For the update, record: a new `0.10.2/` cache folder; a new session runs 0.10.2;
-    `placement` and `fxTakes` kept.
+- **Push status.** `origin/main` holds everything through `ed3aaa6`, F1's review commit. The
+  `docs(cartoon-fx)` commit that records the update is local, not pushed. List `origin/main..HEAD`
+  before any push: parallel sessions share this checkout.
+- **0.10.2 is pushed and installed, but not checked in the desktop yet.**
+  - `origin/main` was at `ed3aaa6` after F1's push. `claude plugin update cartoon-fx` installed
+    0.10.2 from it, recorded in *Packaging*.
+  - Still to do: in a new desktop session, the owner runs a `/code-review` with findings, then its
+    fixes. That closes two BACKLOG items, *A review's effects beside its card* and *A new session
+    runs an update*.
   - **If that look shows the effects still hidden,** a fix session is inserted before C1
     (*Rounds*, step 4), and C1 waits.
 - **What F1 left that C1 touches:**
