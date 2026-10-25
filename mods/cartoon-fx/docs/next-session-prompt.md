@@ -1,35 +1,50 @@
-No round is in progress for cartoon-fx. Read the root CLAUDE.md, this mod's CLAUDE.md,
-`docs/ARCHITECTURE.md`, then this file. The next session is this mod's round 2 **intake**: write
-the owner's request down verbatim, ask what it leaves open, and plan the round in this mod's
-`docs/spec/` (see the root `docs/DEVELOPMENT-WORKFLOW.md`, *Rounds*).
+Read docs/spec/FEATURE-review-effects.md, the root CLAUDE.md, this mod's CLAUDE.md,
+docs/ARCHITECTURE.md, then this file. Then do Session F1 of docs/spec/SESSIONS.md: a
+`/code-review`'s "Reviewed!" and "Bugs squashed!" play in the conversation, as every other effect
+does. F1 has four parts:
+- measure what the desktop draws for a `ReportFindings` call;
+- draw the two effects there, with the fallback intact;
+- one named type for the report's input;
+- `drawnRows` evicts its oldest row past 200.
 
-## State you need that is not in the docs
+Release 0.10.2. All paths here are inside `mods/cartoon-fx/`; run `npm run verify -- cartoon-fx`
+from the repository's root.
 
-- **cartoon-fx 0.10.1 is in the repository, and the owner runs it as the installed release.**
-  - It came in byte for byte from the folder it was built in, plus `author` and `license` in
-    `plugin.json`.
-  - Its round 1 ran before this repository and outside the workflow. It counts as finished, so the
-    next round is round 2.
-  - It is installed at user scope as `cartoon-fx@claude-code-mods`, from commit `3f79906`. The
-    folder copy that ran before (`~/.claude/mods/cartoon-fx`, through `CLAUDE_CODE_PLUGIN_DIRS`)
-    no longer loads; the owner may remove that folder.
-- **Its as-built docs exist:** `docs/ARCHITECTURE.md` and `docs/USER-GUIDE.md`, written from the
-  code alone. No note from the chat that built it was available.
-- **The intake may start now.** The repository's round 1 has one session left (repo Session 4,
-  its documentation pass). That session touches this mod only to repoint its `CLAUDE.md` at the
-  root `CLAUDE.md` once the root SPEC §8 is gone.
-- **Push status** is in the root `docs/next-session-prompt.md`, which every repo session
-  rewrites.
-- **Open items live in `docs/BACKLOG.md`:**
-  - *Deferred:* the Biome reformat, detection by printed output, the `drawnRows` clear, and the
-    casts;
-  - *Not yet checked by hand:* the real triggers on the installed release, and an update to a new
-    version.
-- **Baseline** (`docs/ARCHITECTURE.md`; CLI 2.1.310):
+## State you need that is not in the specs
+
+- **Round 2 is the code-review effects that never show.** Its intake is done: F1 and C1 remain.
+- **Push status.** `origin/main` held everything through `d23450f` when the intake started. The
+  intake's commit and its review commit are local, not pushed. List `origin/main..HEAD` before any
+  push: parallel sessions share this checkout.
+- **The installed release is 0.10.1,** `cartoon-fx@claude-code-mods`, from commit `3f79906`. It
+  runs in every session the owner starts, this one included.
+- **What the intake established** (`FEATURE-review-effects.md` has the detail):
+  - The trigger fires. Both reports come from the main conversation, shaped as the hook reads
+    them.
+  - Under `/fx place bottom`, the owner saw "Reviewed!" in the strip, in the desktop app.
+  - Under `conversation`, nothing shows. The desktop draws the report as its own findings card,
+    and the `ToolUse` hook still marks the row drawn, so the 900 ms fallback never runs.
+  - Still inferred, not measured: what the desktop raises around the card, and that "Bugs
+    squashed!" fails the same way.
+- **The code F1 touches, as it is now** (`hooks/register.tsx`):
+  - `rowOf` at `:83`, `drawnRows`/`noteDrawn` at `:86-92`, `play` at `:103-113`, and
+    `toStripUnlessDrawn` at `:115-124`;
+  - `reviewReported` at `:143-156`, and the every-tool `tool.call` hook at `:253-265`, with the
+    two casts at `:259-260`;
+  - the `ToolUse` render hook at `:344-357`.
+  - The tests that mount a review's effect under its `ToolUse` row are at
+    `tests/cartoon-fx.test.tsx:190-220`.
+- **Decisions written down nowhere else:** the owner does not want the review effects moved to
+  the strip as the fix ("i don't like them playing in that bottom mode"). The strip stays a
+  fallback and the `bottom` placement, as for every effect.
+- **Baseline** (`docs/ARCHITECTURE.md`, v0.10.1, CLI 2.1.310):
   - 28 tests in `tests/cartoon-fx.test.tsx`;
   - `validate`: 12 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
     allowed `CLAUDE.md` one;
   - `tsc` and the import scan are clean.
+  - F1 adds tests, and may add a render hook.
+- **Repo Session 4** (the repo's documentation pass) may still be open. It touches this mod only
+  to repoint its `CLAUDE.md`. Leave that file's uncommitted changes alone.
 
 ## Watch for
 
@@ -50,4 +65,10 @@ the owner's request down verbatim, ask what it leaves open, and plan the round i
   `plugin.json` version (`docs/ARCHITECTURE.md`, *Packaging*). A change meant for the owner cuts a
   version, or it never reaches their sessions.
 - **This folder has its own `biome.json`** (see this mod's `CLAUDE.md`).
+- **A terminal session cannot show the desktop's rows.** `--plugin-dir` runs only in a terminal,
+  and the terminal draws every effect in the strip. Settle how F1 sees the desktop's findings card
+  at the start (the block's *Ask at the start*). A probe in the session mods folder touches the
+  owner's setup and needs their OK.
 - **Comments state the present.** No session ids, no "used to", no review stories.
+- **Every push needs its own approval.** List `origin/main..HEAD` first, because parallel
+  sessions share this checkout.

@@ -7,23 +7,13 @@ up, it moves out of this file.
 
 ## Deferred
 
-- **Reformat the code with Biome, and delete this folder's `biome.json`.** Left out at the
-  import, which copied the code byte for byte. At width 160, Biome changes 139 lines in
-  `detect.ts`, `fx.ts`, `register.tsx` and the test file, the four files whose formatting the
-  folder's `biome.json` turns off. Lint wants the five
-  `.catch(($, e, next) => next(e))` handlers to name their unused `$` as `_$`. Nobody using the
-  mod sees either change, so it cuts no version.
 - **Detection reads printed output.** Where the engine gives no `gitOperation`, `detect.ts` finds
   a push's branch and a commit's hash in git's printed lines. It judges a test run by its runner's
   wording. A change to either wording breaks it quietly: nothing plays. Read from the as-built
-  code, in repo Session 3.
-- **`drawnRows` is emptied wholesale past 200 rows.** An effect still playing at that moment loses
-  its "drawn" mark, and may replay in the strip. Read from the as-built code, in repo Session 3.
-- **Casts where the declarations name no shape:**
-  - `(e.tool as string) === 'ReportFindings'` and its `findings`;
-  - `awaitingLeaderApproval` on `ExitPlanMode`'s result.
-
-  A declarations change would not show in `tsc`. Read from the as-built code, in repo Session 3.
+  code, in repo Session 3; left out at the round 2 intake.
+- **A cast where the declarations name no shape:** `awaitingLeaderApproval` on `ExitPlanMode`'s
+  result. A declarations change would not show in `tsc`. Read from the as-built code, in repo
+  Session 3; left out at the round 2 intake, which took the `ReportFindings` cast.
 
 ## Not yet checked by hand
 
