@@ -22,16 +22,19 @@ from the repository's root.
   - The trigger fires. Both reports come from the main conversation, shaped as the hook reads
     them.
   - Under `/fx place bottom`, the owner saw "Reviewed!" in the strip, in the desktop app.
-  - Under `conversation`, nothing shows. The desktop draws the report as its own findings card,
-    and the `ToolUse` hook still marks the row drawn, so the 900 ms fallback never runs.
-  - Still inferred, not measured: what the desktop raises around the card, and that "Bugs
-    squashed!" fails the same way.
+  - Under `conversation`, nothing shows, and no fallback reaches the strip either. So some
+    render hook marks the call's row drawn while the desktop shows its own findings card.
+  - Still inferred, not measured:
+    - which hook does it, `ToolUse` or `ToolGroup`;
+    - what the desktop raises around the card;
+    - that "Bugs squashed!" fails the same way.
 - **The code F1 touches, as it is now** (`hooks/register.tsx`):
   - `rowOf` at `:83`, `drawnRows`/`noteDrawn` at `:86-92`, `play` at `:103-113`, and
     `toStripUnlessDrawn` at `:115-124`;
   - `reviewReported` at `:143-156`, and the every-tool `tool.call` hook at `:253-265`, with the
     two casts at `:259-260`;
-  - the `ToolUse` render hook at `:344-357`.
+  - the `ToolUse` render hook at `:344-357`, and the `ToolGroup` one at `:361-374`;
+  - the strip's direct, uncapped `drawnRows.add` at `:404-406`.
   - The tests that mount a review's effect under its `ToolUse` row are at
     `tests/cartoon-fx.test.tsx:190-220`.
 - **Decisions written down nowhere else:** the owner does not want the review effects moved to
@@ -68,7 +71,10 @@ from the repository's root.
 - **A terminal session cannot show the desktop's rows.** `--plugin-dir` runs only in a terminal,
   and the terminal draws every effect in the strip. Settle how F1 sees the desktop's findings card
   at the start (the block's *Ask at the start*). A probe in the session mods folder touches the
-  owner's setup and needs their OK.
+  owner's setup and needs their OK. Nobody has measured that the desktop loads that folder, so
+  check that before writing the real probe.
+- **0.10.2's update is the first one since the install.** Record it for the backlog's *An update
+  to a new version* (the block's hand check).
 - **Comments state the present.** No session ids, no "used to", no review stories.
 - **Every push needs its own approval.** List `origin/main..HEAD` first, because parallel
   sessions share this checkout.

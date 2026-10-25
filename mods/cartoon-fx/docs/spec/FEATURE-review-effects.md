@@ -22,9 +22,12 @@ The intake did not audit. It traced the request to one cause:
   no second report followed.
 
 So detection works and display fails. The desktop draws a `ReportFindings` call as its own
-findings card. The `ToolUse` hook still draws the effect under the row and marks it drawn
-(`noteDrawn`, `register.tsx:86-92`), which cancels the 900 ms fallback to the strip. That much is
-inferred from the code: what the desktop raises around the card has not been measured. The
+findings card. A render hook still draws the effect at the call's row and marks it drawn
+(`noteDrawn`, `register.tsx:86-92`), which cancels the 900 ms fallback to the strip. The hook is
+either the `ToolUse` one (`:344-357`), or the `ToolGroup` one (`:361-374`) if the desktop folds
+the call into a group. Something must mark the row drawn, or the fallback would have shown the
+effect in the strip. Which hook it is, and what the desktop raises around the card, are inferred
+from the code and have not been measured. The
 `fixes` report goes through the same hook and the same row, so it is taken to fail the same way;
 that was not checked by hand.
 
@@ -36,23 +39,31 @@ and the `drawnRows` clear.
 1. **The review effects play in the conversation, like every other effect.** The owner: "It has
    to play as the other ones, i don't like them playing in that bottom mode".
    - Under `placement: conversation`, they draw at the report's place: under the findings card
-     where a render hook can draw there, else under the nearest conversation row after it.
+     where a render hook can draw there. Otherwise they draw beside the card, in the row just
+     before it, or in the row after it if that row is drawn while the effect still plays. The
+     row after the report often comes later (the review's own text streams after it, or the
+     turn ends on it), so it can't be the only choice.
    - The strip gets them only as it gets any effect: through the fallback (the row scrolled off,
      or nothing drew it), or under `/fx place bottom`.
    - If the desktop offers no conversation row that can carry them, F1 stops and asks.
 2. **The cause is display, not detection** (the owner's hand check). A row that cannot show the
    effect must not count as drawn, so the fallback still runs.
 3. **F1 measures before it fixes.**
-   - It finds which render components the desktop raises around a `ReportFindings` call
-     (`ToolUse`, `ToolResult`, the `AssistantMessage` after it, or others).
+   - It finds which render components the desktop raises for a `ReportFindings` call and around
+     it: `ToolUse`, `ToolGroup` (a group that holds it), `ToolResult`, the rows before and after
+     it, or others.
+   - It finds which hook marks the call's row drawn today.
    - It finds which of them draws a rewrite where the owner can see it.
    - The done-note records the desktop engine's version beside each answer.
 4. **The `ReportFindings` input gets one named type.** This replaces the casts at
    `register.tsx:259-260` (`e.tool as string` and `e as unknown as { findings?: … }`). The type is
    taken from the declarations where they name the tool. Where they don't, the one local type is
    the only cast left.
-5. **`drawnRows` evicts its oldest row past 200** (`register.tsx:86-92`), instead of being emptied
-   wholesale. An effect still playing keeps its mark, so it never replays in the strip.
+5. **`drawnRows` evicts its oldest row past 200**, instead of being emptied wholesale. An effect
+   still playing keeps its mark, so it never replays in the strip.
+   - Both places that add to it go through the one bounded helper: `noteDrawn`
+     (`register.tsx:86-92`), and the strip's direct `drawnRows.add` (`:404-406`).
+   - The strip's add has no cap today, so on the terminal the set grows for the whole session.
 6. **The Biome reformat.**
    - Biome formats `hooks/detect.ts`, `hooks/fx.ts`, `hooks/register.tsx` and
      `tests/cartoon-fx.test.tsx`.

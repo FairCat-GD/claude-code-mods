@@ -42,8 +42,9 @@ Never push without being asked.
 
 - **Measure the desktop's findings card first** (decision 3).
   - Find which `ui.render` components the desktop raises for a `ReportFindings` call and around it.
-    Look at `ToolUse`, `ToolResult` and the `AssistantMessage` after it, with the `onScreen` each
-    one carries.
+    Look at `ToolUse`, a `ToolGroup` that holds the call, `ToolResult`, and the rows before and
+    after it, with the `onScreen` each one carries.
+  - Find which hook marks the call's row drawn today, `ToolUse` or `ToolGroup`.
   - Find which of them draws a rewrite the owner can see. The declarations name the components
     (`RenderComponent` in the laid `claude-code/index.d.ts`); grep `ToolResult: {`.
   - Record each answer with the desktop engine's version.
@@ -51,7 +52,8 @@ Never push without being asked.
   - The effect's row and the hooks that draw it are in `hooks/register.tsx`:
     - `rowOf` (`:83`) and `play` (`:103-113`);
     - the fallback, `toStripUnlessDrawn` (`:115-124`);
-    - the `ToolUse` hook (`:344-357`), which marks its row drawn through `noteDrawn` (`:87-92`).
+    - the `ToolUse` hook (`:344-357`) and the `ToolGroup` hook (`:361-374`). Each marks its row
+      drawn through `noteDrawn` (`:87-92`).
   - A row that hides the effect must stop counting as drawn. The new anchor marks it drawn
     instead, so the fallback still runs when nothing on screen shows it.
   - `placement: bottom` and the terminal are unchanged: the strip.
@@ -59,9 +61,11 @@ Never push without being asked.
 - **The typed report** (decision 4). Replace the two casts at `register.tsx:259-260` with one named
   type for the report's input, beside `FxKind` in `types/index.d.ts` or in `register.tsx`. Grep the
   declarations for `ReportFindings` first; at 2.1.310 they name it nowhere.
-- **`drawnRows` evicts its oldest row** (decision 5). Replace `drawnRows.clear()` at
-  `register.tsx:90` with removing the oldest entry. A `Set` keeps insertion order, so that is its
-  first.
+- **`drawnRows` evicts its oldest row** (decision 5).
+  - Replace `drawnRows.clear()` at `register.tsx:90` with removing the oldest entry. A `Set` keeps
+    insertion order, so that is its first.
+  - Route the strip's direct `drawnRows.add(effect.row)` (`:404-406`) through the same bounded
+    helper. Today it has no cap, so on the terminal the set grows for the whole session.
 - **Docs.**
   - `CHANGELOG.md`: a 0.10.2 entry under *Fixed*:
     - the review and its fixes now show in the conversation, in the desktop app;
@@ -76,6 +80,7 @@ Never push without being asked.
   - `USER-GUIDE.md`: where a review's effects play, if it changes from "under the row".
   - `docs/BACKLOG.md`:
     - the `/code-review` part of *Real triggers on the installed release*, once checked by hand;
+    - *An update to a new version*, once checked by hand;
     - anything F1 could not check.
 - **Ask at the start of F1:** how to see what the desktop draws for a findings card.
   - A `--plugin-dir` copy runs only in a terminal session, and the terminal always draws in the
@@ -84,7 +89,17 @@ Never push without being asked.
     plugin-authoring skill watches. It would log each component the desktop raises for the call,
     and would need the owner's OK before it is placed and again before it is removed (root
     invariant 7).
+    - Nobody has measured that the desktop app loads mods from that folder. Check that first,
+      with a probe that does nothing but announce itself at `session.start`, before writing the
+      real one.
+    - If the desktop doesn't load it, remove it (with the owner's OK), and the session takes the
+      other route.
   - The other route is to push 0.10.2 and have the owner look.
+    - The fix is then built against what the code and the declarations say, with `verify` green,
+      and its desktop behaviour is checked only after the push.
+    - That push needs the owner's approval like any other. If the owner's look then shows the
+      effects still hidden, a fix session is inserted with the owner (*Rounds*, step 4), and C1
+      waits for it.
 
 **Gates:**
 - `npm run verify -- cartoon-fx`, with these tests on the `desktop` surface:
@@ -93,12 +108,18 @@ Never push without being asked.
     plays nothing;
   - a row that cannot show the effect does not cancel the move to the strip;
   - under `/fx place bottom`, both play in the strip;
-  - an effect still playing when `drawnRows` passes 200 keeps its mark and doesn't replay.
+  - an effect still playing when `drawnRows` passes 200 keeps its mark and doesn't replay;
+  - the strip's adds, on the terminal, keep the set at 200.
   - The two tests at `tests/cartoon-fx.test.tsx:190-220` mount the effect under the report's
     `ToolUse` row, which is the assumption the owner's check disproved. They change with the fix.
 - **By hand, in the desktop app:**
   - a `/code-review` that has findings, then its fixes, with `placement: conversation`;
   - on the installed 0.10.2 once pushed, or through the probe route the owner chose.
+  - **The first update.** 0.10.2 is the first version since the install, so the update that brings
+    it closes the backlog's *An update to a new version*. Record three things:
+    - `claude plugin update cartoon-fx` installs a new `0.10.2/` folder in the plugin cache;
+    - a new session runs 0.10.2;
+    - the stored `placement` and `fxTakes` are kept.
   - Anything not checked goes to `docs/BACKLOG.md`, *Not yet checked by hand*.
 
 **Watch for:**
