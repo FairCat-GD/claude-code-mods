@@ -38,6 +38,10 @@ were checked at 0.10.2 in the desktop app: both played beside the findings card.
   one "×N helpers!". Covered by their tests.
 - **`/fx place bottom` across sessions** (0.10.1): set in one session, it applies in another open
   one from its next effect. Covered by the two placement tests.
+- **Effects while the desktop window is not in front** (0.10.2): a probe in round 2 saw the
+  desktop raise a turn's rows in one burst about 39 s late (desktop 2.1.308), long past the
+  900 ms move to the strip and the effect's own length. Nobody has looked at what plays then, or
+  where. No test covers it: the kit raises rows when told.
 
 ## Directions
 
