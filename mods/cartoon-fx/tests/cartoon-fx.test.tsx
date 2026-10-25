@@ -40,9 +40,13 @@ const VERIFIED = { stdout: ' Test Files  6 passed (6)\n      Tests  42 passed (4
 function engine(on: Parameters<TestBody>[1], result: object, percent = 10, isError = false, store: Record<string, unknown> = {}) {
   const clock = mock.clock(on, { now: 1000 })
   const usage = { percent }
-  const transcript: { messages: object[] } = { messages: [] }
+  const transcript: { messages: object[]; isRefused: boolean } = { messages: [], isRefused: false }
   on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('session.messages', () => ({ value: transcript.messages as never }))
+  on('session.messages', () => {
+    if (transcript.isRefused) throw new Error('transcript unreadable')
+
+    return { value: transcript.messages as never }
+  })
   on('command.register', () => ({ value: { command: 'fx' } }))
   on('store.get', (_, e) => ({ value: store[e.key] }))
   on('store.set', (_, e) => {
@@ -260,6 +264,57 @@ test('a findings card does not count as drawn, so a review with no row before it
   await clock.advance(900)
   expect((await band.find({ type: 'Svg' }))?.props.alt).toBe('Reviewed! 1 finding')
   for (const ui of [card, band]) await ui.unmount()
+})
+
+test('a transcript it cannot read still moves a review to the strip', async ($, on) => {
+  const { clock, transcript } = engine(on, { text: 'reported' })
+  await start($)
+  transcript.isRefused = true
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+
+  await $.tool.call(report('r1', [undefined, undefined]))
+  await clock.advance(900)
+  expect((await band.find({ type: 'Svg' }))?.props.alt).toBe('Reviewed! 2 findings')
+  await band.unmount()
+})
+
+test('of two replies with the same words, only the newer one plays the review', async ($, on) => {
+  const { transcript } = engine(on, { text: 'reported' })
+  await start($)
+  const older = await $.ui.mount(replyRow('m1', 'Done.'))
+  const newer = await $.ui.mount(replyRow('m2', 'Done.'))
+
+  transcript.messages = told('Done.', 'r1')
+  await $.tool.call(report('r1', [undefined]))
+  expect(await older.find({ type: 'Svg' })).toBeUndefined()
+  expect((await newer.find({ type: 'Svg' }))?.props.alt).toBe('Reviewed! 1 finding')
+  for (const ui of [older, newer]) await ui.unmount()
+})
+
+test('a review follows a call made beside it, or the text of the message that holds it', async ($, on) => {
+  const { clock, transcript } = engine(on, { text: 'reported' })
+  await start($)
+  transcript.messages = [
+    {
+      role: 'assistant',
+      text: 'Reading, then reporting.',
+      toolUses: [
+        { tool_use_id: 'g1', tool: 'Grep', input: {} },
+        { tool_use_id: 'r1', tool: 'ReportFindings', input: {} },
+      ],
+    },
+  ]
+  await $.tool.call(report('r1', [undefined]))
+  const grep = await $.ui.mount({ ...callRow('g1', 'Grep'), surface: 'desktop' })
+  expect((await grep.find({ type: 'Svg' }))?.props.alt).toBe('Reviewed! 1 finding')
+  await grep.unmount()
+  await clock.advance(4000)
+
+  transcript.messages = [{ role: 'assistant', text: 'All clear.', toolUses: [{ tool_use_id: 'r2', tool: 'ReportFindings', input: {} }] }]
+  await $.tool.call(report('r2', []))
+  const reply = await $.ui.mount(replyRow('m3', 'All clear.'))
+  expect((await reply.find({ type: 'Svg' }))?.props.alt).toBe('Reviewed! no findings, all clear')
+  await reply.unmount()
 })
 
 test('under /fx place bottom, a review and its fixes play in the strip', async ($, on) => {

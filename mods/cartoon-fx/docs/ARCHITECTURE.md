@@ -23,11 +23,11 @@ One effect is on show at a time. A new one replaces any still playing.
 
 | File | Lines | Holds |
 |---|---|---|
-| `hooks/register.tsx` | 499 | the hooks, playing and placement |
+| `hooks/register.tsx` | 513 | the hooks, playing and placement |
 | `hooks/detect.ts` | 84 | the Bash readers, `isReviewFix`, `tokens` |
 | `hooks/fx.ts` | 801 | the ten drawings and their SMIL helpers |
 | `types/index.d.ts` | 25 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 623 | 32 tests |
+| `tests/cartoon-fx.test.tsx` | 678 | 35 tests |
 
 ## The invariants
 
@@ -132,8 +132,10 @@ One effect is on show at a time. A new one replaces any still playing.
   - A review plays in the row just before its card instead. `rowBefore` reads
     `$.session.messages()`, which holds one message per block. It walks back past thinking and
     tool results to the nearest earlier call (`tool:<id>`) or reply text (`reply:<its text>`). It
-    stops at the person's prompt. With no such row, the review keeps the card's row, and the
-    fallback moves it to the strip.
+    stops at the person's prompt. With no such row, or a transcript it cannot read, the review
+    keeps the card's row, and the fallback moves it to the strip.
+  - Replies are matched by text, so two can share one. Only the reply row that first drew last
+    takes the effect: `replies` keeps each row's text and that order, for the 500 rows seen last.
   - A subagent's calls have no row in the main transcript, so they play in the strip at once.
   - A compaction has no row either.
 - **Where it draws.** With `placement` `conversation` (the default), the desktop draws it under its
@@ -203,7 +205,7 @@ It uses no network, process or file access.
 ## Testing strategy — the layers, and what each cannot see
 
 The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
-- **`claude plugin test`** runs the 32 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 35 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`).
   - Rows are mounted on the `desktop` surface, and the terminal tests on `terminal`.
@@ -258,6 +260,8 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
 - **A review plays beside its card, not under it.** No hook can draw under the desktop's
   findings card, and the owner wants reviews in the conversation, not the strip. Nothing ties the
   call to the message id of the reply before it, so `rowBefore` matches that reply by its text.
+- **A review's effect is awaited before the report's result returns.** Run beside the result, it
+  raced the test kit, which does not wait for it, and the read it costs comes once per review.
 - **The four copied source files keep their own layout.** The folder's `biome.json` turns Biome's
   formatter off for them, and `noUnusedFunctionParameters` off for `register.tsx` (mod
   `CLAUDE.md`).
@@ -275,7 +279,7 @@ In `docs/BACKLOG.md` under *Deferred*:
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 32 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 35 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |

@@ -12,8 +12,7 @@ C1 cuts no version. All paths here are inside `mods/cartoon-fx/`; run
 - **Round 2 is the code-review effects that never show.** F1 is done (0.10.2); C1 remains.
 - **Push status.** `origin/main` holds everything through `d23450f`. These are local, not pushed:
   - the intake's commit and its review commit;
-  - F1's `fix(cartoon-fx): … (0.10.2)` commit, and its review commit once the owner's
-    `/code-review high` has run.
+  - F1's `fix(cartoon-fx): … (0.10.2)` commit and its `review(cartoon-fx): …` commit.
   - List `origin/main..HEAD` before any push: parallel sessions share this checkout.
 - **0.10.2 is not checked in the desktop yet.** The installed release is still 0.10.1.
   - Once the owner approves the push, they run `claude plugin update cartoon-fx`, then a
@@ -24,9 +23,9 @@ C1 cuts no version. All paths here are inside `mods/cartoon-fx/`; run
   - **If that look shows the effects still hidden,** a fix session is inserted before C1
     (*Rounds*, step 4), and C1 waits.
 - **What F1 left that C1 touches:**
-  - `hooks/register.tsx` (499 lines) gained `OWN_CARDS`, `rowBefore`, `replyRow`, `markDrawn`
-    and an `AssistantMessage` render hook;
-  - `tests/cartoon-fx.test.tsx` (623 lines) gained `told`, `replyRow` and four tests.
+  - `hooks/register.tsx` (513 lines) gained `OWN_CARDS`, `rowBefore`, `replyRow`, `bound`,
+    `markDrawn`, `noteReply`/`isNewestReply` and an `AssistantMessage` render hook;
+  - `tests/cartoon-fx.test.tsx` (678 lines) gained `told`, `replyRow` and seven tests.
   - Both still keep the copied layout (2-space, no semicolons, long lines), which C1's reformat
     changes.
 - **What the spec said that turned out wrong:**
@@ -37,7 +36,7 @@ C1 cuts no version. All paths here are inside `mods/cartoon-fx/`; run
 - **The owner's stored placement is `conversation` again** (they ran `/fx place conversation`
   during F1).
 - **Baseline** (`docs/ARCHITECTURE.md`, v0.10.2, CLI 2.1.310):
-  - 32 tests in `tests/cartoon-fx.test.tsx`;
+  - 35 tests in `tests/cartoon-fx.test.tsx`;
   - `validate`: 13 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
     allowed `CLAUDE.md` one;
   - `tsc` and the import scan are clean.
@@ -56,7 +55,7 @@ C1 cuts no version. All paths here are inside `mods/cartoon-fx/`; run
     the version each check ran on, and run `npm run types` again when the `types` stage asks.
 - **The installed release runs in every session the owner starts,** this mod's own development
   sessions included. So a commit stamps, and `npm run verify` shows the checkmark.
-- **The reformat must not change behaviour.** Run the 32 tests before and after it. A count that
+- **The reformat must not change behaviour.** Run the 35 tests before and after it. A count that
   moves is the finding.
 - **`placement` and `fxTakes` are the owner's data** in `$.store`. Read them forward-only.
 - **Comments state the present.** No session ids, no "used to", no review stories.

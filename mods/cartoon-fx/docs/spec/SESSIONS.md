@@ -191,6 +191,27 @@ Never push without being asked.
   - with the strip's uncapped add back, the bounded-strip test failed.
 - **Numbers:** 32 tests (+4), 13 hooks (+1), 5 gating, 4 state keys; `validate` lists
   `$.session.messages` among the calls.
+- **Review (`/code-review high`), 7 findings: 6 fixed and 1 skipped.**
+  - **A transcript that can't be read no longer loses the review.** `rowBefore`'s failure falls
+    back to the card's row, so the strip still gets it.
+  - **Of two replies with the same words, only the newer one plays it.** `noteReply` keeps each
+    reply row's text and the order rows first drew, and `isNewestReply` picks the newest.
+  - **The reply hook settles most redraws with one read.** It compares `shown`'s row before the
+    clock and placement reads, since reply rows redraw on every streamed delta. Every mounted row
+    still redraws when an effect starts, because that is how an earlier row picks one up.
+  - **`rowBefore` walks once.** One backward pass covers the holder and the messages before it.
+  - **Two untested branches are tested:** a call beside the report in its message, and text in
+    the message that holds it.
+  - **`markDrawn` lets a row go only past the cap,** through one `bound` helper that the reply
+    order shares.
+  - **Skipped:** running the review beside the report's result. Tried, it made the review tests
+    pass or fail on promise timing, since the test kit does not wait for that work. A mutation
+    that only changed the number of promise steps flipped a test. The effect stays awaited, at one
+    transcript read per review.
+  - **Falsified:** each new check, by one mutation copied aside and back: the transcript failure
+    uncaught; every same-text reply playing; calls beside the report ignored; the holder's text
+    ignored; and the wholesale clear, on the new helper.
+  - **Numbers after the review:** 35 tests (+3), 13 hooks, 5 gating, 4 state keys.
 
 ---
 

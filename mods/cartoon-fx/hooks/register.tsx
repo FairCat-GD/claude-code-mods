@@ -87,30 +87,19 @@ const rowOf = (e: { tool_use_id: string; agentId?: string }) => (e.agentId === u
 // The desktop swaps these calls' rows for cards of its own, which draw no hook's tree.
 const OWN_CARDS = new Set(['ReportFindings'])
 
-// The row just before call `id`'s card: the reply text or the call it follows.
-// The transcript holds one message per block, so thinking and results are passed over.
+// The row just before call `id`'s card: the call or the reply text it follows,
+// walking back past thinking and results, and stopping at the person's prompt.
 async function rowBefore($: EngineInterface, id: string): Promise<string | undefined> {
   const messages = await $.session.messages()
   const at = messages.findIndex(message => message.toolUses.some(use => use.tool_use_id === id))
-  const holder = messages[at]
-  if (holder === undefined) {
-    return undefined
-  }
-  const earlier = holder.toolUses.slice(0, holder.toolUses.findIndex(use => use.tool_use_id === id)).filter(use => !OWN_CARDS.has(use.tool))
-  const call = earlier.at(-1)
-  if (call !== undefined) {
-    return toolRow(call.tool_use_id)
-  }
-  if (holder.text.trim() !== '') {
-    return replyRow(holder.text)
-  }
-  for (const message of messages.slice(0, at).reverse()) {
+  for (const message of messages.slice(0, at + 1).reverse()) {
     if (message.role === 'user' && (message.toolResults?.length ?? 0) === 0) {
       return undefined
     }
-    const last = message.toolUses.filter(use => !OWN_CARDS.has(use.tool)).at(-1)
-    if (message.role === 'assistant' && last !== undefined) {
-      return toolRow(last.tool_use_id)
+    const uses = message.toolUses.slice(0, message === messages[at] ? message.toolUses.findIndex(use => use.tool_use_id === id) : undefined)
+    const call = uses.filter(use => !OWN_CARDS.has(use.tool)).at(-1)
+    if (call !== undefined) {
+      return toolRow(call.tool_use_id)
     }
     if (message.role === 'assistant' && message.text.trim() !== '') {
       return replyRow(message.text)
@@ -120,15 +109,35 @@ async function rowBefore($: EngineInterface, id: string): Promise<string | undef
   return undefined
 }
 
+// Drops the oldest entries of a Set or Map, which keep insertion order, past `cap`.
+const bound = (kept: Set<string> | Map<string, unknown>, cap: number) => {
+  for (const oldest of kept.keys()) {
+    if (kept.size <= cap) break
+    kept.delete(oldest)
+  }
+}
+
 // The rows that have drawn an effect where the viewport shows them, the 200
 // drawn last; the row of the effect on show is always among them.
 const drawnRows = new Set<string>()
 const markDrawn = (row: string) => {
   drawnRows.delete(row)
   drawnRows.add(row)
-  const oldest = drawnRows.values().next().value
-  if (drawnRows.size > 200 && oldest !== undefined) drawnRows.delete(oldest)
+  bound(drawnRows, 200)
 }
+
+// Each reply row's text and its place in the order rows first drew, so an
+// older reply with the same words never takes the effect.
+let repliesSeen = 0
+const replies = new Map<string, { row: string; order: number }>()
+const noteReply = (requestId: string, row: string) => {
+  const order = replies.get(requestId)?.order ?? ++repliesSeen
+  replies.set(requestId, { row, order })
+  bound(replies, 500)
+
+  return order
+}
+const isNewestReply = (row: string, order: number) => [...replies.values()].every(reply => reply.row !== row || reply.order <= order)
 const noteDrawn = (row: string, onScreen: unknown) => {
   if (onScreen !== null) markDrawn(row)
 }
@@ -302,8 +311,8 @@ export const register: Register = on => {
     const row = rowOf(e)
     if (e.tool === 'ReportFindings' && ran.deny === undefined && ran.isError !== true) {
       // Its card shows no effect, so the review plays in the row just before it.
-      const anchor = row === undefined ? undefined : ((await rowBefore($, e.tool_use_id)) ?? row)
-      await reviewReported($, e.findings, anchor)
+      const before = row === undefined ? undefined : await rowBefore($, e.tool_use_id).catch(() => undefined)
+      await reviewReported($, e.findings, before ?? row)
     }
     void watchContext($, row).catch(() => undefined)
 
@@ -425,6 +434,11 @@ export const register: Register = on => {
       return next(e)
     }
     const row = replyRow(e.props.text)
+    const order = noteReply(e.requestId, row)
+    // Rows redraw on every streamed delta: one read settles most of them.
+    if ((await read($, shown))?.row !== row || !isNewestReply(row, order)) {
+      return next(e)
+    }
     const effect = await playingIn($, row)
     if (effect === null) {
       return next(e)
