@@ -44,9 +44,9 @@ at 0.10.1, in the desktop app and in a terminal.
   one "×N helpers!". Covered by their tests.
 - **`/fx place bottom` across sessions** (0.10.1): set in one session, it applies in another open
   one from its next effect. Covered by the two placement tests.
-- **An interactive `--plugin-dir` session beside the release** (0.10.1): it was measured headless
-  (`claude -p --plugin-dir`), where the repo copy replaced the installed one. An interactive
-  terminal session loads plugins the same way, but nobody has watched one do it.
+- **The update path** (0.10.1): after the next push, `claude plugin update cartoon-fx` brings the
+  installed copy to the pushed commit, and a new session runs it. The bare name resolves to the
+  install (`claude plugin details cartoon-fx`); the update itself has not run.
 
 ## Directions
 

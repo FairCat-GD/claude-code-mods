@@ -37,7 +37,7 @@ One effect is on show at a time. A new one replaces any still playing.
    `.catch`.
 2. **The mod only reacts.** It never denies, rewrites or delays a call, a compaction or a spawn.
    It returns what `next` returned. *Enforced by* the code and by the tests, which check that the
-   row still draws the engine's own content beneath the effect.
+   row still draws the engine's own content, with the effect beneath it.
 3. **The same seed always draws the same picture.** `random(seed)` is a seeded PRNG, so a redraw
    doesn't reshuffle the confetti. *Enforced by* the terminal test, which checks the glyphs are
    identical 900 ms later.
@@ -172,11 +172,13 @@ session:
 
 ## Reach
 
-Beyond the hooks above, cartoon-fx calls only:
-- `$.store`, for the two values above;
+Beyond the hooks above, cartoon-fx calls only what `validate` lists:
+- `$.store.get` and `$.store.set`, for the two values above;
+- `$.state.get` and `$.state.set` (through `read` and `update`), for its own four values;
 - `$.session.usage()`, for the context window's percentage;
 - `$.command.register`, for `/fx`;
-- `$.clock`, for timers.
+- `$.clock.now` and `$.clock.after`, for timers;
+- `$.ui.resolve`, for the elements it draws.
 
 It uses no network, process or file access.
 
@@ -207,8 +209,11 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
   only on `claude plugin update cartoon-fx`.
 - **An unpushed build.** A `claude --plugin-dir mods/cartoon-fx` session replaces the installed
   copy for that session (the engine logs `Plugin "cartoon-fx" from --plugin-dir overrides
-  installed version`). It runs as `cartoon-fx@inline`, against its own store, so trying a build
-  never touches the release's stored values.
+  installed version`; measured interactive and headless, CLI 2.1.310). It runs as
+  `cartoon-fx@inline`, against its own store, so trying a build never touches the release's
+  stored values.
+- **Updating.** `claude plugin update cartoon-fx` picks up pushed work; the bare name resolves to
+  `cartoon-fx@claude-code-mods` (`claude plugin details cartoon-fx`). A new session loads it.
 
 ## Deliberate decisions
 

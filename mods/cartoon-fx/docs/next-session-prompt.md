@@ -23,7 +23,7 @@ the owner's request down verbatim, ask what it leaves open, and plan the round i
 - **Open items live in `docs/BACKLOG.md`:**
   - *Deferred:* the Biome reformat, detection by printed output, the `drawnRows` clear, and the
     casts;
-  - *Not yet checked by hand:* the real triggers on the installed release.
+  - *Not yet checked by hand:* the real triggers on the installed release, and the update path.
 - **Baseline** (`docs/ARCHITECTURE.md`; CLI 2.1.310):
   - 28 tests in `tests/cartoon-fx.test.tsx`;
   - `validate`: 12 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
@@ -40,12 +40,11 @@ the owner's request down verbatim, ask what it leaves open, and plan the round i
     the version each check ran on, and run `npm run types` again when the `types` stage asks.
 - **The installed release runs in every session the owner starts,** this mod's own development
   sessions included. So a commit stamps, and `npm run verify` shows the checkmark.
-- **A `--plugin-dir mods/cartoon-fx` session replaces the release** for that session, as
-  `cartoon-fx@inline`, with its own store. Type it as a shell command in a terminal, from the
+- **A `--plugin-dir mods/cartoon-fx` session replaces the release** for that session
+  (`docs/ARCHITECTURE.md`, *Packaging*). Type it as a shell command in a terminal, from the
   repository's root.
-- **`placement` and `fxTakes` are the owner's data** in `$.store`, keyed by the plugin id. Read them
-  forward-only, and never drop one without a changelog line. Changing the mod's name, or the
-  marketplace it installs from, starts the owner with none.
+- **`placement` and `fxTakes` are the owner's data** in `$.store` (`docs/ARCHITECTURE.md`,
+  *Values*). Read them forward-only, and never drop one without a changelog line.
 - **The owner's update path is `claude plugin update cartoon-fx`,** after a push. What they run
   every day is what was pushed.
 - **This folder has its own `biome.json`** (see this mod's `CLAUDE.md`).

@@ -22,17 +22,14 @@ These keep their spelling, because installs and stored data live under them:
 - its `$.state` keys, declared in `types/index.d.ts` under `PluginState['cartoon-fx']`: `shown`,
   `isYellow`, `isRed` and `placement`;
 - its `$.store` keys, `placement` and `fxTakes`. They hold the owner's data, across sessions:
-  where effects play, and the number of the last `/fx` take. The engine keys the store by the
-  plugin id, so the installed release keeps them under `cartoon-fx@claude-code-mods`, in
-  `~/.claude/plugins/store/`. A new name or marketplace starts with none.
+  where effects play, and the number of the last `/fx` take. They live under the plugin id
+  (`docs/ARCHITECTURE.md`, *Values*), so a new name or marketplace starts with none.
 
 ## Trying an unpushed build
 
 The owner runs the installed release, `cartoon-fx@claude-code-mods`. A terminal session started
-with `claude --plugin-dir mods/cartoon-fx` from the repository's root replaces it for that session.
-The engine logs `Plugin "cartoon-fx" from --plugin-dir overrides installed version`. The session
-runs as `cartoon-fx@inline`, with its own store, so the release's `placement` and `fxTakes` are
-left alone.
+with `claude --plugin-dir mods/cartoon-fx` from the repository's root replaces it for that session,
+as `cartoon-fx@inline` with its own store (`docs/ARCHITECTURE.md`, *Packaging*).
 
 ## Its own Biome settings
 

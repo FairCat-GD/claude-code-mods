@@ -19,7 +19,7 @@ It never changes or delays what Claude does; it only watches and draws.
 | The context window reaches 75% | a gauge swings into the yellow | "Yellow zone!" and the percentage |
 | The context window reaches 90% | a gauge slams into the red | "Red zone!" and the percentage |
 
-Each lasts two to three seconds, and a new one replaces one still playing.
+Each stays on screen for about three to four seconds, and a new one replaces one still playing.
 
 - **Nothing plays for a failure:** a plan you turn down, a failed or rejected push, a dry run, a
   push with nothing to push, a test run that reports any failure, or fixes where none were fixed.
@@ -43,7 +43,7 @@ Each lasts two to three seconds, and a new one replaces one still playing.
 - `/fx`'s replays use sample words ("SAVED 5e81772", "42 passed").
 - Its answer ends with a take number, such as `playing push (take 3)`. The number counts up across
   sessions, and each run's animations play under that run's own answer.
-- Letters and extra spaces don't matter: `/fx Place  Bottom` works.
+- Letter case and extra spaces don't matter: `/fx Place  Bottom` works.
 
 ## Where effects play
 
@@ -81,4 +81,4 @@ The strip steps aside while Claude Code shows a survey there.
   command in a terminal. For that session it replaces the installed copy. It keeps its own take
   number and placement, so trying a build leaves the installed one's alone.
 - **Your placement and take number belong to the install.** A copy loaded under another name or
-  from another marketplace starts afresh.
+  from another marketplace starts afresh (`docs/ARCHITECTURE.md`, *Values*).
