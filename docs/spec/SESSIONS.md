@@ -715,6 +715,37 @@ checkout beside this one (`../krita-art-mcp`), read-only.
   - cartoon-fx 28 tests in one file, and `validate` 12 hooks, 5 gating (each with a `.catch`), 4
     state keys (±0);
   - template 1 (±0).
+- **Review (`/code-review high`), 9 findings: 9 fixed and 0 skipped.** The owner chose to fix all.
+  - **The root `CLAUDE.md` gave the wrong reason `npm run types` keeps the release out.** Its
+    session never loads the release, because it skips user settings, where the release is enabled.
+    It does not rely on `--plugin-dir` replacing it, as the paragraph said.
+  - **The `--plugin-dir` answer was stated for an interactive session but measured headless.** It
+    is now measured interactive too. An interactive
+    `env -u CLAUDE_CODE_PLUGIN_DIRS claude --plugin-dir mods/cartoon-fx` at the repository's root,
+    driven through a pseudo-terminal (`script`), typed `/fx push` and `/exit`:
+    - its debug log has `Plugin "cartoon-fx" from --plugin-dir overrides installed version`;
+    - the hooks module `cartoon-fx@inline` loaded, and `cartoon-fx@claude-code-mods` did not;
+    - the `@inline` store went to take 3, and the release's stayed at 3.
+
+    The backlog item for it is gone, and the amendment on step 8 above is superseded.
+  - **`env -u` "never" kept the folder copy out.** Narrowed to what was measured: under `env -u`,
+    `claude plugin list` still listed it while settings set the variable. Other commands were not
+    measured.
+  - **The update path was not checked.** `claude plugin details cartoon-fx` shows the bare name
+    resolves to `cartoon-fx@claude-code-mods`. The update itself would change the owner's setup and
+    has nothing new to fetch until a push, so it is in cartoon-fx's backlog under *Not yet checked
+    by hand*.
+  - **The store key was explained in seven files.** Its homes are now SPEC decision 14 (repo) and
+    cartoon-fx's `ARCHITECTURE.md` *Values* (the mod). The root and mod `CLAUDE.md`, the
+    USER-GUIDE and both handoffs point there.
+  - **In cartoon-fx's docs:**
+    - the row's own content is above the effect, not beneath it;
+    - *Reach* now lists every call `validate` reports (`$.state` and `$.ui.resolve` were missing);
+    - an effect stays on screen about three to four seconds, not two to three;
+    - letter *case*, not letters, doesn't matter to `/fx`.
+  - **Falsified:** nothing; no check was added.
+  - **Numbers after the review:** `npm run verify` 14 stages, all PASS (CLI 2.1.310); tooling tests
+    48; cartoon-fx 28; template 1.
 
 ---
 

@@ -9,9 +9,11 @@ of docs/spec/SESSIONS.md: the repo's documentation pass, then close round 1. It 
 ## State you need that is not in the specs
 
 - **Round 1 is the repository setup.** Sessions 0–3 are done; Session 4, the last, remains.
-- **Push status.** Session 3's commits are local. `origin/main` holds everything through
-  `review(cartoon-fx): the Biome exception covers four files, and 4 smaller`. List
-  `git log origin/main..HEAD` before any push, and name any commit that is not this session's.
+- **Push status.** Everything is pushed: `origin/main` holds everything through
+  `review: npm run types skips user settings, and 3 smaller`, so `origin/main..HEAD` is empty.
+  The installed cartoon-fx is still at `3f79906`; `claude plugin update cartoon-fx` would bring
+  it to the pushed docs, at the owner's word. List `git log origin/main..HEAD` before any push,
+  and name any commit that is not this session's.
 - **What Session 3 left that Session 4 builds on:**
   - **The owner runs cartoon-fx as the installed release,** `cartoon-fx@claude-code-mods`
     0.10.1, at user scope, from commit `3f79906`. The `CLAUDE_CODE_PLUGIN_DIRS` entry is gone from
@@ -23,11 +25,9 @@ of docs/spec/SESSIONS.md: the repo's documentation pass, then close round 1. It 
     - the marketplace is a clone of the whole repository, in
       `~/.claude/plugins/marketplaces/claude-code-mods/`, added in user settings by
       `claude plugin install … --marketplace FairCat-GD/claude-code-mods`;
-    - `$.store` is keyed by the plugin id, one file per id in `~/.claude/plugins/store/`
-      (SPEC decision 14, amended);
-    - a `claude --plugin-dir mods/<name>` session replaces the installed copy, as `<name>@inline`,
-      with its own store (root `CLAUDE.md`). This was measured headless; the interactive case is in
-      cartoon-fx's backlog.
+    - `$.store` is keyed by the plugin id (SPEC decision 14, amended);
+    - a `claude --plugin-dir mods/<name>` session replaces the installed copy, with its own store
+      (root `CLAUDE.md`).
   - **cartoon-fx's as-built docs exist:** `docs/ARCHITECTURE.md` (with its baseline),
     `docs/USER-GUIDE.md` and its backlog. The repo docs point at them and never restate the mod's
     internals.
@@ -46,8 +46,8 @@ of docs/spec/SESSIONS.md: the repo's documentation pass, then close round 1. It 
   - Template tests: 1. Its `validate` lists 2 hooks, 0 gating, and calls `$.command.register`.
   - cartoon-fx: 28 tests in one file. `validate` lists 12 hooks, 5 gating (all with `.catch`) and
     4 state keys, with no warning but the allowed `CLAUDE.md` one.
-- **Not done:** nothing in Session 3's scope. Its interactive `--plugin-dir` check is a backlog item
-  of cartoon-fx's.
+- **Not done:** nothing in Session 3's scope. `claude plugin update` has not run yet; it is in
+  cartoon-fx's backlog under *Not yet checked by hand*.
 - **Carry to the close:** `mods/cartoon-fx/CLAUDE.md` points at the root's `docs/spec/SPEC.md` §8
   for the practices, as the template's does. Session 4's block moves §8 into `CLAUDE.md` and
   changes the root's and the template's pointers. cartoon-fx's needs the same change, as a mod
