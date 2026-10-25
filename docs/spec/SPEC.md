@@ -156,6 +156,18 @@ beside the decision it changes, as an **Amended <date> by the owner** note.
       same mod is measured in Session 3.
     - The `CLAUDE_CODE_PLUGIN_DIRS` entry that runs cartoon-fx today is removed once the installed
       release runs (Session 3).
+
+    **Amended 2026-10-25 by the owner, after Session 3.** `claude plugin update <mod>` picks up a
+    pushed *version*, not pushed work.
+    - It refreshes the marketplace clone to the pushed commit, then compares the version in the
+      mod's `plugin.json` with the installed one. When the two are equal it leaves the installed
+      copy as it is.
+    - Measured on CLI 2.1.310: after Session 3's docs-only push, the clone moved to `49a3d50`,
+      while cartoon-fx stayed at 0.10.1 from `3f79906` ("already at the latest version").
+    - So a change reaches the owner's daily sessions only with a version bump. That is what
+      decision 8 gives every behaviour or fix session, and docs that ship in the folder follow
+      with the next version.
+    - The other half, an update to a new version, is not yet measured.
 12. **License and author.**
     - MIT, as the root `LICENSE` and as `"license": "MIT"` in every `plugin.json`.
     - Each `plugin.json` has `"author": { "name": "FairCat-GD" }`, and the marketplace's

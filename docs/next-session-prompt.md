@@ -11,8 +11,8 @@ of docs/spec/SESSIONS.md: the repo's documentation pass, then close round 1. It 
 - **Round 1 is the repository setup.** Sessions 0–3 are done; Session 4, the last, remains.
 - **Push status.** Everything is pushed: `origin/main` holds everything through
   `review: npm run types skips user settings, and 3 smaller`, so `origin/main..HEAD` is empty.
-  The installed cartoon-fx is still at `3f79906`; `claude plugin update cartoon-fx` would bring
-  it to the pushed docs, at the owner's word. List `git log origin/main..HEAD` before any push,
+  The installed cartoon-fx stays at `3f79906` until a new version is pushed (SPEC decision 11,
+  amended). List `git log origin/main..HEAD` before any push,
   and name any commit that is not this session's.
 - **What Session 3 left that Session 4 builds on:**
   - **The owner runs cartoon-fx as the installed release,** `cartoon-fx@claude-code-mods`
@@ -46,8 +46,13 @@ of docs/spec/SESSIONS.md: the repo's documentation pass, then close round 1. It 
   - Template tests: 1. Its `validate` lists 2 hooks, 0 gating, and calls `$.command.register`.
   - cartoon-fx: 28 tests in one file. `validate` lists 12 hooks, 5 gating (all with `.catch`) and
     4 state keys, with no warning but the allowed `CLAUDE.md` one.
-- **Not done:** nothing in Session 3's scope. `claude plugin update` has not run yet; it is in
-  cartoon-fx's backlog under *Not yet checked by hand*.
+- **Not done:** nothing in Session 3's scope. An update to a new version is in cartoon-fx's backlog
+  under *Not yet checked by hand*.
+- **After Session 3:** at the owner's word, `claude plugin update cartoon-fx` ran after the push. It
+  refreshed the marketplace clone to `49a3d50` and left cartoon-fx at 0.10.1 from `3f79906`,
+  because the version had not changed. Decision 11 is amended. Session 4's `docs/ARCHITECTURE.md`
+  and `docs/USER-GUIDE.md` describe updating this way: a change reaches the owner only with a
+  version bump.
 - **Carry to the close:** `mods/cartoon-fx/CLAUDE.md` points at the root's `docs/spec/SPEC.md` §8
   for the practices, as the template's does. Session 4's block moves §8 into `CLAUDE.md` and
   changes the root's and the template's pointers. cartoon-fx's needs the same change, as a mod

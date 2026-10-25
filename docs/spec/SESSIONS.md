@@ -746,6 +746,15 @@ checkout beside this one (`../krita-art-mcp`), read-only.
   - **Falsified:** nothing; no check was added.
   - **Numbers after the review:** `npm run verify` 14 stages, all PASS (CLI 2.1.310); tooling tests
     48; cartoon-fx 28; template 1.
+  - **After the push, the update path.** At the owner's word, `claude plugin update cartoon-fx`
+    ran.
+    - It refreshed the marketplace clone to `49a3d50`.
+    - It reported "already at the latest version (0.10.1)" and left the installed copy at
+      `3f79906`, without the new docs. `settings.json` was unchanged.
+    - So the update compares versions, not commits. Decision 11's "picks up pushed work" is
+      amended by the owner to "picks up a pushed version".
+    - cartoon-fx's *Packaging*, its user guide, its backlog item and both handoffs are corrected.
+    - An update to a new version stays under *Not yet checked by hand*.
 
 ---
 
