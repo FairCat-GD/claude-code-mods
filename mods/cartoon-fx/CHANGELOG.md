@@ -6,6 +6,16 @@ All notable changes to cartoon-fx are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.2] — 2026-10-25
+
+### Fixed
+
+- **A code review and its fixes now play in the conversation, in the desktop app.** The app draws
+  a review's report as its own card, which can't show an animation, so "Reviewed!" and "Bugs
+  squashed!" play under the reply or the tool call just before that card. With nothing before it,
+  they play in the strip above the prompt after about a second.
+- **An animation still playing after many others no longer plays a second time in the strip.**
+
 ## [0.10.1] — 2026-10-25
 
 cartoon-fx came into this repository at 0.10.1. Its earlier versions came before the repository

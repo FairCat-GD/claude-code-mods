@@ -1,6 +1,6 @@
 # cartoon-fx — architecture, as built
 
-This is cartoon-fx as it stands at 0.10.1, written from its code. Every session that changes the
+This is cartoon-fx as it stands at 0.10.2, written from its code. Every session that changes the
 mod keeps it true.
 
 ## Overview
@@ -14,7 +14,8 @@ It does two things:
   something worth marking happens, it **plays** an effect: one `Shown` value in `$.state`, held
   for the effect's length plus a short hold.
 - **It draws the effect on show.** Its `ui.render` hooks draw it into one of two places:
-  - the conversation row that set it off (desktop only);
+  - the conversation row that set it off, or for a card the desktop draws its own way, the row
+    just before it (desktop only);
   - the strip above the prompt (`AbovePrompt`). The terminal always uses the strip, as a row of
     coloured glyphs.
 
@@ -22,11 +23,11 @@ One effect is on show at a time. A new one replaces any still playing.
 
 | File | Lines | Holds |
 |---|---|---|
-| `hooks/register.tsx` | 438 | the hooks, playing and placement |
+| `hooks/register.tsx` | 499 | the hooks, playing and placement |
 | `hooks/detect.ts` | 84 | the Bash readers, `isReviewFix`, `tokens` |
 | `hooks/fx.ts` | 801 | the ten drawings and their SMIL helpers |
 | `types/index.d.ts` | 25 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 527 | 28 tests |
+| `tests/cartoon-fx.test.tsx` | 623 | 32 tests |
 
 ## The invariants
 
@@ -49,20 +50,21 @@ One effect is on show at a time. A new one replaces any still playing.
 
 ## The hooks
 
-`validate` lists 12 hooks, 5 of them gating, and 4 state keys.
+`validate` lists 13 hooks, 5 of them gating, and 4 state keys.
 
 | Hook | Gating | Reacts to | Plays |
 |---|---|---|---|
 | `session.start` | | a new or reloaded session | Clears `shown` (a reload drops the timers that would end it), takes up the stored placement, and registers `/fx` (`immediate`). |
 | `tool.call` `{ tool: 'Bash' }` | ✓ | a finished Bash call | `push`, else a review-fix commit as `fixes`, else `commit`, else `tests`. |
 | `tool.call` `{ tool: 'ExitPlanMode' }` | ✓ | a plan the person accepted | `plan`, unless a teammate's plan still waits on its lead (`awaitingLeaderApproval`). |
-| `tool.call` (every tool) | ✓ | `ReportFindings`, and every finished call | `review` or `fixes` from a code review's report; then the context check. |
+| `tool.call` (every tool) | ✓ | `ReportFindings`, and every finished call | `review` or `fixes` from a code review's report, in the row just before its card; then the context check. |
 | `turn.complete` | | a finished turn | The context check. |
 | `session.compact` | ✓ | a compaction, not a precompute or a subagent's | `compact`, with tokens before and after. |
 | `agent.spawn` | ✓ | a subagent started | `helpers`, gathering spawns within 400 ms into one, with their count. |
 | `command.run` `{ command: 'fx' }` | | `/fx` | Replays effects, or stores a placement. |
-| `ui.render` `ToolUse` | | a tool call's own row (desktop) | Draws the effect under the row that set it off. |
+| `ui.render` `ToolUse` | | a tool call's own row (desktop) | Draws the effect under the row that set it off. Passes over a call the desktop draws as its own card (`OWN_CARDS`). |
 | `ui.render` `ToolGroup` | | a folded group of calls (desktop) | Draws the effect under the group holding its call. An unfolded group's rows are `ToolUse`. |
+| `ui.render` `AssistantMessage` | | a reply's text row (desktop) | Draws a review's effect under the reply whose text comes just before its card. |
 | `ui.render` `CommandOutput` `{ command: 'fx' }` | | `/fx`'s output row (desktop) | Draws the effect under the row whose `(take N)` tag it carries. |
 | `ui.render` `AbovePrompt` | | the strip above the prompt | Draws effects with no row, effects under `/fx place bottom`, and fallbacks from rows; on the terminal, every effect as glyphs. Stays out of the way of a survey (`hasSurvey`). |
 
@@ -123,16 +125,31 @@ One effect is on show at a time. A new one replaces any still playing.
   - The end clears `shown` only while it still holds this seed.
 - **Rows.** An effect belongs to the row of what set it off: `tool:<tool_use_id>` for a call, or
   `fx:(take N)` for `/fx`'s output row.
+  - **A card the desktop draws its own way** (`OWN_CARDS`: `ReportFindings`) shows no hook's
+    tree. The desktop raises its `ToolUse` row while the call runs, with no `onScreen`, then puts
+    its card in that row's place (measured, desktop 2.1.308). So the `ToolUse` hook passes it
+    over, and it never counts as drawn.
+  - A review plays in the row just before its card instead. `rowBefore` reads
+    `$.session.messages()`, which holds one message per block. It walks back past thinking and
+    tool results to the nearest earlier call (`tool:<id>`) or reply text (`reply:<its text>`). It
+    stops at the person's prompt. With no such row, the review keeps the card's row, and the
+    fallback moves it to the strip.
   - A subagent's calls have no row in the main transcript, so they play in the strip at once.
   - A compaction has no row either.
 - **Where it draws.** With `placement` `conversation` (the default), the desktop draws it under its
-  row (`ToolUse`), or under the folded `ToolGroup` that holds the call. With `bottom`, or with no
-  row, it draws in the strip.
+  row (`ToolUse`), under the folded `ToolGroup` that holds the call, or under the reply row
+  (`AssistantMessage`) whose text matches. With `bottom`, or with no row, it draws in the strip.
+  - Every row hook reads `shown`, so each mounted row redraws when an effect starts. An earlier
+    row picks up an effect played after it was drawn.
 - **The fallback.** 900 ms after playing, an effect whose row has not drawn it is played again in
   the strip, as a fresh effect with no row. A row drawn with `onScreen: null`, scrolled out of
-  view, counts as not drawn. Examples: a card the app draws its own way, a group folded away, a row
-  scrolled off. The strip marks a row's effect as drawn when it shows it, so the terminal never
-  replays.
+  view, counts as not drawn. Examples: a group folded away, a row scrolled off, a review with no
+  row before its card. The strip marks a row's effect as drawn when it shows it, so the terminal
+  never replays.
+  - `drawnRows` keeps the 200 rows drawn last. Drawing a row again moves it to the newest end, so
+    the row of the effect on show is never the one let go.
+  - The desktop reports no `onScreen` (measured, desktop 2.1.308), so there a drawn row always
+    counts.
 - **The terminal** draws no SVG. The strip shows five glyphs (`✦ • ▪ ✶ ✧ ◆ ∗ ❋`) on each side of
   the words, coloured from the same seed. Rows are left alone.
 - **`/fx`** replays from `SAMPLES`, fixed words and values, in the order of `/fx all`. Each starts
@@ -176,6 +193,7 @@ Beyond the hooks above, cartoon-fx calls only what `validate` lists:
 - `$.store.get` and `$.store.set`, for the two values above;
 - `$.state.get` and `$.state.set` (through `read` and `update`), for its own four values;
 - `$.session.usage()`, for the context window's percentage;
+- `$.session.messages()`, for the row just before a review's card;
 - `$.command.register`, for `/fx`;
 - `$.clock.now` and `$.clock.after`, for timers;
 - `$.ui.resolve`, for the elements it draws.
@@ -185,7 +203,7 @@ It uses no network, process or file access.
 ## Testing strategy — the layers, and what each cannot see
 
 The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
-- **`claude plugin test`** runs the 28 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 32 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`).
   - Rows are mounted on the `desktop` surface, and the terminal tests on `terminal`.
@@ -237,6 +255,9 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
   so a tool-heavy turn crosses the line on the call that crossed it.
 - **A precompute and a subagent's compaction play nothing.** Only the main conversation's own
   compaction squishes.
+- **A review plays beside its card, not under it.** No hook can draw under the desktop's
+  findings card, and the owner wants reviews in the conversation, not the strip. Nothing ties the
+  call to the message id of the reply before it, so `rowBefore` matches that reply by its text.
 - **The four copied source files keep their own layout.** The folder's `biome.json` turns Biome's
   formatter off for them, and `noUnusedFunctionParameters` off for `register.tsx` (mod
   `CLAUDE.md`).
@@ -247,18 +268,15 @@ In `docs/BACKLOG.md` under *Deferred*:
 - the Biome reformat of the four copied files, and deleting the folder's `biome.json`;
 - detection by reading printed output, which a change to git's or a runner's wording would break,
   where the engine gives no `gitOperation`;
-- `drawnRows` is emptied wholesale once it passes 200 rows. A row's effect that is still playing
-  at that moment may replay in the strip;
-- casts where the declarations don't name the shape: the `ReportFindings` tool and its findings,
-  and `awaitingLeaderApproval`.
+- a cast where the declarations don't name the shape: `awaitingLeaderApproval`.
 
-## Baseline (v0.10.1)
+## Baseline (v0.10.2)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 28 pass, in one file |
-| `validate`: hooks / gating / state keys | 12 / 5 (each with a `.catch`) / 4 |
+| `claude plugin test mods/cartoon-fx` | 32 pass, in one file |
+| `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |
 

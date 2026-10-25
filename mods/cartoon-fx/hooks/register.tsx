@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { BoxProps, ElementConstructor, EngineInterface, Register, RenderElement, SvgProps } from 'claude-code'
+import type { BoxProps, BuiltinToolInputs, ElementConstructor, EngineInterface, Register, RenderElement, SvgProps } from 'claude-code'
 
 import type { FxKind, Placement, Shown } from '../types'
 import { committed, isReviewFix, pushedBranch, testsPassed, tokens } from './detect'
@@ -25,8 +25,8 @@ const GATHER_MS = 400
 // late still shows the whole thing.
 const HOLD_MS = 600
 
-// A row that has not drawn its effect this soon (a card the app draws its own
-// way, a group folded away, a row scrolled off) hands it to the strip.
+// A row that has not drawn its effect this soon (a group folded away, a row
+// scrolled off, a reply row no longer on screen) hands it to the strip.
 const FALLBACK_MS = 900
 
 // What `/fx` replays, in this order for `/fx all`: title, subtitle, value.
@@ -74,21 +74,63 @@ const underRow = ({ Box, Svg }: Table, own: RenderElement, effect: Shown) => (
 )
 
 // An effect is drawn inside the conversation row of what set it off: a tool
-// call's row (`tool:<id>`) or `/fx`'s own output row (`fx:<its text>`).
+// call's row (`tool:<id>`), `/fx`'s own output row (`fx:<its text>`), or a
+// reply's text (`reply:<its text>`).
 const toolRow = (id: string) => `tool:${id}`
 const fxRow = (tag: string) => `fx:${tag}`
+const replyRow = (text: string) => `reply:${text.trim()}`
 
 // A main-conversation call's row; a subagent's calls have no row the main
 // transcript shows, so their effects play in the strip straight away.
 const rowOf = (e: { tool_use_id: string; agentId?: string }) => (e.agentId === undefined ? toolRow(e.tool_use_id) : undefined)
 
-// The rows that have drawn an effect where the viewport shows them.
-const drawnRows = new Set<string>()
-const noteDrawn = (row: string, onScreen: unknown) => {
-  if (onScreen !== null) {
-    drawnRows.add(row)
-    if (drawnRows.size > 200) drawnRows.clear()
+// The desktop swaps these calls' rows for cards of its own, which draw no hook's tree.
+const OWN_CARDS = new Set(['ReportFindings'])
+
+// The row just before call `id`'s card: the reply text or the call it follows.
+// The transcript holds one message per block, so thinking and results are passed over.
+async function rowBefore($: EngineInterface, id: string): Promise<string | undefined> {
+  const messages = await $.session.messages()
+  const at = messages.findIndex(message => message.toolUses.some(use => use.tool_use_id === id))
+  const holder = messages[at]
+  if (holder === undefined) {
+    return undefined
   }
+  const earlier = holder.toolUses.slice(0, holder.toolUses.findIndex(use => use.tool_use_id === id)).filter(use => !OWN_CARDS.has(use.tool))
+  const call = earlier.at(-1)
+  if (call !== undefined) {
+    return toolRow(call.tool_use_id)
+  }
+  if (holder.text.trim() !== '') {
+    return replyRow(holder.text)
+  }
+  for (const message of messages.slice(0, at).reverse()) {
+    if (message.role === 'user' && (message.toolResults?.length ?? 0) === 0) {
+      return undefined
+    }
+    const last = message.toolUses.filter(use => !OWN_CARDS.has(use.tool)).at(-1)
+    if (message.role === 'assistant' && last !== undefined) {
+      return toolRow(last.tool_use_id)
+    }
+    if (message.role === 'assistant' && message.text.trim() !== '') {
+      return replyRow(message.text)
+    }
+  }
+
+  return undefined
+}
+
+// The rows that have drawn an effect where the viewport shows them, the 200
+// drawn last; the row of the effect on show is always among them.
+const drawnRows = new Set<string>()
+const markDrawn = (row: string) => {
+  drawnRows.delete(row)
+  drawnRows.add(row)
+  const oldest = drawnRows.values().next().value
+  if (drawnRows.size > 200 && oldest !== undefined) drawnRows.delete(oldest)
+}
+const noteDrawn = (row: string, onScreen: unknown) => {
+  if (onScreen !== null) markDrawn(row)
 }
 
 // Takes up the placement `/fx place` last stored, in this session or another.
@@ -140,9 +182,11 @@ async function playingIn($: EngineInterface, row: string): Promise<Shown | null>
   return (await read($, placement)) === 'conversation' ? effect : null
 }
 
+type Findings = BuiltinToolInputs['ReportFindings']['findings']
+
 // `/code-review` reports its findings in one call when it finishes, and again,
 // each with an outcome, once it has applied fixes.
-async function reviewReported($: EngineInterface, findings: { outcome?: string }[], row?: string) {
+async function reviewReported($: EngineInterface, findings: Findings, row?: string) {
   if (findings.some(finding => finding.outcome !== undefined)) {
     const fixed = findings.filter(finding => finding.outcome === 'fixed').length
     if (fixed > 0) {
@@ -256,8 +300,10 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     const ran = await next(e)
     const row = rowOf(e)
-    if ((e.tool as string) === 'ReportFindings' && ran.deny === undefined && ran.isError !== true) {
-      await reviewReported($, (e as unknown as { findings?: { outcome?: string }[] }).findings ?? [], row)
+    if (e.tool === 'ReportFindings' && ran.deny === undefined && ran.isError !== true) {
+      // Its card shows no effect, so the review plays in the row just before it.
+      const anchor = row === undefined ? undefined : ((await rowBefore($, e.tool_use_id)) ?? row)
+      await reviewReported($, e.findings, anchor)
     }
     void watchContext($, row).catch(() => undefined)
 
@@ -343,7 +389,7 @@ export const register: Register = on => {
 
   // The row of the tool call that set the effect off, while it stands alone.
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
-    if (e.surface === 'terminal') {
+    if (e.surface === 'terminal' || OWN_CARDS.has(e.props.tool)) {
       return next(e)
     }
     const row = toolRow(e.props.tool_use_id)
@@ -366,6 +412,21 @@ export const register: Register = on => {
     const row = effect?.row
     const holds = row !== undefined && e.props.calls.some(call => call.tool_use_id !== undefined && toolRow(call.tool_use_id) === row)
     if (effect === null || row === undefined || !holds || (await read($, placement)) !== 'conversation') {
+      return next(e)
+    }
+    noteDrawn(row, e.props.onScreen)
+
+    return underRow($.ui.resolve(e), await next(e), effect)
+  })
+
+  // The reply text just before a card the desktop draws its own way.
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    if (e.surface === 'terminal') {
+      return next(e)
+    }
+    const row = replyRow(e.props.text)
+    const effect = await playingIn($, row)
+    if (effect === null) {
       return next(e)
     }
     noteDrawn(row, e.props.onScreen)
@@ -402,7 +463,7 @@ export const register: Register = on => {
     }
     // Shown here, as on the terminal, the effect needs no fallback replay.
     if (effect.row !== undefined) {
-      drawnRows.add(effect.row)
+      markDrawn(effect.row)
     }
     const words = wordsOf(effect)
 

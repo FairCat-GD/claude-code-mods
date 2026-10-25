@@ -49,14 +49,16 @@ Each stays on screen for about three to four seconds, and a new one replaces one
 
 - **In the conversation (the default).** In the desktop app, each effect plays under the
   conversation row of what set it off. That is the tool call that pushed, committed or ran the
-  tests, the plan you accepted, the review's report, the Agent call that started the helpers, or
-  `/fx`'s own answer.
+  tests, the plan you accepted, the Agent call that started the helpers, or `/fx`'s own answer.
   - When the app folds several calls into one group row, it plays under the group.
+  - The app draws a code review's report as its own card, which can't show an animation. So
+    "Reviewed!" and "Bugs squashed!" play just above the card: under Claude's reply or the tool
+    call that comes right before it.
   - A compaction has no row, so it plays in the strip above the prompt.
   - So does anything a subagent did.
 - **Moving to the strip.** If an effect's row isn't on screen within about a second, it plays
-  again in the strip. That covers a row scrolled out of view, a folded-away group, or a card the
-  app draws its own way.
+  again in the strip. That covers a row scrolled out of view, a folded-away group, or a review
+  card with nothing just before it.
 - **`/fx place bottom`** keeps every effect in the strip.
 - **The choice is remembered.** It applies at once in every open session, from its next effect,
   and in every session after.

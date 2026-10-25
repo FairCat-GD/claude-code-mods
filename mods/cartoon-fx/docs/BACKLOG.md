@@ -24,6 +24,12 @@ at 0.10.1, in the desktop app and in a terminal.
 - **Real triggers on the installed release** (0.10.1): a commit, a push, a passing
   `npm run verify`, an accepted plan, a `/code-review` and its fixes, each in a live desktop
   session. The tests cover each against fixture output.
+- **A review's effects beside its card** (0.10.2): in the desktop app, with `placement:
+  conversation`, a `/code-review` with findings plays "Reviewed!" under the reply or call just
+  before its card. Its fixes play "Bugs squashed!" the same way, and a report with nothing before
+  it moves to the strip. Covered by the four review tests against fixture transcripts. The rows
+  `rowBefore` relies on were measured in the desktop (2.1.308) with a probe, but the fix itself
+  runs there only once 0.10.2 is installed.
 - **The folded group** (0.10.1): a push inside a run of calls the desktop folds into one row plays
   under the group. Covered by the `ToolGroup` test.
 - **The move to the strip** (0.10.1): an effect whose row is scrolled out of view plays in the

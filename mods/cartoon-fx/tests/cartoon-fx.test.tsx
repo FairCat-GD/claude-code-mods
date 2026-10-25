@@ -35,12 +35,14 @@ const COMMITTED = { stdout: '[main 5e81772] Add squish effect\n 1 file changed',
 const VERIFIED = { stdout: ' Test Files  6 passed (6)\n      Tests  42 passed (42)', stderr: '', interrupted: false }
 
 // Stands in for the engine: every Bash call answers `result`, the context
-// window reads `percent`, the store starts as `store`, and anything else
-// draws "engine".
+// window reads `percent`, the store starts as `store`, the transcript holds
+// `transcript.messages`, and anything else draws "engine".
 function engine(on: Parameters<TestBody>[1], result: object, percent = 10, isError = false, store: Record<string, unknown> = {}) {
   const clock = mock.clock(on, { now: 1000 })
   const usage = { percent }
+  const transcript: { messages: object[] } = { messages: [] }
   on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('session.messages', () => ({ value: transcript.messages as never }))
   on('command.register', () => ({ value: { command: 'fx' } }))
   on('store.get', (_, e) => ({ value: store[e.key] }))
   on('store.set', (_, e) => {
@@ -56,7 +58,7 @@ function engine(on: Parameters<TestBody>[1], result: object, percent = 10, isErr
     return <Text>engine</Text>
   })
 
-  return { clock, usage }
+  return { clock, usage, transcript }
 }
 
 // `/fx <args>` as typed at the prompt of a desktop session.
@@ -187,36 +189,130 @@ const report = (id: string, outcomes: (string | undefined)[]) =>
     findings: outcomes.map((outcome, i) => ({ file: 'a.ts', summary: `defect ${i}`, failure_scenario: 'x', ...(outcome ? { outcome } : {}) })),
   }) as never
 
-test('a finished code review shows its count; a clean one says so', async ($, on) => {
-  engine(on, { text: 'reported' })
-  await start($)
-  await $.tool.call(report('r1', [undefined, undefined, undefined]))
-  const row = await $.ui.mount({ ...callRow('r1', 'ReportFindings'), surface: 'desktop' })
-  expect((await row.find({ type: 'Svg' }))?.props.alt).toBe('Reviewed! 3 findings')
-  await row.unmount()
+// The transcript as the engine holds it, one message per block: a thinking
+// block, the reply text, then the report's call.
+const told = (text: string, id: string) => [
+  { role: 'assistant', text: '', toolUses: [] },
+  { role: 'assistant', text, toolUses: [] },
+  { role: 'assistant', text: '', toolUses: [{ tool_use_id: id, tool: 'ReportFindings', input: {} }] },
+]
 
+// A reply's text row in the conversation.
+const replyRow = (id: string, text: string) =>
+  ({ plugin: 'cartoon-fx', component: 'AssistantMessage', requestId: id, surface: 'desktop', props: { text, isFirstOfReply: true } }) as const
+
+test('a finished code review plays under the reply just before its card; a clean one says so', async ($, on) => {
+  const { transcript } = engine(on, { text: 'reported' })
+  await start($)
+  transcript.messages = told('Here is the review.', 'r1')
+  await $.tool.call(report('r1', [undefined, undefined, undefined]))
+  const reply = await $.ui.mount(replyRow('m1', 'Here is the review.'))
+  const card = await $.ui.mount({ ...callRow('r1', 'ReportFindings'), surface: 'desktop' })
+  expect((await reply.find({ type: 'Svg' }))?.props.alt).toBe('Reviewed! 3 findings')
+  expect((await reply.find({ type: 'Text', text: /engine/ }))?.text).toBe('engine') // the reply itself stays
+  expect(await card.find({ type: 'Svg' })).toBeUndefined()
+  for (const ui of [reply, card]) await ui.unmount()
+
+  transcript.messages = told('Nothing to report.', 'r2')
   await $.tool.call(report('r2', []))
-  const clean = await $.ui.mount({ ...callRow('r2', 'ReportFindings'), surface: 'desktop' })
+  const clean = await $.ui.mount(replyRow('m2', 'Nothing to report.'))
   expect((await clean.find({ type: 'Svg' }))?.props.alt).toBe('Reviewed! no findings, all clear')
   await clean.unmount()
 })
 
-test('fixes applied after a review squash bugs with the exact count; none fixed plays nothing', async ($, on) => {
-  const { clock } = engine(on, { text: 'reported' })
+test('fixes applied after a review squash bugs under the call before the card, with the exact count; none fixed plays nothing', async ($, on) => {
+  const { clock, transcript } = engine(on, { text: 'reported' })
   await start($)
+  transcript.messages = [
+    { role: 'assistant', text: '', toolUses: [{ tool_use_id: 'e1', tool: 'Edit', input: {} }] },
+    { role: 'user', text: '', toolUses: [], toolResults: [{ tool_use_id: 'e1', text: 'edited' }] },
+    { role: 'assistant', text: '', toolUses: [{ tool_use_id: 'r1', tool: 'ReportFindings', input: {} }] },
+  ]
   await $.tool.call(report('r1', ['fixed', 'skipped', 'fixed']))
-  const row = await $.ui.mount({ ...callRow('r1', 'ReportFindings'), surface: 'desktop' })
-  expect((await row.find({ type: 'Svg' }))?.props.alt).toBe('Bugs squashed! 2 review defects fixed')
-  await row.unmount()
+  const edit = await $.ui.mount({ ...callRow('e1', 'Edit'), surface: 'desktop' })
+  expect((await edit.find({ type: 'Svg' }))?.props.alt).toBe('Bugs squashed! 2 review defects fixed')
+  await edit.unmount()
   await clock.advance(4000)
 
+  transcript.messages = told('Applied what I could.', 'r2')
   await $.tool.call(report('r2', ['skipped', 'no_change_needed']))
-  const none = await $.ui.mount({ ...callRow('r2', 'ReportFindings'), surface: 'desktop' })
+  const none = await $.ui.mount(replyRow('m2', 'Applied what I could.'))
   const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
   await clock.advance(1000)
   expect(await none.find({ type: 'Svg' })).toBeUndefined()
   expect(await band.find({ type: 'Svg' })).toBeUndefined()
   for (const ui of [none, band]) await ui.unmount()
+})
+
+test('a findings card does not count as drawn, so a review with no row before it moves to the strip', async ($, on) => {
+  const { clock, transcript } = engine(on, { text: 'reported' })
+  await start($)
+  transcript.messages = [
+    { role: 'user', text: '/code-review', toolUses: [] },
+    { role: 'assistant', text: '', toolUses: [{ tool_use_id: 'r1', tool: 'ReportFindings', input: {} }] },
+  ]
+  const card = await $.ui.mount({ ...callRow('r1', 'ReportFindings'), surface: 'desktop' })
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+
+  await $.tool.call(report('r1', [undefined]))
+  expect(await card.find({ type: 'Svg' })).toBeUndefined()
+  expect(await band.find({ type: 'Svg' })).toBeUndefined()
+  await clock.advance(900)
+  expect((await band.find({ type: 'Svg' }))?.props.alt).toBe('Reviewed! 1 finding')
+  for (const ui of [card, band]) await ui.unmount()
+})
+
+test('under /fx place bottom, a review and its fixes play in the strip', async ($, on) => {
+  const { clock, transcript } = engine(on, { text: 'reported' }, 10, false, { placement: 'bottom' })
+  await start($)
+  const reply = await $.ui.mount(replyRow('m1', 'Here is the review.'))
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+
+  transcript.messages = told('Here is the review.', 'r1')
+  await $.tool.call(report('r1', [undefined, undefined]))
+  expect(await reply.find({ type: 'Svg' })).toBeUndefined()
+  expect((await band.find({ type: 'Svg' }))?.props.alt).toBe('Reviewed! 2 findings')
+  await clock.advance(4000)
+
+  transcript.messages = told('Here is the review.', 'r2')
+  await $.tool.call(report('r2', ['fixed', 'skipped']))
+  expect(await reply.find({ type: 'Svg' })).toBeUndefined()
+  expect((await band.find({ type: 'Svg' }))?.props.alt).toBe('Bugs squashed! 1 review defect fixed')
+  for (const ui of [reply, band]) await ui.unmount()
+})
+
+test('an effect drawn as the 201st row keeps its mark, so it does not replay in the strip', async ($, on) => {
+  const { clock } = engine(on, PUSHED)
+  await start($)
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  for (let i = 0; i <= 200; i++) {
+    await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: `t${i}` })
+    const row = await $.ui.mount({ ...callRow(`t${i}`), surface: 'desktop' })
+    await row.unmount()
+    if (i < 200) await clock.advance(1000)
+  }
+
+  await clock.advance(900)
+  expect(await band.find({ type: 'Svg' })).toBeUndefined()
+  await band.unmount()
+})
+
+test("the strip's marks are bounded too: past 200, the oldest row counts as not drawn", async ($, on) => {
+  const { clock } = engine(on, PUSHED)
+  await start($)
+  const strip = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  for (let i = 0; i <= 200; i++) {
+    await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: `t${i}` })
+    await clock.advance(1000)
+  }
+  await strip.unmount()
+  await clock.advance(4000)
+
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't0' }) // no row draws it now
+  await clock.advance(900)
+  expect((await band.find({ type: 'Svg' }))?.props.alt).toBe('Pushed! main')
+  await band.unmount()
 })
 
 test('a passing verify run shows the checkmark with its count', async ($, on) => {

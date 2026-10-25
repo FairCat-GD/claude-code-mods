@@ -61,6 +61,9 @@ Never push without being asked.
 - **The typed report** (decision 4). Replace the two casts at `register.tsx:259-260` with one named
   type for the report's input, beside `FxKind` in `types/index.d.ts` or in `register.tsx`. Grep the
   declarations for `ReportFindings` first; at 2.1.310 they name it nowhere.
+  - *Amended in F1:* they do name it, as `BuiltinToolInputs['ReportFindings']` in the laid
+    `claude-code-tools/index.d.ts` (CLI 2.1.310, desktop 2.1.308). The intake's grep covered
+    `claude-code/index.d.ts` alone.
 - **`drawnRows` evicts its oldest row** (decision 5).
   - Replace `drawnRows.clear()` at `register.tsx:90` with removing the oldest entry. A `Set` keeps
     insertion order, so that is its first.
@@ -131,6 +134,63 @@ Never push without being asked.
 - **A version that is never pushed never reaches the desktop.** `claude plugin update cartoon-fx`
   installs only a new `plugin.json` version.
 - **`placement` and `fxTakes` are the owner's data.** Read them forward-only.
+
+**Done (2026-10-25, 0.10.2).**
+- **Decided with the owner at the start:**
+  - the measurement went through a throwaway probe mod in this session's mods folder, placed and
+    removed with the owner's OK each time;
+  - the session made the `ReportFindings` calls itself, with fictional findings;
+  - screenshots were to come through computer use, but it refuses Claude's own window, so the
+    owner's screenshots stood in;
+  - with no row under the card, the owner chose the reply row before it, found by its text.
+- **The anchor.** `rowBefore` in `hooks/register.tsx` reads `$.session.messages()` at the report.
+  It walks back past thinking and tool results to the nearest earlier call (`tool:<id>`) or
+  reply text (`reply:<text>`), and stops at the person's prompt. A new `ui.render`
+  `AssistantMessage` hook draws the effect under the reply whose text matches. A call's row
+  already drew it under the `ToolUse` or `ToolGroup` hook. With no row before the card, the
+  effect keeps the card's row, and the fallback moves it to the strip.
+- **The card stops counting as drawn.** `OWN_CARDS` (`ReportFindings`) makes the `ToolUse` hook
+  pass the call's row over, neither drawing nor marking it.
+- **The typed report.** `e.tool === 'ReportFindings'` narrows `e` through the laid declarations.
+  `reviewReported` takes `Findings`, which is `BuiltinToolInputs['ReportFindings']['findings']`.
+  No cast is left for it.
+- **`drawnRows`.** `markDrawn` moves a row to the newest end and lets the oldest go past 200.
+  `noteDrawn` and the strip both go through it.
+- **Amendments:**
+  - **The declarations name `ReportFindings`.** Logged in the block above; the session's own
+    finding.
+  - **"Under the card" can't happen.** Decision 1's first choice needs a hook that draws there,
+    and none can. The row before is decision 1's second choice, picked with the owner.
+- **Measured** (desktop 2.1.308, probe `fx-probe`):
+  - The desktop raises no `ToolResult` for a `ReportFindings` call, and no `ToolGroup` holds it.
+  - It raises the call's `ToolUse` row while the call runs (`isRunning: true`, no `onScreen`),
+    including once just after the effect started. Then its card takes that row's place, and the
+    card paints no hook's tree.
+  - So 0.10.1's `ToolUse` hook marked the card drawn, and the fallback never ran. Two check
+    calls under `placement: conversation` showed nothing, in a row or in the strip (the owner's
+    look).
+  - A report draws as a card ("Code review low · 2 findings"). A re-report with outcomes draws
+    as a summary line ("Code review 1 fixed · 1 skipped"), and the first card takes up the
+    outcomes.
+  - Reply rows (`AssistantMessage`) and tool rows beside the card paint a hook's tree.
+  - `$.session.messages()` holds one message per block: thinking, then text, then the call, each
+    alone.
+  - No desktop row carries `onScreen`.
+  - With the window not in front, the desktop raised a turn's rows in one burst about 39 s
+    late. With it in front, rows came at once.
+  - A mod's module memory is shared between its `tool.call` and `ui.render` hooks.
+  - The CLI runs 2.1.310.
+- **Checked by hand:** only the probe runs above. The fix runs in the desktop only once 0.10.2 is
+  installed. *A review's effects beside its card*, and *An update to a new version*, stay in
+  `docs/BACKLOG.md`.
+- **Falsified:** each new check, by one mutation of `register.tsx`, copied aside and back:
+  - with `rowBefore` returning nothing, the review and fixes tests failed;
+  - with the card counting as drawn again, the strip-move test failed;
+  - with rows ignoring the placement, the `/fx place bottom` review test failed;
+  - with the wholesale clear back, the 201st-row test failed;
+  - with the strip's uncapped add back, the bounded-strip test failed.
+- **Numbers:** 32 tests (+4), 13 hooks (+1), 5 gating, 4 state keys; `validate` lists
+  `$.session.messages` among the calls.
 
 ---
 
