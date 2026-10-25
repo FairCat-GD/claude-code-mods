@@ -19,17 +19,15 @@ up, it moves out of this file.
 
 Checks that need a person at the machine. Each has an automated check covering most of it;
 these are the parts only a person can see. `/fx all` was checked by hand on the installed release
-at 0.10.1, in the desktop app and in a terminal.
+at 0.10.1, in the desktop app and in a terminal. A `/code-review` with findings, and its fixes,
+were checked at 0.10.2 in the desktop app: both played beside the findings card.
 
 - **Real triggers on the installed release** (0.10.1): a commit, a push, a passing
-  `npm run verify`, an accepted plan, a `/code-review` and its fixes, each in a live desktop
-  session. The tests cover each against fixture output.
-- **A review's effects beside its card** (0.10.2): in the desktop app, with `placement:
-  conversation`, a `/code-review` with findings plays "Reviewed!" under the reply or call just
-  before its card. Its fixes play "Bugs squashed!" the same way, and a report with nothing before
-  it moves to the strip. Covered by the review tests against fixture transcripts. The rows
-  `rowBefore` relies on were measured in the desktop (2.1.308) with a probe, but the fix itself
-  runs there only once 0.10.2 is installed.
+  `npm run verify` and an accepted plan, each in a live desktop session. The tests cover each
+  against fixture output.
+- **A review with nothing before its card** (0.10.2): a report with no reply or call before it
+  in its turn plays in the strip after about a second. Covered by the review tests against fixture
+  transcripts.
 - **The folded group** (0.10.1): a push inside a run of calls the desktop folds into one row plays
   under the group. Covered by the `ToolGroup` test.
 - **The move to the strip** (0.10.1): an effect whose row is scrolled out of view plays in the
@@ -40,9 +38,6 @@ at 0.10.1, in the desktop app and in a terminal.
   one "×N helpers!". Covered by their tests.
 - **`/fx place bottom` across sessions** (0.10.1): set in one session, it applies in another open
   one from its next effect. Covered by the two placement tests.
-- **A new session runs an update** (0.10.2): the update itself was checked, from 0.10.1 to 0.10.2.
-  It added a new `0.10.2/` folder, matching the pushed commit, and kept the stored values
-  (`docs/ARCHITECTURE.md`, *Packaging*). Still to see: a session started after it runs 0.10.2.
 
 ## Directions
 

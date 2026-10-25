@@ -495,8 +495,7 @@ export const register: Register = on => {
         <Box justifyContent="center">
           {bits('l')}
           <Text bold color="#FFD23F">
-            {' '}
-            {words}{' '}
+            {` ${words} `}
           </Text>
           {bits('r')}
         </Box>

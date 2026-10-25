@@ -1,10 +1,8 @@
 Read docs/spec/FEATURE-review-effects.md, the root CLAUDE.md, this mod's CLAUDE.md,
 docs/ARCHITECTURE.md, then this file. Session C1 of docs/spec/SESSIONS.md is under way: its
-reformat is committed, and two parts remain, both in C1's own chat:
-- the owner's `/code-review high` of the reformat commit, which is also the 0.10.2 check in the
-  desktop, then a `review(cartoon-fx): …` commit with the done-note's *Review* section;
-- the close, only if the check passes: anything open moves to `docs/BACKLOG.md`, the spec files
-  are deleted, and this file says no round is in progress.
+reformat and its review are committed, and the 0.10.2 check passed. One part remains, in C1's
+own chat: the close. Anything open moves to `docs/BACKLOG.md`, the spec files are deleted, and
+this file says no round is in progress.
 
 C1 cuts no version. All paths here are inside `mods/cartoon-fx/`; run
 `npm run verify -- cartoon-fx` from the repository's root.
@@ -26,6 +24,13 @@ C1 cuts no version. All paths here are inside `mods/cartoon-fx/`; run
     anyway, and the fixes effect stays under *Not yet checked by hand* (decided with the owner).
   - It closes *A review's effects beside its card*, *A new session runs an update*, and the
     `/code-review` part of *Real triggers on the installed release*, as far as each was seen.
+- **The owner's stored placement is `conversation`** (they ran `/fx place conversation` during
+  F1). Under `bottom`, both effects would play in the strip, and the check would read as failed.
+- **What the spec said that turned out wrong** (amended in the F1 block):
+  - the declarations do name `ReportFindings` (`BuiltinToolInputs`, in the laid
+    `claude-code-tools/index.d.ts`), so no cast is left for it;
+  - nothing can draw under the desktop's findings card, so decision 1's first choice can't
+    happen. A review plays in the row just before the card, which the owner chose.
 - **For the close, beyond decision 8's two items:** one F1 measurement goes to *Not yet checked by
   hand*. With the desktop window not in front, a turn's rows came in one burst about 39 s late
   (desktop 2.1.308), past the 900 ms fallback. What plays then was not looked at.

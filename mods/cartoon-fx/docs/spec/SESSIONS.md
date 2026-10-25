@@ -278,7 +278,8 @@ Never push without being asked.
     round open for an inserted fix session. Amended at plan time, with the owner.
 - **Measured** (CLI 2.1.310, Biome 2.5.15):
   - Lines: `detect.ts` 84 → 82, `fx.ts` 801 → 830, `register.tsx` 513 → 514, the test file
-    678 → 687. Biome's diff over them, read-only over stdin before the edit, matched.
+    678 → 687. The line counts and the lines removed and added matched Biome's read-only run
+    over stdin before the edit.
   - **The same syntax trees.** A one-off script parsed each file at `HEAD` and after, with the
     repo's TypeScript. It compared node kinds and identifier and literal text, skipping
     parentheses, whitespace-only JSX text, and `_$` for `$`. All four were equal (539, 7,064,
@@ -290,3 +291,22 @@ Never push without being asked.
   1.
 - **Numbers:** 35 tests (±0), 13 hooks (±0), 5 gating, each with a `.catch` (±0), 4 state keys
   (±0); `tsc` and the import scan clean; no warning but the allowed `CLAUDE.md` one.
+- **Review (`/code-review high`), 5 findings: 5 fixed and 0 skipped.** The owner chose to fix all.
+  - **The handoff keeps the stored placement.** The check works only under `conversation`, so
+    the handoff says it is the owner's stored value again.
+  - **The handoff keeps what the spec got wrong:** the declared `ReportFindings`, and no hook
+    drawing under the card. The read order still starts at the feature file.
+  - **The done-note says what matched Biome's preview:** the line counts and the lines removed
+    and added, not the diff's content.
+  - **One Packaging line in `ARCHITECTURE.md` is rewrapped** to the file's width.
+  - **The strip's words are one template string,** `` {` ${words} `} ``, in place of the three
+    children Biome had split over two lines. The terminal test pins the text
+    (`' Pushed! main '`). `register.tsx` is back to 513 lines.
+  - **Checked by hand** (installed 0.10.2, desktop 2.1.308, `placement: conversation`, a desktop
+    session started after the update): the review's report played "Reviewed!" beside its
+    findings card, and the re-report with the five fixes played "Bugs squashed!" there too (the
+    owner's look). That closes *A review's effects beside its card*, *A new session runs an
+    update*, and the `/code-review` part of *Real triggers on the installed release*. A report
+    with nothing before its card stays in `docs/BACKLOG.md`.
+  - **Falsified:** nothing new. The terminal test already pins the strip's text.
+  - **Numbers after the review:** 35 tests, 13 hooks, 5 gating, 4 state keys, all ±0.

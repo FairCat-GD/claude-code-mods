@@ -23,7 +23,7 @@ One effect is on show at a time. A new one replaces any still playing.
 
 | File | Lines | Holds |
 |---|---|---|
-| `hooks/register.tsx` | 514 | the hooks, playing and placement |
+| `hooks/register.tsx` | 513 | the hooks, playing and placement |
 | `hooks/detect.ts` | 82 | the Bash readers, `isReviewFix`, `tokens` |
 | `hooks/fx.ts` | 830 | the ten drawings and their SMIL helpers |
 | `types/index.d.ts` | 25 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
@@ -220,16 +220,20 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
   - real git and test-runner output beyond the fixtures;
   - a desktop engine newer than the CLI.
 - **By hand.** `/fx all` played every effect in the desktop app (under its row) and in the terminal
-  (glyphs in the strip), on the installed release (CLI 2.1.310, desktop 2.1.308). What nobody has
-  checked by hand is in `docs/BACKLOG.md`.
+  (glyphs in the strip), on the installed release (CLI 2.1.310, desktop 2.1.308). On the installed
+  0.10.2, in a desktop session started after the update, a `/code-review` with five findings
+  played "Reviewed!" beside its findings card, and its re-report with the fixes played "Bugs
+  squashed!" there too, under `placement: conversation`. What nobody has checked by hand is in
+  `docs/BACKLOG.md`.
 
 ## Packaging
 
 - **The release.** The owner installs the release from this repository's marketplace as
   `cartoon-fx@claude-code-mods`, at user scope. The installed copy is the mod's tracked files at
   the pushed commit, every one of them (18 at 0.10.2), byte for byte. That includes `CLAUDE.md`,
-  `docs/` and the tests. It lives in `~/.claude/plugins/cache/claude-code-mods/cartoon-fx/<version>/`, and changes
-  only when `claude plugin update cartoon-fx` finds a new version.
+  `docs/` and the tests. It lives in
+  `~/.claude/plugins/cache/claude-code-mods/cartoon-fx/<version>/`, and changes only when
+  `claude plugin update cartoon-fx` finds a new version.
 - **An unpushed build.** A `claude --plugin-dir mods/cartoon-fx` session replaces the installed
   copy for that session (the engine logs `Plugin "cartoon-fx" from --plugin-dir overrides
   installed version`; measured interactive and headless, CLI 2.1.310). It runs as
