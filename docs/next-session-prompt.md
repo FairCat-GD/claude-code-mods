@@ -10,7 +10,8 @@ of docs/spec/SESSIONS.md: the repo's documentation pass, then close round 1. It 
 
 - **Round 1 is the repository setup.** Sessions 0–3 are done; Session 4, the last, remains.
 - **Push status.** Everything is pushed: `origin/main` holds everything through
-  `review: npm run types skips user settings, and 3 smaller`, so `origin/main..HEAD` is empty.
+  `docs: claude plugin update picks up a version, not pushed work`, and this handoff's own
+  correction, so `origin/main..HEAD` is empty.
   The installed cartoon-fx stays at `3f79906` until a new version is pushed (SPEC decision 11,
   amended). List `git log origin/main..HEAD` before any push,
   and name any commit that is not this session's.
