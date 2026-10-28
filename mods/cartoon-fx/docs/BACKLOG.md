@@ -14,6 +14,10 @@ up, it moves out of this file.
 - **A cast where the declarations name no shape:** `awaitingLeaderApproval` on `ExitPlanMode`'s
   result. A declarations change would not show in `tsc`. Read from the as-built code, in repo
   Session 3; left out at the round 2 intake, which took the `ReportFindings` cast.
+- **Commands are split without parsing quoting.** `parts` cuts a command at `&&`, `;`, `|` and
+  newlines wherever they fall, so a line inside quotes or a heredoc (`cat <<EOF` with a line
+  `pytest is slow`) that starts with a runner reads as a test run. Its output then decides, as for
+  any run. Left by the direct 0.10.3 fix, which anchored the runner to a part's start.
 
 ## Not yet checked by hand
 

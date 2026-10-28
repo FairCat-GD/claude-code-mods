@@ -27,9 +27,11 @@ Each stays on screen for about three to four seconds, and a new one replaces one
   70%, and the red only after it drops below 85%. Going straight past 75% into the red plays the
   red alone.
 - **Subagents started together** (within about half a second) play once, with their count.
-- **A test run** counts when it is one of the common test or verify commands: `npm test`,
-  `npm run verify`, `pytest`, `cargo test`, `go test`, `vitest`, `jest`, `make test` and the
-  like.
+- **A test run** counts when the command, or a part of it after `&&`, `;` or `|`, starts with one
+  of the common test or verify commands: `npm test`, `npm run verify`, `pytest`, `cargo test`,
+  `go test`, `vitest`, `jest`, `playwright test`, `make test` and the like. Environment variables
+  and a launcher such as `npx`, `uv run` or `python -m` may come before it. A command that only
+  names one, such as `cat jest.config.js`, doesn't count.
 
 ## `/fx`
 

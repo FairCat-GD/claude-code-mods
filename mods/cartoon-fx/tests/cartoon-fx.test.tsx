@@ -684,4 +684,16 @@ test('what counts as a push, a commit and a passing test run', () => {
   expect(testsPassed('claude plugin test .', out('(pass) a\n(fail) b\n 1 pass\n 1 fail'))).toBeUndefined()
   expect(testsPassed('claude plugin test .', out('(pass) a failed push draws nothing\n 9 pass\n 0 fail'))).toBe('9 passed')
   expect(testsPassed('ls tests', out('a.test.ts'))).toBeUndefined()
+  expect(testsPassed('cd app && CI=1 npm test', out(VERIFIED.stdout))).toBe('42 passed')
+  expect(testsPassed('(cd app && npm test)', out(VERIFIED.stdout))).toBe('42 passed')
+  expect(testsPassed('uv run pytest -q', out('12 passed in 0.31s'))).toBe('12 passed')
+  expect(testsPassed('python -m pytest', out('12 passed in 0.31s'))).toBe('12 passed')
+  expect(testsPassed('pnpm vitest run', out(VERIFIED.stdout))).toBe('42 passed')
+  expect(testsPassed('npx playwright test', out('  5 passed (3.1s)'))).toBe('5 passed')
+
+  // A command that only names a runner runs no tests.
+  expect(testsPassed('cat jest.config.js', out(''))).toBeUndefined()
+  expect(testsPassed('npm ls vitest', out('app@1.0.0\n└── vitest@3.2.4'))).toBeUndefined()
+  expect(testsPassed('grep -r pytest .', out('setup.cfg:addopts = pytest'))).toBeUndefined()
+  expect(testsPassed('npx playwright install', out('Downloading Chromium 140.0'))).toBeUndefined()
 })

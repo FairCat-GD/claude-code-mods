@@ -1,6 +1,6 @@
 # cartoon-fx — architecture, as built
 
-This is cartoon-fx as it stands at 0.10.2, written from its code. Every session that changes the
+This is cartoon-fx as it stands at 0.10.3, written from its code. Every session that changes the
 mod keeps it true.
 
 ## Overview
@@ -24,10 +24,10 @@ One effect is on show at a time. A new one replaces any still playing.
 | File | Lines | Holds |
 |---|---|---|
 | `hooks/register.tsx` | 513 | the hooks, playing and placement |
-| `hooks/detect.ts` | 82 | the Bash readers, `isReviewFix`, `tokens` |
+| `hooks/detect.ts` | 87 | the Bash readers, `isReviewFix`, `tokens` |
 | `hooks/fx.ts` | 830 | the ten drawings and their SMIL helpers |
 | `types/index.d.ts` | 25 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 687 | 35 tests |
+| `tests/cartoon-fx.test.tsx` | 699 | 35 tests |
 
 ## The invariants
 
@@ -70,9 +70,11 @@ One effect is on show at a time. A new one replaces any still playing.
 
 ## Detection (`hooks/detect.ts`)
 
-- **The git part of a command.** `gitPart` splits a compound command on `&&`, `||`, `;`, `|` and
-  newlines, and takes the part that runs `git … push` or `git … commit`. A flag elsewhere in the
-  line (the `-n` of `git commit -n`) is not read as the push's own.
+- **The parts of a command.** `parts` splits a compound command on `&&`, `||`, `;`, `|` and
+  newlines. It does not parse quoting, so a quoted or heredoc line counts as a part of its own.
+- **The git part of a command.** `gitPart` takes the part that runs `git … push` or
+  `git … commit`. A flag elsewhere in the line (the `-n` of `git commit -n`) is not read as the
+  push's own.
 - **A push** needs that part, no `--dry-run` or `-n`, and no "Everything up-to-date". Its branch
   comes from the call's `gitOperation.push.branch` when the engine gives one. Otherwise it comes
   from the first `-> branch` after the push's `To <remote>` line, so a fetch or pull earlier in the
@@ -82,9 +84,14 @@ One effect is on show at a time. A new one replaces any still playing.
   `amended`, or when the command has `--amend`.
 - **A review-fix commit** is one whose subject starts `review`, or starts `fix` and names a review.
   It plays `fixes` in place of the stamp.
-- **A passing test run** is one of a list of runners (`npm|pnpm|yarn|bun (run) test|verify`,
-  `vitest`, `jest`, `playwright`, `pytest`, `go test`, `cargo test|nextest|xtask verify`,
-  `swift test`, `deno test`, `make test|check|verify`, `claude plugin test`).
+- **A passing test run** is a part that starts with one of a list of runners
+  (`npm|pnpm|yarn|bun (run) test|verify`, `vitest`, `jest`, `pytest`, `playwright test`,
+  `go test`, `cargo test|nextest|xtask verify`, `swift test`, `deno test`,
+  `make test|check|verify`, `claude plugin test`).
+  - Only `VAR=value` words, an opening `(` and, before `vitest`, `jest`, `pytest` or
+    `playwright test`, a launcher (`npx`, `bunx`, `pnpm (exec|dlx)`, `yarn (dlx)`, `uv run`,
+    `poetry run`, `python -m`) may come before it. So a command that only names a runner
+    (`cat jest.config.js`, `npm ls vitest`, `npx playwright install`) is no run.
   - It must print no failure count (`N failed`, `failing`, `errors`), no `FAIL`/`FAILED` mark,
     no `(fail)` line and no `test result: FAILED`. A piped run exits with the pipe's last command,
     so the printed output has the last word.
@@ -279,9 +286,11 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
 In `docs/BACKLOG.md` under *Deferred*:
 - detection by reading printed output, which a change to git's or a runner's wording would break,
   where the engine gives no `gitOperation`;
-- a cast where the declarations don't name the shape: `awaitingLeaderApproval`.
+- a cast where the declarations don't name the shape: `awaitingLeaderApproval`;
+- commands split without parsing quoting, so a quoted or heredoc line that starts with a runner
+  reads as a test run.
 
-## Baseline (v0.10.2)
+## Baseline (v0.10.3)
 
 | Check | Expected |
 |---|---|

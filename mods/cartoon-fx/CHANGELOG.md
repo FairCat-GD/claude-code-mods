@@ -6,6 +6,15 @@ All notable changes to cartoon-fx are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.3] — 2026-10-28
+
+### Fixed
+
+- **A command that only names a test runner no longer plays "All green!".** Reading
+  `jest.config.js`, `npm ls vitest` or installing Playwright's browsers counted as a passing test
+  run. A run counts now when a command, or a part of one after `&&`, `;` or `|`, starts with the
+  runner, after any environment variables or a launcher such as `npx`, `uv run` or `python -m`.
+
 ## [0.10.2] — 2026-10-25
 
 ### Fixed

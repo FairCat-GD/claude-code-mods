@@ -8,16 +8,21 @@ export type BashOutput = {
   gitOperation?: { push?: { branch: string }; commit?: { sha: string; kind: string } }
 }
 
+// The commands of a compound one (`cd app && npm test | tail`), split where the shell would.
+const parts = (command: string) => command.split(/&&|\|\||[;|\n]/)
+
 // The part of a compound command that runs `git <sub>` (`git -C dir push`, the
 // push of `git commit -m x && git push`), so flags elsewhere in the line are not
 // read as its own. A word "push" or "commit" in some other git command still
 // needs git's own report in the output to count.
-const gitPart = (command: string, sub: 'push' | 'commit') => command.split(/&&|\|\||[;|\n]/).find(part => new RegExp(`\\bgit\\b.*\\b${sub}\\b`).test(part))
+const gitPart = (command: string, sub: 'push' | 'commit') => parts(command).find(part => new RegExp(`\\bgit\\b.*\\b${sub}\\b`).test(part))
 const PUSH_DRY_RUN = /\s(--dry-run|-n)(\s|$)/
 const DRY_RUN = /\s--dry-run(\s|$)/
 
+// A runner at the start of a part, after any `VAR=value` words and a launcher, so a
+// command that only names one (`cat jest.config.js`, `npm ls vitest`) is no run.
 const TEST_RUN =
-  /\b(?:(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:test|verify)|npx\s+(?:vitest|jest|playwright)|vitest|jest|pytest|go\s+test|cargo\s+(?:test|nextest|xtask\s+verify)|swift\s+test|deno\s+test|bun\s+test|make\s+(?:test|check|verify)|claude\s+plugin\s+test)\b/
+  /^\s*\(*\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:test|verify)|(?:(?:npx|bunx|pnpm(?:\s+(?:exec|dlx))?|yarn(?:\s+dlx)?|uv\s+run|poetry\s+run|python[\d.]*\s+-m)\s+)?(?:vitest|jest|pytest|playwright\s+test)|go\s+test|cargo\s+(?:test|nextest|xtask\s+verify)|swift\s+test|deno\s+test|make\s+(?:test|check|verify)|claude\s+plugin\s+test)\b/
 // A piped run (`npm test | tail`) exits with the pipe's last command, so the
 // output has the last word: any failure it reports means the run did not pass.
 const FAILED_COUNT = /\b[1-9]\d*\s+(?:failed|failing|failures?|errors?)\b/i
@@ -63,7 +68,7 @@ export function committed(command: string, out: BashOutput): { sha: string; isAm
 
 // "42 passed" (or "" without a count) for a test run that passed, else undefined.
 export function testsPassed(command: string, out: BashOutput): string | undefined {
-  if (out.backgroundTaskId !== undefined || !TEST_RUN.test(command)) {
+  if (out.backgroundTaskId !== undefined || !parts(command).some(part => TEST_RUN.test(part))) {
     return undefined
   }
   const text = printed(out)
