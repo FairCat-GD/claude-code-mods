@@ -27,6 +27,9 @@ these are the parts only a person can see. `/fx all` was checked by hand on the 
 at 0.10.1, in the desktop app and in a terminal. A `/code-review` with findings, and its fixes,
 were checked at 0.10.2 in the desktop app: both played beside the findings card.
 
+- **The test-run rules in a live session** (0.10.3): `cat` of a config file plays nothing, and
+  `npm run verify` still plays "All green!" with its count. The two detection tests cover each
+  rule against fixture commands and output.
 - **Real triggers on the installed release** (0.10.1): a commit, a push, a passing
   `npm run verify` and an accepted plan, each in a live desktop session. The tests cover each
   against fixture output.

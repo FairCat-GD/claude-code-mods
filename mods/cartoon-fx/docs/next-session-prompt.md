@@ -24,10 +24,18 @@ plan the round in this mod's `docs/spec/` (see the root `docs/DEVELOPMENT-WORKFL
     - a positive piped-run test, and the pattern built from named pieces (`LEAD`, `FLAGS`,
       `LAUNCHER`, `RUNNERS`);
     - changelog links for 0.10.2 and 0.10.3.
-  - The owner runs 0.10.2 until `claude plugin update cartoon-fx` installs 0.10.3. Nobody has
-    checked 0.10.3 by hand in a live session yet.
-- **cartoon-fx 0.10.2 was the installed release when 0.10.3 was pushed.** Round 2 (the code-review effects that never
-  show: F1, C1) is closed.
+- **0.10.3 is the installed release** (2026-10-28, CLI 2.1.310). `claude plugin update
+  cartoon-fx` reported `updated from 0.10.2 to 0.10.3 for scope user. Restart to apply changes.`
+  - It added a `0.10.3/` folder beside `0.10.1/` and `0.10.2/`. That folder is byte for byte
+    the pushed commit's `mods/cartoon-fx/`, 15 files, apart from the engine's `.in_use`
+    markers.
+  - `installed_plugins.json` names that folder and the review commit's sha.
+  - The store file's checksum was the same before and after, so `placement` and `fxTakes` are
+    unchanged.
+  - Sessions opened before the update keep 0.10.2 until restarted.
+  - Nobody has checked 0.10.3 by hand in a live session yet. In a new session, `cat` a config
+    file should play nothing, and `npm run verify` should still play "All green!" with its count.
+- **Round 2** (the code-review effects that never show: F1, C1) is closed.
   - F1 shipped 0.10.2: a review and its fixes play in the conversation, beside the desktop's
     findings card.
   - C1 formatted the four copied files with Biome and deleted the folder's `biome.json`. Its
@@ -35,15 +43,14 @@ plan the round in this mod's `docs/spec/` (see the root `docs/DEVELOPMENT-WORKFL
     `review(cartoon-fx): the handoff keeps the stored placement, and 4 smaller`. The review
     commit holds the round's last done-note in full, in `docs/spec/SESSIONS.md`.
   - The round's spec files are deleted; git history keeps them.
-- **The installed 0.10.2 keeps the old layout.** C1 cut no version. 0.10.3 is the first version
-  to ship the new layout, beside its fix.
 - **0.10.2 is checked in the desktop** (desktop 2.1.308, `placement: conversation`). A
   `/code-review` with findings played "Reviewed!" beside its card, and its fixes played "Bugs
   squashed!" there too.
 - **The owner's stored placement is `conversation`.**
 - **Push status.** `origin/main` holds everything through
-  `review(cartoon-fx): wrappers and launcher flags count again, and 7 smaller`, the 0.10.3
-  review commit. Nothing is local. List `origin/main..HEAD` before any push: parallel sessions share this checkout.
+  `docs(cartoon-fx): record what the update to 0.10.3 installed`. Nothing is local.
+
+  List `origin/main..HEAD` before any push: parallel sessions share this checkout.
 - **Repo Session 4** (the repo's documentation pass) has not run yet. It repoints this mod's
   `CLAUDE.md` (lines 9–10) and `docs/ARCHITECTURE.md` (*Testing strategy*) away from the root
   `docs/spec/SPEC.md`, which it deletes. Leave those lines to it.

@@ -244,7 +244,7 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
 
 - **The release.** The owner installs the release from this repository's marketplace as
   `cartoon-fx@claude-code-mods`, at user scope. The installed copy is the mod's tracked files at
-  the pushed commit, every one of them (18 at 0.10.2), byte for byte. That includes `CLAUDE.md`,
+  the pushed commit, every one of them (15 at 0.10.3), byte for byte. That includes `CLAUDE.md`,
   `docs/` and the tests. It lives in
   `~/.claude/plugins/cache/claude-code-mods/cartoon-fx/<version>/`, and changes only when
   `claude plugin update cartoon-fx` finds a new version.
