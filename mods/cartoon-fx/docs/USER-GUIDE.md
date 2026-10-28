@@ -29,9 +29,11 @@ Each stays on screen for about three to four seconds, and a new one replaces one
 - **Subagents started together** (within about half a second) play once, with their count.
 - **A test run** counts when the command, or a part of it after `&&`, `;` or `|`, starts with one
   of the common test or verify commands: `npm test`, `npm run verify`, `pytest`, `cargo test`,
-  `go test`, `vitest`, `jest`, `playwright test`, `make test` and the like. Environment variables
-  and a launcher such as `npx`, `uv run` or `python -m` may come before it. A command that only
-  names one, such as `cat jest.config.js`, doesn't count.
+  `go test`, `vitest`, `jest`, `playwright test`, `make test` and the like. Environment variables,
+  a wrapper such as `timeout 600` or `bash -c`, and a launcher such as `npx`, `uv run` or
+  `python -m` may come before it. Its output must also say it passed, with a count or the runner's
+  own word for a pass. A command that only names a runner, such as `cat jest.config.js`, doesn't
+  count.
 
 ## `/fx`
 

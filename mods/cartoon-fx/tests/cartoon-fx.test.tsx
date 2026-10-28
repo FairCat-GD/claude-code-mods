@@ -690,10 +690,33 @@ test('what counts as a push, a commit and a passing test run', () => {
   expect(testsPassed('python -m pytest', out('12 passed in 0.31s'))).toBe('12 passed')
   expect(testsPassed('pnpm vitest run', out(VERIFIED.stdout))).toBe('42 passed')
   expect(testsPassed('npx playwright test', out('  5 passed (3.1s)'))).toBe('5 passed')
+})
 
-  // A command that only names a runner runs no tests.
-  expect(testsPassed('cat jest.config.js', out(''))).toBeUndefined()
-  expect(testsPassed('npm ls vitest', out('app@1.0.0\n└── vitest@3.2.4'))).toBeUndefined()
-  expect(testsPassed('grep -r pytest .', out('setup.cfg:addopts = pytest'))).toBeUndefined()
-  expect(testsPassed('npx playwright install', out('Downloading Chromium 140.0'))).toBeUndefined()
+test('a test run needs its runner at the start of a part, and a pass in its output', () => {
+  const out = (stdout: string) => ({ stdout, stderr: '' })
+  const passing = out(VERIFIED.stdout)
+
+  // Wrappers, launchers and their flags before the runner.
+  expect(testsPassed('npm test 2>&1 | tail -5', passing)).toBe('42 passed')
+  expect(testsPassed('timeout 600 npm test', passing)).toBe('42 passed')
+  expect(testsPassed('{ npm test; } 2>&1 | tail -20', passing)).toBe('42 passed')
+  expect(testsPassed('bash -c "npm test"', passing)).toBe('42 passed')
+  expect(testsPassed('NODE_OPTIONS="--max-old-space-size=4096 --no-warnings" npm test', passing)).toBe('42 passed')
+  expect(testsPassed('npx -y vitest run', passing)).toBe('42 passed')
+  expect(testsPassed('pnpm --filter app vitest', passing)).toBe('42 passed')
+  expect(testsPassed('bun run vitest', passing)).toBe('42 passed')
+  expect(testsPassed('uvx pytest', passing)).toBe('42 passed')
+  expect(testsPassed('./node_modules/.bin/jest', passing)).toBe('42 passed')
+
+  // A command that only names a runner is no run, whatever it prints.
+  expect(testsPassed('cat jest-results.txt', passing)).toBeUndefined()
+  expect(testsPassed('grep -r pytest ci.log', out('ci.log: 12 passed in 0.31s'))).toBeUndefined()
+  expect(testsPassed('npx playwright show-report', out('  5 passed (3.1s)'))).toBeUndefined()
+  expect(testsPassed('ls\njest.config.js', passing)).toBeUndefined()
+
+  // A run counts only when its output says it passed.
+  expect(testsPassed('go test ./...', out('ok  \texample.com/app\t0.012s'))).toBe('')
+  expect(testsPassed('swift test', out('Executed 12 tests, with 0 failures (0 unexpected)'))).toBe('')
+  expect(testsPassed('npm test', out(''))).toBeUndefined()
+  expect(testsPassed('cat <<EOF\npytest is slow\nEOF', out('pytest is slow'))).toBeUndefined()
 })

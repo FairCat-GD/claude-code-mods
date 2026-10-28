@@ -5,17 +5,28 @@ plan the round in this mod's `docs/spec/` (see the root `docs/DEVELOPMENT-WORKFL
 
 ## State you need that is not in the docs
 
-- **0.10.3 is committed locally, not pushed: `fix(cartoon-fx): naming a test runner is no test
-  run (0.10.3)`.** The owner spotted the bug and had it fixed directly, outside any round. A small
+- **0.10.3 is pushed: `fix(cartoon-fx): naming a test runner is no test run (0.10.3)`.** The
+  owner spotted the bug and had it fixed directly, outside any round. A small
   fix the owner points out skips the intake, which is kept for new ideas. So no `docs/spec/` file
   or done-note records it. Its commit message records what was measured and falsified.
-  - A test run now counts only when a part of the command starts with its runner, after any
-    `VAR=value` words, a `(`, or a launcher. Before, `cat jest.config.js`, `npm ls vitest` and
+  - A test run now counts only when a part of the command starts with its runner (after
+    `VAR=value` words, wrappers, or a launcher and its flags), and its output shows a pass: a
+    count or a runner's own mark. Before, `cat jest.config.js`, `npm ls vitest` and
     `npx playwright install` played "All green!". Playwright counts only as `playwright test`.
   - `parts` in `hooks/detect.ts` is the one split that `gitPart` and `testsPassed` share. Its
     quoting limit is in `docs/BACKLOG.md`.
-  - The owner still runs 0.10.2 until a push and `claude plugin update cartoon-fx`.
-- **cartoon-fx 0.10.2 is the installed release.** Round 2 (the code-review effects that never
+  - **The owner's `/code-review high` found 8 issues, and all 8 are fixed** in
+    `review(cartoon-fx): wrappers and launcher flags count again, and 7 smaller`:
+    - the first anchor dropped real runs behind `timeout`, `bash -c`, `{ …; }`, `npx -y`,
+      `bun run`, `uvx`, a `node_modules/.bin` path, and quoted env values;
+    - a pass in the output is now required, not only the absence of a failure;
+    - a part starting `jest.config.js` no longer counts;
+    - a positive piped-run test, and the pattern built from named pieces (`LEAD`, `FLAGS`,
+      `LAUNCHER`, `RUNNERS`);
+    - changelog links for 0.10.2 and 0.10.3.
+  - The owner runs 0.10.2 until `claude plugin update cartoon-fx` installs 0.10.3. Nobody has
+    checked 0.10.3 by hand in a live session yet.
+- **cartoon-fx 0.10.2 was the installed release when 0.10.3 was pushed.** Round 2 (the code-review effects that never
   show: F1, C1) is closed.
   - F1 shipped 0.10.2: a review and its fixes play in the conversation, beside the desktop's
     findings card.
@@ -30,13 +41,9 @@ plan the round in this mod's `docs/spec/` (see the root `docs/DEVELOPMENT-WORKFL
   `/code-review` with findings played "Reviewed!" beside its card, and its fixes played "Bugs
   squashed!" there too.
 - **The owner's stored placement is `conversation`.**
-- **Push status.** `origin/main` holds everything through `ed3aaa6`, F1's review commit. These
-  are local:
-  - `b8ab073`, F1's record of the update;
-  - C1's three commits;
-  - the 0.10.3 fix.
-
-  List `origin/main..HEAD` before any push: parallel sessions share this checkout.
+- **Push status.** `origin/main` holds everything through
+  `review(cartoon-fx): wrappers and launcher flags count again, and 7 smaller`, the 0.10.3
+  review commit. Nothing is local. List `origin/main..HEAD` before any push: parallel sessions share this checkout.
 - **Repo Session 4** (the repo's documentation pass) has not run yet. It repoints this mod's
   `CLAUDE.md` (lines 9–10) and `docs/ARCHITECTURE.md` (*Testing strategy*) away from the root
   `docs/spec/SPEC.md`, which it deletes. Leave those lines to it.
@@ -47,8 +54,8 @@ plan the round in this mod's `docs/spec/` (see the root `docs/DEVELOPMENT-WORKFL
     with nothing before its card. Also the folded group, the move to the strip, the zones, a
     compaction and live subagents, and `/fx place bottom` across sessions. Also effects while
     the desktop window is not in front.
-- **Baseline** (`docs/ARCHITECTURE.md`, v0.10.3, CLI 2.1.310; the fix moved no count):
-  - 35 tests in `tests/cartoon-fx.test.tsx`;
+- **Baseline** (`docs/ARCHITECTURE.md`, v0.10.3, CLI 2.1.310; the review added one test):
+  - 36 tests in `tests/cartoon-fx.test.tsx`;
   - `validate`: 13 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
     allowed `CLAUDE.md` one;
   - `tsc` and the import scan are clean.

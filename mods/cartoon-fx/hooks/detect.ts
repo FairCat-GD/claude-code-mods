@@ -19,15 +19,28 @@ const gitPart = (command: string, sub: 'push' | 'commit') => parts(command).find
 const PUSH_DRY_RUN = /\s(--dry-run|-n)(\s|$)/
 const DRY_RUN = /\s--dry-run(\s|$)/
 
-// A runner at the start of a part, after any `VAR=value` words and a launcher, so a
-// command that only names one (`cat jest.config.js`, `npm ls vitest`) is no run.
-const TEST_RUN =
-  /^\s*\(*\s*(?:[A-Za-z_]\w*=\S*\s+)*(?:(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:test|verify)|(?:(?:npx|bunx|pnpm(?:\s+(?:exec|dlx))?|yarn(?:\s+dlx)?|uv\s+run|poetry\s+run|python[\d.]*\s+-m)\s+)?(?:vitest|jest|pytest|playwright\s+test)|go\s+test|cargo\s+(?:test|nextest|xtask\s+verify)|swift\s+test|deno\s+test|make\s+(?:test|check|verify)|claude\s+plugin\s+test)\b/
+// A test run is a part that starts with its runner, so a command that only names
+// one (`cat jest.config.js`, `npm ls vitest`) is no run. Before the runner may come
+// `VAR=value` words, `(` or `{`, and wrappers such as `timeout 600` or `bash -c "`.
+const LEAD = String.raw`(?:[A-Za-z_]\w*=(?:"[^"]*"|'[^']*'|\S*)\s+|[({]\s*|(?:time|env|nice|command|exec|timeout\s+\S+)\s+|(?:ba|z)?sh\s+-c\s+['"]?)*`
+// Flags, each with an optional value: the `-y` of `npx -y vitest`, `--filter app`.
+const FLAGS = String.raw`(?:-\S+\s+(?:[^-\s]\S*\s+)?)*`
+const LAUNCHER = String.raw`(?:npx|bunx|uvx|npm\s+exec|pnpm(?:\s+(?:exec|dlx))?|yarn(?:\s+dlx)?|bun\s+(?:run|x)|uv\s+run|poetry\s+run|python[\d.]*\s+-m)\s+${FLAGS}`
+const RUNNERS = [
+  String.raw`(?:npm|pnpm|yarn|bun)\s+${FLAGS}(?:run\s+)?(?:test|verify)`,
+  String.raw`(?:${LAUNCHER})?(?:\S*/)?(?:vitest|jest|pytest|playwright\s+test)`,
+  String.raw`go\s+test|cargo\s+(?:test|nextest|xtask\s+verify)|swift\s+test|deno\s+test`,
+  String.raw`make\s+(?:test|check|verify)|claude\s+plugin\s+test`,
+]
+// The runner ends at its word: `npm run test:unit` counts, `jest.config.js` doesn't.
+const TEST_RUN = new RegExp(String.raw`^\s*${LEAD}(?:${RUNNERS.join('|')})(?![\w./])`)
 // A piped run (`npm test | tail`) exits with the pipe's last command, so the
 // output has the last word: any failure it reports means the run did not pass.
 const FAILED_COUNT = /\b[1-9]\d*\s+(?:failed|failing|failures?|errors?)\b/i
 const FAILED_MARK = /\bFAIL(?:ED)?\b|^\s*\(fail\)|test result: FAILED/m
 const PASSED_COUNT = /\b(\d+)\s+(?:passed|passing|pass)\b/gi
+// Runners that print no "N passed" still say so: go's `ok`/`PASS`, XCTest, swift-testing.
+const PASSED_MARK = /^\s*(?:ok|PASS)\b|\bExecuted \d+ tests?, with 0 failures\b|\btests?'? passed\b|\bverify: PASS\b/m
 
 const printed = (out: BashOutput) => `${out.stdout}\n${out.stderr}`
 
@@ -66,7 +79,8 @@ export function committed(command: string, out: BashOutput): { sha: string; isAm
   return sha === undefined ? undefined : { sha: sha.slice(0, 7), isAmend: /\s--amend\b/.test(command), subject }
 }
 
-// "42 passed" (or "" without a count) for a test run that passed, else undefined.
+// "42 passed" (or "" without a count) for a test run whose output says it passed,
+// else undefined.
 export function testsPassed(command: string, out: BashOutput): string | undefined {
   if (out.backgroundTaskId !== undefined || !parts(command).some(part => TEST_RUN.test(part))) {
     return undefined
@@ -76,8 +90,11 @@ export function testsPassed(command: string, out: BashOutput): string | undefine
     return undefined
   }
   const counts = [...text.matchAll(PASSED_COUNT)].map(match => Number(match[1]))
+  if (counts.length === 0) {
+    return PASSED_MARK.test(text) ? '' : undefined
+  }
 
-  return counts.length === 0 ? '' : `${Math.max(...counts)} passed`
+  return `${Math.max(...counts)} passed`
 }
 
 // A commit of fixes a code review found: `review: ...`, or a `fix:` that names a review.

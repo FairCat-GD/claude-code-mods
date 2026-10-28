@@ -16,8 +16,9 @@ up, it moves out of this file.
   Session 3; left out at the round 2 intake, which took the `ReportFindings` cast.
 - **Commands are split without parsing quoting.** `parts` cuts a command at `&&`, `;`, `|` and
   newlines wherever they fall, so a line inside quotes or a heredoc (`cat <<EOF` with a line
-  `pytest is slow`) that starts with a runner reads as a test run. Its output then decides, as for
-  any run. Left by the direct 0.10.3 fix, which anchored the runner to a part's start.
+  `pytest is slow`) that starts with a runner reads as a test run. It plays only when the output
+  also shows a pass, as when the heredoc's text holds "42 passed". Left by the direct 0.10.3 fix,
+  which anchored the runner to a part's start and required a pass in the output.
 
 ## Not yet checked by hand
 

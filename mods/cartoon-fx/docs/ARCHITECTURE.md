@@ -24,10 +24,10 @@ One effect is on show at a time. A new one replaces any still playing.
 | File | Lines | Holds |
 |---|---|---|
 | `hooks/register.tsx` | 513 | the hooks, playing and placement |
-| `hooks/detect.ts` | 87 | the Bash readers, `isReviewFix`, `tokens` |
+| `hooks/detect.ts` | 104 | the Bash readers, `isReviewFix`, `tokens` |
 | `hooks/fx.ts` | 830 | the ten drawings and their SMIL helpers |
 | `types/index.d.ts` | 25 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 699 | 35 tests |
+| `tests/cartoon-fx.test.tsx` | 722 | 36 tests |
 
 ## The invariants
 
@@ -84,18 +84,25 @@ One effect is on show at a time. A new one replaces any still playing.
   `amended`, or when the command has `--amend`.
 - **A review-fix commit** is one whose subject starts `review`, or starts `fix` and names a review.
   It plays `fixes` in place of the stamp.
-- **A passing test run** is a part that starts with one of a list of runners
+- **A passing test run** is a part that starts with one of `RUNNERS`
   (`npm|pnpm|yarn|bun (run) test|verify`, `vitest`, `jest`, `pytest`, `playwright test`,
   `go test`, `cargo test|nextest|xtask verify`, `swift test`, `deno test`,
   `make test|check|verify`, `claude plugin test`).
-  - Only `VAR=value` words, an opening `(` and, before `vitest`, `jest`, `pytest` or
-    `playwright test`, a launcher (`npx`, `bunx`, `pnpm (exec|dlx)`, `yarn (dlx)`, `uv run`,
-    `poetry run`, `python -m`) may come before it. So a command that only names a runner
-    (`cat jest.config.js`, `npm ls vitest`, `npx playwright install`) is no run.
+  - Only `LEAD` may come before it: `VAR=value` words (quoted values too), `(` or `{`, and the
+    wrappers `time`, `env`, `nice`, `command`, `exec`, `timeout <n>` and `sh|bash|zsh -c`.
+  - Before `vitest`, `jest`, `pytest` or `playwright test` may also come a `LAUNCHER` (`npx`,
+    `bunx`, `uvx`, `npm exec`, `pnpm (exec|dlx)`, `yarn (dlx)`, `bun run|x`, `uv run`,
+    `poetry run`, `python -m`) with its flags, and a path (`./node_modules/.bin/jest`).
+  - The runner ends at its word, so `npm run test:unit` counts and `jest.config.js` doesn't.
+    A command that only names a runner (`cat jest.config.js`, `npm ls vitest`,
+    `npx playwright install`) is no run.
   - It must print no failure count (`N failed`, `failing`, `errors`), no `FAIL`/`FAILED` mark,
     no `(fail)` line and no `test result: FAILED`. A piped run exits with the pipe's last command,
     so the printed output has the last word.
-  - The count shown is the largest `N passed|passing|pass`.
+  - It must print a pass: an `N passed|passing|pass` count, or with none, a runner's own mark
+    (`PASSED_MARK`: a line starting `ok` or `PASS`, XCTest's "with 0 failures", "tests passed",
+    `verify: PASS`). A run that prints neither plays nothing.
+  - The count shown is the largest `N passed|passing|pass`, or none with only a mark.
 - **Calls in the background** (`backgroundTaskId`) count as none of these.
 - **One command may do several.** The push wins, then the commit, then the tests.
 
@@ -215,11 +222,11 @@ It uses no network, process or file access.
 ## Testing strategy — the layers, and what each cannot see
 
 The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
-- **`claude plugin test`** runs the 35 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 36 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`).
   - Rows are mounted on the `desktop` surface, and the terminal tests on `terminal`.
-  - One test covers the detection rules as plain functions.
+  - Two tests cover the detection rules as plain functions.
 - **What the kit cannot see:**
   - what an `<Svg>` actually paints, or whether the app runs its SMIL;
   - how the desktop folds calls into groups and scrolls rows in a live session;
@@ -288,14 +295,14 @@ In `docs/BACKLOG.md` under *Deferred*:
   where the engine gives no `gitOperation`;
 - a cast where the declarations don't name the shape: `awaitingLeaderApproval`;
 - commands split without parsing quoting, so a quoted or heredoc line that starts with a runner
-  reads as a test run.
+  reads as a test run when the output also shows a pass.
 
 ## Baseline (v0.10.3)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 35 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 36 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |
