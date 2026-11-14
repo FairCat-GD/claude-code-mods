@@ -1,6 +1,6 @@
 # cartoon-fx — architecture, as built
 
-This is cartoon-fx as it stands at 0.11.1, written from its code. Every session that changes the
+This is cartoon-fx as it stands at 0.12.0, written from its code. Every session that changes the
 mod keeps it true.
 
 ## Overview
@@ -14,23 +14,23 @@ cartoon-fx is one hooks module (`hooks/register.tsx`), with three helpers beside
 It does two things:
 - **It watches the session.** Tool calls, compactions, subagent starts and finished turns. When
   something worth marking happens, it **plays** an effect: one `Shown` value in `$.state`, held
-  for the effect's length plus a short hold.
+  for the effect's length plus a short hold, or it queues it behind the one on show.
 - **It draws the effect on show.** Its `ui.render` hooks draw it into one of two places:
   - the conversation row that set it off, or for a card the desktop draws its own way, the row
     just before it (desktop only);
   - the strip above the prompt (`AbovePrompt`). The terminal always uses the strip, as a row of
     coloured glyphs.
 
-One effect is on show at a time. A new one replaces any still playing.
+One effect is on show at a time. The others wait their turn in a queue.
 
 | File | Lines | Holds |
 |---|---|---|
-| `hooks/register.tsx` | 506 | the hooks, playing and placement |
-| `hooks/detect.ts` | 221 | the Bash readers, `isReviewFix`, `tokens` |
+| `hooks/register.tsx` | 615 | the hooks, the queue, playing and placement |
+| `hooks/detect.ts` | 237 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
 | `hooks/fx.ts` | 969 | the ten drawings, their SMIL helpers, and fitting words |
 | `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
-| `types/index.d.ts` | 26 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 1105 | 50 tests |
+| `types/index.d.ts` | 27 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
+| `tests/cartoon-fx.test.tsx` | 1306 | 59 tests |
 
 ## The invariants
 
@@ -40,7 +40,8 @@ One effect is on show at a time. A new one replaces any still playing.
    waits on it. *Enforced by* `claude plugin validate`, which lists 5 gating hooks, each with a
    `.catch`.
 2. **The mod only reacts.** It never denies, rewrites or delays a call, a compaction or a spawn.
-   It returns what `next` returned. *Enforced by* the code and by the tests, which check that the
+   It returns what `next` returned. Queueing is bookkeeping: `play` puts an effect on show or in
+   line and returns, and no hook waits on the queue. *Enforced by* the code and by the tests, which check that the
    row still draws the engine's own content, with the effect beneath it.
 3. **The same seed always draws the same picture.** `random(seed)` is a seeded PRNG, so a redraw
    doesn't reshuffle the confetti. *Enforced by* the terminal test, which checks the glyphs are
@@ -59,9 +60,9 @@ One effect is on show at a time. A new one replaces any still playing.
 | Hook | Gating | Reacts to | Plays |
 |---|---|---|---|
 | `session.start` | | a new or reloaded session | Clears `shown` (a reload drops the timers that would end it), takes up the stored placement, and registers `/fx` (`immediate`). |
-| `tool.call` `{ tool: 'Bash' }` | ✓ | a finished Bash call | `push`, else a review-fix commit as `fixes`, else `commit`, else `tests`. |
+| `tool.call` (every tool) | ✓ | `ReportFindings`, and every finished call | `review` or `fixes` from a code review's report, in the row just before its card; then the context check. Registered first, so it is outermost (below). |
+| `tool.call` `{ tool: 'Bash' }` | ✓ | a finished Bash call | each of `tests`, `commit` (a review-fix commit as `fixes`) and `push` it did, in the order the command ran them. |
 | `tool.call` `{ tool: 'ExitPlanMode' }` | ✓ | a plan the person accepted | `plan`, unless a teammate's plan still waits on its lead (`awaitingLeaderApproval`). |
-| `tool.call` (every tool) | ✓ | `ReportFindings`, and every finished call | `review` or `fixes` from a code review's report, in the row just before its card; then the context check. |
 | `turn.complete` | | a finished turn | The context check. |
 | `session.compact` | ✓ | a compaction, not a precompute or a subagent's | `compact`, with tokens before and after. |
 | `agent.spawn` | ✓ | a subagent started | `helpers`, gathering spawns within 400 ms into one, with their count. |
@@ -70,7 +71,7 @@ One effect is on show at a time. A new one replaces any still playing.
 | `ui.render` `ToolGroup` | | a folded group of calls (desktop) | Draws the effect under the group holding its call. An unfolded group's rows are `ToolUse`. |
 | `ui.render` `AssistantMessage` | | a reply's text row (desktop) | Draws a review's effect under the reply whose text comes just before its card. |
 | `ui.render` `CommandOutput` `{ command: 'fx' }` | | `/fx`'s output row (desktop) | Draws the effect under the row whose `(take N)` tag it carries. |
-| `ui.render` `AbovePrompt` | | the strip above the prompt | Draws effects with no row, effects under `/fx place bottom`, and fallbacks from rows; on the terminal, every effect as glyphs. Stays out of the way of a survey (`hasSurvey`). |
+| `ui.render` `AbovePrompt` | | the strip above the prompt | Draws effects with no row, effects under `/fx place bottom`, and fallbacks from rows; on the terminal, every effect as glyphs. Stays out of the way of a survey (`hasSurvey`), and draws nothing while collapsed (`isCollapsed`). Notes whether it is collapsed, for the queue. |
 
 ## Detection (`hooks/detect.ts`)
 
@@ -138,7 +139,10 @@ One effect is on show at a time. A new one replaces any still playing.
     `OK (N tests` or `OK, but`). A run that prints none plays nothing.
   - The count shown is the largest count or tally, or none with only a mark.
 - **Calls in the background** (`backgroundTaskId`) count as none of these.
-- **One command may do several.** The push wins, then the commit, then the tests.
+- **One command may do several,** and each plays. `ranAt` gives the index of the first part that
+  pushed, committed or ran tests, from one `parts` pass, and the Bash hook plays them in that
+  order. One the engine reported with no part of its own (an alias such as `gp`) comes after,
+  in the order tests, commit, push.
 
 ## The drawings (`hooks/fx.ts`)
 
@@ -187,11 +191,31 @@ One effect is on show at a time. A new one replaces any still playing.
 
 ## Playing and placement
 
-- **`play`** takes up the stored placement, then sets `shown`. That is `{ kind, seed, title,
-  subtitle, value, until, row? }`, with `seed` the clock's now.
+- **`play`** takes up the stored placement and gives the effect its `id`, a counter, which is its
+  identity: the drawing cache, the end and the move to the strip all key by it. With nothing on
+  show, it starts the effect; otherwise the effect waits in the queue.
+- **Starting** sets `shown`: `{ id, kind, seed, title, subtitle, value, until, row? }`, with
+  `seed` the clock's now, which only picks the drawing.
   - It schedules the end: `FX_MS[kind] + HOLD_MS` (600 ms). The hold lets a surface that mounts
     late still show the whole drawing.
-  - The end clears `shown` only while it still holds this seed.
+  - The end clears `shown` only while it still holds this id. `GAP_MS` (300 ms) later, the next
+    effect waiting starts, so each mounts a fresh `<Svg>`. A turn is length + hold + gap.
+- **The queue** lives in module memory, with the timers that move it: a hot reload drops both, and
+  `session.start` empties it and clears `shown`.
+  - **At most three real moments wait** (`MAX_WAITING`). One that comes while three wait is
+    dropped.
+  - **One whose turn comes more than 12 s after it was played is dropped** (`WAIT_MS`), and the
+    next is taken. So a burst never plays long after its moment.
+  - **`/fx`'s samples wait past both.** A real moment goes ahead of the samples still waiting, so
+    it plays after the sample on show. A new `/fx` run drops an earlier run's waiting samples.
+  - **Where the strip is collapsed** (`isCollapsed`, which the strip's hook notes on every draw),
+    an effect that would play there is dropped when its turn comes: one with no row, any under
+    `/fx place bottom`, and every one on the terminal.
+  - A fault in the queue's own timers empties it, so the next effect still plays.
+- **The order of one call's effects.** The every-tool `tool.call` hook is registered before the
+  Bash and ExitPlanMode hooks. A plugin's registrations nest first outermost, so the call's own
+  effect is queued before the context check its result may set off: a push that crosses 75% plays
+  the confetti, then the gauge.
 - **Rows.** An effect belongs to the row of what set it off: `tool:<tool_use_id>` for a call, or
   `fx:(take N)` for `/fx`'s output row.
   - **A card the desktop draws its own way** (`OWN_CARDS`: `ReportFindings`) shows no hook's
@@ -212,23 +236,24 @@ One effect is on show at a time. A new one replaces any still playing.
   (`AssistantMessage`) whose text matches. With `bottom`, or with no row, it draws in the strip.
   - Every row hook reads `shown`, so each mounted row redraws when an effect starts. An earlier
     row picks up an effect played after it was drawn.
-- **The fallback.** 900 ms after playing, an effect whose row has not drawn it is played again in
-  the strip, as a fresh effect with no row. A row drawn with `onScreen: null`, scrolled out of
-  view, counts as not drawn. Examples: a group folded away, a row scrolled off, a review with no
-  row before its card. The strip marks a row's effect as drawn when it shows it, so the terminal
-  never replays.
-  - `drawnRows` keeps the 200 rows drawn last. Drawing a row again moves it to the newest end, so
-    the row of the effect on show is never the one let go.
+- **The fallback.** 900 ms after it starts, an effect that nothing has drawn moves to the strip:
+  the same drawing, with no row, whole from then. It keeps its place, ahead of what waits. A row
+  drawn with `onScreen: null`, scrolled out of view, counts as not drawn. Examples: a group folded
+  away, a row scrolled off, a review with no row before its card. The strip marks the effect as
+  drawn when it shows it, so the terminal never moves one. With the strip collapsed, the effect
+  ends there instead.
+  - `drawnId` is the id of the effect on show once a row or the strip drew it. Each effect must
+    be drawn itself: of three effects in one row, the second still moves once the row is gone.
   - The desktop reports no `onScreen` (measured, desktop 2.1.308), so there a drawn row always
     counts.
   - The engine gives a mod's `tool.call` and `ui.render` hooks one module memory (measured,
-    desktop 2.1.308). So the fallback, timed from the call's hook, sees the marks the rows leave
-    in `drawnRows`.
+    desktop 2.1.308). So the fallback, timed from the call's hook, sees the mark the rows leave
+    in `drawnId`.
 - **The terminal** draws no SVG. The strip shows five glyphs (`✦ • ▪ ✶ ✧ ◆ ∗ ❋`) on each side of
   the words, coloured from the same seed. Rows are left alone.
-- **`/fx`** replays from `SAMPLES`, fixed words and values, in the order of `/fx all`. Each starts
-  after the one before has finished (length + hold + 300 ms). All of them play in that run's
-  output row, found by its `(take N)` tag. The engine puts the plugin's name before the output
+- **`/fx`** replays from `SAMPLES`, fixed words and values, in the order of `/fx all`. They take
+  their turns in the queue. All of them play in that run's output row, found by its `(take N)`
+  tag. The engine puts the plugin's name before the output
   text, so the tag, not the whole text, identifies the row.
 
 ## Values: `$.state` and `$.store`
@@ -238,7 +263,7 @@ session:
 
 | Key | Type | Holds |
 |---|---|---|
-| `shown` | `Shown \| null` | the effect on show |
+| `shown` | `Shown \| null` | the effect on show; what waits is in module memory, not here |
 | `isYellow` | `boolean` | the context window is in its yellow zone (set at `YELLOW`, 75%, cleared below `RESET`, 70%) |
 | `isRed` | `boolean` | in its red zone (set at `RED`, 90%, cleared below `RED_RESET`, 85%) |
 | `placement` | `Placement` | `conversation` or `bottom`, as taken up from the store |
@@ -277,14 +302,20 @@ It uses no network, process or file access.
 ## Testing strategy — the layers, and what each cannot see
 
 The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
-- **`claude plugin test`** runs the 50 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 59 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
-    is pinned (`mock.clock`).
+    is pinned (`mock.clock`), so a queue test moves it a turn at a time (`slot`: length + hold +
+    gap) and reads which effect each row or the strip draws.
   - Rows are mounted on the `desktop` surface, and the terminal tests on `terminal`.
-  - Eight tests cover the detection rules as plain functions, and one hook test the rejected
-    push behind `; echo done`. Their output is fictional, shaped on what each tool prints: git's
-    and node's as measured on this machine (node 26.7.0), the other new runners' from their
-    documented output, since none is installed here.
+  - Ten cover the queue: a push then the gauge, and the gauge behind a push whose start is held
+    on the clock (which only the hooks' registration order keeps in line); a test, commit and
+    push in that order; the cap and the limit; two effects in one millisecond; the move to the
+    strip keeping its place, and a second effect in a row that is gone; a real moment during
+    `/fx all`; a collapsed strip. Two `/fx` tests step through all ten samples and a takeover.
+  - Nine tests cover the detection rules as plain functions, `ranAt` among them, and one hook
+    test the rejected push behind `; echo done`. Their output is fictional, shaped on what each
+    tool prints: git's and node's as measured on this machine (node 26.7.0), the other new
+    runners' from their documented output, since none is installed here.
   - Seven read `drawFx`'s output back as structure, for every kind with the longest words the
     mod gives it and the extremes of its value. A small parser in the test file finds the named
     pieces and composes their transforms, taking an animated translate at its last value and
@@ -313,13 +344,16 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
   browser, and the strip of a `--plugin-dir` terminal session played all ten (CLI 2.1.325). On
   the installed 0.11.0, `/fx all` in a desktop session (engine 2.1.325) played all ten in its
   row.
+  At 0.12.0, in a `--plugin-dir` terminal session (CLI 2.1.325), one command that ran
+  `node --test`, committed and pushed to a local bare remote in a scratch repository played
+  "All green! 2 passed", "SAVED <sha>" and "Pushed! main" in the strip, in that order.
   What nobody has checked by hand is in `docs/BACKLOG.md`.
 
 ## Packaging
 
 - **The release.** The owner installs the release from this repository's marketplace as
   `cartoon-fx@claude-code-mods`, at user scope. The installed copy is the mod's tracked files at
-  the pushed commit, every one of them (19 at 0.11.1), byte for byte. That includes `CLAUDE.md`,
+  the pushed commit, every one of them (19 at 0.12.0), byte for byte. That includes `CLAUDE.md`,
   `docs/` and the tests. It lives in
   `~/.claude/plugins/cache/claude-code-mods/cartoon-fx/<version>/`, and changes only when
   `claude plugin update cartoon-fx` finds a new version.
@@ -341,7 +375,8 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
 ## Deliberate decisions
 
 - **The drawing is built once per effect.** Rows and the strip draw again on every scroll, and the
-  confetti alone is some 50,000 characters. `svgOf` keeps the last drawing, keyed by seed.
+  confetti alone is some 50,000 characters. `svgOf` keeps the last drawing, keyed by the effect's
+  id; two effects started in one millisecond share a seed, never an id.
 - **Placement is read from the store on every play.** `/fx place` in one session applies in every
   other open session from its next effect.
 - **`/fx` takes are numbered across sessions** (`fxTakes`), so the rows of a resumed transcript
@@ -378,6 +413,17 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
 - **A tag push plays "Pushed!" with the tag's name.** The owner's call at D1's start: the engine
   reports no push for a `[new tag]` ref, so it plays from git's printed line.
 
+- **Effects queue rather than replace each other** (round 3's decision 5): every one is seen
+  whole. Three wait at most and 12 s is the longest wait, settled at Q1's start: a test, commit
+  and push that also crosses 75% has its gauge wait exactly 10 s (turns of 3.3, 3.2 and 3.5 s),
+  so 10 s would sit on the edge.
+- **A replay is the owner's own request,** so its samples wait past the cap and the limit, and
+  real moments cut in ahead of them to stay near their moment.
+- **The queue lives in module memory,** not `$.state`: no render reads it, and it lives and dies
+  with the timers that move it. No new state key, so no new machine identifier.
+- **A collapsed strip drops what would play there.** Collapsing is the person putting the strip
+  away; holding effects for it would hold up row effects behind them.
+
 ## Known debt, deliberately deferred
 
 In `docs/BACKLOG.md` under *Deferred*:
@@ -385,12 +431,12 @@ In `docs/BACKLOG.md` under *Deferred*:
   every test run, and a push or commit the engine does not report;
 - a cast where the declarations don't name the shape: `awaitingLeaderApproval`.
 
-## Baseline (v0.11.1)
+## Baseline (v0.12.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 50 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 59 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |

@@ -19,8 +19,14 @@ It never changes or delays what Claude does; it only watches and draws.
 | The context window reaches 75% | a gauge swings into the yellow | "Yellow zone!" and the percentage |
 | The context window reaches 90% | a gauge slams into the red | "Red zone!" and the percentage |
 
-Each stays on screen for about three to four seconds, and a new one replaces one still playing.
+Each stays on screen for about three to four seconds.
 
+- **Effects take turns.** One that comes while another plays waits for it, then plays whole. Up to
+  three can wait; a fourth is skipped, and so is one whose turn would come more than 12 seconds
+  after it happened.
+- **One command plays everything it did, in the order it ran.** `npm test && git commit &&
+  git push` plays the checkmark, the stamp, then the confetti. A push that fills the context
+  window past 75% plays its confetti, then the gauge.
 - **Nothing plays for a failure:** a plan you turn down, a failed or rejected push, a dry run, a
   push with nothing to push, a test run that reports any failure, or fixes where none were fixed.
 - **The zones play once on the way in.** The yellow plays again only after the window drops below
@@ -51,6 +57,10 @@ Each stays on screen for about three to four seconds, and a new one replaces one
 | `/fx place conversation` | Plays effects under the row that set them off again, which is the default. `/fx place middle` does the same. |
 
 - `/fx`'s replays use sample words ("SAVED 5e81772", "42 passed").
+- A replay takes its turns like everything else, and none of its samples is skipped. Something
+  real that happens during it plays right after the sample on show, then the replay goes on.
+- A new `/fx` takes over from an earlier one: the sample on show finishes, and the earlier run's
+  other samples are dropped.
 - Its answer ends with a take number, such as `playing push (take 3)`. The number counts up across
   sessions, and each run's animations play under that run's own answer.
 - Letter case and extra spaces don't matter: `/fx Place  Bottom` works.
@@ -67,8 +77,11 @@ Each stays on screen for about three to four seconds, and a new one replaces one
   - A compaction has no row, so it plays in the strip above the prompt.
   - So does anything a subagent did.
 - **Moving to the strip.** If an effect's row isn't on screen within about a second, it plays
-  again in the strip. That covers a row scrolled out of view, a folded-away group, or a review
-  card with nothing just before it.
+  again in the strip, from the start and before anything waiting behind it. That covers a row
+  scrolled out of view, a folded-away group, or a review card with nothing just before it.
+- **A collapsed strip.** While you have the strip above the prompt collapsed, what would play
+  there is skipped. On the terminal, that is every effect. One already playing when you collapse
+  it plays out, and shows again if you open the strip before it ends.
 - **`/fx place bottom`** keeps every effect in the strip.
 - **The choice is remembered.** It applies at once in every open session, from its next effect,
   and in every session after.

@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
-import type { TestBody } from 'claude-code/testing'
+import type { Mounted, TestBody } from 'claude-code/testing'
 
-import { committed, isReviewFix, pushedBranch, testsPassed } from '../hooks/detect'
+import { committed, isReviewFix, pushedBranch, ranAt, testsPassed } from '../hooks/detect'
 import { drawFx, FX_MS, textBox } from '../hooks/fx'
 import { RED, YELLOW } from '../hooks/zones'
 import type { FxKind } from '../types'
@@ -42,13 +42,23 @@ const out = (stdout: string, stderr = '') => ({ stdout, stderr })
 const COMMITTED = { stdout: '[main 5e81772] Add squish effect\n 1 file changed', stderr: '', interrupted: false }
 const VERIFIED = { stdout: ' Test Files  6 passed (6)\n      Tests  42 passed (42)', stderr: '', interrupted: false }
 
+// An effect's turn: its drawing, the hold after it, and the gap before the next.
+const HOLD = 600
+const GAP = 300
+const slot = (kind: FxKind) => FX_MS[kind] + HOLD + GAP
+
+// The words of the effect a mounted row or strip draws, if any.
+const altIn = async (ui: Pick<Mounted, 'find'>) => (await ui.find({ type: 'Svg' }))?.props.alt
+
 // Stands in for the engine: every Bash call answers `result`, the context
-// window reads `percent`, the store starts as `store`, the transcript holds
-// `transcript.messages`, and anything else draws "engine".
+// window reads `percent`, the store starts as `store` (the next read waits on
+// `reads.held` when set), the transcript holds `transcript.messages`, and
+// anything else draws "engine".
 function engine(on: Parameters<TestBody>[1], result: object, percent = 10, isError = false, store: Record<string, unknown> = {}) {
   const clock = mock.clock(on, { now: 1000 })
   const usage = { percent }
   const transcript: { messages: object[]; isRefused: boolean } = { messages: [], isRefused: false }
+  const reads: { held?: Promise<void> } = {}
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.messages', () => {
     if (transcript.isRefused) throw new Error('transcript unreadable')
@@ -56,7 +66,13 @@ function engine(on: Parameters<TestBody>[1], result: object, percent = 10, isErr
     return { value: transcript.messages as never }
   })
   on('command.register', () => ({ value: { command: 'fx' } }))
-  on('store.get', (_, e) => ({ value: store[e.key] }))
+  on('store.get', async (_, e) => {
+    const held = reads.held
+    reads.held = undefined
+    await held
+
+    return { value: store[e.key] }
+  })
   on('store.set', (_, e) => {
     store[e.key] = e.value
 
@@ -70,7 +86,7 @@ function engine(on: Parameters<TestBody>[1], result: object, percent = 10, isErr
     return <Text>engine</Text>
   })
 
-  return { clock, usage, transcript }
+  return { clock, usage, transcript, reads }
 }
 
 // `/fx <args>` as typed at the prompt of a desktop session.
@@ -220,7 +236,7 @@ const replyRow = (id: string, text: string) =>
   ({ plugin: 'cartoon-fx', component: 'AssistantMessage', requestId: id, surface: 'desktop', props: { text, isFirstOfReply: true } }) as const
 
 test('a finished code review plays under the reply just before its card; a clean one says so', async ($, on) => {
-  const { transcript } = engine(on, { text: 'reported' })
+  const { clock, transcript } = engine(on, { text: 'reported' })
   await start($)
   transcript.messages = told('Here is the review.', 'r1')
   await $.tool.call(report('r1', [undefined, undefined, undefined]))
@@ -230,6 +246,7 @@ test('a finished code review plays under the reply just before its card; a clean
   expect((await reply.find({ type: 'Text', text: /engine/ }))?.text).toBe('engine') // the reply itself stays
   expect(await card.find({ type: 'Svg' })).toBeUndefined()
   for (const ui of [reply, card]) await ui.unmount()
+  await clock.advance(slot('review'))
 
   transcript.messages = told('Nothing to report.', 'r2')
   await $.tool.call(report('r2', []))
@@ -350,40 +367,6 @@ test('under /fx place bottom, a review and its fixes play in the strip', async (
   for (const ui of [reply, band]) await ui.unmount()
 })
 
-test('an effect drawn as the 201st row keeps its mark, so it does not replay in the strip', async ($, on) => {
-  const { clock } = engine(on, PUSHED)
-  await start($)
-  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  for (let i = 0; i <= 200; i++) {
-    await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: `t${i}` })
-    const row = await $.ui.mount({ ...callRow(`t${i}`), surface: 'desktop' })
-    await row.unmount()
-    if (i < 200) await clock.advance(1000)
-  }
-
-  await clock.advance(900)
-  expect(await band.find({ type: 'Svg' })).toBeUndefined()
-  await band.unmount()
-})
-
-test("the strip's marks are bounded too: past 200, the oldest row counts as not drawn", async ($, on) => {
-  const { clock } = engine(on, PUSHED)
-  await start($)
-  const strip = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  for (let i = 0; i <= 200; i++) {
-    await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: `t${i}` })
-    await clock.advance(1000)
-  }
-  await strip.unmount()
-  await clock.advance(4000)
-
-  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't0' }) // no row draws it now
-  await clock.advance(900)
-  expect((await band.find({ type: 'Svg' }))?.props.alt).toBe('Pushed! main')
-  await band.unmount()
-})
-
 test('a passing verify run shows the checkmark with its count', async ($, on) => {
   engine(on, VERIFIED)
   await start($)
@@ -476,7 +459,7 @@ test('the red zone plays once past 90%, alone when the yellow was skipped, again
   usage.percent = 92 // straight past the yellow
   await call('t1')
   expect(await drawnIn('t1')).toBe('Red zone! context 92% full')
-  await clock.advance(4000)
+  await clock.advance(slot('redzone'))
 
   usage.percent = 95
   await call('t2')
@@ -494,49 +477,63 @@ test('the red zone plays once past 90%, alone when the yellow was skipped, again
   expect(await drawnIn('t6')).toBe('Red zone! context 93% full')
 })
 
+// `/fx`'s output row, as the desktop draws it: the engine puts the plugin's name first.
+const fxOutput = (requestId: string, text: string) =>
+  ({
+    plugin: 'cartoon-fx',
+    component: 'CommandOutput',
+    requestId,
+    surface: 'desktop',
+    props: { command: 'fx', args: 'all', text: `cartoon-fx: ${text}`, isErrored: false },
+  }) as const
+
 test('/fx all plays every animation in its own output row, one after another', async ($, on) => {
   const { clock } = engine(on, {})
   await start($)
 
   const ran = await $.command.run(fx('all'))
   expect(ran.text).toBe('playing plan, commit, push, tests, review, fixes, compact, helpers, context, redzone (take 1)')
-  const row = await $.ui.mount({
-    plugin: 'cartoon-fx',
-    component: 'CommandOutput',
-    requestId: 'out1',
-    surface: 'desktop',
-    props: { command: 'fx', args: 'all', text: `cartoon-fx: ${ran.text ?? ''}`, isErrored: false }, // the engine adds the name
-  })
+  const row = await $.ui.mount(fxOutput('out1', ran.text ?? ''))
   const alt = async () => (await row.find({ type: 'Svg' }))?.props.alt
 
-  expect(await alt()).toBe("Action! let's build!")
-  await clock.advance(2600 + 600 + 300)
-  expect(await alt()).toBe('SAVED 5e81772')
-  await clock.advance(2300 + 600 + 300)
-  expect(await alt()).toBe('Pushed! main')
+  // Ten samples, past the three real moments that may wait: a replay is exempt.
+  const played: [FxKind, string][] = [
+    ['plan', "Action! let's build!"],
+    ['commit', 'SAVED 5e81772'],
+    ['push', 'Pushed! main'],
+    ['tests', 'All green! 42 passed'],
+    ['review', 'Reviewed! 3 findings'],
+    ['fixes', 'Bugs squashed! 3 review defects fixed'],
+    ['compact', 'Squished! 142k → 18k tokens'],
+    ['helpers', '×3 helpers!'],
+    ['context', 'Yellow zone! context 76% full'],
+    ['redzone', 'Red zone! context 92% full'],
+  ]
+  for (const [kind, words] of played) {
+    expect(await alt()).toBe(words)
+    await clock.advance(slot(kind))
+  }
+  expect(await alt()).toBeUndefined()
   await row.unmount()
 })
 
-test('a second /fx run plays in its own row, not the first one', async ($, on) => {
-  engine(on, {})
+test('a second /fx run plays in its own row once the first one ends, and takes over from the rest', async ($, on) => {
+  const { clock } = engine(on, {})
   await start($)
-  const outputRow = (requestId: string, text: string) =>
-    $.ui.mount({
-      plugin: 'cartoon-fx',
-      component: 'CommandOutput',
-      requestId,
-      surface: 'desktop',
-      props: { command: 'fx', args: 'push', text: `cartoon-fx: ${text}`, isErrored: false },
-    })
 
-  const first = await $.command.run(fx('push'))
+  const first = await $.command.run(fx('all'))
   const second = await $.command.run(fx('tests'))
   expect(second.text).toBe('playing tests (take 2)')
-  const firstRow = await outputRow('out1', first.text ?? '')
-  const secondRow = await outputRow('out2', second.text ?? '')
+  const firstRow = await $.ui.mount(fxOutput('out1', first.text ?? ''))
+  const secondRow = await $.ui.mount(fxOutput('out2', second.text ?? ''))
 
-  expect(await firstRow.find({ type: 'Svg' })).toBeUndefined()
-  expect((await secondRow.find({ type: 'Svg' }))?.props.alt).toBe('All green! 42 passed')
+  expect(await altIn(firstRow)).toBe("Action! let's build!") // the sample on show finishes
+  expect(await altIn(secondRow)).toBeUndefined()
+  await clock.advance(slot('plan'))
+  expect(await altIn(firstRow)).toBeUndefined()
+  expect(await altIn(secondRow)).toBe('All green! 42 passed')
+  await clock.advance(slot('tests'))
+  expect(await altIn(firstRow)).toBeUndefined() // the first run's other samples are gone
   for (const ui of [firstRow, secondRow]) await ui.unmount()
 })
 
@@ -667,6 +664,198 @@ test('a placement another session stored applies from the next effect', async ($
   await band.unmount()
 })
 
+// A push of `branch`, as git reports it.
+const pushedTo = (branch: string) => ({ stdout: '', stderr: `${TO}\n   8577859..5e81772  ${branch} -> ${branch}\n`, interrupted: false })
+
+test('a push that crosses 75% plays the confetti whole, then the yellow zone', async ($, on) => {
+  const { clock } = engine(on, PUSHED, 76)
+  await start($)
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+  const alt = async () => (await row.find({ type: 'Svg' }))?.props.alt
+
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
+  expect(await alt()).toBe('Pushed! main')
+  await clock.advance(FX_MS.push + HOLD - 1)
+  expect(await alt()).toBe('Pushed! main')
+  await clock.advance(1 + GAP)
+  expect(await alt()).toBe('Yellow zone! context 76% full')
+  await row.unmount()
+})
+
+test("the context check queues behind the call's own effect, however slow that is to start", async ($, on) => {
+  const { clock, reads } = engine(on, PUSHED, 76)
+  await start($)
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+
+  // The next store read, the push's placement, answers only once the clock moves.
+  reads.held = clock.sleep(1)
+  const called = $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
+  await clock.advance(1)
+  await called
+  expect(await altIn(row)).toBe('Pushed! main')
+  await clock.advance(slot('push'))
+  expect(await altIn(row)).toBe('Yellow zone! context 76% full')
+  await row.unmount()
+})
+
+test('npm test && git commit && git push plays the checkmark, the stamp, then the confetti', async ($, on) => {
+  const { clock } = engine(on, { stdout: `${VERIFIED.stdout}\n${COMMITTED.stdout}`, stderr: PUSHED.stderr, interrupted: false })
+  await start($)
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+  const alt = async () => (await row.find({ type: 'Svg' }))?.props.alt
+
+  await $.tool.call({ tool: 'Bash', command: 'npm test && git commit -m "Add squish effect" && git push', tool_use_id: 't1' })
+  expect(await alt()).toBe('All green! 42 passed')
+  await clock.advance(slot('tests'))
+  expect(await alt()).toBe('SAVED 5e81772')
+  await clock.advance(slot('commit'))
+  expect(await alt()).toBe('Pushed! main')
+  await row.unmount()
+})
+
+test('at most three wait: one more that comes while they wait is dropped', async ($, on) => {
+  const result = { ...COMMITTED }
+  const { clock } = engine(on, result)
+  await start($)
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const alt = async () => (await band.find({ type: 'Svg' }))?.props.alt
+  // A subagent's commits play in the strip, with no row to move from.
+  const commit = (n: number) => {
+    result.stdout = `[main aaaaaa${n}] Change ${n}`
+    return $.tool.call({ tool: 'Bash', command: `git commit -m "Change ${n}"`, tool_use_id: `s${n}`, agentId: 'a1' } as never)
+  }
+
+  for (const n of [1, 2, 3, 4]) await commit(n)
+  expect(await alt()).toBe('SAVED aaaaaa1')
+  await clock.advance(3000) // 1 ended; 2, 3 and 4 wait
+  // Uncapped, 5 would start 9.8 s from now, inside the wait limit.
+  await commit(5)
+  await clock.advance(slot('commit') - 3000)
+  for (const n of [2, 3, 4]) {
+    expect(await alt()).toBe(`SAVED aaaaaa${n}`)
+    await clock.advance(slot('commit'))
+  }
+  expect(await alt()).toBeUndefined()
+  await clock.advance(slot('commit'))
+  expect(await alt()).toBeUndefined()
+  await band.unmount()
+})
+
+test('a moment whose turn comes more than 12 s after it is dropped', async ($, on) => {
+  const result = { ...PUSHED }
+  const { clock } = engine(on, result)
+  await start($)
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const alt = async () => (await band.find({ type: 'Svg' }))?.props.alt
+  // No row draws them, so each moves to the strip and plays whole there.
+  for (const n of [1, 2, 3, 4]) {
+    Object.assign(result, pushedTo(`b${n}`))
+    await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: `t${n}` })
+  }
+
+  const moved = 900 + slot('push') // the wait the move adds to each turn
+  await clock.advance(900)
+  for (const n of [1, 2, 3]) {
+    expect(await alt()).toBe(`Pushed! b${n}`)
+    await clock.advance(moved)
+  }
+  // 4's turn came at 13.2 s.
+  await clock.advance(100)
+  expect(await alt()).toBeUndefined()
+  await band.unmount()
+})
+
+test('two effects in one millisecond both play, each its own drawing', async ($, on) => {
+  const result: object = { ...PUSHED }
+  const { clock } = engine(on, result)
+  await start($)
+  const first = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+  const second = await $.ui.mount({ ...callRow('t2'), surface: 'desktop' })
+
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
+  Object.assign(result, COMMITTED)
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "Add squish effect"', tool_use_id: 't2' })
+  expect(String((await first.find({ type: 'Svg' }))?.props.source)).toContain('Pushed!')
+  await clock.advance(slot('push'))
+  const svg = await second.find({ type: 'Svg' })
+  expect(svg?.props.alt).toBe('SAVED 5e81772')
+  expect(String(svg?.props.source)).toContain('SAVED')
+  expect(String(svg?.props.source)).not.toContain('Pushed!')
+  for (const ui of [first, second]) await ui.unmount()
+})
+
+test('a row that never drew its effect hands it to the strip in its place in line', async ($, on) => {
+  const result: object = { ...PUSHED }
+  const { clock } = engine(on, result)
+  await start($)
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  const next = await $.ui.mount({ ...callRow('t2'), surface: 'desktop' })
+
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' }) // no row of its own
+  Object.assign(result, COMMITTED)
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "Add squish effect"', tool_use_id: 't2' })
+  await clock.advance(900)
+  expect(await altIn(band)).toBe('Pushed! main')
+  await clock.advance(FX_MS.push + HOLD - 1) // the whole drawing, there
+  expect(await altIn(band)).toBe('Pushed! main')
+  expect(await altIn(next)).toBeUndefined()
+  await clock.advance(1 + GAP)
+  expect(await altIn(next)).toBe('SAVED 5e81772')
+  expect(await altIn(band)).toBeUndefined()
+  for (const ui of [band, next]) await ui.unmount()
+})
+
+test('a row that drew one effect and is gone hands the next one to the strip', async ($, on) => {
+  const { clock } = engine(on, { stdout: COMMITTED.stdout, stderr: PUSHED.stderr, interrupted: false })
+  await start($)
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "Add squish effect" && git push', tool_use_id: 't1' })
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+  expect((await row.find({ type: 'Svg' }))?.props.alt).toBe('SAVED 5e81772')
+  await row.unmount() // scrolled off
+  await clock.advance(slot('commit') + 900)
+  expect((await band.find({ type: 'Svg' }))?.props.alt).toBe('Pushed! main')
+  await band.unmount()
+})
+
+test('a real moment during /fx all plays after the sample on show, ahead of the rest', async ($, on) => {
+  const { clock } = engine(on, PUSHED)
+  await start($)
+  const ran = await $.command.run(fx('all'))
+  const replay = await $.ui.mount(fxOutput('out1', ran.text ?? ''))
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+
+  await clock.advance(1000)
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
+  expect(await altIn(replay)).toBe("Action! let's build!")
+  await clock.advance(slot('plan') - 1000)
+  expect(await altIn(row)).toBe('Pushed! main')
+  expect(await altIn(replay)).toBeUndefined()
+  await clock.advance(slot('push'))
+  expect(await altIn(replay)).toBe('SAVED 5e81772') // the replay goes on
+  for (const ui of [replay, row]) await ui.unmount()
+})
+
+test('a collapsed strip drops what would play there, and counts as no place it was seen', async ($, on) => {
+  const { clock } = engine(on, PUSHED)
+  const summary = { role: 'user' as const, text: 'Summary of the work so far', toolUses: [] }
+  on('session.compact', () => ({ messages: [summary], tokensBefore: 142318, tokensAfter: 18204 }))
+  await start($)
+  const band = await $.ui.mount({ ...BAND, props: { ...BAND.props, isCollapsed: true }, surface: 'desktop' })
+
+  await $.session.compact({ trigger: 'manual', messages: [summary, { ...summary, role: 'assistant' }] })
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' }) // its row never draws it
+  await clock.advance(slot('compact') + 900 + GAP)
+  await band.redraw({ ...BAND.props, isCollapsed: false })
+  expect(await band.find({ type: 'Svg' })).toBeUndefined()
+
+  const row = await $.ui.mount({ ...callRow('t2'), surface: 'desktop' })
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't2' })
+  expect((await row.find({ type: 'Svg' }))?.props.alt).toBe('Pushed! main')
+  for (const ui of [band, row]) await ui.unmount()
+})
+
 test('what counts as a push, a commit and a passing test run', () => {
   expect(pushedBranch('git push origin main', out('', PUSHED.stderr))).toBe('main')
   expect(pushedBranch('git -C app push', out('', `${TO}\n * [new branch]      feat/x -> feat/x`))).toBe('feat/x')
@@ -795,6 +984,18 @@ test('a commit on a detached HEAD counts, and a cherry-pick is no commit', () =>
   expect(
     committed('git cherry-pick 1a2b3c4', { ...out('[main 5e81772] x'), gitOperation: { commit: { sha: '5e81772ab', kind: 'cherry-picked' } } }),
   ).toBeUndefined()
+})
+
+test('each moment is placed at the first part of the command that did it', () => {
+  const none = { push: undefined, commit: undefined, tests: undefined }
+  expect(ranAt('npm test && git commit -m x && git push')).toEqual({ tests: 0, commit: 1, push: 2 })
+  expect(ranAt('git commit -m x && git push && npm run verify | tail')).toEqual({ commit: 0, push: 1, tests: 2 })
+  expect(ranAt('npm test && git commit -m x && npm test')).toEqual({ ...none, tests: 0, commit: 1 })
+  expect(ranAt('cd app; git -C app push')).toEqual({ ...none, push: 1 })
+  expect(ranAt('git commit -m "npm test && git push"')).toEqual({ ...none, commit: 0 })
+  expect(ranAt("git commit -F - <<'EOF'\nfix: npm test\nEOF\ngit push")).toEqual({ ...none, commit: 0, push: 1 })
+  expect(ranAt("bash -c 'git commit -m x && npm test'")).toEqual({ ...none, commit: 0, tests: 2 })
+  expect(ranAt('gp && npm test')).toEqual({ ...none, tests: 1 }) // an alias: only the engine knows
 })
 
 test('more runners count, each by what it prints for a pass', () => {

@@ -6,6 +6,30 @@ All notable changes to cartoon-fx are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-11-15
+
+### Changed
+
+- **Effects take turns.** One that comes while another plays waits for it to finish, then plays
+  whole. Up to three wait; more are skipped, and so is one whose turn comes more than 12 seconds
+  after it happened.
+- **One command plays everything it did, in order.** `npm test && git commit && git push` plays
+  the checkmark, the stamp, then the confetti, where it used to play the confetti alone.
+- **`/fx all` takes its turns too.** Something real that happens during a replay plays right
+  after the sample on show, then the replay goes on. A new `/fx` replaces what an earlier one
+  still had to play, once its current sample finishes.
+
+### Fixed
+
+- **A push that fills the context past 75% keeps its confetti.** The yellow zone plays after it,
+  instead of replacing it at once.
+- **Two effects in the same millisecond both play,** each with its own drawing.
+- **A collapsed strip above the prompt no longer swallows effects.** What would play there while
+  it is collapsed is skipped, and an effect that moves there from a row nobody saw is skipped
+  too, rather than counted as seen.
+- **An effect moves to the strip whenever its own row doesn't show it,** even when that row
+  showed the effect before it.
+
 ## [0.11.1] — 2026-11-14
 
 ### Fixed

@@ -145,6 +145,22 @@ const PASSED_MARK = new RegExp(
 
 const printed = (out: BashOutput) => `${out.stdout}\n${out.stderr}`
 
+// Where each moment ran: the index of the first part that pushed, committed or
+// ran tests, or undefined where none did (an alias the engine reported).
+export function ranAt(command: string): Record<'push' | 'commit' | 'tests', number | undefined> {
+  const found = parts(command)
+  const first = (does: (part: string) => boolean) => {
+    const at = found.findIndex(does)
+    return at < 0 ? undefined : at
+  }
+
+  return {
+    push: first(part => GIT.exec(part)?.[1] === 'push'),
+    commit: first(part => GIT.exec(part)?.[1] === 'commit'),
+    tests: first(part => TEST_RUN.test(part)),
+  }
+}
+
 // The branch a successful push updated, or undefined when nothing was pushed.
 // git's own report under `To` outranks the engine's, which also takes a fetch's
 // `a..b main -> origin/main` line for the push.

@@ -1,8 +1,8 @@
 import { atom, read, update } from 'claude-code'
-import type { BoxProps, BuiltinToolInputs, ElementConstructor, EngineInterface, Register, RenderElement, SvgProps } from 'claude-code'
+import type { BoxProps, BuiltinToolInputs, ElementConstructor, EngineInterface, Register, RenderElement, RenderSurface, SvgProps, Timer } from 'claude-code'
 
 import type { FxKind, Placement, Shown } from '../types'
-import { committed, isReviewFix, pushedBranch, testsPassed, tokens } from './detect'
+import { committed, isReviewFix, pushedBranch, ranAt, testsPassed, tokens } from './detect'
 import { COLORS, drawFx, FX_MS, random } from './fx'
 import { RED, RED_RESET, RESET, YELLOW } from './zones'
 
@@ -21,6 +21,15 @@ const HOLD_MS = 600
 // A row that has not drawn its effect this soon (a group folded away, a row
 // scrolled off, a reply row no longer on screen) hands it to the strip.
 const FALLBACK_MS = 900
+
+// Between one effect and the next, so each mounts a fresh drawing.
+const GAP_MS = 300
+
+// At most this many real moments wait behind the one on show; another is dropped.
+const MAX_WAITING = 3
+
+// A real moment whose turn comes later than this after it happened is dropped.
+const WAIT_MS = 12_000
 
 // What `/fx` replays, in this order for `/fx all`: title, subtitle, value.
 const SAMPLES: [FxKind, string, string, number][] = [
@@ -45,10 +54,10 @@ const wordsOf = (effect: Shown) => (effect.subtitle ? `${effect.title} ${effect.
 
 // The effect's drawing, built once per effect: rows and the strip re-render on
 // every scroll, and the confetti alone is some 50,000 characters.
-let lastDrawing: { seed: number; source: string } | undefined
+let lastDrawing: { id: number; source: string } | undefined
 const svgOf = (effect: Shown) => {
-  if (lastDrawing?.seed !== effect.seed) {
-    lastDrawing = { seed: effect.seed, source: drawFx(effect.kind, effect.seed, effect.title, effect.subtitle, effect.value) }
+  if (lastDrawing?.id !== effect.id) {
+    lastDrawing = { id: effect.id, source: drawFx(effect.kind, effect.seed, effect.title, effect.subtitle, effect.value) }
   }
 
   return { source: lastDrawing.source, alt: wordsOf(effect) }
@@ -110,14 +119,12 @@ const bound = (kept: Set<string> | Map<string, unknown>, cap: number) => {
   }
 }
 
-// The rows that have drawn an effect where the viewport shows them, the 200
-// drawn last; the row of the effect on show is always among them.
-const drawnRows = new Set<string>()
-const markDrawn = (row: string) => {
-  drawnRows.delete(row)
-  drawnRows.add(row)
-  bound(drawnRows, 200)
-}
+// The effect on show, once a row or the strip drew it where the viewport shows
+// it. Each effect must be drawn itself: a row that drew the one before may be gone.
+let drawnId: number | undefined
+
+// The strip above the prompt as it last drew: whether the person collapsed it.
+let strip: { isCollapsed: boolean; surface?: RenderSurface } = { isCollapsed: false }
 
 // Each reply row's text and its place in the order rows first drew, so an
 // older reply with the same words never takes the effect.
@@ -131,8 +138,8 @@ const noteReply = (requestId: string, row: string) => {
   return order
 }
 const isNewestReply = (row: string, order: number) => [...replies.values()].every(reply => reply.row !== row || reply.order <= order)
-const noteDrawn = (row: string, onScreen: unknown) => {
-  if (onScreen !== null) markDrawn(row)
+const noteDrawn = (effect: Shown, onScreen: unknown) => {
+  if (onScreen !== null) drawnId = effect.id
 }
 
 // Takes up the placement `/fx place` last stored, in this session or another.
@@ -143,28 +150,118 @@ async function syncPlacement($: EngineInterface) {
   }
 }
 
-// Plays one effect, in place of any still on show.
-async function play($: EngineInterface, kind: FxKind, title: string, subtitle = '', value = 0, row?: string) {
+// An effect waiting its turn. `/fx`'s samples (`isReplay`) wait past the cap and the limit.
+type Waiting = Omit<Shown, 'seed' | 'until'> & { queuedAt: number; isReplay: boolean }
+
+// The queue, in module memory: it lives and dies with the timers that move it.
+// `isBusy` holds from an effect's start through the gap after it.
+let effects = 0
+let line: Waiting[] = []
+let onShow: { id: number; end: Timer } | undefined
+let isBusy = false
+
+// A fault in the queue empties it, so the next effect still plays.
+const reset = () => {
+  line = []
+  onShow = undefined
+  isBusy = false
+}
+
+const lasting = (kind: FxKind) => FX_MS[kind] + HOLD_MS
+
+const shownAs = (effect: Waiting | Shown, seed: number, until: number, row: string | undefined): Shown => ({
+  id: effect.id,
+  kind: effect.kind,
+  seed,
+  title: effect.title,
+  subtitle: effect.subtitle,
+  value: effect.value,
+  until,
+  ...(row === undefined ? {} : { row }),
+})
+
+// Plays an effect now, or queues it behind the one on show. Never waits on the queue.
+async function play($: EngineInterface, kind: FxKind, title: string, subtitle = '', value = 0, row?: string, isReplay = false) {
   await syncPlacement($)
   const now = await $.clock.now()
-  const lasts = FX_MS[kind] + HOLD_MS
-  const effect: Shown = { kind, seed: now, title, subtitle, value, until: now + lasts, ...(row === undefined ? {} : { row }) }
-  await update($, shown, () => effect)
-  $.clock.after(lasts, () => void update($, shown, s => (s?.seed === effect.seed ? null : s)))
-  if (row !== undefined) {
-    $.clock.after(FALLBACK_MS, () => void toStripUnlessDrawn($, effect))
+  const effect: Waiting = { id: ++effects, kind, title, subtitle, value, queuedAt: now, isReplay, ...(row === undefined ? {} : { row }) }
+  if (!isBusy) {
+    isBusy = true
+    await start($, effect, now).catch(error => {
+      reset()
+      throw error
+    })
+  } else if (isReplay) {
+    line.push(effect)
+  } else if (line.filter(waiting => !waiting.isReplay).length < MAX_WAITING) {
+    // A real moment goes ahead of `/fx`'s samples.
+    const at = line.findIndex(waiting => waiting.isReplay)
+    line.splice(at < 0 ? line.length : at, 0, effect)
   }
 }
 
-// Replays `effect` in the strip when its row never drew it.
-async function toStripUnlessDrawn($: EngineInterface, effect: Shown) {
-  if (effect.row === undefined || drawnRows.has(effect.row)) {
+// Whether an effect for `row` draws in the strip: no row, `/fx place bottom`, or the terminal.
+const inStrip = async ($: EngineInterface, row: string | undefined) =>
+  row === undefined || strip.surface === 'terminal' || (await read($, placement)) !== 'conversation'
+
+// Puts `effect` on show, unless it would play in a collapsed strip, where nobody sees it.
+async function start($: EngineInterface, effect: Waiting, now: number) {
+  if (strip.isCollapsed && (await inStrip($, effect.row))) {
+    await advance($)
     return
   }
-  const now = await read($, shown)
-  if (now?.seed === effect.seed && (await read($, placement)) === 'conversation') {
-    await play($, effect.kind, effect.title, effect.subtitle, effect.value)
+  const lasts = lasting(effect.kind)
+  await show($, shownAs(effect, now, now + lasts, effect.row), lasts)
+}
+
+// Sets `effect` on show for `lasts`, with the move to the strip for a row.
+async function show($: EngineInterface, effect: Shown, lasts: number) {
+  onShow?.end.cancel()
+  const end = $.clock.after(lasts, () => void ended($, effect.id).catch(reset))
+  onShow = { id: effect.id, end }
+  await update($, shown, () => effect)
+  if (effect.row !== undefined) {
+    $.clock.after(FALLBACK_MS, () => void toStripUnlessDrawn($, effect).catch(reset))
   }
+}
+
+// Ends effect `id` if it is still on show, and starts the next after the gap.
+async function ended($: EngineInterface, id: number) {
+  if (onShow?.id !== id) {
+    return
+  }
+  onShow = undefined
+  await update($, shown, s => (s?.id === id ? null : s))
+  $.clock.after(GAP_MS, () => void advance($).catch(reset))
+}
+
+// Starts the next effect waiting, past real moments that waited too long.
+async function advance($: EngineInterface) {
+  const now = await $.clock.now()
+  let next = line.shift()
+  while (next !== undefined && !next.isReplay && now - next.queuedAt > WAIT_MS) {
+    next = line.shift()
+  }
+  if (next === undefined) {
+    isBusy = false
+    return
+  }
+  await start($, next, now)
+}
+
+// Moves `effect` to the strip when its row never drew it, keeping its place in line.
+async function toStripUnlessDrawn($: EngineInterface, effect: Shown) {
+  if (onShow?.id !== effect.id || drawnId === effect.id || (await read($, placement)) !== 'conversation') {
+    return
+  }
+  if (strip.isCollapsed) {
+    await ended($, effect.id)
+    return
+  }
+  // The same drawing, whole, from now.
+  const now = await $.clock.now()
+  const lasts = lasting(effect.kind)
+  await show($, shownAs(effect, effect.seed, now + lasts, undefined), lasts)
 }
 
 // The effect still running, or null.
@@ -242,8 +339,10 @@ export const register: Register = on => {
   let spawned: string[] = []
   let spawnRow: string | undefined
 
-  // A reload drops the timer that would end an effect, so start with none.
+  // A reload drops the timers that would end an effect and move the queue, so start with none.
   on('session.start', async ($, e, next) => {
+    reset()
+    drawnId = undefined
     await update($, shown, () => null)
     await syncPlacement($)
     await $.command.register({
@@ -257,25 +356,56 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // Every finished call: a code review's report, and the context window it may have grown.
+  // The context check runs beside the result rather than before it, so no
+  // call's result waits on it. Registered first, so it is outermost: a call's own
+  // effect is queued before the context check its result may set off.
+  on('tool.call', async ($, e, next) => {
+    const ran = await next(e)
+    const row = rowOf(e)
+    if (e.tool === 'ReportFindings' && ran.deny === undefined && ran.isError !== true) {
+      // Its card shows no effect, so the review plays in the row just before it.
+      const before = row === undefined ? undefined : await rowBefore($, e.tool_use_id).catch(() => undefined)
+      await reviewReported($, e.findings, before ?? row)
+    }
+    void watchContext($, row).catch(() => undefined)
+
+    return ran
+  }).catch((_$, e, next) => next(e))
+
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)
     if (ran.deny !== undefined || ran.isError === true) {
       return ran
     }
 
-    // One command may commit, test and push: the push wins, then the commit.
+    // One command may test, commit and push: each plays, in the order it ran them.
     const row = rowOf(e)
+    const at = ranAt(e.command)
     const branch = pushedBranch(e.command, ran.result)
     const commit = committed(e.command, ran.result)
     const passed = testsPassed(e.command, ran.result)
+    const moments: { at: number | undefined; play: () => Promise<void> }[] = []
+    if (passed !== undefined) {
+      moments.push({ at: at.tests, play: () => play($, 'tests', 'All green!', passed, 0, row) })
+    }
+    if (commit !== undefined) {
+      const isFix = isReviewFix(commit.subject)
+      moments.push({
+        at: at.commit,
+        play: () =>
+          isFix
+            ? play($, 'fixes', 'Bugs squashed!', `review fixes · ${commit.sha}`, 0, row)
+            : play($, 'commit', commit.isAmend ? 'AMENDED' : 'SAVED', commit.sha, 0, row),
+      })
+    }
     if (branch !== undefined) {
-      await play($, 'push', 'Pushed!', branch, 0, row)
-    } else if (commit !== undefined && isReviewFix(commit.subject)) {
-      await play($, 'fixes', 'Bugs squashed!', `review fixes · ${commit.sha}`, 0, row)
-    } else if (commit !== undefined) {
-      await play($, 'commit', commit.isAmend ? 'AMENDED' : 'SAVED', commit.sha, 0, row)
-    } else if (passed !== undefined) {
-      await play($, 'tests', 'All green!', passed, 0, row)
+      moments.push({ at: at.push, play: () => play($, 'push', 'Pushed!', branch, 0, row) })
+    }
+    // One the engine reported with no part of its own (an alias) comes after, as listed.
+    const order = (moment: { at: number | undefined }) => moment.at ?? Number.MAX_SAFE_INTEGER
+    for (const moment of moments.sort((a, b) => order(a) - order(b))) {
+      await moment.play()
     }
 
     return ran
@@ -292,22 +422,6 @@ export const register: Register = on => {
     if (!waits) {
       await play($, 'plan', 'Action!', "let's build!", 0, rowOf(e))
     }
-
-    return ran
-  }).catch((_$, e, next) => next(e))
-
-  // Every finished call: a code review's report, and the context window it may have grown.
-  // The context check runs beside the result rather than before it, so no
-  // call's result waits on it.
-  on('tool.call', async ($, e, next) => {
-    const ran = await next(e)
-    const row = rowOf(e)
-    if (e.tool === 'ReportFindings' && ran.deny === undefined && ran.isError !== true) {
-      // Its card shows no effect, so the review plays in the row just before it.
-      const before = row === undefined ? undefined : await rowBefore($, e.tool_use_id).catch(() => undefined)
-      await reviewReported($, e.findings, before ?? row)
-    }
-    void watchContext($, row).catch(() => undefined)
 
     return ran
   }).catch((_$, e, next) => next(e))
@@ -362,8 +476,8 @@ export const register: Register = on => {
             : 'cartoon-fx: animations play above the prompt box.',
       }
     }
-    const queue = SAMPLES.filter(([kind]) => wanted === 'all' || kind === wanted)
-    if (queue.length === 0) {
+    const samples = SAMPLES.filter(([kind]) => wanted === 'all' || kind === wanted)
+    if (samples.length === 0) {
       return { text: `cartoon-fx has no "${wanted}". Try: ${SAMPLES.map(([kind]) => kind).join(', ')} or all.` }
     }
 
@@ -373,17 +487,13 @@ export const register: Register = on => {
     const take = Number((await $.store.get('fxTakes')) ?? 0) + 1
     await $.store.set('fxTakes', take)
     const tag = `(take ${take})`
-    const text = `playing ${queue.map(([kind]) => kind).join(', ')} ${tag}`
+    const text = `playing ${samples.map(([kind]) => kind).join(', ')} ${tag}`
 
-    // Each one starts after the one before has finished.
-    let at = 0
-    for (const [kind, title, subtitle, value] of queue) {
-      if (at === 0) {
-        await play($, kind, title, subtitle, value, fxRow(tag))
-      } else {
-        $.clock.after(at, () => void play($, kind, title, subtitle, value, fxRow(tag)))
-      }
-      at += FX_MS[kind] + HOLD_MS + 300
+    // They take their turns in the queue. A new run takes over from an earlier
+    // one's samples still waiting.
+    line = line.filter(waiting => !waiting.isReplay)
+    for (const [kind, title, subtitle, value] of samples) {
+      await play($, kind, title, subtitle, value, fxRow(tag), true)
     }
 
     return { text }
@@ -399,7 +509,7 @@ export const register: Register = on => {
     if (effect === null) {
       return next(e)
     }
-    noteDrawn(row, e.props.onScreen)
+    noteDrawn(effect, e.props.onScreen)
 
     return underRow($.ui.resolve(e), await next(e), effect)
   })
@@ -416,7 +526,7 @@ export const register: Register = on => {
     if (effect === null || row === undefined || !holds || (await read($, placement)) !== 'conversation') {
       return next(e)
     }
-    noteDrawn(row, e.props.onScreen)
+    noteDrawn(effect, e.props.onScreen)
 
     return underRow($.ui.resolve(e), await next(e), effect)
   })
@@ -436,7 +546,7 @@ export const register: Register = on => {
     if (effect === null) {
       return next(e)
     }
-    noteDrawn(row, e.props.onScreen)
+    noteDrawn(effect, e.props.onScreen)
 
     return underRow($.ui.resolve(e), await next(e), effect)
   })
@@ -451,27 +561,26 @@ export const register: Register = on => {
     if (tag === undefined || effect === null) {
       return next(e)
     }
-    noteDrawn(fxRow(tag), e.props.onScreen)
+    noteDrawn(effect, e.props.onScreen)
 
     return underRow($.ui.resolve(e), await next(e), effect)
   })
 
   // The strip above the prompt box: always on the terminal, which draws no SVG;
   // elsewhere for effects with no row of their own (a compaction), or when
-  // `/fx place bottom` put them all there.
+  // `/fx place bottom` put them all there. Collapsed, it shows nothing.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    strip = { isCollapsed: e.props.isCollapsed, surface: e.surface }
     const effect = await running($)
-    if (effect === null || e.props.hasSurvey) {
+    if (effect === null || e.props.hasSurvey || e.props.isCollapsed) {
       return next(e)
     }
     const inConversation = effect.row !== undefined && (await read($, placement)) === 'conversation'
     if (inConversation && e.surface !== 'terminal') {
       return next(e)
     }
-    // Shown here, as on the terminal, the effect needs no fallback replay.
-    if (effect.row !== undefined) {
-      markDrawn(effect.row)
-    }
+    // Shown here, as on the terminal, the effect needs no move to the strip.
+    drawnId = effect.id
     const words = wordsOf(effect)
 
     if (e.surface === 'terminal') {

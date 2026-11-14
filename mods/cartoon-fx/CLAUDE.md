@@ -45,6 +45,18 @@ handoff's first line names another order, the root's wins, and the next rewrite 
 
 ## Watch for
 
-This mod's own standing traps, a line or two each; the root `CLAUDE.md`'s hold for every mod.
-Until they move here, they are in the *Watch for* of `docs/next-session-prompt.md`. A rewrite of
-that handoff moves the ones that recur here, never just drops them.
+This mod's own standing traps, a line or two each; the root `CLAUDE.md`'s hold for every mod. A
+handoff carries only its session's own.
+
+- **Biome formats every file in this folder,** and there is no folder `biome.json`: run
+  `npx biome format --write mods/cartoon-fx` before the gate.
+- **`placement` and `fxTakes` are the owner's data** in `$.store` (`docs/ARCHITECTURE.md`,
+  *Values*). Read them forward-only, and never drop one without a changelog line.
+- **A new `$.state` or `$.store` key is a machine identifier,** named once, with the owner.
+- **The owner's update path is `claude plugin update cartoon-fx`,** which installs only a new
+  `plugin.json` version: every change meant for the owner cuts one.
+- **Effects take turns** (`docs/ARCHITECTURE.md`, *Playing and placement*). A test that plays two
+  effects without moving the pinned clock a turn (`slot`) reads the first while the second waits.
+- **A live terminal check reads the strip between effects.** Each lasts about three seconds and
+  `read_terminal` returns on the first change, so read in a quick series, and run again for one
+  that played between reads.

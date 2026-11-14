@@ -25,6 +25,12 @@ at 0.10.1, in the desktop app and in a terminal, and at 0.11.0 in the desktop ap
 played in its row. A `/code-review` with findings, and its fixes, were checked at 0.10.2 in the
 desktop app: both played beside the findings card.
 
+- **The queue in the desktop** (0.12.0): a command that tests, commits and pushes plays all three
+  under its row, one after another, and `/fx all` still plays all ten in its row. Checked in a
+  `--plugin-dir` terminal session's strip; the tests cover the rows.
+- **A collapsed strip in a live session** (0.12.0): which surfaces let the strip collapse was
+  never measured, and nobody has seen an effect skipped there. Covered by the collapsed-strip
+  test.
 - **The new test runners against real output** (0.11.1): `rspec`, `dotnet test`, gradle,
   `mvn test`, `xcodebuild test`, `phpunit` and `mix test` are none of them installed here, so
   their fixtures follow each runner's documented output; only `node --test` was measured. Each

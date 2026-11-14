@@ -5,11 +5,12 @@ export type FxKind = 'push' | 'commit' | 'tests' | 'compact' | 'helpers' | 'cont
 // (the strip above the prompt box for one with no row), or always in that strip.
 export type Placement = 'conversation' | 'bottom'
 
-// The effect on show: which one, which drawing of it (seed), its words, the
-// helper count, number of findings or context percentage it draws (value), when
-// it ends, and the conversation row it plays in (`tool:<id>`, `fx:(take N)` or
-// `reply:<text>`), if any.
+// The effect on show: its identity (id), which one, which drawing of it (seed),
+// its words, the helper count, number of findings or context percentage it draws
+// (value), when it ends, and the conversation row it plays in (`tool:<id>`,
+// `fx:(take N)` or `reply:<text>`), if any.
 export type Shown = {
+  id: number
   kind: FxKind
   seed: number
   title: string

@@ -1,77 +1,66 @@
 Read, in the order the root CLAUDE.md gives a mod session:
-1. what Q1's **Read** line names, in this mod's `docs/spec/`;
+1. what T1's **Read** line names, in this mod's `docs/spec/`;
 2. the root CLAUDE.md, then this mod's CLAUDE.md;
 3. *The session cycle* in the root `docs/DEVELOPMENT-WORKFLOW.md`;
 4. this mod's `docs/ARCHITECTURE.md`: its overview, invariants and baseline, and the sections
    the Read line names;
-5. `docs/spec/SESSIONS.md`'s header, Q1's block and D1's done-note;
+5. `docs/spec/SESSIONS.md`'s header, T1's block and Q1's done-note;
 6. this file.
 
-Then do Session Q1: the queue. Everything plays in order, three wait at most, and stale ones are
-dropped. Release 0.12.0.
+Then do Session T1: a cherry picked, and a merge, from the engine's report. Measure first.
+Release 0.13.0.
 
 ## State you need that is not in the specs
 
-- **Round 3 is fun, a queue, new moments and controls:** A1 and D1 are done; Q1, T1, T2, C1 and
+- **Round 3 is fun, a queue, new moments and controls:** A1, D1 and Q1 are done; T1, T2, C1 and
   A2 remain. The root's sessions 3a–3c run beside this round, from the root's
   `docs/spec/REVIEW-2026-11-14.md`.
-- **D1 shipped 0.11.1** (its done-note in `SESSIONS.md`): detection in `hooks/detect.ts` reads
-  the engine's `gitOperation` first (for a push, after git's own `To` report), splits commands with quoting in view, anchors the git
-  subcommand, and knows eight more runners. `register.tsx` was not touched. The Bash hook still
-  plays one effect, the push before the commit before the tests; Q1 makes it play each, in the
-  order the command ran them.
-- **The engine's classifier is read, not measured.** D1 read `gitOperation`'s rules from the CLI
-  build 2.1.325 (*Detection* in `docs/ARCHITECTURE.md`). T1 still measures a cherry-pick and a
-  merge live, as its block says.
-- **The 0.11.0 desktop check passed.** In this desktop session, `/fx all` (take 5) played all ten
-  in its row. A first run (take 4), made while a question box covered the conversation, looked
-  short to the owner. All ten effects share the `/fx` row, so once the row draws the first, the
-  rest never fall back to the strip. If the box hid the row, they played out of sight. Q1
-  rebuilds `/fx all` on the queue, so it should keep this in view.
-- **Push status.** D1's two commits, the session's and its review's, were pushed on 2026-11-14
-  with the owner's approval, so `origin/main` holds everything through D1's review. The owner
-  then ran `claude plugin update cartoon-fx`, which reported 0.11.0 to 0.11.1 at user scope; a
-  session started after it runs 0.11.1. List `origin/main..HEAD` before any push; parallel repo
+- **Q1 shipped 0.12.0** (its done-note in `SESSIONS.md`): effects take turns. Three real moments
+  wait at most, one whose turn comes more than 12 s late is dropped, `/fx`'s samples wait past
+  both, and a collapsed strip drops what would play there. The Bash hook plays each moment it
+  found, ordered by `ranAt`. T1's new moments go through `play` like every other, so they queue
+  with no extra work; a cherry-pick or merge in the same command as a test run or a push plays
+  in the order the command ran them only if `ranAt` places it too (today it knows push, commit
+  and tests).
+- **The every-tool `tool.call` hook is registered first,** and must stay first: it is the
+  outermost, so the context check queues behind the call's own effect. One test guards it.
+- **Push status.** Nothing of Q1 is pushed. `origin/main` holds everything through D1's review;
+  waiting locally are D1's handoff commit (`docs(cartoon-fx): D1's handoff says 0.11.1 is
+  installed`), Q1's commit and Q1's review commit. The installed release is 0.11.1. List
+  `origin/main..HEAD` before any push, and name any commit that is not this mod's; parallel repo
   sessions share this checkout.
+- **The desktop check of 0.12.0 waits for the push and the owner's update:** in a new desktop
+  session, a command that tests, commits and pushes plays all three under its row, and `/fx all`
+  still plays all ten in its row. Record it in the next handoff, or it stays in
+  `docs/BACKLOG.md`'s *Not yet checked by hand*.
 - **The owner's stored placement is `conversation`.**
 - **The CLI on PATH is 2.1.325,** and so is the desktop's engine.
-- **Baseline** (`docs/ARCHITECTURE.md`, v0.11.1, CLI 2.1.325):
-  - 50 tests;
+- **Baseline** (`docs/ARCHITECTURE.md`, v0.12.0, CLI 2.1.325):
+  - 59 tests;
   - `validate`: 13 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
     allowed `CLAUDE.md` one;
   - `tsc` and the import scan clean.
 - **How earlier sessions checked things live, reusable here:**
-  - A terminal check can be started from the Terminal panel:
-    `claude --plugin-dir mods/cartoon-fx "/fx all"`, from the repository's root, runs `/fx all`
-    as its opening prompt. `read_terminal` reads the strip, and closing the tab ends the session.
-    An effect lasts about three seconds, so the first one can play out before the first read;
-    `/fx <name>` alone with reads in the same batch catches it.
+  - A terminal check starts from the Terminal panel, from the repository's root:
+    `claude --plugin-dir mods/cartoon-fx "<opening prompt>"`. Q1's opening prompt asked the
+    session to run one exact command with the Bash tool, in a scratch repository under this
+    session's scratchpad with a local bare remote (`git init --bare`), with a fictional git
+    identity set in that repository alone. It ran without a permission prompt.
+    `read_terminal` reads the strip; closing the tab ends the session.
+  - `claude --plugin-dir mods/cartoon-fx "/fx all"` runs `/fx all` as the opening prompt.
   - A desktop check needs the owner to type `/fx`, with no dialog open over the conversation:
     pause, and let them run it.
-- **Repo Session 3b or 4** repoints this mod's `CLAUDE.md` (lines 9–10) and
+  - T1's probe hook must be removed before its commit, and print nothing private.
+- **Repo Session 3b or 4** repoints this mod's `CLAUDE.md` (the SPEC §8 pointer) and
   `docs/ARCHITECTURE.md` (*Testing strategy*) away from the root `docs/spec/SPEC.md`, in a
   `docs(cartoon-fx):` commit of its own. Leave those lines to it. Follow the root
   `docs/DEVELOPMENT-WORKFLOW.md` as it stands.
 
 ## Watch for
 
-- **The standing traps:**
-  - **Never `git checkout <path>`.** Falsify by copying the file aside and back.
-  - **Stage explicit paths.** Parallel sessions share this checkout.
-  - **Give stdin-reading commands `< /dev/null`.** A bare `cat > file` with no heredoc hangs.
-  - **The CLI and the desktop engine are different builds,** and the CLI updates itself. Record
-    the version each check ran on, and run `npm run types` again when the `types` stage asks.
-- **The installed release runs in every session the owner starts,** this mod's own development
-  sessions included. So a commit stamps, and `npm run verify` shows the checkmark.
-- **A `--plugin-dir mods/cartoon-fx` session replaces the release** for that session
-  (`docs/ARCHITECTURE.md`, *Packaging*). Start it from the repository's root.
-- **Biome formats every file in this folder.** There is no folder `biome.json`; run
-  `npx biome format --write mods/cartoon-fx` before the gate.
-- **`placement` and `fxTakes` are the owner's data** in `$.store` (`docs/ARCHITECTURE.md`,
-  *Values*). Read them forward-only, and never drop one without a changelog line.
-- **The owner's update path is `claude plugin update cartoon-fx`,** and it installs only a new
-  `plugin.json` version.
-- **A new `$.state` key is a machine identifier,** named once (Q1's ask).
-- **Fictional output only** (root invariant 6).
-- **Comments state the present.** No session ids, no "used to", no review stories.
-- **Every push needs its own approval.** List `origin/main..HEAD` first.
+- **The standing traps** are in the root `CLAUDE.md` and this mod's `CLAUDE.md`, *Watch for*.
+  Q1 moved this mod's there.
+- **A new kind is a new name in `FxKind`, `FX_MS`, `drawFx` and `SAMPLES`,** and a word the owner
+  types after `/fx`: name it once, with the owner.
+- **A pull request is an action on GitHub:** only with the owner's yes for that step, in the
+  repository they name (T1's ask).

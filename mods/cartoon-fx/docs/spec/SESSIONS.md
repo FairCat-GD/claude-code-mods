@@ -357,6 +357,65 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
 - **Every hook still returns `next`'s result unchanged and waits on nothing the queue holds**
   (invariant 2): queueing is bookkeeping, never a delay of a call.
 
+**Done (2026-11-15, 0.12.0).**
+- **Decided with the owner at the start** (each the recommended answer):
+  - **Wait limit 12 s,** not the intake's 10: a test, commit and push that also crosses 75% has its
+    gauge wait exactly 10.0 s (turns of 3.3, 3.2 and 3.5 s), on the edge.
+  - **`/fx`'s samples are exempt** from the cap and the limit; a real moment goes ahead of the
+    samples still waiting, so it plays after the sample on show. A new `/fx` run drops an
+    earlier run's waiting samples once its sample on show finishes.
+  - **The queue lives in module memory.** No new `$.state` key.
+  - **A collapsed strip drops** what would play there, when its turn comes.
+- **Shipped, in `hooks/register.tsx`, `hooks/detect.ts` and `types/index.d.ts`:**
+  - `Shown` has an `id`, a module counter: the drawing cache, the end and the move key by it.
+  - `play` starts an effect when nothing is on show, else queues it (`MAX_WAITING` 3, real
+    moments ahead of samples). The end clears `shown`, and `GAP_MS` (300 ms, the spacing `/fx all`
+    already used) later `advance` starts the next, past real moments older than `WAIT_MS`.
+  - The move to the strip keeps the effect on show, same drawing, whole from then, ahead of what
+    waits. `drawnId` replaces `drawnRows`: each effect must be drawn itself.
+  - The strip notes `isCollapsed`, draws nothing then, and an effect bound for it is dropped at
+    its start or its move.
+  - `ranAt` places each moment at the first part that did it; the Bash hook plays each, in that
+    order. `/fx` plays its samples through the queue; its timers went.
+- **Amendments:**
+  - **The every-tool `tool.call` hook is registered first,** so it is outermost and the context
+    check queues behind the call's own effect. The kit alone could not tell: with the old order,
+    the push still queued first (58 pass). A test that holds the push's first store read on the
+    clock forces the order, and fails alone with the old order. The session's own finding.
+  - **Drawn marks moved from rows to effects** (`drawnId`), within F12's "the fallback keys by
+    it". With rows, the second of a command's effects, or any `/fx` sample after the first,
+    could play in a row long gone and never move. The two tests of the 200-row bound went with
+    the bound; a test of a second effect in a row that is gone took their place.
+  - **A fault in the queue's timers empties it** (`reset`), so one failed state write cannot
+    leave the queue busy for the rest of the session.
+- **Measured:** each test gets a fresh hooks module (a scratch copy whose `session.start` threw
+  on effects left from an earlier test: none were). Boundaries are inclusive: a wait due at the
+  advance's end resolves in it.
+- **Checked by hand:** in a `claude --plugin-dir mods/cartoon-fx` terminal session (CLI 2.1.325),
+  started from the Terminal panel, one command in a scratch repository ran `node --test`,
+  committed and pushed to a local bare remote. The strip read "All green! 2 passed", then "SAVED
+  <sha>", then "Pushed! main". A first run read the first two; the push played between reads, and
+  a second run read all three. The desktop check waits for the push (`docs/BACKLOG.md`).
+- **Falsified,** each by copying the file aside, breaking it and copying it back:
+  - `play` showing at once: 11 fail, the queue tests and the two rewritten `/fx` tests;
+  - the hook order restored: the held-read test alone (58 pass, 1 fail);
+  - the moments in a fixed order push, commit, tests: the three-in-order test and the gone-row
+    test, which plays a commit then a push (57 / 2);
+  - `ranAt` taking the last part: its test alone;
+  - no cap; no wait limit; real moments to the back; no takeover by a new `/fx`; `isCollapsed`
+    ignored: each its own test alone (58 / 1);
+  - the id from the clock: the same-millisecond test, with the limit and gone-row tests (56 / 3);
+  - the move to the back of the line: its test, and six that read the strip after a move (52 / 7);
+  - drawn marks by row: the gone-row test, with the limit test (57 / 2);
+  - samples counted toward the cap: `/fx all`'s ten and the cut-in test (57 / 2).
+- **Numbers:**
+  - 59 tests (+9: ten new, one of detection, and the two bound tests gone);
+  - `validate` 13 hooks, 5 gating, each with a `.catch`, and 4 state keys, unchanged;
+  - `tsc` and imports clean;
+  - `hooks/register.tsx` 615 lines (+109), `hooks/detect.ts` 237 (+16); 19 tracked files,
+    unchanged.
+  - The checks ran on CLI 2.1.325, node 26.7.0.
+
 ---
 
 ## T1: A cherry picked, and a merge
