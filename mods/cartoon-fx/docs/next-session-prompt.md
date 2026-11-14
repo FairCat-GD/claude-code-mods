@@ -29,9 +29,10 @@ dropped. Release 0.12.0.
   rest never fall back to the strip. If the box hid the row, they played out of sight. Q1
   rebuilds `/fx all` on the queue, so it should keep this in view.
 - **Push status.** D1's two commits, the session's and its review's, were pushed on 2026-11-14
-  with the owner's approval, so `origin/main` holds everything through D1's review. Whether
-  0.11.1 is installed (`claude plugin update cartoon-fx`) is unknown; Q1 can ask. List
-  `origin/main..HEAD` before any push; parallel repo sessions share this checkout.
+  with the owner's approval, so `origin/main` holds everything through D1's review. The owner
+  then ran `claude plugin update cartoon-fx`, which reported 0.11.0 to 0.11.1 at user scope; a
+  session started after it runs 0.11.1. List `origin/main..HEAD` before any push; parallel repo
+  sessions share this checkout.
 - **The owner's stored placement is `conversation`.**
 - **The CLI on PATH is 2.1.325,** and so is the desktop's engine.
 - **Baseline** (`docs/ARCHITECTURE.md`, v0.11.1, CLI 2.1.325):
