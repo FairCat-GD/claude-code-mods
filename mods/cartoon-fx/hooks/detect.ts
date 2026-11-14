@@ -77,6 +77,17 @@ function parts(command: string): string[] {
 }
 const SH_C = /(?:^|[\s(])(?:ba|z)?sh\s+-c\s+(?:'([^']*)'|"((?:[^"\\]|\\.)*)")/
 
+// The last command's parts, kept: each Bash call reads them for a push, a commit,
+// a test run and their order.
+let lastParts: { command: string; found: readonly string[] } | undefined
+function partsOf(command: string): readonly string[] {
+  if (lastParts?.command !== command) {
+    lastParts = { command, found: parts(command) }
+  }
+
+  return lastParts.found
+}
+
 // Where the bodies of `docs`, starting at `from`, end: just past each delimiter's line.
 function pastBodies(command: string, from: number, docs: { word: string; isIndented: boolean }[]) {
   let at = from
@@ -96,7 +107,8 @@ function pastBodies(command: string, from: number, docs: { word: string; isInden
 // (`git -C app push`), so a later word (`git log --grep=push`) is not one.
 const WORD = String.raw`(?:"[^"]*"|'[^']*'|[^\s"'])+`
 const GIT = new RegExp(String.raw`(?<![\w.-])git(?:\s+(?:-[Cc]\s+${WORD}|--no-pager|--[\w-]+=${WORD}))*\s+([\w-]+)`)
-const gitPart = (command: string, sub: 'push' | 'commit') => parts(command).find(part => GIT.exec(part)?.[1] === sub)
+const subOf = (part: string) => GIT.exec(part)?.[1]
+const gitPart = (command: string, sub: 'push' | 'commit') => partsOf(command).find(part => subOf(part) === sub)
 const PUSH_DRY_RUN = /\s(--dry-run|-n)(\s|$)/
 const DRY_RUN = /\s--dry-run(\s|$)/
 
@@ -148,15 +160,15 @@ const printed = (out: BashOutput) => `${out.stdout}\n${out.stderr}`
 // Where each moment ran: the index of the first part that pushed, committed or
 // ran tests, or undefined where none did (an alias the engine reported).
 export function ranAt(command: string): Record<'push' | 'commit' | 'tests', number | undefined> {
-  const found = parts(command)
+  const found = partsOf(command)
   const first = (does: (part: string) => boolean) => {
     const at = found.findIndex(does)
     return at < 0 ? undefined : at
   }
 
   return {
-    push: first(part => GIT.exec(part)?.[1] === 'push'),
-    commit: first(part => GIT.exec(part)?.[1] === 'commit'),
+    push: first(part => subOf(part) === 'push'),
+    commit: first(part => subOf(part) === 'commit'),
     tests: first(part => TEST_RUN.test(part)),
   }
 }
@@ -215,7 +227,7 @@ export function committed(command: string, out: BashOutput): { sha: string; isAm
 // "42 passed" (or "" without a count) for a test run whose output says it passed,
 // else undefined.
 export function testsPassed(command: string, out: BashOutput): string | undefined {
-  if (out.backgroundTaskId !== undefined || !parts(command).some(part => TEST_RUN.test(part))) {
+  if (out.backgroundTaskId !== undefined || !partsOf(command).some(part => TEST_RUN.test(part))) {
     return undefined
   }
   const text = printed(out)

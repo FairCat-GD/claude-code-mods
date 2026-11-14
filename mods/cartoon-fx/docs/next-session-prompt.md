@@ -28,9 +28,14 @@ Release 0.13.0.
   and tests).
 - **The every-tool `tool.call` hook is registered first,** and must stay first: it is the
   outermost, so the context check queues behind the call's own effect. One test guards it.
+- **A queue timer goes through `later`,** which skips it after a reset; a new timer that moves
+  the queue should too.
+- **Review fixes wait for the owner's word.** After `/code-review`, report the findings and ask
+  which to fix before any edit.
 - **Push status.** Nothing of Q1 is pushed. `origin/main` holds everything through D1's review;
   waiting locally are D1's handoff commit (`docs(cartoon-fx): D1's handoff says 0.11.1 is
-  installed`), Q1's commit and Q1's review commit. The installed release is 0.11.1. List
+  installed`), Q1's commit, its handoff commit naming the repo's remaining sessions, and Q1's
+  review commit. The installed release is 0.11.1. List
   `origin/main..HEAD` before any push, and name any commit that is not this mod's; parallel repo
   sessions share this checkout.
 - **The desktop check of 0.12.0 waits for the push and the owner's update:** in a new desktop
@@ -40,7 +45,7 @@ Release 0.13.0.
 - **The owner's stored placement is `conversation`.**
 - **The CLI on PATH is 2.1.325,** and so is the desktop's engine.
 - **Baseline** (`docs/ARCHITECTURE.md`, v0.12.0, CLI 2.1.325):
-  - 59 tests;
+  - 62 tests;
   - `validate`: 13 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
     allowed `CLAUDE.md` one;
   - `tsc` and the import scan clean.

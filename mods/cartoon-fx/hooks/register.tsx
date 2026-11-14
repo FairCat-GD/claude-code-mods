@@ -154,17 +154,28 @@ async function syncPlacement($: EngineInterface) {
 type Waiting = Omit<Shown, 'seed' | 'until'> & { queuedAt: number; isReplay: boolean }
 
 // The queue, in module memory: it lives and dies with the timers that move it.
-// `isBusy` holds from an effect's start through the gap after it.
+// `isBusy` holds from an effect's start through the gap after it. `era` counts
+// resets, so a timer set before one does nothing after it.
 let effects = 0
 let line: Waiting[] = []
 let onShow: { id: number; end: Timer } | undefined
 let isBusy = false
+let era = 0
 
 // A fault in the queue empties it, so the next effect still plays.
 const reset = () => {
   line = []
   onShow = undefined
   isBusy = false
+  era++
+}
+
+// Runs `step` after `ms`, unless the queue was reset meanwhile.
+const later = ($: EngineInterface, ms: number, step: () => Promise<void>) => {
+  const at = era
+  return $.clock.after(ms, () => {
+    if (era === at) void step().catch(reset)
+  })
 }
 
 const lasting = (kind: FxKind) => FX_MS[kind] + HOLD_MS
@@ -181,9 +192,22 @@ const shownAs = (effect: Waiting | Shown, seed: number, until: number, row: stri
 })
 
 // Plays an effect now, or queues it behind the one on show. Never waits on the queue.
-async function play($: EngineInterface, kind: FxKind, title: string, subtitle = '', value = 0, row?: string, isReplay = false) {
+async function play($: EngineInterface, kind: FxKind, title: string, subtitle = '', value = 0, row?: string) {
   await syncPlacement($)
-  const now = await $.clock.now()
+  await enter($, await $.clock.now(), kind, title, subtitle, value, row, false)
+}
+
+// `play`'s second half, for a placement taken up and a time read already.
+async function enter(
+  $: EngineInterface,
+  now: number,
+  kind: FxKind,
+  title: string,
+  subtitle: string,
+  value: number,
+  row: string | undefined,
+  isReplay: boolean,
+) {
   const effect: Waiting = { id: ++effects, kind, title, subtitle, value, queuedAt: now, isReplay, ...(row === undefined ? {} : { row }) }
   if (!isBusy) {
     isBusy = true
@@ -217,11 +241,11 @@ async function start($: EngineInterface, effect: Waiting, now: number) {
 // Sets `effect` on show for `lasts`, with the move to the strip for a row.
 async function show($: EngineInterface, effect: Shown, lasts: number) {
   onShow?.end.cancel()
-  const end = $.clock.after(lasts, () => void ended($, effect.id).catch(reset))
+  const end = later($, lasts, () => ended($, effect.id))
   onShow = { id: effect.id, end }
   await update($, shown, () => effect)
   if (effect.row !== undefined) {
-    $.clock.after(FALLBACK_MS, () => void toStripUnlessDrawn($, effect).catch(reset))
+    later($, FALLBACK_MS, () => toStripUnlessDrawn($, effect))
   }
 }
 
@@ -232,7 +256,7 @@ async function ended($: EngineInterface, id: number) {
   }
   onShow = undefined
   await update($, shown, s => (s?.id === id ? null : s))
-  $.clock.after(GAP_MS, () => void advance($).catch(reset))
+  later($, GAP_MS, () => advance($))
 }
 
 // Starts the next effect waiting, past real moments that waited too long.
@@ -258,8 +282,11 @@ async function toStripUnlessDrawn($: EngineInterface, effect: Shown) {
     await ended($, effect.id)
     return
   }
-  // The same drawing, whole, from now.
+  // The same drawing, whole, from now, if it did not end meanwhile.
   const now = await $.clock.now()
+  if (onShow?.id !== effect.id) {
+    return
+  }
   const lasts = lasting(effect.kind)
   await show($, shownAs(effect, effect.seed, now + lasts, undefined), lasts)
 }
@@ -343,6 +370,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     reset()
     drawnId = undefined
+    strip = { isCollapsed: false }
     await update($, shown, () => null)
     await syncPlacement($)
     await $.command.register({
@@ -492,8 +520,10 @@ export const register: Register = on => {
     // They take their turns in the queue. A new run takes over from an earlier
     // one's samples still waiting.
     line = line.filter(waiting => !waiting.isReplay)
+    await syncPlacement($)
+    const now = await $.clock.now()
     for (const [kind, title, subtitle, value] of samples) {
-      await play($, kind, title, subtitle, value, fxRow(tag), true)
+      await enter($, now, kind, title, subtitle, value, fxRow(tag), true)
     }
 
     return { text }

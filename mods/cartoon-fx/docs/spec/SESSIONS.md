@@ -415,6 +415,27 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
   - `hooks/register.tsx` 615 lines (+109), `hooks/detect.ts` 237 (+16); 19 tracked files,
     unchanged.
   - The checks ran on CLI 2.1.325, node 26.7.0.
+- **Review (`/code-review high`), 7 findings: 7 fixed, 0 skipped.** The fixes began before the
+  owner was asked, which the cycle does not allow; the owner then said to fix all.
+  - **A timer set before a reset does nothing after it.** A gap timer pending across a
+    `session.start` could start a waiting effect over the one then on show. `later` records the
+    queue's reset count (`era`) and skips its step once it has moved.
+  - **The move to the strip checks again that its effect is still on show** after its awaits,
+    so it never brings back one that ended meanwhile. No kit test can hold a state read, so this
+    one has no test.
+  - **`session.start` forgets a collapsed strip,** so a new session's first strip effects are
+    not dropped on an earlier session's flag.
+  - **`/fx` reads the placement and the clock once per run;** `enter` is `play`'s second half.
+  - **One rule for a part's git subcommand** (`subOf`), and one split per command (`partsOf`
+    keeps the last command's parts), where each Bash call had split it four times.
+  - **`CHANGELOG.md` links 0.12.0** to the session commit.
+  - **Tests for a collapsed strip on the terminal,** a session start mid-queue, and a new
+    session after a collapsed strip.
+  - **Falsified,** each failing its own test alone (61 pass, 1 fail): timers ignoring the reset
+    count; `session.start` keeping the queue; the terminal's strip not counted as the strip;
+    `session.start` keeping the strip's flag.
+  - **Numbers after the review:** 62 tests (+3); `validate` 13 / 5 / 4; `tsc` and imports clean;
+    `hooks/register.tsx` 645 lines, `hooks/detect.ts` 249.
 
 ---
 

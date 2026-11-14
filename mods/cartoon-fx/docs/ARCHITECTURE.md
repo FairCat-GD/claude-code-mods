@@ -25,12 +25,12 @@ One effect is on show at a time. The others wait their turn in a queue.
 
 | File | Lines | Holds |
 |---|---|---|
-| `hooks/register.tsx` | 615 | the hooks, the queue, playing and placement |
-| `hooks/detect.ts` | 237 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
+| `hooks/register.tsx` | 645 | the hooks, the queue, playing and placement |
+| `hooks/detect.ts` | 249 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
 | `hooks/fx.ts` | 969 | the ten drawings, their SMIL helpers, and fitting words |
 | `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
 | `types/index.d.ts` | 27 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 1306 | 59 tests |
+| `tests/cartoon-fx.test.tsx` | 1357 | 62 tests |
 
 ## The invariants
 
@@ -140,8 +140,8 @@ One effect is on show at a time. The others wait their turn in a queue.
   - The count shown is the largest count or tally, or none with only a mark.
 - **Calls in the background** (`backgroundTaskId`) count as none of these.
 - **One command may do several,** and each plays. `ranAt` gives the index of the first part that
-  pushed, committed or ran tests, from one `parts` pass, and the Bash hook plays them in that
-  order. One the engine reported with no part of its own (an alias such as `gp`) comes after,
+  pushed, committed or ran tests, and the Bash hook plays them in that order. `partsOf` keeps
+  the last command's parts, so one call splits its command once for all four readers. One the engine reported with no part of its own (an alias such as `gp`) comes after,
   in the order tests, commit, push.
 
 ## The drawings (`hooks/fx.ts`)
@@ -211,7 +211,9 @@ One effect is on show at a time. The others wait their turn in a queue.
   - **Where the strip is collapsed** (`isCollapsed`, which the strip's hook notes on every draw),
     an effect that would play there is dropped when its turn comes: one with no row, any under
     `/fx place bottom`, and every one on the terminal.
-  - A fault in the queue's own timers empties it, so the next effect still plays.
+  - A fault in the queue's own timers empties it, so the next effect still plays. Each reset
+    (a fault, or `session.start`) is counted, and a timer set before one does nothing after it.
+    `session.start` also forgets whether the strip was collapsed.
 - **The order of one call's effects.** The every-tool `tool.call` hook is registered before the
   Bash and ExitPlanMode hooks. A plugin's registrations nest first outermost, so the call's own
   effect is queued before the context check its result may set off: a push that crosses 75% plays
@@ -252,7 +254,7 @@ One effect is on show at a time. The others wait their turn in a queue.
 - **The terminal** draws no SVG. The strip shows five glyphs (`✦ • ▪ ✶ ✧ ◆ ∗ ❋`) on each side of
   the words, coloured from the same seed. Rows are left alone.
 - **`/fx`** replays from `SAMPLES`, fixed words and values, in the order of `/fx all`. They take
-  their turns in the queue. All of them play in that run's output row, found by its `(take N)`
+  their turns in the queue, entered with one placement read and one clock read for the run. All of them play in that run's output row, found by its `(take N)`
   tag. The engine puts the plugin's name before the output
   text, so the tag, not the whole text, identifies the row.
 
@@ -302,16 +304,18 @@ It uses no network, process or file access.
 ## Testing strategy — the layers, and what each cannot see
 
 The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
-- **`claude plugin test`** runs the 59 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 62 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`), so a queue test moves it a turn at a time (`slot`: length + hold +
     gap) and reads which effect each row or the strip draws.
   - Rows are mounted on the `desktop` surface, and the terminal tests on `terminal`.
-  - Ten cover the queue: a push then the gauge, and the gauge behind a push whose start is held
+  - Thirteen cover the queue: a push then the gauge, and the gauge behind a push whose start is held
     on the clock (which only the hooks' registration order keeps in line); a test, commit and
     push in that order; the cap and the limit; two effects in one millisecond; the move to the
     strip keeping its place, and a second effect in a row that is gone; a real moment during
-    `/fx all`; a collapsed strip. Two `/fx` tests step through all ten samples and a takeover.
+    `/fx all`; a collapsed strip, on the desktop and on the terminal; a session start emptying
+    the queue past a gap timer set before it, and forgetting a collapsed strip. Two `/fx` tests
+    step through all ten samples and a takeover.
   - Nine tests cover the detection rules as plain functions, `ranAt` among them, and one hook
     test the rejected push behind `; echo done`. Their output is fictional, shaped on what each
     tool prints: git's and node's as measured on this machine (node 26.7.0), the other new
@@ -436,7 +440,7 @@ In `docs/BACKLOG.md` under *Deferred*:
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 59 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 62 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |

@@ -986,6 +986,57 @@ test('a commit on a detached HEAD counts, and a cherry-pick is no commit', () =>
   ).toBeUndefined()
 })
 
+test('a collapsed strip on the terminal drops every effect, even one with a row', async ($, on) => {
+  const { clock } = engine(on, PUSHED)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const band = await $.ui.mount({ ...BAND, props: { ...BAND.props, isCollapsed: true }, surface: 'terminal' })
+
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
+  await band.redraw({ ...BAND.props, isCollapsed: false })
+  expect(await band.find({ type: 'Text', text: /Pushed/ })).toBeUndefined()
+  await clock.advance(900)
+  expect(await band.find({ type: 'Text', text: /Pushed/ })).toBeUndefined()
+  await band.unmount()
+})
+
+test('a new session forgets a strip collapsed in the one before', async ($, on) => {
+  engine(on, {})
+  const summary = { role: 'user' as const, text: 'Summary of the work so far', toolUses: [] }
+  on('session.compact', () => ({ messages: [summary], tokensBefore: 142318, tokensAfter: 18204 }))
+  await start($)
+  const collapsed = await $.ui.mount({ ...BAND, props: { ...BAND.props, isCollapsed: true }, surface: 'desktop' })
+  await collapsed.unmount()
+
+  await start($)
+  await $.session.compact({ trigger: 'manual', messages: [summary, { ...summary, role: 'assistant' }] })
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await altIn(band)).toBe('Squished! 142k → 18k tokens')
+  await band.unmount()
+})
+
+test('a session start empties the queue, and a timer set before it starts nothing after', async ($, on) => {
+  const result: object = { ...PUSHED }
+  const { clock } = engine(on, result)
+  await start($)
+  const row = (id: string) => $.ui.mount({ ...callRow(id), surface: 'desktop' })
+  const [first, waiting, now, next] = [await row('t1'), await row('t2'), await row('t3'), await row('t4')]
+
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't2' })
+  await clock.advance(FX_MS.push + HOLD) // t1 ended; its gap runs
+  await start($)
+  Object.assign(result, COMMITTED)
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "Add squish effect"', tool_use_id: 't3' })
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "Add squish effect"', tool_use_id: 't4' })
+  await clock.advance(GAP) // the old gap ends
+  expect(await altIn(now)).toBe('SAVED 5e81772')
+  expect(await altIn(next)).toBeUndefined()
+  await clock.advance(slot('commit'))
+  expect(await altIn(next)).toBe('SAVED 5e81772')
+  expect(await altIn(waiting)).toBeUndefined() // t2 went with the reset
+  for (const ui of [first, waiting, now, next]) await ui.unmount()
+})
+
 test('each moment is placed at the first part of the command that did it', () => {
   const none = { push: undefined, commit: undefined, tests: undefined }
   expect(ranAt('npm test && git commit -m x && git push')).toEqual({ tests: 0, commit: 1, push: 2 })
