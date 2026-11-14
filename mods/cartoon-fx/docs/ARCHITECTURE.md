@@ -27,7 +27,7 @@ One effect is on show at a time. A new one replaces any still playing.
 | `hooks/detect.ts` | 104 | the Bash readers, `isReviewFix`, `tokens` |
 | `hooks/fx.ts` | 830 | the ten drawings and their SMIL helpers |
 | `types/index.d.ts` | 25 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 722 | 36 tests |
+| `tests/cartoon-fx.test.tsx` | 723 | 36 tests |
 
 ## The invariants
 

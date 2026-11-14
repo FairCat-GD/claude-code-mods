@@ -50,10 +50,14 @@ plays for something that did not happen, and none draws wrong.
    The wait limit is Q1's to propose.
 6. **New moments:** a pull request opened, a pull request or branch merged, a cherry-pick, a
    rebase finished. Each is read from the engine's own report of the call (`gitOperation`), never
-   from printed output, and each has a drawing of its own.
+   from printed output, and each has a drawing of its own. The options the owner picked had a
+   pull request opened reuse the confetti and a merge reuse the stamp; asked again at the
+   intake's review, the owner chose a drawing of its own for every moment.
 7. **New controls,** each kept across sessions in `$.store`:
    - `/fx off` and `/fx on` mute and unmute every effect; `/fx` replays still play while muted;
-   - `/fx size small|medium|large`; today's size is the largest, and small is about half of it.
+   - `/fx size small|medium|large`: `large` is today's 832 × 608, `medium` about two thirds of
+     it and `small` about half. `medium` is the default, so a store with no size, the owner's
+     included, plays at medium from C1 on. Asked at the intake's review.
    - The terminal's row is animated, a few frames over the effect, where it is still today.
 8. **The sessions, in order** (`SESSIONS.md`): A1 0.11.0, D1 0.11.1, Q1 0.12.0, T1 0.13.0,
    T2 0.14.0, C1 0.15.0, A2 0.16.0. A2 releases and closes the round. That A2 cuts 0.16.0 rather

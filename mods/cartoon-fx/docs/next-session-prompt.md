@@ -15,8 +15,14 @@ helpers and the smoke redone, and checks that can fail when a drawing is wrong. 
   (`svg.pauseAnimations(); svg.setCurrentTime(t)`). Nothing of it was committed. A1's first ask
   is where its own frames are made.
 - **Push status.** `origin/main` holds everything through
-  `docs(cartoon-fx): record what the update to 0.10.3 installed`. The review's three commits wait
-  for the next approved push: the repository's, this mod's test-only fix, and this intake. List `origin/main..HEAD` before any push: parallel sessions share this
+  `review(cartoon-fx): desktop checks wait for the push, and 7 smaller`, the intake's last
+  commit, pushed with the owner's approval on 2026-11-14. Nothing is local. No version moved,
+  so `claude plugin update cartoon-fx` still finds 0.10.3.
+- **The intake's review** (the owner's `/code-review high`, 9 findings, all fixed) settled two
+  decisions with the owner: every new moment gets a drawing of its own, and `medium` is the
+  default size, with today's as `large` (decisions 6 and 7). It also moved every desktop hand
+  check to after the push (the plan's header), and made T1 ask before anything is created on
+  GitHub. List `origin/main..HEAD` before any push: parallel sessions share this
   checkout.
 - **0.10.3 is the installed release** (2026-10-28, CLI 2.1.310). Nobody has checked it by hand in
   a live session yet; `docs/BACKLOG.md` says what to look at.
@@ -30,9 +36,9 @@ helpers and the smoke redone, and checks that can fail when a drawing is wrong. 
 - **Repo Session 3b will re-copy the root workflow** from the updated workflow kit and touch this
   mod's `CLAUDE.md` in a scoped commit. A session of this round that finds the root's
   `docs/DEVELOPMENT-WORKFLOW.md` changed follows it as it stands.
-- **Repo Session 4** still repoints this mod's `CLAUDE.md` (lines 9–10) and
-  `docs/ARCHITECTURE.md` (*Testing strategy*) away from the root `docs/spec/SPEC.md`. Leave those
-  lines to it.
+- **Repo Session 3b or 4** repoints this mod's `CLAUDE.md` (lines 9–10) and
+  `docs/ARCHITECTURE.md` (*Testing strategy*) away from the root `docs/spec/SPEC.md`, in a
+  `docs(cartoon-fx):` commit of its own. Leave those lines to it.
 - **Baseline** (`docs/ARCHITECTURE.md`, v0.10.3, measured again at the intake on CLI 2.1.325):
   - 36 tests in `tests/cartoon-fx.test.tsx`;
   - `validate`: 13 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the

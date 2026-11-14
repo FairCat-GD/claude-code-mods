@@ -32,7 +32,11 @@ before any edit.
 
 Never push without being asked. A version reaches the owner's sessions only once it is pushed
 and `claude plugin update cartoon-fx` installs it; a hand check of a new build before then runs
-in a `claude --plugin-dir mods/cartoon-fx` terminal session.
+in a `claude --plugin-dir mods/cartoon-fx` terminal session, which shows the strip's glyphs, not
+the drawings. **A hand check in the desktop therefore comes after the commit and the review:**
+on the owner's approval of the push and their update, in a new desktop session. Its outcome goes
+in the next session's handoff; if the owner does not push, the check goes to `docs/BACKLOG.md`'s
+*Not yet checked by hand*. It never holds a commit back.
 
 | Session | Scope | Decisions | Version |
 |---|---|---|---|
@@ -82,8 +86,11 @@ in a `claude --plugin-dir mods/cartoon-fx` terminal session.
 - `npm run verify -- cartoon-fx`, with the structural tests above, each falsified by restoring
   the fault it guards (the lens's double offset, the overlapping marks, the 60% band, the
   clipped subtitle).
-- `/fx all` in a `--plugin-dir` terminal session and in the desktop on the pushed release: each
-  drawing plays whole, in a row and in the strip.
+- Every drawing's frames, rendered as the first ask settles, seen by the owner before the
+  commit: each plays whole and inside the frame.
+- `/fx all` in a `--plugin-dir` terminal session: the strip still plays every effect.
+- In the desktop, after the push and update (see the header): `/fx all` plays each drawing
+  whole, in its row and in the strip.
 
 **Watch for:**
 - **`claude plugin test` cannot see what an `<Svg>` paints.** The structural tests check
@@ -183,9 +190,11 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
 `claude-code-tools` declarations for `gitOperation?:`).
 
 - **Measure first.** In a `--plugin-dir` terminal session, with a probe hook that is removed
-  before the commit, run a cherry-pick, a `git merge` and a `gh pr merge` in a scratch
-  repository, and record what `gitOperation` holds for each, with the CLI's version. If the
-  engine leaves it empty for one, stop: decision 6 reads only the engine's report.
+  before the commit, run a cherry-pick and a `git merge` in a local scratch repository, and
+  record what `gitOperation` holds for each, with the CLI's version. A pull request exists only
+  on GitHub, so `gh pr merge` (and T2's `gh pr create`) is measured only as the ask below
+  settles. If the engine leaves `gitOperation` empty for one, stop: decision 6 reads only the
+  engine's report.
 - **A cherry-pick** (`commit.kind === 'cherry-picked'`) plays a cherry picked from its branch
   (decision 3), with the short hash. Today a cherry-pick plays nothing.
 - **A merge** (`branch.action === 'merged'`, or `pr.action === 'merged'`) plays a drawing of its
@@ -195,11 +204,17 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
 - **Docs.** `CHANGELOG.md` 0.13.0; `docs/ARCHITECTURE.md` (*The hooks*, *Detection*, *The
   drawings*, the baseline); `docs/USER-GUIDE.md`; `README.md`; the marketplace entry's and
   `plugin.json`'s descriptions.
+- **Ask at the start of T1:** how a pull request's `gitOperation` is measured. Creating or
+  merging one is an action on GitHub, done only with the owner's yes for that step. Proposed at
+  intake: the owner names a throwaway repository and runs `gh pr create` and `gh pr merge` there
+  in the `--plugin-dir` session, or the PR's moments are left unmeasured and recorded under
+  *Not yet checked by hand*. Not yet confirmed.
 
 **Gates:**
 - `npm run verify -- cartoon-fx`, with a test per moment from a fictional `gitOperation`, each
   falsified, and A1's structural checks over both new drawings.
-- The measurement above, and both moments seen live in the `--plugin-dir` session.
+- The measurement above, and the cherry-pick and the local merge seen in the `--plugin-dir`
+  session's strip; the drawings in the desktop after the push (see the header).
 
 **Watch for:**
 - **A new kind is a new name in `FxKind`, `FX_MS`, `drawFx` and `SAMPLES`;** `/fx <kind>` makes
@@ -216,16 +231,21 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
 - **A pull request opened** (`pr.action === 'created'`) plays a drawing of its own, with its
   number.
 - **A rebase finished** (`branch.action === 'rebased'`) plays a drawing of its own, with the
-  branch. Proposed at intake for both: not yet confirmed; settled from rendered frames.
-- If T1's measurement left either empty, stop.
+  branch. Both designs are settled from rendered frames (decision 2).
+- If T1's measurement left the rebase empty, stop. If T1 left the pull request unmeasured, the
+  PR's moment is built from the declarations alone, and its live check stays in
+  `docs/BACKLOG.md`.
 - **Docs.** As T1's, for 0.14.0.
 
 **Gates:**
 - `npm run verify -- cartoon-fx`, with a test per moment, each falsified, and the structural
   checks over both drawings.
-- Both moments seen live in a `--plugin-dir` session.
+- The rebase, and the PR where T1's ask allowed it, seen in a `--plugin-dir` session's strip;
+  the drawings in the desktop after the push (see the header).
 
 **Watch for:**
+- **A pull request is created on GitHub,** an action outside this machine: only on the owner's
+  yes for that step, in the repository they name.
 - **Only creation plays.** `pr.action` has nine other values; none of them plays this round.
 
 ---
@@ -238,9 +258,10 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
 
 - **`/fx off` and `/fx on`**, kept in `$.store`. Muted, nothing plays but what `/fx` replays;
   muting empties the queue.
-- **`/fx size small|medium|large`**, kept in `$.store`; `large` is today's 832 × 608
-  (`hooks/fx.ts:14`), `small` about half. The size applies from the next effect, in every open
-  session, as the placement does.
+- **`/fx size small|medium|large`**, kept in `$.store`: `large` is today's 832 × 608
+  (`hooks/fx.ts:14`), `medium` about two thirds, `small` about half. `medium` is the default
+  (decision 7), so the owner's sessions shrink at this version; the changelog says so. The size
+  applies from the next effect, in every open session, as the placement does.
 - **The terminal's row moves:** a few frames over the effect's length, the glyphs twinkling and
   shifting, from the same seed.
 - **`/fx`'s description, argument hint and unknown-argument reply** name the new words.
@@ -255,10 +276,11 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
 **Gates:**
 - `npm run verify -- cartoon-fx`, with tests, each falsified: muted plays nothing and a replay
   still plays; on again plays; a size is stored and drawn at that size in another session; a
-  missing or unknown stored value falls back to on and `large`; the terminal row changes
+  missing or unknown stored value falls back to on and `medium`; the terminal row changes
   between frames and is the same for one seed at one frame.
-- By hand: `/fx off`, a commit, `/fx on`, a commit, then `/fx size small` and `/fx all`, in the
-  desktop and a terminal.
+- By hand in a `--plugin-dir` terminal session: `/fx off`, a commit, `/fx on`, a commit, then
+  `/fx all`, its row moving. In the desktop after the push (see the header): `/fx size small`,
+  `medium` and `large`, each with `/fx commit`.
 
 **Watch for:**
 - **The owner's stored values are read forward-only:** an old store with no new key behaves as
@@ -283,8 +305,10 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
 - **Docs.** `CHANGELOG.md`; everything above.
 
 **Gates:**
-- `npm run verify -- cartoon-fx`, the structural checks over every redone drawing, and `/fx all`
-  played by hand in the desktop and a terminal.
+- `npm run verify -- cartoon-fx`, the structural checks over every redone drawing, its frames
+  seen by the owner before the commit, and `/fx all` in a `--plugin-dir` terminal session.
+- The round's whole `/fx all` in the desktop after the push (see the header), recorded in the
+  between-rounds handoff or under *Not yet checked by hand*.
 
 **Watch for:**
 - **The review comes before the close** where the workflow the repository runs by then says so
