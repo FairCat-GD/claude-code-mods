@@ -32,16 +32,17 @@ Release 0.13.0.
   the queue should too.
 - **Review fixes wait for the owner's word.** After `/code-review`, report the findings and ask
   which to fix before any edit.
-- **Push status.** Nothing of Q1 is pushed. `origin/main` holds everything through D1's review;
-  waiting locally are D1's handoff commit (`docs(cartoon-fx): D1's handoff says 0.11.1 is
-  installed`), Q1's commit, its handoff commit naming the repo's remaining sessions, and Q1's
-  review commit. The installed release is 0.11.1. List
-  `origin/main..HEAD` before any push, and name any commit that is not this mod's; parallel repo
-  sessions share this checkout.
-- **The desktop check of 0.12.0 waits for the push and the owner's update:** in a new desktop
-  session, a command that tests, commits and pushes plays all three under its row, and `/fx all`
-  still plays all ten in its row. Record it in the next handoff, or it stays in
-  `docs/BACKLOG.md`'s *Not yet checked by hand*.
+- **Push status.** Q1's commits, with D1's handoff commit, were pushed on 2026-11-15 with the
+  owner's approval: `origin/main` holds everything through Q1's review commit (`review(cartoon-fx):
+  a timer from before a reset starts nothing, and 6 smaller`). Only Q1's push-status handoff
+  commit waits locally. List `origin/main..HEAD` before any push, and name any commit that is not
+  this mod's; parallel repo sessions share this checkout.
+- **The owner installs once the round is done.** The installed release stays 0.11.1 while T1,
+  T2, C1 and A2 run (the owner's call, 2026-11-15): do not ask for `claude plugin update
+  cartoon-fx` after each push. Every desktop check waits for that update, 0.12.0's included (a
+  command that tests, commits and pushes plays all three under its row, and `/fx all` plays all
+  ten in its row), and stays in `docs/BACKLOG.md`'s *Not yet checked by hand* until then. A2
+  gathers them for the round's desktop check.
 - **The owner's stored placement is `conversation`.**
 - **The CLI on PATH is 2.1.325,** and so is the desktop's engine.
 - **Baseline** (`docs/ARCHITECTURE.md`, v0.12.0, CLI 2.1.325):
