@@ -5,6 +5,8 @@
 
 import { spawnSync } from 'node:child_process'
 
+import { claudeCommand, report } from './repo.ts'
+
 // A mod's CLAUDE.md is for the sessions that develop it, never context it ships, so the warning
 // that it is not loaded as context is expected.
 const EXPECTED = { path: 'root', message: /^CLAUDE\.md at the plugin root is not loaded as project context\b/ }
@@ -46,21 +48,22 @@ export const describe = (report: unknown): string[] => {
 
 if (import.meta.main) {
   const folder = process.argv[2] ?? '.'
-  const run = spawnSync('claude', ['plugin', 'validate', '--json', folder], { encoding: 'utf8' })
   let problems: string[]
   try {
-    if (run.error) throw run.error
-    const report: unknown = JSON.parse(run.stdout)
-    for (const line of describe(report)) console.log(line)
-    problems = judge(report)
+    const { argv, env } = claudeCommand('plugin', 'validate', '--json', folder)
+    const [command = '', ...args] = argv
+    const run = spawnSync(command, args, { encoding: 'utf8', env })
+    if (run.error) throw new Error(`cannot run claude: ${run.error.message}`)
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(run.stdout)
+    } catch (error) {
+      throw new Error(`validate printed no JSON report: ${run.stderr.trim() || run.stdout.trim() || (error as Error).message}`)
+    }
+    for (const line of describe(parsed)) console.log(line)
+    problems = judge(parsed)
   } catch (error) {
-    problems = [
-      run.error
-        ? `cannot run claude: ${run.error.message}`
-        : `validate printed no JSON report: ${run.stderr.trim() || run.stdout.trim() || (error as Error).message}`,
-    ]
+    problems = [(error as Error).message]
   }
-  for (const problem of problems) console.log(`validate: ${problem}`)
-  console.log(`validate: ${problems.length} problem(s)`)
-  process.exitCode = problems.length ? 1 : 0
+  report('validate', problems, 'validate: ')
 }

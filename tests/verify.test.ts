@@ -4,7 +4,8 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { findClaude, main, plan, runStage, SetupError, type Stage, TOOLING_TESTS } from '../scripts/verify.ts'
+import { findClaude, SetupError } from '../scripts/repo.ts'
+import { main, plan, runStage, type Stage, TOOLING_TESTS } from '../scripts/verify.ts'
 import { temporaryFolder } from './support.ts'
 
 const FOLDERS = [

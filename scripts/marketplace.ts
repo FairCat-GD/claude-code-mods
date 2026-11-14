@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 
-import { modNames, ROOT, TEMPLATE } from './repo.ts'
+import { modFolders, modNames, ROOT, report } from './repo.ts'
 
 const MARKETPLACE = '.claude-plugin/marketplace.json'
 const NAME = 'claude-code-mods'
@@ -112,8 +112,7 @@ export const check = (root: string, tracked: readonly string[]): string[] => {
   const mods = modNames(root)
   return [
     ...checkEntries(root, mods),
-    ...mods.flatMap(mod => checkManifest(root, `mods/${mod}`)),
-    ...(existsSync(join(root, TEMPLATE)) ? checkManifest(root, TEMPLATE) : []),
+    ...modFolders(root).flatMap(folder => checkManifest(root, folder.path)),
     ...tracked.filter(path => ENGINE_FILES.test(path)).map(path => `${path}: the engine's declarations are tracked; they are never committed`),
   ]
 }
@@ -121,8 +120,5 @@ export const check = (root: string, tracked: readonly string[]): string[] => {
 export const trackedPaths = (root: string) => execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean)
 
 if (import.meta.main) {
-  const problems = check(ROOT, trackedPaths(ROOT))
-  for (const problem of problems) console.log(problem)
-  console.log(`marketplace: ${problems.length} problem(s)`)
-  process.exitCode = problems.length ? 1 : 0
+  report('marketplace', check(ROOT, trackedPaths(ROOT)))
 }

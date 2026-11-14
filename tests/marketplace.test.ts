@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { type TestContext, test } from 'node:test'
 
 import { check, newestVersion, trackedPaths } from '../scripts/marketplace.ts'
-import { FIXTURES, temporaryFolder } from './support.ts'
+import { FIXTURES, git, temporaryFolder } from './support.ts'
 
 const MARKETPLACE = '.claude-plugin/marketplace.json'
 const ALPHA = 'mods/alpha/.claude-plugin/plugin.json'
@@ -81,11 +80,10 @@ test('a tracked file under .claude-plugin/types/ is reported', t => {
   mkdirSync(join(dir, 'mods/alpha/.claude-plugin/types'))
   writeFileSync(join(dir, 'mods/alpha/.claude-plugin/types/index.d.ts'), 'export {}\n')
   writeFileSync(join(dir, '.gitignore'), '**/.claude-plugin/types/\n')
-  const env = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' }
-  execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: dir, env })
-  execFileSync('git', ['add', '.'], { cwd: dir, env })
+  git(dir, 'init', '-q', '-b', 'main')
+  git(dir, 'add', '.')
   assert.deepEqual(check(dir, trackedPaths(dir)), [])
-  execFileSync('git', ['add', '-f', 'mods/alpha/.claude-plugin/types/index.d.ts'], { cwd: dir, env })
+  git(dir, 'add', '-f', 'mods/alpha/.claude-plugin/types/index.d.ts')
   assert.deepEqual(check(dir, trackedPaths(dir)), [
     "mods/alpha/.claude-plugin/types/index.d.ts: the engine's declarations are tracked; they are never committed",
   ])

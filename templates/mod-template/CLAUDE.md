@@ -2,10 +2,10 @@
 
 <What this mod does, in two sentences, for a session that has never seen it.>
 
-This is where a new mod starts. Copy this folder to `mods/<name>/`, then rename `mod-template`
-to `<name>` everywhere in it: the folder, `plugin.json`'s `name`, this file, the README and the
-changelog. The root `CLAUDE.md` holds the rules every mod follows, and `docs/spec/SPEC.md` §8
-the practices. This file adds only what is this mod's own.
+Every mod starts as the repository's template, made into its own by
+`npm run new-mod -- <name> "<description>"` from the repository's root. The root `CLAUDE.md`
+holds the rules every mod follows, and `docs/spec/SPEC.md` §8 the practices. This file adds only
+what is this mod's own.
 
 ## Machine identifiers
 

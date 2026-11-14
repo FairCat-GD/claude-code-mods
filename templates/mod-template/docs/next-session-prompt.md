@@ -5,12 +5,15 @@ it leaves open, and plan round 1 in this mod's `docs/spec/` (see the root
 
 ## State you need that is not in the docs
 
-- **The mod is the template as copied:** `/hello`, its one test, and these workflow files, at
-  0.1.0. Nothing is pushed, released or installed yet.
+- **The mod is the repository's template, made by `npm run new-mod`:** `/hello`, its one test, and
+  these workflow files, at 0.1.0. Nothing is pushed, released or installed yet.
+- **`docs/ARCHITECTURE.md` has what every mod shares filled in.** Session 0 writes the rest from
+  the intake, keeping every section; `docs/USER-GUIDE.md` is the user's side of the same.
 - **Open items live in `docs/BACKLOG.md`**, which is empty.
 
 ## Watch for
 
-- **The standing traps** are in the root `docs/next-session-prompt.md`; carry the ones that bind a
-  mod session into this file.
-- **Comments state the present.** No session ids, no "used to", no review stories.
+- **The standing traps** are in the root `CLAUDE.md`'s *Watch for*; this mod's own go in its
+  `CLAUDE.md`.
+- **The name is for good.** `mod-template` is the install id and the key the engine keeps its
+  stored values under; a rename loses them.

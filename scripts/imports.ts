@@ -5,7 +5,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import ts from 'typescript'
 
-import { DECLARATIONS, isFile, TYPES_FIX } from './repo.ts'
+import { DECLARATIONS, isFile, noDeclarations, report } from './repo.ts'
 
 const SOURCE = /\.(?:[cm]?[jt]s|[jt]sx)$/
 const CANDIDATES = ['', '.ts', '.tsx', '.d.ts', '.js', '.jsx', '.mjs', '.mts', '/index.ts', '/index.tsx', '/index.d.ts', '/index.js']
@@ -70,13 +70,5 @@ export const scanImports = (folder: string, declared: ReadonlySet<string>): stri
 if (import.meta.main) {
   const [folder = '.', given] = process.argv.slice(2)
   const declarations = given ?? join(folder, DECLARATIONS)
-  if (!existsSync(declarations)) {
-    console.log(`imports: ${folder} has no API declarations in ${DECLARATIONS}/: ${TYPES_FIX}`)
-    process.exitCode = 1
-  } else {
-    const problems = scanImports(folder, declaredModules(declarations))
-    for (const problem of problems) console.log(problem)
-    console.log(`imports: ${problems.length} problem(s)`)
-    process.exitCode = problems.length ? 1 : 0
-  }
+  report('imports', existsSync(declarations) ? scanImports(folder, declaredModules(declarations)) : [noDeclarations(folder)])
 }

@@ -1131,6 +1131,74 @@ layout*, *What a mod is*), §6 (invariants 2–4); `CLAUDE.md`; `templates/mod-t
   for good (decision 14).
 - **Don't make a real mod to test it.** A real one starts with its own intake, after Session 4.
 
+**Done (2026-11-15, no version).**
+- **Decided with the owner at the start:**
+  - **The template ships `docs/ARCHITECTURE.md` and `docs/USER-GUIDE.md`.** The architecture
+    follows the kit's outline, with what every mod shares filled in: *Context* (the engine, its
+    two builds), *Stack and pins*, *Layout and boundaries*, the shared invariants, *Testing
+    strategy* and *Packaging*. Session 0 writes the rest. `tests/fixtures/`, `types/` and
+    `docs/spec/` are made when first needed: `types/` only with `$.state` (SPEC §5), `docs/spec/`
+    by the intake.
+  - **The script leaves the root README's row** and prints it ready to paste, so it writes only
+    `mods/<name>/` and the marketplace file.
+- **`npm run new-mod -- <name> "<description>"`** (`scripts/new-mod.ts`).
+  - It refuses, writing nothing: a name that is not lowercase kebab-case, `mod-template`, a
+    verify stage's name (`STAGE_NAMES`, now exported by `verify.ts`), an existing folder, a blank
+    description, a missing template or marketplace. Every check runs before the first write.
+  - It copies the template without `.claude-plugin/types/` or `.DS_Store`, and renames every
+    `mod-template` in file names and contents. It sets `plugin.json`'s version to 0.1.0 and its
+    description, dates the changelog's 0.1.0 entry today, and adds the marketplace entry in name
+    order.
+  - It writes JSON two-space, with a one-field object on one line (`formatJson`), as the
+    repository's files are. Biome keeps an object's layout as given, so `JSON.stringify` alone
+    would have expanded `owner` and `author`; measured in a scratch copy, where Biome then
+    reported no fixes.
+  - It prints what is left: the README row, `npm run types`, `npm run verify -- <name>` and the
+    intake's handoff.
+- **The template.** `CLAUDE.md`'s copy instructions are one sentence naming the script, written
+  to read true in the template and in a made mod; the SPEC §8 pointer stays for Session 4. Its
+  handoff points at the root `CLAUDE.md`'s *Watch for* for the standing traps (it named the root
+  handoff, stale since 3b), and says Session 0 completes `ARCHITECTURE.md`.
+- **One way to run `claude`** (F6, F7), in `scripts/repo.ts`: `SetupError` and `findClaude` moved
+  from `verify.ts`; `claudeCommand(...)` gives the found CLI and the hermetic environment;
+  `readClaudeVersion()` is the one reading of its version, which `verify` caches and `types` reads
+  before and after its session. `validate.ts` runs alone in that environment; `types.ts` launches
+  the found CLI.
+- **F8:** `marketplace.ts` checks manifests over `modFolders`; `noDeclarations` is the one "no API
+  declarations" line; `report` is the print-and-count tail of `validate`, `marketplace` and
+  `imports` (hygiene's `main` logs through its own function, so it keeps it);
+  `tests/marketplace.test.ts` uses `git` from `tests/support.ts`.
+- **Docs:** `CLAUDE.md`'s *Commands* has the new script and says `validate.ts` runs in the gate's
+  environment; `README.md` shows the command and its layout names all eight scripts.
+- **Amendments:**
+  - **The script takes the description as a required second argument.** The template's
+    description is its own, and the marketplace entry copies it. Decided with the owner at plan
+    time.
+  - **The template test reads the real template,** copied into a scratch root, so a new place
+    the template names itself is caught. It asserts only that `mod-template` is absent, so no
+    template doc becomes undeletable (invariant 6). The session's own choice.
+- **Measured** (CLI 2.1.325):
+  - a dry run in a scratch copy of the repository: one refusal (`Bad`), then `demo-mod` made, its
+    marketplace entry after cartoon-fx, `CHANGELOG.md` dated 2026-11-15, no `mod-template` left,
+    no declarations copied, and Biome clean on what it wrote;
+  - the new-mod test runs the real `claude plugin validate --strict` on its scratch root, and
+    `scripts/validate.ts` on the made mod, in the hermetic environment.
+- **Checked by hand:** the made mod's files read sensibly after the rename (`CLAUDE.md`,
+  `README.md`, both new docs, the handoff).
+- **Falsified,** each by copying the script aside, breaking one behaviour and copying it back;
+  each failed at its own test:
+  - contents not renamed, and file names not renamed: the no-`mod-template` test;
+  - the entry not added: the marketplace-stage test and the name-order test;
+  - a stage's name allowed, and an existing folder allowed: the refusal test;
+  - `claudeCommand` given the caller's environment: the `validate.ts` environment test, which uses
+    a stand-in `claude` first on PATH and never runs the real one.
+- **Numbers** (CLI 2.1.325): tooling tests 162 in 10 files (+6: new-mod 5, validate 1; +1 file).
+  The template unmoved: 1 test; `validate` 2 hooks, 0 gating, and `$.command.register`.
+  `npm run verify`: 14 stages; the 6 repo stages and the template's 4 PASS. cartoon-fx's
+  `validate`, `types` and `tests` failed on `mods/cartoon-fx/hooks/register.tsx`, which the
+  cartoon-fx session beside this one had uncommitted. This session left it alone; the commit
+  ran `npm run verify -- mod-template` with its drafted message.
+
 ---
 
 ## 4: The repo's documentation pass; close the round

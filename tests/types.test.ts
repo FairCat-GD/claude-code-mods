@@ -14,8 +14,11 @@ const lay = (folder: string, firstLine: string) => {
 }
 
 test("the session keeps the owner's live mods out three ways, and loads each folder", () => {
-  const { command, args, env } = launchCommand(['/r/mods/alpha', '/r/templates/mod-template'], { PATH: '/bin', CLAUDE_CODE_PLUGIN_DIRS: '~/live' })
-  assert.equal(command, 'claude')
+  const { command, args, env } = launchCommand('/bin/claude', ['/r/mods/alpha', '/r/templates/mod-template'], {
+    PATH: '/bin',
+    CLAUDE_CODE_PLUGIN_DIRS: '~/live',
+  })
+  assert.equal(command, '/bin/claude')
   assert.deepEqual(env, { PATH: '/bin' })
   assert.deepEqual(args, [
     '--setting-sources',

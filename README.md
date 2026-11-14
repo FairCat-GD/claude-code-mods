@@ -44,13 +44,20 @@ checks, then `claude plugin validate`, `tsc`, `claude plugin test` and the impor
 and the template. `npm run verify -- <name> ...` runs only the stages or mods it names. Every
 command is in `CLAUDE.md`'s Commands table.
 
+```bash
+npm run new-mod -- <name> "<description>"
+```
+
+`new-mod` makes a mod from the template and adds its marketplace entry; it prints what is left.
+
 ## Layout
 
 ```
 .claude-plugin/marketplace.json   the marketplace: one entry per mod (from the first mod on)
 mods/<name>/                      one mod: the whole plugin, and its own workflow files
 templates/mod-template/           where a new mod starts; checked by the gate like a mod
-scripts/                          verify, hygiene, the marketplace check, the import scan, types
+scripts/                          verify, hygiene, the marketplace check, the import scan, types,
+                                  validate, new-mod, and repo (what they share)
 tests/                            the tooling's tests; tests/fixtures/ is fictional
 docs/                             the repository's own workflow files
 ```

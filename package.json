@@ -9,7 +9,8 @@
   },
   "scripts": {
     "verify": "node scripts/verify.ts",
-    "types": "node scripts/types.ts"
+    "types": "node scripts/types.ts",
+    "new-mod": "node scripts/new-mod.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

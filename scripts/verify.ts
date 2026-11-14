@@ -3,14 +3,12 @@
 //
 // Usage: npm run verify [-- <stage or mod> ...] [--message <draft>] [--all]
 
-import { execFileSync, spawnSync } from 'node:child_process'
-import { accessSync, constants, existsSync } from 'node:fs'
-import { delimiter, join, resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 
-import { cliVersion, declarationsProblem, type Folder, hermeticEnv, isFile, modFolders, ROOT } from './repo.ts'
-
-export class SetupError extends Error {}
+import { claudeCommand, declarationsProblem, type Folder, findClaude, modFolders, ROOT, readClaudeVersion, SetupError } from './repo.ts'
 
 export type Command = { argv: string[]; env?: NodeJS.ProcessEnv }
 export type Stage = { name: string; commands: () => Command[] }
@@ -24,25 +22,12 @@ const bin = (name: string) => {
   return path
 }
 
-export const findClaude = (path = process.env.PATH ?? '') => {
-  for (const dir of path.split(delimiter).filter(Boolean)) {
-    const file = join(dir, 'claude')
-    if (!isFile(file)) continue
-    try {
-      accessSync(file, constants.X_OK)
-      return file
-    } catch {}
-  }
-  throw new SetupError("claude not found on PATH: install Claude Code's CLI, which runs `claude plugin validate` and `claude plugin test`")
-}
-
 let cli: string | undefined
 const claudeVersion = () => {
-  cli ??= cliVersion(execFileSync(findClaude(), ['--version'], { encoding: 'utf8', env: hermeticEnv(), timeout: 60_000 }))
+  cli ??= readClaudeVersion()
   return cli
 }
 
-const claude = (...args: string[]): Command => ({ argv: [findClaude(), ...args], env: hermeticEnv() })
 const node = (...args: string[]): Command => ({ argv: [process.execPath, ...args] })
 
 type Hygiene = { message?: string; all: boolean }
@@ -58,7 +43,7 @@ const repoStages = (scope: Folder[] | undefined, { message, all }: Hygiene): Sta
       name: 'marketplace',
       commands: () => [
         node('scripts/marketplace.ts'),
-        ...(existsSync(join(ROOT, '.claude-plugin/marketplace.json')) ? [claude('plugin', 'validate', '--strict', '.')] : []),
+        ...(existsSync(join(ROOT, '.claude-plugin/marketplace.json')) ? [claudeCommand('plugin', 'validate', '--strict', '.')] : []),
       ],
     },
     {
@@ -71,19 +56,19 @@ const repoStages = (scope: Folder[] | undefined, { message, all }: Hygiene): Sta
 const folderStages = (path: string): Record<string, Stage['commands']> => ({
   validate: () => {
     findClaude()
-    return [{ ...node('scripts/validate.ts', path), env: hermeticEnv() }]
+    return [node('scripts/validate.ts', path)]
   },
   types: () => {
     const problem = declarationsProblem(join(ROOT, path), path, claudeVersion())
     if (problem) throw new SetupError(problem)
     return [{ argv: [bin('tsc'), '-p', path] }]
   },
-  tests: () => [claude('plugin', 'test', path)],
+  tests: () => [claudeCommand('plugin', 'test', path)],
   imports: () => [node('scripts/imports.ts', path)],
 })
 
 // Every stage's name; `types` names the tooling's and each folder's.
-const STAGE_NAMES = [...new Set([...repoStages(undefined, { all: false }).map(stage => stage.name), ...Object.keys(folderStages(''))])]
+export const STAGE_NAMES = [...new Set([...repoStages(undefined, { all: false }).map(stage => stage.name), ...Object.keys(folderStages(''))])]
 
 const parseOptions = (argv: readonly string[]) =>
   parseArgs({ args: [...argv], allowPositionals: true, options: { message: { type: 'string' }, all: { type: 'boolean', default: false } } })
