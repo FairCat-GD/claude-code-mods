@@ -12,8 +12,6 @@ on a mod goes there.
 
 - **New mods.** Left out at the round 1 intake. Each new mod starts with its own intake in
   `mods/<name>/`, once round 1 has built the template and `docs/MOD-KICKOFF.md`.
-- **A script that starts a new mod from the template.** Left out at the round 1 intake. Copying
-  `templates/mod-template/` and renaming it is short enough until a second mod shows what varies.
 - **CI.** Left out at the round 1 intake. The workflow holds the gate in the session, and the
   owner's review and push approval stand behind it.
 - **Going public.** Left out at the round 1 intake. Making the repository public is the owner's
@@ -22,6 +20,10 @@ on a mod goes there.
   validate` already reports what Anthropic's plugin directory would refuse a submission for (its
   `directory.findings`: a README, a LICENSE and an icon per plugin), which the gate does not
   judge.
+  - **History holds what the updated rules keep out** (found by the 2026-11-14 review, F3 and
+    F12). Every commit up to Session 3a holds `scripts/hygiene_terms.txt`, hashes a dictionary
+    of names can reverse, and `docs/spec/SPEC.md` names the project hygiene was ported from.
+    Rewriting history or accepting both is the owner's call, before going public.
 - **Sharing mods with anyone but the owner.** Left out at the round 1 intake. The install lines for
   other people, and what a private repository asks of them, wait until the repository goes
   public.

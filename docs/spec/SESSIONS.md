@@ -36,6 +36,9 @@ Never push without being asked.
 | 1 | Scaffold: the toolchain, `verify`, hygiene, the marketplace, the mod template | 3–10, 12, 14 | — |
 | 2 | Import cartoon-fx: the files byte for byte, its workflow files, the gate green | 8–10, 12–14 | cartoon-fx stays **0.10.1** |
 | 3 | cartoon-fx as an installed release, and its as-built docs | 11, 13, 14 | — |
+| 3a | The gate per the updated workflow kit: hygiene's term list outside the repository, the drafted message, secrets, named stages | 6, 7 | — |
+| 3b | The workflow per the updated workflow kit: the method re-copied, `CLAUDE.md`'s protocol and standing traps | 3, 9, 10 | — |
+| 3c | Ready for a second mod: a script that makes one from the template, the template completed, one way to run `claude` | 4, 7, 16 | — |
 | 4 | The repo's documentation pass; close the round | 2, 3, 15, 16 | — |
 
 ---
@@ -758,6 +761,162 @@ checkout beside this one (`../krita-art-mcp`), read-only.
 
 ---
 
+## 3a: The gate per the updated workflow kit
+
+Inserted 2026-11-14 with the owner, after the review in `REVIEW-2026-11-14.md`. The owner chose
+"Session 4 next, with additions", and asked to "check the updated workflow kit and see if you'd
+like to adopt any new workflow changes from there". 3a, 3b and 3c are those additions; Session 4
+follows them.
+
+**Read:** `REVIEW-2026-11-14.md` F3, F4, F10 and §5; `SPEC.md` §2 (decisions 6 and 7, with
+their amendments), §6 (invariant 1); `CLAUDE.md`; the workflow kit's `KICKOFF.md`, *The hygiene
+stage's design*, and its `DEVELOPMENT-WORKFLOW.md`, *A clean repository*, which the owner
+attaches at the start (3b copies the latter in); `scripts/hygiene.ts`, `scripts/verify.ts` and
+their tests.
+
+- **Hygiene, rebuilt on the kit's design** (decision 6, amended). In `scripts/hygiene.ts`:
+  - the terms come from the owner's term file, `~/.config/hygiene/terms.txt`, never from the
+    repository: a missing file fails, an empty one passes. `scripts/hygiene_terms.txt` and
+    `loadTerms`'s hashing (`scripts/hygiene.ts:11`, `:35-50`) go. Tests point the stage at a
+    fixture file of fictional terms, by argument or environment variable, and never read the
+    owner's file;
+  - tokens are runs of letters and digits in any script, with their camel-case words and digit
+    groups, NFC-normalised and lowercased (today `RUN` is ASCII-only, `scripts/hygiene.ts:12`);
+  - a routine run reads what a commit could still change: paths that differ from `HEAD` in the
+    index or the tree (both versions), untracked files not ignored, the drafted message, and the
+    commits on no remote with the paths they changed. A full scan reads everything, on `--all`
+    or when the stamp in the git directory is missing or older than the term file or the stage's
+    source. A hit in a pushed commit is counted on the last line and does not fail;
+  - secrets in the kit's exact shapes, and a `.env` a commit could record; conflict markers at
+    the start of a line;
+  - it never holds what it bans, and a hit never prints the term or the secret.
+- **`verify` runs named stages and takes `--message <draft>`** (decision 7).
+  `npm run verify -- hygiene --message <draft>` runs hygiene alone, and the docs-only command is
+  one such call (for example `npm run verify -- format hygiene --message <draft>`; 3a settles
+  the names). A mod name
+  still selects that mod's stages, and several are accepted, as today. The draft lives at
+  `"$(git rev-parse --git-dir)/COMMIT_DRAFT"`.
+- **`.claude/worktrees/` is ignored** by `.gitignore`, Biome and the stages, anchored to the root.
+- **Docs.**
+  - `CLAUDE.md`: the privacy section, *Commands* (named stages, `--message`, `--all`, the
+    docs-only command), and the rule that `verify` runs with the drafted message before each
+    commit.
+  - `docs/BACKLOG.md`: nothing new; F3's copies in history are under *Going public* already.
+- **Ask at the start of 3a:** the stage names and the docs-only command's exact form.
+
+**Gates:**
+- `npm run verify` green, with these tooling tests, each falsified once (the kit's list):
+  - a missing term file fails and an empty one passes;
+  - a Cyrillic term is found, in NFC and NFD; `myTermNotes` and `term2026` are found;
+  - a term or a co-author trailer in the draft fails; "generated with the codegen script" passes;
+  - each secret shape and a tracked `.env` fail; `.env.example`, a hyphenated name containing
+    `sk-` and a `github_pat_TEST` fixture pass;
+  - a conflict marker fails; a heading underline passes;
+  - a change left unstaged is read; a commit on no remote is read and a pushed one skipped;
+  - a missing stamp, or a term file newer than it, turns a routine run into a full scan, which
+    still reads the draft; a hit in a pushed message passes and is counted.
+- `npm run verify -- hygiene --all` over this repository, on the owner's real term file: its result
+  in the done-note, hits counted, never named.
+
+**Watch for:**
+- **Tests never read the owner's term file or the real stamp.** Scratch repositories and fixture
+  terms only (invariants 6 and 7).
+- **The stage's own source and tests must not hold what they ban.** Build attribution forms,
+  token shapes and conflict markers from pieces at run time.
+- **This commit's own message** goes through the new stage with `--message`; describe the
+  attribution rule in words, never quote a form of it.
+- **The old hashed list stays in history.** Deleting the file does not remove it; that is
+  *Going public*'s question for the owner, not this session's.
+
+---
+
+## 3b: The workflow per the updated workflow kit
+
+Inserted 2026-11-14 with the owner, with 3a (above, for why).
+
+**Read:** `REVIEW-2026-11-14.md` F2, F12 and §5; `SPEC.md` §2 (decisions 3, 9 and 10); `CLAUDE.md`;
+the workflow kit's `DEVELOPMENT-WORKFLOW.md`, attached by the owner; this repository's copy's
+*In this repository* paragraph; `templates/mod-template/CLAUDE.md`; `mods/cartoon-fx/CLAUDE.md`.
+
+- **`docs/DEVELOPMENT-WORKFLOW.md` re-copied verbatim from the kit,** except its *In this
+  repository* paragraph, rewritten from today's with §5's adaptations:
+  - two levels, as today; parallel sessions share one checkout (decision 10), so parallel parts
+    are not used, though `.claude/worktrees/` stays ignored;
+  - versions belong to mods; a new mod's round 1 ends at 1.0.0, and cartoon-fx stays 0.x until
+    the owner decides otherwise at an intake; the repo level has no versions;
+  - no milestone architecture reviews, because mods are small and every session is reviewed;
+  - the repo's round 1 had no PDD, and a mod's is optional.
+- **`CLAUDE.md`'s working protocol** follows the new cycle: the one-line opener that points at
+  the handoff, the docs-only command, the close after the review. A *Watch for* section takes
+  the standing traps every handoff now repeats: never `git checkout <path>`, explicit paths,
+  `< /dev/null`, the two builds, the installed release running in every session, the ` `
+  escape, the toolchain. The privacy section adds the kit's "no names of the owner's other
+  projects, and none of their data".
+- **The mod files that point at the protocol:** `templates/mod-template/CLAUDE.md`, and, in its
+  own `docs(cartoon-fx):` commit, `mods/cartoon-fx/CLAUDE.md`. Each mod's handoff drops its
+  standing traps at that mod's next rewrite, not in this session.
+- **This file's header** ("Every session ends the same way") follows the new cycle, as a logged
+  amendment.
+- **Docs.** `CLAUDE.md`; `README.md`'s Docs list, if a file's job changed.
+
+**Gates:**
+- The docs-only command from 3a green. No code changes.
+- Every path, command and section the new paragraph and `CLAUDE.md` name is checked to exist.
+
+**Watch for:**
+- **Verbatim means verbatim.** The project's deviations live in its paragraph and in
+  `CLAUDE.md`, never as edits elsewhere in the copy.
+- **A cartoon-fx session may be running beside this one.** If `mods/cartoon-fx/CLAUDE.md` has
+  uncommitted changes, leave it, and say so in the handoff.
+- **Keep `CLAUDE.md` lean.** A rule keeps its why only when the why changes the action.
+
+---
+
+## 3c: Ready for a second mod
+
+Inserted 2026-11-14 with the owner, with 3a (above, for why).
+
+**Read:** `REVIEW-2026-11-14.md` F5–F8 and §5; `SPEC.md` §2 (decisions 4, 7 and 16), §4 (*The
+layout*, *What a mod is*), §6 (invariants 2–4); `CLAUDE.md`; `templates/mod-template/`;
+`scripts/repo.ts`, `scripts/validate.ts`, `scripts/verify.ts`, `scripts/types.ts`,
+`scripts/marketplace.ts`, `scripts/imports.ts` and their tests.
+
+- **A script that makes a mod from the template** (decision 16, amended): `npm run new-mod --
+  <name>`.
+  - It refuses a name that is not lowercase kebab-case, and a folder that exists.
+  - It copies `templates/mod-template/` to `mods/<name>/` and renames every `mod-template`, in
+    file names and contents (F5 lists the places the template's own instructions miss).
+  - It sets the version to 0.1.0 and the changelog's date to today, and adds the marketplace
+    entry in name order.
+  - It prints what is left: the README row, `npm run types`, and the mod's intake.
+- **The template completed** with what a mod's Session 0 builds on (see the ask below), and its
+  `CLAUDE.md`'s copy instructions replaced by the script.
+- **`validate.ts` scrubs its own environment** (F6), and **one helper finds and runs `claude`**
+  for `verify`, `validate` and `types`, with one reading of its version (F7). F8's smaller
+  duplicates fold in where they touch the same code.
+- **Docs.** `CLAUDE.md`'s *Commands*; `README.md`'s layout (all seven scripts, and the new one).
+- **Ask at the start of 3c:**
+  - which of SPEC §4's mod files the template ships (`docs/ARCHITECTURE.md` in the kit's
+    outline, `tests/fixtures/`, `types/`), and which a mod's Session 0 writes;
+  - whether the script writes the root README's row from the description, or leaves it.
+
+**Gates:**
+- `npm run verify` green, with these tooling tests, each falsified once:
+  - a mod made in a scratch root holds no `mod-template`, in any file name or content;
+  - the marketplace stage passes on that scratch root, and `validate` on the new folder;
+  - a bad name and an existing folder are refused, and nothing is written;
+  - `validate.ts` run alone gets an environment without `CLAUDE_CODE_PLUGIN_DIRS`.
+- The template's own counts unmoved, or moved by what the ask settled.
+
+**Watch for:**
+- **The script writes only under `mods/<name>/` and the marketplace file**, and its tests only in
+  scratch roots. It never touches `~/.claude` (invariant 7).
+- **Machine identifiers.** The name chosen at creation is the mod's install id and store key
+  for good (decision 14).
+- **Don't make a real mod to test it.** A real one starts with its own intake, after Session 4.
+
+---
+
 ## 4: The repo's documentation pass; close the round
 
 **Read:** `SPEC.md` in full; `CLAUDE.md`; every done-note in this file;
@@ -802,3 +961,20 @@ checkout beside this one (`../krita-art-mcp`), read-only.
   `ARCHITECTURE.md`.
 - **The review follows the close,** as the workflow says. `SESSIONS.md` is gone by then, so the
   review's findings go in the review commit's message and in the handoff.
+
+**Amended 2026-11-14, with the owner, after `REVIEW-2026-11-14.md`.** Session 4 now runs after
+3a–3c, under the workflow 3b copies in. Its intent holds; its letter changes:
+- **Read** adds `REVIEW-2026-11-14.md` and the done-notes of 3a–3c.
+- **`docs/ARCHITECTURE.md`** follows the updated kit's outline: *Context*, *Stack and pins*,
+  *Layout and boundaries*, what is Decided kept apart from what is Built, and a *Decision log*.
+  The decisions of `SPEC.md` that outlast the round become its Decided parts.
+- **`docs/USER-GUIDE.md`** starts a new mod with 3c's script, not a copy by hand.
+- **`docs/MOD-KICKOFF.md`** is adapted from the kit's current `KICKOFF.md`: a mod's Session 0
+  writes its `ARCHITECTURE.md`, its Session 1 starts from 3c's script, and its round 1 ends at
+  1.0.0. Hygiene's design is not copied in: 3a built it once, for every mod.
+- **`CLAUDE.md`**: what 3b already moved stays; the rest of SPEC §8 moves as planned.
+- **The close comes after the review,** as the updated workflow has it: the handoff is written
+  before the review, the review commit carries the last done-note, then `docs: close round 1`
+  deletes `docs/spec/` and fills in that commit's sha. The last Watch-for line above no longer
+  applies.
+- **The baseline** counts 3a's and 3c's new tooling tests.

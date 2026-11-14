@@ -85,6 +85,13 @@ beside the decision it changes, as an **Amended <date> by the owner** note.
    - Its tests port krita's `tests/test_hygiene.py` case for case.
    - The term list is krita's seven SHA-256 hashes, copied as they are; the handoff lists them.
      The terms themselves never enter the repository.
+
+   **Amended 2026-11-14 by the owner, after `REVIEW-2026-11-14.md`.** Hygiene is rebuilt on the
+   updated workflow kit's design in Session 3a. Its terms come from the owner's term file outside
+   every repository, not from hashes in it, because short words' hashes are reversible. Tokens
+   cover every script, normalised to NFC. A routine run reads what a commit could still change,
+   the drafted message included, and a full scan runs when it can find something new. Secrets
+   and conflict markers are checked too.
 7. **`verify` is the gate.** `npm run verify` runs every stage. `npm run verify -- <mod>` runs the
    repo stages and that mod's stages. Each stage fails on its own; every stage runs even after one
    fails, and a summary follows.
@@ -213,6 +220,11 @@ beside the decision it changes, as an **Amended <date> by the owner** note.
     4. the repo's documentation pass and the close.
 
     None cuts a version; cartoon-fx stays at 0.10.1 throughout.
+
+    **Amended 2026-11-14 by the owner, after `REVIEW-2026-11-14.md`.** Three sessions are
+    inserted before the fourth: 3a, the gate per the updated workflow kit; 3b, the workflow per
+    the updated kit; 3c, ready for a second mod. None cuts a version. cartoon-fx's own rounds
+    released 0.10.2 and 0.10.3 meanwhile, outside this round.
 16. **Out of round 1** (each in `docs/BACKLOG.md`):
     - new cartoon-fx features or fixes, which belong to its own rounds;
     - new mods;
@@ -226,6 +238,10 @@ beside the decision it changes, as an **Amended <date> by the owner** note.
     - a copy of the workflow per mod;
     - committing Claude Code's API declarations;
     - running mods live from the repository in everyday sessions.
+
+    **Amended 2026-11-14 by the owner, after `REVIEW-2026-11-14.md`.** The script that starts a
+    mod from the template joins round 1, in Session 3c: the review found the copy by hand misses
+    places, so a second mod would start broken.
 
 ## 3. What round 1 is, and is not
 
