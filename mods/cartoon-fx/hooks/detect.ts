@@ -1,11 +1,17 @@
-// Reads what a finished Bash call did: a push, a commit, a passing test run.
+// Reads what a finished Bash call did: a push, a commit, a cherry-pick, a merge,
+// a passing test run.
 
 // What a finished Bash call hands back, as far as these checks need it.
 export type BashOutput = {
   stdout: string
   stderr: string
   backgroundTaskId?: string
-  gitOperation?: { push?: { branch: string }; commit?: { sha: string; kind: string } }
+  gitOperation?: {
+    push?: { branch: string }
+    commit?: { sha: string; kind: string }
+    branch?: { ref: string; action: string }
+    pr?: { number: number; action: string }
+  }
 }
 
 // The commands of a compound one (`cd app && npm test | tail`), split where the shell
@@ -157,9 +163,11 @@ const PASSED_MARK = new RegExp(
 
 const printed = (out: BashOutput) => `${out.stdout}\n${out.stderr}`
 
-// Where each moment ran: the index of the first part that pushed, committed or
-// ran tests, or undefined where none did (an alias the engine reported).
-export function ranAt(command: string): Record<'push' | 'commit' | 'tests', number | undefined> {
+const GH_PR_MERGE = /(?<![\w.-])gh\s+pr\s+merge\b/
+
+// Where each moment ran: the index of the first part that did it, or undefined
+// where none did (an alias the engine reported).
+export function ranAt(command: string): Record<'push' | 'commit' | 'tests' | 'cherry' | 'merge' | 'pr', number | undefined> {
   const found = partsOf(command)
   const first = (does: (part: string) => boolean) => {
     const at = found.findIndex(does)
@@ -170,6 +178,9 @@ export function ranAt(command: string): Record<'push' | 'commit' | 'tests', numb
     push: first(part => subOf(part) === 'push'),
     commit: first(part => subOf(part) === 'commit'),
     tests: first(part => TEST_RUN.test(part)),
+    cherry: first(part => subOf(part) === 'cherry-pick'),
+    merge: first(part => subOf(part) === 'merge'),
+    pr: first(part => GH_PR_MERGE.test(part)),
   }
 }
 
@@ -222,6 +233,30 @@ export function committed(command: string, out: BashOutput): { sha: string; isAm
   const sha = line?.[1]
 
   return part === undefined || DRY_RUN.test(part) || sha === undefined ? undefined : { sha: sha.slice(0, 7), isAmend: /\s--amend\b/.test(part), subject }
+}
+
+// The short hash of the commit a cherry-pick made, as the engine reported it.
+export function cherryPicked(out: BashOutput): string | undefined {
+  const made = out.gitOperation?.commit
+  return out.backgroundTaskId === undefined && made?.kind === 'cherry-picked' ? made.sha.slice(0, 7) : undefined
+}
+
+// A name git takes as a branch: the engine reads the word after `merge`, which
+// is the message's first word in `git merge -m "Merge x" x`.
+const REF = /^[^\s"'`~^:?*[\\]+$/
+
+// What the engine reported merged: the branch (or "" when its name is no ref's),
+// then the pull request's number.
+export function mergesOf(out: BashOutput): { branch?: string; pr?: string } {
+  const { branch, pr } = out.gitOperation ?? {}
+  if (out.backgroundTaskId !== undefined) {
+    return {}
+  }
+
+  return {
+    ...(branch?.action === 'merged' ? { branch: REF.test(branch.ref) ? branch.ref : '' } : {}),
+    ...(pr?.action === 'merged' ? { pr: `#${pr.number}` } : {}),
+  }
 }
 
 // "42 passed" (or "" without a count) for a test run whose output says it passed,

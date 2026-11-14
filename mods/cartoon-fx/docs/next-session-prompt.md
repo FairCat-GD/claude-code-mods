@@ -1,67 +1,80 @@
 Read, in the order the root CLAUDE.md gives a mod session:
-1. what T1's **Read** line names, in this mod's `docs/spec/`;
+1. what T2's **Read** line names, in this mod's `docs/spec/`;
 2. the root CLAUDE.md, then this mod's CLAUDE.md;
 3. *The session cycle* in the root `docs/DEVELOPMENT-WORKFLOW.md`;
 4. this mod's `docs/ARCHITECTURE.md`: its overview, invariants and baseline, and the sections
    the Read line names;
-5. `docs/spec/SESSIONS.md`'s header, T1's block and Q1's done-note;
+5. `docs/spec/SESSIONS.md`'s header, T2's block and T1's done-note;
 6. this file.
 
-Then do Session T1: a cherry picked, and a merge, from the engine's report. Measure first.
-Release 0.13.0.
+Then do Session T2: a pull request opened, and a rebase finished. Release 0.14.0.
 
 ## State you need that is not in the specs
 
-- **Round 3 is fun, a queue, new moments and controls:** A1, D1 and Q1 are done; T1, T2, C1 and
+- **Round 3 is fun, a queue, new moments and controls:** A1, D1, Q1 and T1 are done; T2, C1 and
   A2 remain.
 - **The repo level runs beside this round,** from the root's `docs/spec/REVIEW-2026-11-14.md`.
-  Its Sessions 3a and 3b are done; repo Session 3c (ready for a second mod) and Session 4 (the
-  repo's documentation pass, closing its round 1) remain, tracked in the root
-  `docs/spec/SESSIONS.md` and `docs/next-session-prompt.md`. Carry this line in every later
-  cartoon-fx handoff until both are done.
-- **Q1 shipped 0.12.0** (its done-note in `SESSIONS.md`): effects take turns. Three real moments
-  wait at most, one whose turn comes more than 12 s late is dropped, `/fx`'s samples wait past
-  both, and a collapsed strip drops what would play there. The Bash hook plays each moment it
-  found, ordered by `ranAt`. T1's new moments go through `play` like every other, so they queue
-  with no extra work; a cherry-pick or merge in the same command as a test run or a push plays
-  in the order the command ran them only if `ranAt` places it too (today it knows push, commit
-  and tests).
+  Its Sessions 3a and 3b are done, and 3c committed `feat: npm run new-mod makes a mod from the
+  template`. Whether 3c is closed, and Session 4 (the repo's documentation pass, closing its
+  round 1), are tracked in the root `docs/spec/SESSIONS.md` and `docs/next-session-prompt.md`.
+  Carry this line in every later cartoon-fx handoff until both are done.
+- **T1 shipped 0.13.0** (its done-note in `SESSIONS.md`): `cherry` and `merge`, read from the
+  engine's report alone. Its measurement answers T2's stop rule:
+  - **The rebase is reported:** `branch: { ref, action: 'rebased' }`, on `Successfully rebased`.
+    Its `ref` is the upstream (`git rebase main` reports `main`), not the branch rebased, and a
+    `git rebase -i` or `--onto` reads the first word after `rebase` that is not a flag. What the
+    words say is T2's to settle with the owner.
+  - **A pull request opened is built from the declarations and the CLI's code** (the owner's
+    call at T1). `gh pr create` reports `pr: { number, url, action: 'created' }` from the URL it
+    prints, which `gh` prints to stdout either way; not measured live. Its live check goes in
+    `docs/BACKLOG.md`, as T1's merged pull request did.
+  - **The Bash hook's moments** are a list placed by `ranAt`; T2 adds `pr created` and
+    `rebased`, each with a part rule (`gh pr create`, `git rebase`), as T1 added `cherry`,
+    `merge` and `pr`.
+  - `drawFx` reads `DRAWINGS`, a `Record<FxKind, Draw>`, so a new kind with no drawing fails
+    `tsc`.
 - **The every-tool `tool.call` hook is registered first,** and must stay first: it is the
   outermost, so the context check queues behind the call's own effect. One test guards it.
 - **A queue timer goes through `later`,** which skips it after a reset; a new timer that moves
   the queue should too.
 - **Review fixes wait for the owner's word.** After `/code-review`, report the findings and ask
   which to fix before any edit.
-- **Push status.** Q1's commits, with D1's handoff commit, were pushed on 2026-11-15 with the
-  owner's approval: `origin/main` holds everything through Q1's review commit (`review(cartoon-fx):
-  a timer from before a reset starts nothing, and 6 smaller`). Only Q1's push-status handoff
-  commit waits locally. List `origin/main..HEAD` before any push, and name any commit that is not
-  this mod's; parallel repo sessions share this checkout.
-- **The owner installs once the round is done.** The installed release stays 0.11.1 while T1,
-  T2, C1 and A2 run (the owner's call, 2026-11-15): do not ask for `claude plugin update
-  cartoon-fx` after each push. Every desktop check waits for that update, 0.12.0's included (a
-  command that tests, commits and pushes plays all three under its row, and `/fx all` plays all
-  ten in its row), and stays in `docs/BACKLOG.md`'s *Not yet checked by hand* until then. A2
-  gathers them for the round's desktop check.
+- **Push status.** `origin/main` holds everything through Q1's review commit. Waiting locally:
+  - Q1's push-status handoff commit;
+  - repo Session 3c's `feat: npm run new-mod makes a mod from the template`, which is not this
+    mod's;
+  - T1's commits.
+
+  List `origin/main..HEAD` before any push, and name any commit that is not this mod's.
+- **The owner installs once the round is done.** The installed release stays 0.11.1 while T2,
+  C1 and A2 run (the owner's call, 2026-11-15): do not ask for `claude plugin update cartoon-fx`
+  after each push. Every desktop check waits for that update and stays in `docs/BACKLOG.md`'s
+  *Not yet checked by hand* until then, 0.12.0's and 0.13.0's included. A2 gathers them for the
+  round's desktop check.
 - **The owner's stored placement is `conversation`.**
 - **The CLI on PATH is 2.1.325,** and so is the desktop's engine.
-- **Baseline** (`docs/ARCHITECTURE.md`, v0.12.0, CLI 2.1.325):
-  - 62 tests;
+- **Baseline** (`docs/ARCHITECTURE.md`, v0.13.0, CLI 2.1.325):
+  - 68 tests;
   - `validate`: 13 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
     allowed `CLAUDE.md` one;
   - `tsc` and the import scan clean.
 - **How earlier sessions checked things live, reusable here:**
-  - A terminal check starts from the Terminal panel, from the repository's root:
-    `claude --plugin-dir mods/cartoon-fx "<opening prompt>"`. Q1's opening prompt asked the
-    session to run one exact command with the Bash tool, in a scratch repository under this
-    session's scratchpad with a local bare remote (`git init --bare`), with a fictional git
-    identity set in that repository alone. It ran without a permission prompt.
-    `read_terminal` reads the strip; closing the tab ends the session.
-  - `claude --plugin-dir mods/cartoon-fx "/fx all"` runs `/fx all` as the opening prompt.
-  - A desktop check needs the owner to type `/fx`, with no dialog open over the conversation:
+  - **Opening prompt from a file.** A terminal check starts from the Terminal panel, from the
+    repository's root: `claude --plugin-dir mods/cartoon-fx "$(cat <prompt file>)"`, with the
+    prompt in the session's scratchpad. T1's prompt asked for exact commands, one Bash call
+    each, in a scratch repository with a fictional git identity set in that repository alone.
+    They ran without a permission prompt.
+  - **Reading the strip.** `read_terminal` reads it. Read at least 9 lines, since the strip sits
+    above the effort line, every 2 s from the start; closing the tab ends the session.
+  - **T1's probe.** It was a second `tool.call` `{ tool: 'Bash' }` hook that added
+    `PROBE gitOperation=<json>` to the command's stdout, so the session's own reply listed every
+    report. It was removed before the commit; a probe never ships.
+  - **The contact sheet** of frames: A1's and T1's done-notes. A Node script in the scratchpad
+    imports `hooks/fx.ts` with a resolve hook for `./zones`, and the page is served on 127.0.0.1
+    and opened in the browser pane.
+  - **A desktop check** needs the owner to type `/fx`, with no dialog open over the conversation:
     pause, and let them run it.
-  - T1's probe hook must be removed before its commit, and print nothing private.
-- **Repo Session 3b or 4** repoints this mod's `CLAUDE.md` (the SPEC §8 pointer) and
+- **Repo Session 4** repoints this mod's `CLAUDE.md` (the SPEC §8 pointer) and
   `docs/ARCHITECTURE.md` (*Testing strategy*) away from the root `docs/spec/SPEC.md`, in a
   `docs(cartoon-fx):` commit of its own. Leave those lines to it. Follow the root
   `docs/DEVELOPMENT-WORKFLOW.md` as it stands.
@@ -69,8 +82,7 @@ Release 0.13.0.
 ## Watch for
 
 - **The standing traps** are in the root `CLAUDE.md` and this mod's `CLAUDE.md`, *Watch for*.
-  Q1 moved this mod's there.
-- **A new kind is a new name in `FxKind`, `FX_MS`, `drawFx` and `SAMPLES`,** and a word the owner
-  types after `/fx`: name it once, with the owner.
+- **A new kind is a new name in `FxKind`, `FX_MS`, `DRAWINGS` and `SAMPLES`,** and a word the
+  owner types after `/fx`: name it once, with the owner.
 - **A pull request is an action on GitHub:** only with the owner's yes for that step, in the
-  repository they name (T1's ask).
+  repository they name.

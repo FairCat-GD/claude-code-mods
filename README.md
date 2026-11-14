@@ -9,7 +9,7 @@ tooling holds every mod to the same rules.
 
 | Mod | What it does |
 |---|---|
-| [cartoon-fx](mods/cartoon-fx/) | Cartoon animations for accepted plans, commits, pushes, passing tests, code reviews and their fixes, compaction, subagents, and a context window filling up; `/fx` replays them. |
+| [cartoon-fx](mods/cartoon-fx/) | Cartoon animations for accepted plans, commits, cherry-picks, pushes, merges, passing tests, code reviews and their fixes, compaction, subagents, and a context window filling up; `/fx` replays them. |
 
 ## Installing a mod
 

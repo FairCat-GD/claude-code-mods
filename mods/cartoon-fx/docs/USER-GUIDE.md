@@ -9,7 +9,9 @@ It never changes or delays what Claude does; it only watches and draws.
 |---|---|---|
 | You accept a plan | a clapperboard snaps shut | "Action! let's build!" |
 | A commit is made | a rubber stamp | "SAVED" and the short hash, or "AMENDED" for an amend |
+| A commit is cherry-picked | a gloved hand plucks a pair of cherries from a branch | "Cherry picked!" and the new commit's short hash |
 | A push updates a branch | confetti | "Pushed!" and the branch |
+| A branch is merged | a zipper closes two strands into one | "Merged!" and the branch |
 | A test or verify run passes | a checkmark badge | "All green!" and the number passed |
 | A code review finishes | a magnifying glass sweeps a page of code | "Reviewed!" and the number of findings, or "no findings, all clear" |
 | Fixes from a review are applied | a bug is swatted | "Bugs squashed!" and how many were fixed |
@@ -38,6 +40,12 @@ Each stays on screen for about three to four seconds.
 - **A push** plays when git reports a branch it updated, or a tag it pushed, which plays with the
   tag's name. A git command that only mentions a push, such as `git log --grep=push`, plays
   nothing.
+- **A cherry-pick and a merge** play when Claude Code itself reports one. A merge plays for
+  `git merge` when git says it merged, by fast-forward or with a merge commit; `git pull` plays
+  no merge. When a merge's message comes before its branch (`git merge -m "…" topic`), the
+  branch's name is not known, and "Merged!" plays alone. A pull request merged with
+  `gh pr merge` would play "Merged!" and its number, but `gh` says nothing when Claude runs it,
+  so today it plays nothing.
 - **A test run** counts when the command, or a part of it after `&&`, `;` or `|` outside quotes,
   starts with one of the common test or verify commands: `npm test`, `npm run verify`, `pytest`,
   `cargo test`, `go test`, `vitest`, `jest`, `playwright test`, `make test`, `node --test`,
@@ -52,7 +60,7 @@ Each stays on screen for about three to four seconds.
 | Command | Does |
 |---|---|
 | `/fx` or `/fx all` | Plays every animation in turn, each after the one before has finished. |
-| `/fx <name>` | Plays one: `plan`, `commit`, `push`, `tests`, `review`, `fixes`, `compact`, `helpers`, `context` or `redzone`. A name it doesn't have gets this list. |
+| `/fx <name>` | Plays one: `plan`, `commit`, `cherry`, `push`, `merge`, `tests`, `review`, `fixes`, `compact`, `helpers`, `context` or `redzone`. A name it doesn't have gets this list. |
 | `/fx place bottom` | Plays every effect in the strip above the prompt, from now on. |
 | `/fx place conversation` | Plays effects under the row that set them off again, which is the default. `/fx place middle` does the same. |
 
@@ -68,8 +76,8 @@ Each stays on screen for about three to four seconds.
 ## Where effects play
 
 - **In the conversation (the default).** In the desktop app, each effect plays under the
-  conversation row of what set it off. That is the tool call that pushed, committed or ran the
-  tests, the plan you accepted, the Agent call that started the helpers, or `/fx`'s own answer.
+  conversation row of what set it off. That is the tool call that pushed, committed, cherry-picked,
+  merged or ran the tests, the plan you accepted, the Agent call that started the helpers, or `/fx`'s own answer.
   - When the app folds several calls into one group row, it plays under the group.
   - The app draws a code review's report as its own card, which can't show an animation. So
     "Reviewed!" and "Bugs squashed!" play just above the card: under Claude's reply or the tool

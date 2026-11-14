@@ -477,6 +477,83 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
   it a word the owner types, so name it once.
 - **The designs are settled from rendered frames** (decision 2).
 
+**Done (2026-11-15, 0.13.0).**
+- **Decided with the owner at the start** (each the recommended answer):
+  - **The pull request is measured from the CLI's code,** not live on GitHub.
+  - **The kinds are `cherry` and `merge`:** `/fx cherry`, `/fx merge`.
+  - **The designs, from drafts rendered inline in plan mode:**
+    - the cherry: a gloved hand plucks a pair of cherries, and the branch springs back;
+    - the merge: a zipper slider closes a blue and a purple strand into one.
+  - **A merged pull request is wired, and recorded as unreachable today.** Asked once the code
+    reading showed why (below), in place of the block's stop rule.
+- **Measured** with a probe hook in a `--plugin-dir` terminal session (CLI 2.1.325), in a
+  scratch repository with a fictional identity. The probe added the engine's report to the
+  command's output, and was removed before the commit.
+
+  | Command | `gitOperation` |
+  |---|---|
+  | `git merge ahead` (fast-forward) | `branch: { ref: 'ahead', action: 'merged' }` |
+  | `git cherry-pick <sha>` | `commit: { sha, kind: 'cherry-picked', branch: 'main' }` |
+  | `git merge --no-ff feature -m "…"` | `branch: { ref: 'feature', action: 'merged' }` |
+  | `git merge --no-ff -m "Merge quoted in" quoted` | `branch: { ref: '"Merge', action: 'merged' }` |
+  | `git checkout -q topic && git rebase main` | `branch: { ref: 'main', action: 'rebased' }` |
+  | `git commit --allow-empty -m … && git cherry-pick <sha>` | one `commit`, `cherry-picked`, with the first commit's sha |
+  | `git merge fast` (a merge commit) | `branch: { ref: 'fast', action: 'merged' }` |
+
+- **Read from the CLI's code** (2.1.325, the classifier behind `gitOperation`), and matching
+  every row above:
+  - a merge needs `git merge` in the command (not `merge-base` and the like), with `Fast-forward`
+    or `Merge made by` in the output, so `git pull` reports none;
+  - a rebase needs `Successfully rebased`, and its `ref` is the first word after `rebase` that
+    does not start with `-`: the upstream, not the branch rebased. **For T2:** "rebased onto
+    main" is what the engine can say.
+  - `gh pr merge` reports `merged`, or `auto-merge-enabled` with `--auto`; `gh pr create`,
+    `created`. The number comes from a pull request's URL, or "pull request …#N", in the output.
+  - `gh` prints its merge line only to a terminal (its source: `infof`, gated on
+    `isTerminal`), and the Bash tool's stdout is not one (checked). So a pull request Claude
+    merges reports no `pr` today. **For T2:** `gh pr create` prints its URL to stdout either way,
+    by gh's documented behaviour; not measured.
+- **Shipped:**
+  - **In `hooks/detect.ts`:**
+    - `cherryPicked` returns the engine's cherry-picked sha;
+    - `mergesOf` returns the merged branch, with no words for a ref with no branch's shape, and
+      a merged pull request's `#N`;
+    - `ranAt` places `cherry`, `merge` and `pr`.
+  - **In `hooks/register.tsx`:** the Bash hook plays each, in order, and `SAMPLES` has `cherry`
+    after `commit` and `merge` after `push`.
+  - **In `hooks/fx.ts`:** `cherry` (2600 ms) and `zipper` (2700 ms). `drawFx` reads a
+    `Record<FxKind, Draw>` in place of its nested ternary (REVIEW §5).
+- **Frames:** A1's contact sheet. A Node script in the session's scratch folder imported
+  `hooks/fx.ts`, and the page was served on 127.0.0.1 and opened in the browser pane. It paused
+  each kind at ten times on dark and light, with `#42`, no words and the long branch. Nothing of
+  it is committed.
+- **Checked by hand:**
+  - The owner looked at both drawings' frames on the contact sheet before the commit: "All
+    good".
+  - In `--plugin-dir` terminal sessions (CLI 2.1.325) in the scratch repository, the strip read
+    "Merged! side" after `git merge --no-ff side -m "Merge side"`, and "Cherry picked! <sha>"
+    after a cherry-pick. Two earlier runs played the cherry between reads.
+  - The desktop check waits for the owner's update at the round's end (`docs/BACKLOG.md`).
+- **Falsified,** each by copying the file aside, breaking it and copying it back:
+  - `cherryPicked` reading nothing: the cherry's hook test, the order test and the detection
+    test (65 / 3);
+  - the branch merge ignored: its hook test, the order test and the detection test (65 / 3);
+  - the pull request ignored: its hook test and the detection test (66 / 2);
+  - no ref check, and merges counted in the background: the detection test alone (67 / 1);
+  - `ranAt` looking for `cherry`: the order test and the `ranAt` test (66 / 2);
+  - the merge placed by the pull request's part: the order test alone (67 / 1);
+  - the slider landing at 340, and the cherries lifted 140 to the right: the landing test alone
+    (67 / 1). A first break, lifting them 40 higher, left them inside the view and failed
+    nothing, so it proved nothing.
+- **Numbers:**
+  - 68 tests (+6);
+  - `validate` 13 hooks, 5 gating, each with a `.catch`, and 4 state keys, unchanged;
+  - `tsc` and imports clean;
+  - the cherry draws 12,527 characters and the merge 11,571; the confetti is still the largest;
+  - `hooks/register.tsx` 660 lines (+15), `hooks/detect.ts` 284 (+35), `hooks/fx.ts` 1113
+    (+144); 19 tracked files, unchanged.
+  - The checks ran on CLI 2.1.325, node 26.7.0.
+
 ---
 
 ## T2: A pull request opened, and a rebase finished

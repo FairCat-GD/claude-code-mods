@@ -1,7 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { Mounted, TestBody } from 'claude-code/testing'
 
-import { committed, isReviewFix, pushedBranch, ranAt, testsPassed } from '../hooks/detect'
+import { cherryPicked, committed, isReviewFix, mergesOf, pushedBranch, ranAt, testsPassed } from '../hooks/detect'
+import type { BashOutput } from '../hooks/detect'
 import { drawFx, FX_MS, textBox } from '../hooks/fx'
 import { RED, YELLOW } from '../hooks/zones'
 import type { FxKind } from '../types'
@@ -492,15 +493,17 @@ test('/fx all plays every animation in its own output row, one after another', a
   await start($)
 
   const ran = await $.command.run(fx('all'))
-  expect(ran.text).toBe('playing plan, commit, push, tests, review, fixes, compact, helpers, context, redzone (take 1)')
+  expect(ran.text).toBe('playing plan, commit, cherry, push, merge, tests, review, fixes, compact, helpers, context, redzone (take 1)')
   const row = await $.ui.mount(fxOutput('out1', ran.text ?? ''))
   const alt = async () => (await row.find({ type: 'Svg' }))?.props.alt
 
-  // Ten samples, past the three real moments that may wait: a replay is exempt.
+  // Twelve samples, past the three real moments that may wait: a replay is exempt.
   const played: [FxKind, string][] = [
     ['plan', "Action! let's build!"],
     ['commit', 'SAVED 5e81772'],
+    ['cherry', 'Cherry picked! 1a2b3c4'],
     ['push', 'Pushed! main'],
+    ['merge', 'Merged! feature/login'],
     ['tests', 'All green! 42 passed'],
     ['review', 'Reviewed! 3 findings'],
     ['fixes', 'Bugs squashed! 3 review defects fixed'],
@@ -542,7 +545,9 @@ test('/fx names what it has when asked for something else', async ($, on) => {
   await start($)
 
   const ran = await $.command.run(fx('fireworks'))
-  expect(ran.text).toBe('cartoon-fx has no "fireworks". Try: plan, commit, push, tests, review, fixes, compact, helpers, context, redzone or all.')
+  expect(ran.text).toBe(
+    'cartoon-fx has no "fireworks". Try: plan, commit, cherry, push, merge, tests, review, fixes, compact, helpers, context, redzone or all.',
+  )
 })
 
 test('/fx place bottom keeps effects in the strip, and is remembered', async ($, on) => {
@@ -709,6 +714,70 @@ test('npm test && git commit && git push plays the checkmark, the stamp, then th
   await clock.advance(slot('tests'))
   expect(await alt()).toBe('SAVED 5e81772')
   await clock.advance(slot('commit'))
+  expect(await alt()).toBe('Pushed! main')
+  await row.unmount()
+})
+
+// What the engine reports for a cherry-pick, a merged branch and a merged pull request.
+const PICKED = {
+  stdout: '[main 5e81772] Add squish effect\n 1 file changed',
+  stderr: '',
+  interrupted: false,
+  gitOperation: { commit: { sha: '5e81772ab', kind: 'cherry-picked' } },
+}
+const mergedBranch = (ref: string) => ({
+  stdout: "Merge made by the 'ort' strategy.",
+  stderr: '',
+  interrupted: false,
+  gitOperation: { branch: { ref, action: 'merged' } },
+})
+
+test('a cherry-pick picks a cherry in its row, with the hash, and stamps nothing', async ($, on) => {
+  engine(on, PICKED)
+  await start($)
+  await $.tool.call({ tool: 'Bash', command: 'git cherry-pick 1a2b3c4', tool_use_id: 't1' })
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+
+  expect((await row.find({ type: 'Svg' }))?.props.alt).toBe('Cherry picked! 5e81772')
+  await row.unmount()
+})
+
+test('a merged branch zips in its row, with its name', async ($, on) => {
+  engine(on, mergedBranch('feature/login'))
+  await start($)
+  await $.tool.call({ tool: 'Bash', command: 'git merge --no-ff feature/login', tool_use_id: 't1' })
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+
+  expect((await row.find({ type: 'Svg' }))?.props.alt).toBe('Merged! feature/login')
+  await row.unmount()
+})
+
+test('a merged pull request zips with its number', async ($, on) => {
+  engine(on, { stdout: '', stderr: '', interrupted: false, gitOperation: { pr: { number: 42, action: 'merged' } } })
+  await start($)
+  await $.tool.call({ tool: 'Bash', command: 'gh pr merge 42 --squash', tool_use_id: 't1' })
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+
+  expect((await row.find({ type: 'Svg' }))?.props.alt).toBe('Merged! #42')
+  await row.unmount()
+})
+
+test('git merge; git cherry-pick && git push plays the zipper, the cherry, then the confetti', async ($, on) => {
+  const { clock } = engine(on, {
+    stdout: `${PICKED.stdout}\nMerge made by the 'ort' strategy.`,
+    stderr: PUSHED.stderr,
+    interrupted: false,
+    gitOperation: { commit: PICKED.gitOperation.commit, push: { branch: 'main' }, branch: { ref: 'topic', action: 'merged' } },
+  })
+  await start($)
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+  const alt = async () => (await row.find({ type: 'Svg' }))?.props.alt
+
+  await $.tool.call({ tool: 'Bash', command: 'git merge topic; git cherry-pick 1a2b3c4 && git push', tool_use_id: 't1' })
+  expect(await alt()).toBe('Merged! topic')
+  await clock.advance(slot('merge'))
+  expect(await alt()).toBe('Cherry picked! 5e81772')
+  await clock.advance(slot('cherry'))
   expect(await alt()).toBe('Pushed! main')
   await row.unmount()
 })
@@ -986,6 +1055,28 @@ test('a commit on a detached HEAD counts, and a cherry-pick is no commit', () =>
   ).toBeUndefined()
 })
 
+test("a cherry-pick and a merge count on the engine's report alone", () => {
+  const op = (gitOperation: BashOutput['gitOperation'], backgroundTaskId?: string) => ({
+    ...out('[main 5e81772] x'),
+    gitOperation,
+    ...(backgroundTaskId ? { backgroundTaskId } : {}),
+  })
+  expect(cherryPicked(op({ commit: { sha: '5e81772ab', kind: 'cherry-picked' } }))).toBe('5e81772')
+  expect(cherryPicked(op({ commit: { sha: '5e81772ab', kind: 'committed' } }))).toBeUndefined()
+  expect(cherryPicked(out('[main 5e81772] x'))).toBeUndefined() // git's own line is not enough
+  expect(cherryPicked(op({ commit: { sha: '5e81772ab', kind: 'cherry-picked' } }, 'b1'))).toBeUndefined()
+
+  expect(mergesOf(op({ branch: { ref: 'feature/login', action: 'merged' } }))).toEqual({ branch: 'feature/login' })
+  // The engine reads the message's first word as the branch in `git merge -m "Merge x" x`.
+  expect(mergesOf(op({ branch: { ref: '"Merge', action: 'merged' } }))).toEqual({ branch: '' })
+  expect(mergesOf(op({ branch: { ref: 'main', action: 'rebased' } }))).toEqual({})
+  expect(mergesOf(op({ pr: { number: 42, action: 'merged' } }))).toEqual({ pr: '#42' })
+  expect(mergesOf(op({ pr: { number: 42, action: 'auto-merge-enabled' } }))).toEqual({})
+  expect(mergesOf(op({ branch: { ref: 'topic', action: 'merged' }, pr: { number: 7, action: 'merged' } }))).toEqual({ branch: 'topic', pr: '#7' })
+  expect(mergesOf(op({ branch: { ref: 'topic', action: 'merged' } }, 'b1'))).toEqual({})
+  expect(mergesOf(out("Merge made by the 'ort' strategy."))).toEqual({})
+})
+
 test('a collapsed strip on the terminal drops every effect, even one with a row', async ($, on) => {
   const { clock } = engine(on, PUSHED)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
@@ -1038,7 +1129,7 @@ test('a session start empties the queue, and a timer set before it starts nothin
 })
 
 test('each moment is placed at the first part of the command that did it', () => {
-  const none = { push: undefined, commit: undefined, tests: undefined }
+  const none = { push: undefined, commit: undefined, tests: undefined, cherry: undefined, merge: undefined, pr: undefined }
   expect(ranAt('npm test && git commit -m x && git push')).toEqual({ tests: 0, commit: 1, push: 2 })
   expect(ranAt('git commit -m x && git push && npm run verify | tail')).toEqual({ commit: 0, push: 1, tests: 2 })
   expect(ranAt('npm test && git commit -m x && npm test')).toEqual({ ...none, tests: 0, commit: 1 })
@@ -1047,6 +1138,8 @@ test('each moment is placed at the first part of the command that did it', () =>
   expect(ranAt("git commit -F - <<'EOF'\nfix: npm test\nEOF\ngit push")).toEqual({ ...none, commit: 0, push: 1 })
   expect(ranAt("bash -c 'git commit -m x && npm test'")).toEqual({ ...none, commit: 0, tests: 2 })
   expect(ranAt('gp && npm test')).toEqual({ ...none, tests: 1 }) // an alias: only the engine knows
+  expect(ranAt('git fetch && git merge origin/main && git cherry-pick 1a2b3c4 && gh pr merge 42')).toEqual({ ...none, merge: 1, cherry: 2, pr: 3 })
+  expect(ranAt('git merge-base main topic; git log --grep=cherry-pick')).toEqual(none)
 })
 
 test('more runners count, each by what it prints for a pass', () => {
@@ -1219,6 +1312,11 @@ const DRAWN: [FxKind, string, string, number][] = [
   ['commit', 'AMENDED', '9f8e7d6', 0],
   ['push', 'Pushed!', 'main', 0],
   ['push', 'Pushed!', LONG_BRANCH, 0],
+  ['cherry', 'Cherry picked!', '5e81772', 0],
+  ['merge', 'Merged!', 'feature/login', 0],
+  ['merge', 'Merged!', LONG_BRANCH, 0],
+  ['merge', 'Merged!', '#123456789', 0],
+  ['merge', 'Merged!', '', 0],
   ['tests', 'All green!', '123456 passed', 0],
   ['tests', 'All green!', '', 0],
   ...[0, 1, 4, 12].map((n): [FxKind, string, string, number] => ['review', 'Reviewed!', n === 0 ? 'no findings, all clear' : `${n} findings`, n]),
@@ -1353,5 +1451,20 @@ test('the helpers land inside the view, in front of the smoke, and stay until th
     }
     const label = fadeOf(named(root, 'label')[0]?.parent)
     for (const helper of helpers) expect(fadeOf(helper)).toBeGreaterThanOrEqual(label)
+  }
+})
+
+test('the picked cherries and the zipper slider land inside the view', () => {
+  for (const [kind, title, subtitle, cls] of [
+    ['cherry', 'Cherry picked!', '5e81772', 'cherries'],
+    ['merge', 'Merged!', 'feature/login', 'slider'],
+  ] as const) {
+    const root = parse(drawFx(kind, 1000, title, subtitle))
+    const view = viewOf(root)
+    const [piece] = named(root, cls)
+    const shapes = all(piece ?? root).filter(e => e.tag === 'circle' || e.tag === 'rect')
+    expect(shapes.length).toBeGreaterThan(1)
+    const out = shapes.flatMap(shape => corners(shape).map(corner => apply(toView(shape), corner))).filter(point => outside(view, point))
+    expect(out).toEqual([])
   }
 })

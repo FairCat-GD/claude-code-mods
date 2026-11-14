@@ -13,6 +13,10 @@ up, it moves out of this file.
   `gitOperation` first, and a push from git's own `To` report first, since the engine also
   reads a fetch's ref line as a push; printed lines also cover what the engine leaves out, such
   as a tag push or `git --no-pager`. Every test run is judged by its runner's wording. A change to either wording breaks it quietly: nothing plays. Narrowed at 0.11.1.
+- **A commit and a cherry-pick in one command.** The engine reports one commit for the whole
+  command, of kind `cherry-picked` whenever it has `git cherry-pick`, with the first
+  `[<branch> <sha>]` line's hash. So `git commit … && git cherry-pick …` plays the cherry with
+  the commit's hash, and no stamp. Measured at T1 (CLI 2.1.325).
 - **A cast where the declarations name no shape:** `awaitingLeaderApproval` on `ExitPlanMode`'s
   result. A declarations change would not show in `tsc`. Read from the as-built code, in repo
   Session 3; left out at the round 2 intake, which took the `ReportFindings` cast.
@@ -26,8 +30,15 @@ played in its row. A `/code-review` with findings, and its fixes, were checked a
 desktop app: both played beside the findings card.
 
 - **The queue in the desktop** (0.12.0): a command that tests, commits and pushes plays all three
-  under its row, one after another, and `/fx all` still plays all ten in its row. Checked in a
+  under its row, one after another, and `/fx all` still plays all ten in its row (twelve from 0.13.0). Checked in a
   `--plugin-dir` terminal session's strip; the tests cover the rows.
+- **The cherry and the zipper in the desktop** (0.13.0): a cherry-pick and a merge each play their
+  drawing under their row, and `/fx all` plays all twelve. Checked in a `--plugin-dir` terminal
+  session's strip, and the frames by eye; the tests cover the rows.
+- **A merged pull request** (0.13.0): `gh pr merge` prints nothing to the Bash tool, so the
+  engine reports no `pr` and nothing plays. Read from the CLI's code (2.1.325) and `gh`'s source;
+  never run, since it is an action on GitHub. Should a later engine report it, "Merged! #N" is
+  covered by its hook test.
 - **A collapsed strip in a live session** (0.12.0): which surfaces let the strip collapse was
   never measured, and nobody has seen an effect skipped there. Covered by the collapsed-strip
   test.

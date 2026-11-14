@@ -28,6 +28,8 @@ export const FX_MS: Record<FxKind, number> = {
   plan: 2600,
   fixes: 2700,
   review: 2800,
+  cherry: 2600,
+  merge: 2700,
 }
 
 export const COLORS = ['#FF5E5B', '#FFD23F', '#3BCEAC', '#4D96FF', '#B76EF0', '#FF9F1C', '#FF70A6', '#7BE04A']
@@ -937,30 +939,172 @@ function gauge(rnd: () => number, title: string, subtitle: string, percent: numb
   )
 }
 
+// ---- cherry: a gloved hand plucks a pair of cherries -----------------------
+
+const LEAF = 'M0,0 C8,-12 26,-12 32,-2 C22,6 8,6 0,0Z'
+const leaf = (x: number, y: number, rotate: number, scale = 1) =>
+  `<path transform="translate(${x} ${y}) rotate(${rotate})${scale === 1 ? '' : ` scale(${scale})`}" d="${LEAF}" fill="#7BE04A" ` +
+  `stroke="${INK}" stroke-width="${n(2.5 / scale)}" stroke-linejoin="round"/>`
+
+// Where the cherries hang from the branch, and how far the hand pulls them.
+const STEM_X = 220
+const STEM_Y = 31
+const PULL = 19
+
+function cherry(rnd: () => number, title: string, subtitle: string): string {
+  // Comes in, grabs, pulls the branch down, snaps the stems, lifts the pair away.
+  const hand = { dur: 1.3, keyTimes: [0, 0.32, 0.42, 0.58, 0.62, 0.73, 0.83, 1] }
+  const handSplines = '0.2 0.8 0.4 1;0 0 1 1;0.5 0 0.5 1;0 0 1 1;0.2 0.8 0.4 1;0.4 0 0.6 1;0 0 1 1'
+  const lifted = [`0 0`, `0 0`, `0 0`, `0 ${PULL}`, `0 ${PULL}`, `40 -6`, `40 -14`, `40 -14`]
+  // The branch bends with the pull, then springs back past straight and settles.
+  const bend = { dur: 1.3, keyTimes: [0, 0.32, 0.42, 0.58, 0.62, 0.66, 0.73, 0.8, 1] }
+  const sags = [34, 34, 34, 72, 72, 4, 44, 28, 34]
+  const branch =
+    `<path d="M80,30 Q${STEM_X},34 360,26" fill="none" stroke="#7A4A22" stroke-width="7" stroke-linecap="round">` +
+    animate(
+      'd',
+      sags.map(c => `M80,30 Q${STEM_X},${c} 360,26`),
+      bend,
+    ) +
+    `</path>`
+  const leaves = `<g>${animateTransform(
+    'translate',
+    sags.map(c => `0 ${n((c - 34) * 0.4)}`),
+    bend,
+  )}${leaf(160, 31, -155)}${leaf(290, 29, -25)}</g>`
+
+  const stem = (d: string) => `<path d="${d}" fill="none" stroke="#4E7A1E" stroke-width="3.5" stroke-linecap="round"/>`
+  const berry = (x: number, y: number) =>
+    `<circle cx="${x}" cy="${y}" r="13" fill="#E5484D" stroke="${INK}" stroke-width="3"/>` +
+    `<ellipse cx="${x - 5}" cy="${y - 5}" rx="3.5" ry="2.5" fill="#FFFFFF"/>`
+  const cherries =
+    `<g class="cherries">${animateTransform('translate', lifted, { ...hand, splines: handSplines })}` +
+    stem(`M${STEM_X},${STEM_Y} Q214,52 204,80`) +
+    stem(`M${STEM_X},${STEM_Y} Q228,56 237,84`) +
+    leaf(STEM_X + 1, STEM_Y + 1, -35, 0.75) +
+    berry(204, 92) +
+    berry(237, 96) +
+    `</g>`
+
+  // A white cartoon glove pointing left, its pinch at (0, 0), its sleeve running off the right.
+  const glove =
+    `<g stroke="${INK}" stroke-width="3" stroke-linejoin="round">` +
+    `<rect x="40" y="-9" width="90" height="18" fill="#4D96FF"/>` +
+    `<rect x="-8" y="-11" width="30" height="9" rx="4.5" fill="#FFFFFF"/>` +
+    `<rect x="-6" y="-2" width="28" height="9" rx="4.5" fill="#FFFFFF"/>` +
+    `<rect x="-2" y="6" width="20" height="8" rx="4" fill="#FFFFFF"/>` +
+    `<ellipse cx="20" cy="0" rx="15" ry="13" fill="#FFFFFF"/>` +
+    `<rect x="30" y="-13" width="12" height="26" rx="4" fill="#FFFFFF"/></g>`
+  const pinchY = STEM_Y + 9
+  // The hand moves with the cherries, but comes in from off the right.
+  const handAt = lifted.map((v, i) => {
+    const [dx = 0, dy = 0] = v.split(' ').map(Number)
+    return i === 0 ? `380 ${pinchY}` : `${STEM_X + dx} ${pinchY + dy}`
+  })
+  const theHand = `<g transform="translate(380 ${pinchY})">${animateTransform('translate', handAt, { ...hand, splines: handSplines })}${glove}</g>`
+
+  const snap = 0.8
+  const twinkles = ['#FFD23F', '#FF70A6', '#7BE04A']
+  const sparkles = [
+    [300, 66],
+    [214, 112],
+    [318, 112],
+    [236, 46],
+  ]
+    .map(([x = 0, y = 0], i) => sparkle(x, y, 6 + rnd() * 5, twinkles[i % twinkles.length] ?? INK, 0.95 + i * 0.08))
+    .join('')
+
+  return (
+    fadeGroup(branch + leaves + cherries + theHand, 0, 2.4, 0.85) +
+    rays(rnd, { cx: STEM_X, cy: STEM_Y, count: 8, from: [8, 14], to: [20, 30], flat: 1, begin: snap }) +
+    sparkles +
+    label(title, subtitle, { y: 150, fill: '#FF5E5B', begin: 1, dur: 1.5, size: 26, rotate: -6 })
+  )
+}
+
+// ---- merge: a zipper closes two strands into one ---------------------------
+
+// Where the slider starts and lands, on the line the strands close into.
+const ZIP_FROM = 110
+const ZIP_TO = 300
+const ZIP_Y = 95
+
+function zipper(rnd: () => number, title: string, subtitle: string): string {
+  const run = { dur: 1.4, keyTimes: [0, 0.21, 0.86, 1], splines: '0 0 1 1;0.45 0 0.55 1;0 0 1 1' }
+  const at = [ZIP_FROM, ZIP_FROM, ZIP_TO, ZIP_TO]
+  // A strand of teeth: its dashes are the teeth, and the other strand's sit in its gaps.
+  const strand = (color: string, d: (s: number) => string, offset = 0) =>
+    `<path d="${d(ZIP_FROM)}" fill="none" stroke="${color}" stroke-width="9" stroke-dasharray="5 3"` +
+    `${offset ? ` stroke-dashoffset="${offset}"` : ''}>${animate('d', at.map(d), run)}</path>`
+  const closed = (y: number) => (s: number) => `M80,${y} L${s},${y}`
+  const open = (y: number, far: number) => (s: number) => `M${s},${y} C${s + 25},${y} ${s + 35},${far} ${s + 65},${far} L430,${far}`
+  const strands =
+    strand('#4D96FF', closed(ZIP_Y - 3)) +
+    strand('#B76EF0', closed(ZIP_Y + 3), 4) +
+    strand('#4D96FF', open(ZIP_Y - 3, 62)) +
+    strand('#B76EF0', open(ZIP_Y + 3, 128))
+
+  // The slider's wide end faces the open strands; its pull tab tilts up behind it.
+  const body =
+    `<g stroke="${INK}" stroke-width="3" stroke-linejoin="round">` +
+    `<path d="M-13,-9 L11,-15 L11,15 L-13,9Z" fill="#C9CCD6"/>` +
+    `<g transform="rotate(-35)"><rect x="12" y="-5" width="26" height="10" rx="5" fill="#9AA0AE"/>` +
+    `<circle cx="31" cy="0" r="2" fill="${INK}" stroke="none"/></g></g>`
+  const slider =
+    `<g class="slider" transform="translate(${ZIP_FROM} ${ZIP_Y})">` +
+    animateTransform(
+      'translate',
+      at.map(x => `${x} ${ZIP_Y}`),
+      run,
+    ) +
+    `<g transform="scale(0)">` +
+    animateTransform('scale', ['0.2', String(PEAK), '0.9', '1', '1', '1.25', '1', '1'], {
+      dur: 1.4,
+      keyTimes: [0, 0.1, 0.17, 0.22, 0.86, 0.89, 0.95, 1],
+    }) +
+    `${body}</g></g>`
+
+  const landed = 1.2
+  const twinkles = ['#7BE04A', '#FFD23F', '#3BCEAC']
+  const sparkles = [
+    [160, 50],
+    [262, 44],
+    [120, 132],
+  ]
+    .map(([x = 0, y = 0], i) => sparkle(x, y, 6 + rnd() * 5, twinkles[i % twinkles.length] ?? INK, landed + 0.05 + i * 0.09))
+    .join('')
+
+  return (
+    fadeGroup(strands + slider, 0, 2.6, 0.85) +
+    rays(rnd, { cx: ZIP_TO, cy: ZIP_Y, count: 8, from: [16, 22], to: [30, 42], flat: 1, begin: landed }) +
+    sparkles +
+    label(title, subtitle, { y: 150, fill: '#3BCEAC', begin: landed + 0.05, dur: 1.4, size: 30, rotate: -6 })
+  )
+}
+
 // ---- the one entry point ---------------------------------------------------
 
-// `value` is the helper count for `helpers`, the context percentage for `context` and
-// `redzone`, and the number of findings for `review`.
+type Draw = (rnd: () => number, title: string, subtitle: string, value: number) => string
+
+// Every kind has its drawing; `value` is the helper count for `helpers`, the context
+// percentage for `context` and `redzone`, and the number of findings for `review`.
+const DRAWINGS: Record<FxKind, Draw> = {
+  push: confetti,
+  commit: stamp,
+  cherry,
+  tests: check,
+  compact: squish,
+  helpers,
+  plan: clapper,
+  fixes: swat,
+  review,
+  merge: zipper,
+  context: (rnd, title, subtitle, value) => gauge(rnd, title, subtitle, value, false),
+  redzone: (rnd, title, subtitle, value) => gauge(rnd, title, subtitle, value, true),
+}
+
 export function drawFx(kind: FxKind, seed: number, title: string, subtitle = '', value = 0): string {
-  const rnd = random(seed)
-  const body =
-    kind === 'push'
-      ? confetti(rnd, title, subtitle)
-      : kind === 'commit'
-        ? stamp(rnd, title, subtitle)
-        : kind === 'tests'
-          ? check(rnd, title, subtitle)
-          : kind === 'compact'
-            ? squish(rnd, title, subtitle)
-            : kind === 'helpers'
-              ? helpers(rnd, title, subtitle, value)
-              : kind === 'plan'
-                ? clapper(rnd, title, subtitle)
-                : kind === 'fixes'
-                  ? swat(rnd, title, subtitle)
-                  : kind === 'review'
-                    ? review(rnd, title, subtitle, value)
-                    : gauge(rnd, title, subtitle, value, kind === 'redzone')
+  const body = DRAWINGS[kind](random(seed), title, subtitle, value)
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW_X} 0 ${VIEW_WIDTH} ${HEIGHT}" width="${VIEW_WIDTH * SCALE}" height="${HEIGHT * SCALE}">` +

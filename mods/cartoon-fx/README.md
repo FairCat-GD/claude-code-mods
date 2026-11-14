@@ -2,7 +2,8 @@
 
 Short cartoon animations for the moments worth marking in a Claude Code session:
 - a clapperboard for an accepted plan;
-- a stamp for a commit, and confetti for a push;
+- a stamp for a commit, a picked cherry for a cherry-pick, and confetti for a push;
+- a zipper closing two strands into one for a merge;
 - a checkmark for a passing test run;
 - a magnifying glass for a finished code review, and a swatted bug for its fixes;
 - a squish for a compaction, and ninja helpers for subagents;
@@ -26,6 +27,6 @@ In the desktop app: + beside the prompt, then Plugins, then Add marketplace.
 | Command | Does |
 |---|---|
 | `/fx` or `/fx all` | Plays every animation in turn. |
-| `/fx <name>` | Plays one: `plan`, `commit`, `push`, `tests`, `review`, `fixes`, `compact`, `helpers`, `context` or `redzone`. Any other name gets this list. |
+| `/fx <name>` | Plays one: `plan`, `commit`, `cherry`, `push`, `merge`, `tests`, `review`, `fixes`, `compact`, `helpers`, `context` or `redzone`. Any other name gets this list. |
 | `/fx place bottom` | Plays every effect in the strip above the prompt, from now on and in later sessions. |
 | `/fx place conversation` | Plays effects under the row that set them off again, which is the default. `/fx place middle` does the same. |

@@ -6,6 +6,18 @@ All notable changes to cartoon-fx are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-11-15
+
+### Added
+
+- **A cherry-pick picks a cherry.** A gloved hand plucks a pair of cherries from a branch, the
+  branch springs back, and "Cherry picked!" pops with the new commit's short hash. A cherry-pick
+  used to play nothing.
+- **A merge zips two strands into one.** A zipper slider closes a blue and a purple strand into
+  one line, and "Merged!" pops with the branch's name. A merged pull request plays it with its
+  number (`#42`), whenever Claude Code reports one.
+- **`/fx cherry` and `/fx merge`** replay them, and `/fx all` now plays twelve.
+
 ## [0.12.0] — 2026-11-15
 
 ### Changed
