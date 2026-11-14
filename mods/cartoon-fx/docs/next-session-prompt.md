@@ -13,8 +13,12 @@ Release 0.13.0.
 ## State you need that is not in the specs
 
 - **Round 3 is fun, a queue, new moments and controls:** A1, D1 and Q1 are done; T1, T2, C1 and
-  A2 remain. The root's sessions 3a–3c run beside this round, from the root's
-  `docs/spec/REVIEW-2026-11-14.md`.
+  A2 remain.
+- **The repo level runs beside this round,** from the root's `docs/spec/REVIEW-2026-11-14.md`.
+  Its Sessions 3a and 3b are done; repo Session 3c (ready for a second mod) and Session 4 (the
+  repo's documentation pass, closing its round 1) remain, tracked in the root
+  `docs/spec/SESSIONS.md` and `docs/next-session-prompt.md`. Carry this line in every later
+  cartoon-fx handoff until both are done.
 - **Q1 shipped 0.12.0** (its done-note in `SESSIONS.md`): effects take turns. Three real moments
   wait at most, one whose turn comes more than 12 s late is dropped, `/fx`'s samples wait past
   both, and a collapsed strip drops what would play there. The Bash hook plays each moment it
