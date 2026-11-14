@@ -2,6 +2,9 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
 import { committed, isReviewFix, pushedBranch, testsPassed } from '../hooks/detect'
+import { drawFx, FX_MS, textBox } from '../hooks/fx'
+import { RED, YELLOW } from '../hooks/zones'
+import type { FxKind } from '../types'
 
 const BAND = {
   plugin: 'cartoon-fx',
@@ -571,7 +574,7 @@ test('a placement kept from an earlier session is used from the start', async ($
   await band.unmount()
 })
 
-test('the svg shows the middle of its drawing box, drawn twice the 0.5 size', async ($, on) => {
+test('the svg shows the middle of its drawing box, drawn 3.2 times its size', async ($, on) => {
   engine(on, PUSHED)
   await start($)
   await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
@@ -720,4 +723,250 @@ test('a test run needs its runner at the start of a part, and a pass in its outp
   expect(testsPassed('swift test', out('Executed 12 tests, with 0 failures (0 unexpected)'))).toBe('')
   expect(testsPassed('npm test', out(''))).toBeUndefined()
   expect(testsPassed('cat <<EOF\npytest is slow\nEOF', out('pytest is slow'))).toBeUndefined()
+})
+
+// ---- the drawings, read back from drawFx's output -------------------------
+
+// One element of a drawing: drawFx writes well-formed markup with
+// double-quoted attributes and no comments.
+type El = { tag: string; attrs: Record<string, string>; children: El[]; text: string; parent?: El }
+
+function parse(svg: string): El {
+  const root: El = { tag: '#root', attrs: {}, children: [], text: '' }
+  let at = root
+  for (const [, close, tag, attrs, selfClosing, text] of svg.matchAll(/<(\/?)([\w-]+)([^>]*?)(\/?)>|([^<]+)/g)) {
+    if (text !== undefined) {
+      at.text += text
+    } else if (close) {
+      at = at.parent ?? root
+    } else {
+      const pairs = [...(attrs ?? '').matchAll(/([\w:-]+)="([^"]*)"/g)].map(m => [m[1] ?? '', m[2] ?? ''] as const)
+      const el: El = { tag: tag ?? '', attrs: Object.fromEntries(pairs), children: [], text: '', parent: at }
+      at.children.push(el)
+      if (!selfClosing) at = el
+    }
+  }
+
+  return root
+}
+
+const all = (el: El): El[] => [el, ...el.children.flatMap(all)]
+const named = (el: El, cls: string) => all(el).filter(e => e.attrs.class === cls)
+const nums = (s = '') => [...s.matchAll(/-?\d+(?:\.\d+)?/g)].map(m => Number(m[0]))
+const seconds = (s = '') => Number.parseFloat(s)
+const unescapeXml = (s: string) => s.replace(/&(amp|lt|gt|quot|apos);/g, (_, e: string) => ({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" })[e] ?? e)
+
+// 2D affine matrices, [a b c d e f] as SVG writes them.
+type M = [number, number, number, number, number, number]
+const ID: M = [1, 0, 0, 1, 0, 0]
+const mul = (m: M, k: M): M => [
+  m[0] * k[0] + m[2] * k[1],
+  m[1] * k[0] + m[3] * k[1],
+  m[0] * k[2] + m[2] * k[3],
+  m[1] * k[2] + m[3] * k[3],
+  m[0] * k[4] + m[2] * k[5] + m[4],
+  m[1] * k[4] + m[3] * k[5] + m[5],
+]
+const apply = (m: M, [x, y]: readonly [number, number]): [number, number] => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]
+
+function step(kind: string, v: number[]): M {
+  if (kind === 'translate') return [1, 0, 0, 1, v[0] ?? 0, v[1] ?? 0]
+  if (kind === 'scale') return [v[0] ?? 1, 0, 0, v[1] ?? v[0] ?? 1, 0, 0]
+  const a = ((v[0] ?? 0) * Math.PI) / 180
+  const [cx = 0, cy = 0] = v.slice(1)
+
+  return mul(mul([1, 0, 0, 1, cx, cy], [Math.cos(a), Math.sin(a), -Math.sin(a), Math.cos(a), 0, 0]), [1, 0, 0, 1, -cx, -cy])
+}
+
+const transform = (s = ''): M => [...s.matchAll(/(translate|scale|rotate)\(([^)]*)\)/g)].reduce((m, [, kind, v]) => mul(m, step(kind ?? '', nums(v))), ID)
+
+// An element's own transform where it lands, at its largest: an animated
+// translate at its last value, an animated scale at its peak on each axis.
+function own(el: El): M {
+  const motion = el.children.find(child => child.tag === 'animateTransform')
+  const values = (motion?.attrs.values ?? '').split(';').map(v => nums(v))
+  if (motion?.attrs.type === 'translate') return step('translate', values.at(-1) ?? [])
+  if (motion?.attrs.type === 'scale') {
+    return step('scale', [Math.max(...values.map(v => v[0] ?? 1)), Math.max(...values.map(v => v[1] ?? v[0] ?? 1))])
+  }
+
+  return transform(el.attrs.transform)
+}
+const toView = (el: El): M => (el.parent === undefined ? ID : mul(toView(el.parent), own(el)))
+
+// A shape's corners in its own units, its stroke included; a text's from the
+// same estimate the drawing fits its words by.
+function corners(el: El): [number, number][] {
+  const at = (key: string) => Number(el.attrs[key] ?? 0)
+  const half = at('stroke-width') / 2
+  const box = (x1: number, y1: number, x2: number, y2: number): [number, number][] => [
+    [Math.min(x1, x2) - half, Math.min(y1, y2) - half],
+    [Math.max(x1, x2) + half, Math.min(y1, y2) - half],
+    [Math.min(x1, x2) - half, Math.max(y1, y2) + half],
+    [Math.max(x1, x2) + half, Math.max(y1, y2) + half],
+  ]
+  if (el.tag === 'rect') return box(at('x'), at('y'), at('x') + at('width'), at('y') + at('height'))
+  if (el.tag === 'circle') return box(at('cx') - at('r'), at('cy') - at('r'), at('cx') + at('r'), at('cy') + at('r'))
+  if (el.tag === 'line') return box(at('x1'), at('y1'), at('x2'), at('y2'))
+  if (el.tag === 'text') {
+    const size = at('font-size')
+    const { width, top, bottom } = textBox(unescapeXml(el.text), size, {
+      spacing: at('letter-spacing'),
+      stroke: at('stroke-width'),
+      isCentred: el.attrs['dominant-baseline'] !== undefined,
+    })
+    return [-width / 2, width / 2].flatMap(x => [at('y') + top, at('y') + bottom].map(y => [x, y] as [number, number]))
+  }
+
+  return []
+}
+
+// The part of the drawing box the svg shows.
+function viewOf(root: El) {
+  const [x = 0, y = 0, width = 0, height = 0] = nums(all(root).find(e => e.tag === 'svg')?.attrs.viewBox)
+
+  return { left: x, top: y, right: x + width, bottom: y + height }
+}
+const outside = (view: ReturnType<typeof viewOf>, [x, y]: [number, number]) => x < view.left || x > view.right || y < view.top || y > view.bottom
+
+// Every kind, with the longest words the mod gives it, and its values' extremes.
+const LONG_BRANCH = 'feature/a-very-long-branch-name-that-keeps-going-on-and-on'
+const DRAWN: [FxKind, string, string, number][] = [
+  ['plan', 'Action!', "let's build!", 0],
+  ['commit', 'SAVED', '5e81772', 0],
+  ['commit', 'AMENDED', '9f8e7d6', 0],
+  ['push', 'Pushed!', 'main', 0],
+  ['push', 'Pushed!', LONG_BRANCH, 0],
+  ['tests', 'All green!', '123456 passed', 0],
+  ['tests', 'All green!', '', 0],
+  ...[0, 1, 4, 12].map((n): [FxKind, string, string, number] => ['review', 'Reviewed!', n === 0 ? 'no findings, all clear' : `${n} findings`, n]),
+  ['fixes', 'Bugs squashed!', '12 review defects fixed', 12],
+  ['fixes', 'Bugs squashed!', 'review fixes · 976cd29', 0],
+  ['compact', 'Squished!', '1423k → 182k tokens', 0],
+  ['helpers', 'Helper out!', 'Map every caller of the parser an…', 1],
+  ...[0, 5, 9].map((n): [FxKind, string, string, number] => ['helpers', `×${n} helpers!`, '', n]),
+  ...[-5, 0, 76, 100, 140].map((n): [FxKind, string, string, number] => ['context', 'Yellow zone!', `context ${n}% full`, n]),
+  ...[92, 100, 140].map((n): [FxKind, string, string, number] => ['redzone', 'Red zone!', `context ${n}% full`, n]),
+]
+
+test('every drawing, of every kind and its extremes, stays under the Svg cap', () => {
+  const kinds = new Set(DRAWN.map(([kind]) => kind))
+  expect([...kinds].sort()).toEqual(Object.keys(FX_MS).sort())
+
+  const over = DRAWN.map(([kind, title, subtitle, value]) => ({ kind, value, length: drawFx(kind, 1000, title, subtitle, value).length }))
+  expect(over.filter(drawing => drawing.length > 131072)).toEqual([])
+})
+
+test('every label stays inside the view at its peak, the longest words of every kind included', () => {
+  const clipped = DRAWN.flatMap(([kind, title, subtitle, value]) => {
+    const root = parse(drawFx(kind, 1000, title, subtitle, value))
+    const view = viewOf(root)
+    const labels = named(root, 'label')
+    expect(labels.length).toBeGreaterThan(0)
+
+    return labels.flatMap(label =>
+      all(label)
+        .filter(e => e.tag === 'text')
+        .filter(text => corners(text).some(corner => outside(view, apply(toView(text), corner))))
+        .map(text => `${kind}: ${text.text}`),
+    )
+  })
+  expect(clipped).toEqual([])
+
+  // Too long even at the smallest size, the words are cut, and say so.
+  const branch = all(parse(drawFx('push', 1000, 'Pushed!', LONG_BRANCH))).filter(e => e.tag === 'text')[1]?.text ?? ''
+  expect(branch.endsWith('…')).toBe(true)
+  expect(LONG_BRANCH.startsWith(branch.slice(0, -1))).toBe(true)
+})
+
+test("the review's magnifying glass stays inside the view along its whole path", () => {
+  for (const findings of [0, 1, 3, 4, 12]) {
+    const root = parse(drawFx('review', 1000, 'Reviewed!', `${findings} findings`, findings))
+    const view = viewOf(root)
+    const [lens] = named(root, 'lens')
+    const path = (lens?.children.find(e => e.tag === 'animateMotion')?.attrs.values ?? '').split(';').map(point => nums(point))
+    expect(path.length).toBeGreaterThan(2)
+    const parts = all(lens ?? root).filter(e => e.tag === 'circle' || e.tag === 'line')
+    expect(parts.length).toBeGreaterThan(0)
+
+    const out = path.flatMap(([dx = 0, dy = 0]) =>
+      parts.flatMap(part => corners(part).map(corner => apply(toView(part), corner))).filter(([x, y]) => outside(view, [x + dx, y + dy])),
+    )
+    expect(out).toEqual([])
+  }
+})
+
+test("the review's marks never overlap, even at their peak", () => {
+  for (let findings = 1; findings <= 12; findings++) {
+    const marks = named(parse(drawFx('review', 1000, 'Reviewed!', `${findings} findings`, findings)), 'mark').map(mark => {
+      const dot = all(mark).find(e => e.tag === 'circle')
+      const m = toView(dot ?? mark)
+      const [x, y] = apply(m, [Number(dot?.attrs.cx ?? 0), Number(dot?.attrs.cy ?? 0)])
+
+      return { x, y, r: (Number(dot?.attrs.r ?? 0) + Number(dot?.attrs['stroke-width'] ?? 0) / 2) * Math.hypot(m[0], m[1]) }
+    })
+    expect(marks).toHaveLength(Math.min(findings, 4))
+    const touching = marks.flatMap((a, i) => marks.slice(i + 1).filter(b => Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r))
+    expect(touching).toEqual([])
+  }
+})
+
+test("the gauge's bands change colour where the zones start", () => {
+  for (const [kind, percent] of [
+    ['context', 76],
+    ['redzone', 92],
+  ] as const) {
+    const root = parse(drawFx(kind, 1000, 'Zone!', '', percent))
+    const [x0 = 0, y0 = 0] = nums(/translate\(([^)]*)\)/.exec(named(root, 'needle')[0]?.attrs.transform ?? '')?.[1])
+    const at = (x = 0, y = 0) => Math.round(1000 * (1 - Math.atan2(y0 - y, x - x0) / Math.PI)) / 10
+    const edges = named(root, 'band').map(band => {
+      const [x1, y1, , , , , , x2, y2] = nums(band.attrs.d)
+      return [at(x1, y1), at(x2, y2)]
+    })
+    expect(edges).toEqual([
+      [0, YELLOW],
+      [YELLOW, RED],
+      [RED, 100],
+    ])
+  }
+})
+
+test('a puff of smoke shrinks away whole: no circle in it fades on its own', () => {
+  const puffs = DRAWN.flatMap(([kind, title, subtitle, value]) => named(parse(drawFx(kind, 1000, title, subtitle, value)), 'puff'))
+  expect(puffs.length).toBeGreaterThan(10)
+
+  const circles = puffs.flatMap(puff => all(puff).filter(e => e.tag === 'circle'))
+  const fading = circles.filter(circle => circle.children.some(child => child.attrs.attributeName === 'opacity'))
+  const staying = circles.filter(circle => nums(circle.children.find(child => child.attrs.attributeName === 'r')?.attrs.values).at(-1) !== 0)
+  expect({ fading: fading.length, staying: staying.length }).toEqual({ fading: 0, staying: 0 })
+})
+
+test('the helpers land inside the view, in front of the smoke, and stay until the label goes', () => {
+  for (const count of [1, 2, 3, 4, 5, 9]) {
+    const root = parse(drawFx('helpers', 1000, `×${count} helpers!`, '', count))
+    const view = viewOf(root)
+    const order = all(root)
+    const helpers = named(root, 'helper')
+    expect(helpers).toHaveLength(Math.min(count, 5))
+
+    const smoke = named(root, 'puff').flatMap(all)
+    expect(Math.max(...smoke.map(e => order.indexOf(e)))).toBeLessThan(Math.min(...helpers.map(e => order.indexOf(e))))
+
+    const out = helpers.flatMap(helper =>
+      all(helper)
+        .filter(e => e.tag === 'rect')
+        .flatMap(rect => corners(rect).map(corner => apply(toView(rect), corner)))
+        .filter(point => outside(view, point)),
+    )
+    expect(out).toEqual([])
+
+    // The label's fade starts at the end of its hold; each helper's no earlier.
+    const fadeOf = (el: El | undefined) => {
+      const fade = el?.children.find(child => child.attrs.attributeName === 'opacity')
+      const holds = nums(fade?.attrs.keyTimes).at(-2) ?? 0
+      return seconds(fade?.attrs.begin) + seconds(fade?.attrs.dur) * holds
+    }
+    const label = fadeOf(named(root, 'label')[0]?.parent)
+    for (const helper of helpers) expect(fadeOf(helper)).toBeGreaterThanOrEqual(label)
+  }
 })

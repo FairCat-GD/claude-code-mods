@@ -20,6 +20,12 @@ these are the parts only a person can see. `/fx all` was checked by hand on the 
 at 0.10.1, in the desktop app and in a terminal. A `/code-review` with findings, and its fixes,
 were checked at 0.10.2 in the desktop app: both played beside the findings card.
 
+- **The redrawn effects in the desktop app** (0.11.0): `/fx all` in a desktop session after the
+  update, each drawing whole, under its row and in the strip. Their frames were checked by eye
+  in a browser before the commit, and the structural tests cover their geometry.
+- **Labels in a font other than those measured** (0.11.0): words are fitted by widths measured
+  with Arial Rounded MT Bold and system-ui on macOS. A Windows or Linux desktop falls back to
+  other fonts, unmeasured; the estimate's margin is all that covers them.
 - **The test-run rules in a live session** (0.10.3): `cat` of a config file plays nothing, and
   `npm run verify` still plays "All green!" with its count. The two detection tests cover each
   rule against fixture commands and output.

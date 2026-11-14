@@ -4,19 +4,12 @@ import type { BoxProps, BuiltinToolInputs, ElementConstructor, EngineInterface, 
 import type { FxKind, Placement, Shown } from '../types'
 import { committed, isReviewFix, pushedBranch, testsPassed, tokens } from './detect'
 import { COLORS, drawFx, FX_MS, random } from './fx'
+import { RED, RED_RESET, RESET, YELLOW } from './zones'
 
 const shown = atom({ plugin: 'cartoon-fx', key: 'shown' } as const, null)
 const isYellow = atom({ plugin: 'cartoon-fx', key: 'isYellow' } as const, false)
 const isRed = atom({ plugin: 'cartoon-fx', key: 'isRed' } as const, false)
 const placement = atom({ plugin: 'cartoon-fx', key: 'placement' } as const, 'conversation')
-
-// The context window's yellow zone starts at YELLOW percent, its red zone at
-// RED. Each plays once on the way in, and again only after the window has
-// dropped below its reset: RESET for the yellow, RED_RESET for the red.
-const YELLOW = 75
-const RESET = 70
-const RED = 90
-const RED_RESET = 85
 
 // Subagents started this close together play as one effect, with their count.
 const GATHER_MS = 400
@@ -74,7 +67,7 @@ const underRow = ({ Box, Svg }: Table, own: RenderElement, effect: Shown) => (
 )
 
 // An effect is drawn inside the conversation row of what set it off: a tool
-// call's row (`tool:<id>`), `/fx`'s own output row (`fx:<its text>`), or a
+// call's row (`tool:<id>`), `/fx`'s own output row (`fx:(take N)`), or a
 // reply's text (`reply:<its text>`).
 const toolRow = (id: string) => `tool:${id}`
 const fxRow = (tag: string) => `fx:${tag}`

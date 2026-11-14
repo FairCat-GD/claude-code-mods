@@ -6,6 +6,28 @@ All notable changes to cartoon-fx are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-11-14
+
+### Changed
+
+- **Subagents start with a bang.** A smoke bomb drops and bursts, and bigger ninja helpers leap
+  out in front of the smoke, land with a squash and a hop, and hold a victory pose until the
+  words go: arms up, eyes `^ ^`.
+- **Smoke goes poof.** Every puff swells, drifts out and shrinks to nothing instead of fading,
+  so it stays crisp on a dark background instead of turning into brown discs.
+
+### Fixed
+
+- **The magnifying glass sweeps the page.** A finished review's glass now zigzags over the page
+  line by line and stays in the picture, where it used to sweep below and to the right of it.
+- **A review's "!" marks never overlap.** Each sits just after the line it flags and pops as the
+  glass reaches that line, for one to four findings.
+- **The gauge's yellow starts at 75%,** where the yellow zone does, rather than 60%.
+- **Long words stay in the picture.** A long title or subtitle, such as a long branch name after
+  "Pushed!", shrinks to fit, and past a readable size ends in "…". "Bugs squashed!" and the
+  labels at the bottom of a drawing no longer run off its edges, and the stamp's AMENDED fits
+  inside its frame.
+
 ## [0.10.3] — 2026-10-28
 
 ### Fixed

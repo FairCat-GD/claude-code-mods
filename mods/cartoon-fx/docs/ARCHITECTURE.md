@@ -1,13 +1,15 @@
 # cartoon-fx — architecture, as built
 
-This is cartoon-fx as it stands at 0.10.3, written from its code. Every session that changes the
+This is cartoon-fx as it stands at 0.11.0, written from its code. Every session that changes the
 mod keeps it true.
 
 ## Overview
 
-cartoon-fx is one hooks module (`hooks/register.tsx`), with two helpers beside it:
+cartoon-fx is one hooks module (`hooks/register.tsx`), with three helpers beside it:
 - `hooks/detect.ts` reads what a finished Bash call did: a push, a commit, a passing test run;
-- `hooks/fx.ts` draws each effect as an animated SVG string.
+- `hooks/fx.ts` draws each effect as an animated SVG string;
+- `hooks/zones.ts` holds the context window's zones, which the hooks play by and the gauge
+  draws.
 
 It does two things:
 - **It watches the session.** Tool calls, compactions, subagent starts and finished turns. When
@@ -23,11 +25,12 @@ One effect is on show at a time. A new one replaces any still playing.
 
 | File | Lines | Holds |
 |---|---|---|
-| `hooks/register.tsx` | 513 | the hooks, playing and placement |
+| `hooks/register.tsx` | 506 | the hooks, playing and placement |
 | `hooks/detect.ts` | 104 | the Bash readers, `isReviewFix`, `tokens` |
-| `hooks/fx.ts` | 830 | the ten drawings and their SMIL helpers |
-| `types/index.d.ts` | 25 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 723 | 36 tests |
+| `hooks/fx.ts` | 970 | the ten drawings, their SMIL helpers, and fitting words |
+| `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
+| `types/index.d.ts` | 26 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
+| `tests/cartoon-fx.test.tsx` | 972 | 43 tests |
 
 ## The invariants
 
@@ -113,6 +116,22 @@ One effect is on show at a time. A new one replaces any still playing.
   that fly past the sides leave the frame.
 - **The animation** is SMIL (`animate`, `animateTransform`, `animateMotion`), with no script.
   Shared pieces: the tilted label, smoke clouds, motion rays, sparkles and squash streaks.
+- **What pops** springs to `PEAK` (1.28) times its size before it settles; the stamp's imprint
+  lands at 1.35.
+- **Words that fit.** A label fits its title and subtitle inside the view, with a 4-unit margin,
+  at its pop's peak, its tilt included. It shrinks each in half steps down to 70% of its size
+  (a subtitle to 10), then cuts it with "…". Then it moves up or down as far as its peak box
+  needs. The stamp fits its word inside the imprint's inner frame (down to 20; AMENDED needs it)
+  and its hash under it. `alt` keeps the whole words.
+  - Widths come from `textBox`, an estimate: no text metrics reach a mod. Each character class
+    counts a little over the widest of its letters, as Chromium on macOS measured Arial Rounded
+    MT Bold (where the font stack lands there) and system-ui, at weights 800 and 900. Any other
+    character counts a whole em.
+- **Smoke** (`cloud`) is overlapping circles, an edge layer under a fill layer, that swell,
+  drift out and shrink to nothing. None fades, so no edge shows through a fill on any
+  background.
+- **Names for the tests.** The pieces the structural tests read carry a `class`: `label`,
+  `lens`, `mark`, `band`, `needle`, `puff` and `helper`. Nothing else reads them.
 - **The ten effects and their lengths** (`FX_MS`):
 
   | Kind | Drawing | ms |
@@ -121,14 +140,18 @@ One effect is on show at a time. A new one replaces any still playing.
   | `commit` | a rubber stamp leaves SAVED or AMENDED and the hash | 2300 |
   | `push` | confetti, 46 pieces, with the branch | 2600 |
   | `tests` | a checkmark badge with the count | 2400 |
-  | `review` | a magnifying glass sweeps a page; a red "!" per finding (up to 4), or a green check | 2800 |
+  | `review` | a magnifying glass zigzags down a page; a red "!" after each flagged line (up to 4) as the glass reaches it, or a green check | 2800 |
   | `fixes` | a bug walks in and is swatted | 2700 |
   | `compact` | a press squishes pages into a cube | 2600 |
-  | `helpers` | up to five pixel ninjas dash out of a smoke bomb | 2600 |
+  | `helpers` | a smoke bomb drops and bursts; up to five pixel ninjas leap out in front of the smoke, land and hold a victory pose | 2600 |
   | `context` | a gauge swings into the yellow | 3100 |
   | `redzone` | a gauge slams into the red, rattles and steams | 3300 |
 
-- **`value`** is the helper count, the context percentage, or the number of findings.
+- **`value`** is the helper count, the context percentage, or the number of findings. Past
+  the drawn range it is clamped: five helpers at most and one at least, four marks, and the
+  needle between 0 and 100.
+- **The gauge's bands** are green to `YELLOW`, yellow to `RED`, red to 100, read from
+  `hooks/zones.ts`, the same numbers the context check plays by.
 
 ## Playing and placement
 
@@ -184,8 +207,8 @@ session:
 | Key | Type | Holds |
 |---|---|---|
 | `shown` | `Shown \| null` | the effect on show |
-| `isYellow` | `boolean` | the context window is in its yellow zone (set at 75%, cleared below 70%) |
-| `isRed` | `boolean` | in its red zone (set at 90%, cleared below 85%) |
+| `isYellow` | `boolean` | the context window is in its yellow zone (set at `YELLOW`, 75%, cleared below `RESET`, 70%) |
+| `isRed` | `boolean` | in its red zone (set at `RED`, 90%, cleared below `RED_RESET`, 85%) |
 | `placement` | `Placement` | `conversation` or `bottom`, as taken up from the store |
 
 **`$.store`** holds the owner's data, kept across sessions:
@@ -222,13 +245,26 @@ It uses no network, process or file access.
 ## Testing strategy — the layers, and what each cannot see
 
 The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
-- **`claude plugin test`** runs the 36 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 43 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`).
   - Rows are mounted on the `desktop` surface, and the terminal tests on `terminal`.
   - Two tests cover the detection rules as plain functions.
+  - Seven read `drawFx`'s output back as structure, for every kind with the longest words the
+    mod gives it and the extremes of its value. A small parser in the test file finds the named
+    pieces and composes their transforms, taking an animated translate at its last value and
+    an animated scale at its peak. They check:
+    - each drawing stays under the `<Svg>` cap of 131,072 characters;
+    - every label's peak box, the lens along its path, and every helper where it lands lie
+      inside the view;
+    - the marks never touch;
+    - the bands' edges equal the zones;
+    - no puff circle fades on its own;
+    - the helpers are drawn after the smoke and fade no sooner than the label.
 - **What the kit cannot see:**
-  - what an `<Svg>` actually paints, or whether the app runs its SMIL;
+  - what an `<Svg>` actually paints, or whether the app runs its SMIL: the structural tests
+    check the geometry the code writes, with text widths estimated, and the frames are checked
+    by eye;
   - how the desktop folds calls into groups and scrolls rows in a live session;
   - the real order and timing of tool results, turns and compactions;
   - real git and test-runner output beyond the fixtures;
@@ -237,14 +273,16 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
   (glyphs in the strip), on the installed release (CLI 2.1.310, desktop 2.1.308). On the installed
   0.10.2, in a desktop session started after the update, a `/code-review` with five findings
   played "Reviewed!" beside its findings card, and its re-report with the fixes played "Bugs
-  squashed!" there too, under `placement: conversation`. What nobody has checked by hand is in
-  `docs/BACKLOG.md`.
+  squashed!" there too, under `placement: conversation`. At 0.11.0, the owner checked every
+  drawing's frames by eye before the commit, paused at set times on dark and light in a
+  browser, and the strip of a `--plugin-dir` terminal session played all ten (CLI 2.1.325).
+  What nobody has checked by hand is in `docs/BACKLOG.md`.
 
 ## Packaging
 
 - **The release.** The owner installs the release from this repository's marketplace as
   `cartoon-fx@claude-code-mods`, at user scope. The installed copy is the mod's tracked files at
-  the pushed commit, every one of them (15 at 0.10.3), byte for byte. That includes `CLAUDE.md`,
+  the pushed commit, every one of them (19 at 0.11.0), byte for byte. That includes `CLAUDE.md`,
   `docs/` and the tests. It lives in
   `~/.claude/plugins/cache/claude-code-mods/cartoon-fx/<version>/`, and changes only when
   `claude plugin update cartoon-fx` finds a new version.
@@ -273,7 +311,14 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
   never share a tag.
 - **Thresholds with hysteresis.** Yellow at 75% (reset below 70%) and red at 90% (reset below
   85%), so a window hovering at a line plays once. Going straight past the yellow into the red
-  plays the red alone.
+  plays the red alone. `hooks/zones.ts` is their one home, so the gauge's bands cannot drift
+  from them.
+- **A label's width is estimated, and generous.** With no text metrics, the estimate leans wide
+  (6–13% over each word measured), so a long word shrinks a little sooner than it must rather
+  than ever clip. A font other than those measured (another system's fallback) is not
+  covered.
+- **Smoke shrinks rather than fades.** A puff drawn as overlapping layers cannot fade cleanly
+  circle by circle, and shrinking keeps it opaque, and cartoonish, to the end.
 - **Subagents started within 400 ms play as one effect,** with their count, under the first one's
   Agent row.
 - **A `/code-review` report plays twice at most:** `review` with its findings, then `fixes` with
@@ -297,15 +342,15 @@ In `docs/BACKLOG.md` under *Deferred*:
 - commands split without parsing quoting, so a quoted or heredoc line that starts with a runner
   reads as a test run when the output also shows a pass.
 
-## Baseline (v0.10.3)
+## Baseline (v0.11.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 36 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 43 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |
 
-Measured on CLI 2.1.310. A documentation or refactoring change should not move any of these; if
+Measured on CLI 2.1.325. A documentation or refactoring change should not move any of these; if
 one moves, that is the finding.

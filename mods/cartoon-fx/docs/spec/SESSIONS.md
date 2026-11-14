@@ -100,6 +100,86 @@ in the next session's handoff; if the owner does not push, the check goes to `do
 - **The confetti is the largest drawing.** Polish elsewhere must not push any drawing near the
   cap.
 
+**Done (2026-11-14, 0.11.0).**
+- **Decided with the owner at the start:**
+  - **Frames:** a scratch contact sheet outside the repository. A Node script in the session's
+    scratch folder imported `hooks/fx.ts`, with a resolve hook for its extensionless
+    `./zones`. It wrote a page of every kind with `/fx`'s words, the longest words and the
+    extremes, each paused at ten times on dark and four on light, plus a debug view of the whole
+    440 box with the 260 view outlined. The page was served on `127.0.0.1` from the scratch
+    folder and opened in the app's browser pane. A `file://` page opens there only as a static
+    snapshot, and a `.claude/launch.json` would be an untracked repo-level file. Nothing of it
+    is committed.
+  - **Smoke:** puffs that shrink away. Drafts of today, A (fades as one shape) and B (shrinks)
+    were rendered inline in plan mode; the owner asked Claude to choose, and it chose B. The
+    owner confirmed it on the contact sheet.
+  - **Helpers:** the draft as drawn. A bomb, smoke behind, ninjas at 4× leaping to spread spots,
+    then a squash, a hop and a victory pose.
+  - **Long words:** shrink to about 70%, then cut with "…".
+- **Zones.** `hooks/zones.ts` holds `YELLOW`, `RESET`, `RED` and `RED_RESET`; `register.tsx` plays
+  by them and the gauge draws its bands from them.
+- **The lens and the marks.**
+  - The lens's group is translated to its start, and its `animateMotion` values are offsets
+    from it.
+  - It pops in, zigzags down the page and pops out.
+  - Each "!" sits after the end of its flagged line (`[1, 4, 2, 0]`) and pops when the lens's
+    path reaches that line's height.
+- **Words that fit.** `textBox` estimates widths by character class, calibrated in the browser
+  pane. `fit` shrinks in half steps, then cuts. `label` fits the title and subtitle at `PEAK`
+  with its tilt, then moves vertically to keep its peak box inside the view. The stamp fits
+  AMENDED (floor 20) and its hash.
+- **Scene positions the frames settled:**
+  - the fixes' ground at 116 (was 128), so the nudged label clears the flattened bug;
+  - the clapperboard at `cy` 84 (was 94);
+  - the review's page top at 30 (was 38);
+  - the helpers leaving at 0.36 s, once the smoke has swollen.
+- **Smoke and helpers.** `cloud` circles drift and shrink to radius 0, with no opacity animation,
+  inside `<g class="puff">`. `helpers` draws the bomb and the smoke, then each helper (two
+  sprites swapped at landing, `SPOTS` per count, a sparkle), then the label.
+- **Tests.** Seven structural tests over `drawFx`'s output, with a small parser and transform
+  composer in the test file. They read the pieces by `class` (`label`, `lens`, `mark`, `band`,
+  `needle`, `puff`, `helper`). F14's three comments were corrected.
+- **Amendments:**
+  - **The stamp's imprint is checked as a label too, and AMENDED fits its frame.** At 34 px,
+    AMENDED overflowed the imprint's 152-unit frame before this session; the review had seen
+    only `/fx`'s SAVED. Its floor is 20 rather than 70%, because cutting it read "AMEND…". The
+    session's own finding, within F6's "every title".
+  - **Four scenes moved** (above) so the labels' new vertical fit does not cover them. The
+    session's own finding, from the frames.
+- **Measured** (Chromium 156 in the app's browser pane, macOS):
+  - the label font stack resolves to Arial Rounded MT Bold; SF Pro Rounded is not installed, and
+    `ui-rounded` falls through;
+  - "Bugs squashed!" is 7.8 em at weight 900, so 267 units at its 1.28 peak against the 260
+    view, confirming F6;
+  - per-character widths, the larger of Arial Rounded MT Bold and system-ui at 800 and 900, set
+    the classes; the estimate runs 6–13% over each measured word, never under.
+  - The tests ran on CLI 2.1.325, Node 26.7.0.
+- **Checked by hand:**
+  - The owner looked at every drawing's frames on the contact sheet before the commit: "All
+    good".
+  - In `claude --plugin-dir mods/cartoon-fx` terminal sessions (CLI 2.1.325), the strip played
+    all ten. Claude started them from the Terminal panel at the owner's request, with `/fx all`
+    as the opening prompt: SAVED, tests, review, fixes, compact, helpers, yellow and red were
+    read off the strip. Plan and push played between samples, so `/fx plan` and `/fx push` were
+    each read on their own.
+  - The desktop check waits for the push (`docs/BACKLOG.md`).
+- **Falsified**, each by copying the file aside, breaking it, and copying it back; each failed
+  its own test alone, 42 pass and 1 fail:
+  - the cap lowered to 40,000;
+  - labels with no fit and no vertical move;
+  - the lens's double offset;
+  - marks `[1, 3, 4, 2]` at one x;
+  - the 60% band;
+  - a per-circle opacity fade in the smoke;
+  - the crew drawn before the smoke.
+- **Numbers:**
+  - 43 tests (+7);
+  - `validate` 13 hooks, 5 gating, each with a `.catch`, and 4 state keys, unchanged;
+  - `tsc` and imports clean;
+  - the largest drawing is the confetti at 49,337 characters (−1,406), and five helpers draw
+    28,642 (+10,031);
+  - 19 tracked files (+1).
+
 ---
 
 ## D1: Detection that reads what happened

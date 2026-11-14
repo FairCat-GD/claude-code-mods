@@ -15,7 +15,7 @@ It never changes or delays what Claude does; it only watches and draws.
 | Fixes from a review are applied | a bug is swatted | "Bugs squashed!" and how many were fixed |
 | A commit of review fixes is made | a bug is swatted, in place of the stamp | "Bugs squashed! review fixes" and the hash |
 | The conversation is compacted | a press squishes pages into a cube | "Squished!" and the tokens before → after |
-| Subagents start | ninja helpers dash out of a smoke bomb | "Helper out!" and its task, or "×N helpers!" |
+| Subagents start | a smoke bomb bursts and ninja helpers leap out, land and strike a pose | "Helper out!" and its task, or "×N helpers!" |
 | The context window reaches 75% | a gauge swings into the yellow | "Yellow zone!" and the percentage |
 | The context window reaches 90% | a gauge slams into the red | "Red zone!" and the percentage |
 
@@ -27,6 +27,8 @@ Each stays on screen for about three to four seconds, and a new one replaces one
   70%, and the red only after it drops below 85%. Going straight past 75% into the red plays the
   red alone.
 - **Subagents started together** (within about half a second) play once, with their count.
+- **Long words fit the picture.** A long title or subtitle, such as a long branch name, shrinks
+  to fit, and past a readable size ends in "…".
 - **A test run** counts when the command, or a part of it after `&&`, `;` or `|`, starts with one
   of the common test or verify commands: `npm test`, `npm run verify`, `pytest`, `cargo test`,
   `go test`, `vitest`, `jest`, `playwright test`, `make test` and the like. Environment variables,

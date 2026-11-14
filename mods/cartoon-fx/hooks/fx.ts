@@ -3,6 +3,7 @@
 // does not reshuffle it. Every effect fits the same 440 × 190 box.
 
 import type { FxKind } from '../types'
+import { RED, YELLOW } from './zones'
 
 export const WIDTH = 440
 export const HEIGHT = 190
@@ -73,28 +74,101 @@ const animateTransform = (type: 'translate' | 'scale' | 'rotate', values: string
 const fadeGroup = (content: string, begin: number, dur: number, holdUntil = 0.8) =>
   `<g opacity="0">${animate('opacity', [0, 1, 1, 0], { dur, begin, keyTimes: [0, 0.03, holdUntil, 1] })}${content}</g>`
 
-// Springs `content` in from nothing at (x, y), around its own origin.
-const pop = (content: string, x: number, y: number, begin: number, rotate = 0, dur = 0.5) =>
-  `<g transform="translate(${n(x)} ${n(y)})${rotate ? ` rotate(${rotate})` : ''}"><g transform="scale(0)">` +
-  animateTransform('scale', ['0.2', '1.28', '0.9', '1.05', '1'], { dur, begin, keyTimes: [0, 0.35, 0.6, 0.8, 1] }) +
+// What pops springs to this size before it settles.
+export const PEAK = 1.28
+
+// Springs `content` in from nothing at (x, y), around its own origin. `cls`
+// names the piece for the structural tests.
+const pop = (content: string, x: number, y: number, begin: number, rotate = 0, dur = 0.5, cls = '') =>
+  `<g${cls ? ` class="${cls}"` : ''} transform="translate(${n(x)} ${n(y)})${rotate ? ` rotate(${rotate})` : ''}"><g transform="scale(0)">` +
+  animateTransform('scale', ['0.2', String(PEAK), '0.9', '1.05', '1'], { dur, begin, keyTimes: [0, 0.35, 0.6, 0.8, 1] }) +
   `${content}</g></g>`
+
+// ---- words that fit --------------------------------------------------------
+
+// What a label keeps clear of the view's edges at its peak.
+const MARGIN = 4
+
+// Advance widths in ems: each class a little over the widest of its letters in
+// Arial Rounded MT Bold and system-ui at weights 800 and 900, as a browser
+// measured them. Any other character counts a whole em.
+const EMS: [RegExp, number][] = [
+  [/[ il.,:;'|!·Ij]/, 0.33],
+  [/[ft/\\()[\]{}]/, 0.42],
+  [/[r"*`-]/, 0.5],
+  [/[acesvxyzk]/, 0.6],
+  [/[bdghnopquFJL_?]/, 0.64],
+  [/[0-9TPESZY+<=>^~$#×]/, 0.7],
+  [/[mwM]/, 0.92],
+  [/[A-Z&]/, 0.8],
+]
+
+type TextOptions = { spacing?: number; stroke?: number; isCentred?: boolean }
+
+// A text's box around its anchor, for `text-anchor="middle"`: estimated, since
+// no text metrics reach a mod. `isCentred` is a middle or central baseline;
+// otherwise the anchor is the alphabetic baseline.
+export function textBox(text: string, size: number, { spacing = 0, stroke = 0, isCentred = false }: TextOptions = {}) {
+  const advance = [...text].reduce((sum, c) => sum + (EMS.find(([set]) => set.test(c))?.[1] ?? 1) * size + spacing, 0)
+  const [top, bottom] = isCentred ? [-0.55 * size, 0.55 * size] : [-0.8 * size, 0.25 * size]
+
+  return { width: advance + stroke, top: top - stroke / 2, bottom: bottom + stroke / 2 }
+}
+
+type Placed = { box: ReturnType<typeof textBox>; dy: number }
+
+// How far texts reach from their group's origin once scaled by `peak` and
+// turned by `rotate` degrees: the half-width across, and the top and bottom.
+function reach(texts: Placed[], peak: number, rotate: number) {
+  const a = (rotate * Math.PI) / 180
+  const corners = texts.flatMap(({ box, dy }) => [-box.width / 2, box.width / 2].flatMap(x => [dy + box.top, dy + box.bottom].map(y => [x, y] as const)))
+  const across = corners.map(([x, y]) => Math.abs(peak * (x * Math.cos(a) - y * Math.sin(a))))
+  const down = corners.map(([x, y]) => peak * (x * Math.sin(a) + y * Math.cos(a)))
+
+  return { half: Math.max(...across), top: Math.min(...down), bottom: Math.max(...down) }
+}
+
+// The largest size down to `floor`, in half steps, at which the text fits;
+// cut short with "…" when even the floor is too large.
+function fit(text: string, size: number, floor: number, fits: (text: string, size: number) => boolean) {
+  let s = size
+  while (s - 0.5 >= floor && !fits(text, s)) s -= 0.5
+  if (fits(text, s)) {
+    return { text, size: s }
+  }
+  const chars = [...text]
+  while (chars.length > 1 && !fits(`${chars.join('').trimEnd()}…`, s)) chars.pop()
+
+  return { text: `${chars.join('').trimEnd()}…`, size: s }
+}
 
 // ---- shared pieces ---------------------------------------------------------
 
 type LabelOptions = { y: number; fill: string; begin: number; dur: number; size?: number; rotate?: number }
 
-// The word that pops out, tilted like a cartoon sound effect.
+// The word that pops out, tilted like a cartoon sound effect. Long words
+// shrink, then are cut, to stay inside the view at the pop's peak, and the
+// label moves up or down as far as that needs.
 function label(title: string, subtitle: string, { y, fill, begin, dur, size = 30, rotate = -6 }: LabelOptions): string {
+  const room = VIEW_WIDTH / 2 - MARGIN
+  const titleAt = (text: string, s: number): Placed => ({ box: textBox(text, s, { stroke: 6, isCentred: true }), dy: 0 })
+  const head = fit(title, size, size * 0.7, (text, s) => reach([titleAt(text, s)], PEAK, rotate).half <= room)
+  const dy = head.size * 0.8
+  const subAt = (text: string, s: number): Placed => ({ box: textBox(text, s, { stroke: 4 }), dy })
+  const tail = subtitle ? fit(subtitle, 14, 10, (text, s) => reach([subAt(text, s)], PEAK, rotate).half <= room) : undefined
+  const { top, bottom } = reach([titleAt(head.text, head.size), ...(tail ? [subAt(tail.text, tail.size)] : [])], PEAK, rotate)
+  const at = Math.max(MARGIN - top, Math.min(y, HEIGHT - MARGIN - bottom))
+
   const ink = `stroke="${INK}" stroke-linejoin="round" paint-order="stroke"`
-  const sub = subtitle
-    ? `<text y="${n(size * 0.8)}" text-anchor="middle" ${FONT} font-size="14" font-weight="800" fill="#FFFFFF" ` +
-      `stroke-width="4" ${ink}>${escapeXml(subtitle)}</text>`
+  const sub = tail
+    ? `<text y="${n(dy)}" text-anchor="middle" ${FONT} font-size="${n(tail.size)}" font-weight="800" fill="#FFFFFF" ` +
+      `stroke-width="4" ${ink}>${escapeXml(tail.text)}</text>`
     : ''
   const text =
-    `<text text-anchor="middle" dominant-baseline="middle" ${FONT} font-size="${size}" font-weight="900" ` +
-    `fill="${fill}" stroke-width="6" ${ink}>${escapeXml(title)}</text>${sub}`
+    `<text text-anchor="middle" dominant-baseline="middle" ${FONT} font-size="${n(head.size)}" font-weight="900" ` +
+    `fill="${fill}" stroke-width="6" ${ink}>${escapeXml(head.text)}</text>${sub}`
 
-  return fadeGroup(pop(text, CX, y, begin, rotate), begin, dur)
+  return fadeGroup(pop(text, CX, at, begin, rotate, 0.5, 'label'), begin, dur)
 }
 
 type CloudOptions = {
@@ -110,8 +184,10 @@ type CloudOptions = {
   stretch?: [number, number]
 }
 
-// A puff of smoke: overlapping circles that swell and fade. Drawn twice, the
-// edge layer under the fill layer, so only the cloud's outer rim is outlined.
+// A puff of smoke: overlapping circles that swell, drift out and shrink to
+// nothing. None turns transparent, so no edge shows through a fading fill on
+// any background. Drawn twice, the edge layer under the fill layer, so only
+// the cloud's outer rim is outlined.
 function cloud(rnd: () => number, o: CloudOptions): string {
   const { cx, cy, count, begin = 0, dur = 0.8, fill = CLOUD, edge = CLOUD_EDGE, stretch = [1.5, 0.75] } = o
   const blobs = Array.from({ length: count }, (_, i) => {
@@ -129,19 +205,18 @@ function cloud(rnd: () => number, o: CloudOptions): string {
   const layer = (color: string, grow: number) =>
     blobs
       .map(b => {
-        const t = { dur, begin: b.begin, keyTimes: [0, 0.25, 1] }
+        const t = { dur, begin: b.begin, keyTimes: [0, 0.25, 0.6, 1] }
         return (
           `<circle cx="${n(cx)}" cy="${n(cy)}" r="0" fill="${color}">` +
-          animate('cx', [cx, b.x, b.x + b.dx], t) +
-          animate('cy', [cy, b.y, b.y + b.dy], t) +
-          animate('r', [0, b.r + grow, b.r * 1.2 + grow], t) +
-          animate('opacity', [1, 1, 0], { dur, begin: b.begin, keyTimes: [0, 0.45, 1] }) +
+          animate('cx', [cx, b.x, b.x + b.dx, b.x + b.dx * 1.4], t) +
+          animate('cy', [cy, b.y, b.y + b.dy - 4, b.y + b.dy * 1.4 - 8], t) +
+          animate('r', [0, b.r + grow, b.r * 1.05 + grow, 0], t) +
           `</circle>`
         )
       })
       .join('')
 
-  return layer(edge, 2.5) + layer(fill, 0)
+  return `<g class="puff">${layer(edge, 2.5)}${layer(fill, 0)}</g>`
 }
 
 type RayOptions = { cx: number; cy: number; count: number; from: [number, number]; to: [number, number]; begin: number; flat?: number; colors?: string[] }
@@ -285,17 +360,21 @@ function stamp(rnd: () => number, word: string, subtitle: string): string {
     `<g>${animateTransform('scale', ['1 1', '1 1', '1.1 0.84', '0.97 1.04', '1 1'], { dur: 1, keyTimes: [0, 0.27, 0.31, 0.4, 1] })}` +
     `${body}</g></g></g>`
 
-  const inkText = `${FONT} font-size="34" font-weight="900" letter-spacing="3" fill="${STAMP_INK}"`
+  // The word fits inside the imprint's inner frame, and the hash under it;
+  // AMENDED needs the floor this low.
+  const stamped = fit(word, 34, 20, (text, s) => textBox(text, s, { spacing: 3 }).width <= 140)
+  const hash = fit(subtitle, 14, 10, (text, s) => textBox(text, s, { stroke: 4 }).width <= 160)
+  const inkText = `${FONT} font-size="${n(stamped.size)}" font-weight="900" letter-spacing="3" fill="${STAMP_INK}"`
   const sub = subtitle
-    ? `<text y="50" text-anchor="middle" ${FONT} font-size="14" font-weight="800" fill="#FFFFFF" stroke="${INK}" ` +
-      `stroke-width="4" stroke-linejoin="round" paint-order="stroke">${escapeXml(subtitle)}</text>`
+    ? `<text y="50" text-anchor="middle" ${FONT} font-size="${n(hash.size)}" font-weight="800" fill="#FFFFFF" stroke="${INK}" ` +
+      `stroke-width="4" stroke-linejoin="round" paint-order="stroke">${escapeXml(hash.text)}</text>`
     : ''
   const imprint =
-    `<g transform="translate(${CX} 104) rotate(-8)"><g transform="scale(0)">` +
+    `<g class="label" transform="translate(${CX} 104) rotate(-8)"><g transform="scale(0)">` +
     animateTransform('scale', ['1.35', '0.94', '1.02', '1'], { dur: 0.3, begin: 0.42, keyTimes: [0, 0.5, 0.8, 1] }) +
     `<g opacity="0.92"><rect x="-84" y="-31" width="168" height="62" rx="10" fill="none" stroke="${STAMP_INK}" stroke-width="5"/>` +
     `<rect x="-76" y="-23" width="152" height="46" rx="6" fill="none" stroke="${STAMP_INK}" stroke-width="2"/>` +
-    `<text text-anchor="middle" dominant-baseline="central" ${inkText}>${escapeXml(word)}</text></g>${sub}</g></g>`
+    `<text text-anchor="middle" dominant-baseline="central" ${inkText}>${escapeXml(stamped.text)}</text></g>${sub}</g></g>`
 
   return (
     fadeGroup(imprint, 0.42, 1.8) +
@@ -399,85 +478,123 @@ function squish(rnd: () => number, title: string, subtitle: string): string {
   )
 }
 
-// ---- helpers: ninja helpers dash out of a smoke bomb -----------------------
+// ---- helpers: ninja helpers leap out of a smoke bomb and strike a pose -----
 
 const BODY = '#D97757'
 const EYES = '#2B1A12'
+const FEET = 152
 
-// A tiny pixel helper in a ninja headband, facing right, its feet at (0, 0).
-function ninja(band: string): string {
+// A pixel helper in a ninja headband, facing right, its feet at (0, 0):
+// mid-dash, or landed in its victory pose (arms up, eyes ^ ^, a wide stance).
+function ninja(band: string, isPosed: boolean): string {
   const px = (x: number, y: number, w: number, h: number, fill: string) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}"/>`
+  const legs = (isPosed ? [1, 3, 9, 11] : [2, 4, 8, 10]).map(x => px(x, 6, 1, 2, BODY)).join('')
+  const arms = isPosed
+    ? px(0, 1, 1, 1, BODY) + px(-1, -1, 1, 2, BODY) + px(12, 1, 1, 1, BODY) + px(13, -1, 1, 2, BODY)
+    : px(0, 2, 1, 2, BODY) + px(12, 2, 1, 2, BODY)
+  const tail = isPosed ? px(-2, 2, 2, 1, band) + px(-4, 3, 2, 1, band) : px(-1, 1, 2, 1, band) + px(-2, 0, 1, 1, band)
+  const eyes = isPosed
+    ? [3, 8].map(x => px(x, 3, 1, 1, EYES) + px(x + 1, 2, 1, 1, EYES) + px(x + 2, 3, 1, 1, EYES)).join('')
+    : px(4, 2, 1, 2, EYES) + px(9, 2, 1, 2, EYES)
+
   return (
-    `<g transform="scale(3) translate(-6.5 -8)" shape-rendering="crispEdges">` +
+    `<g transform="scale(4) translate(-6.5 -8)" shape-rendering="crispEdges">` +
     px(1, 0, 11, 6, BODY) +
-    px(0, 2, 1, 2, BODY) +
-    px(12, 2, 1, 2, BODY) +
-    [2, 4, 8, 10].map(x => px(x, 6, 1, 2, BODY)).join('') +
+    arms +
+    legs +
     px(1, 1, 11, 1, band) +
-    px(-1, 1, 2, 1, band) +
-    px(-2, 0, 1, 1, band) +
-    px(4, 2, 1, 2, EYES) +
-    px(9, 2, 1, 2, EYES) +
+    tail +
+    eyes +
     `</g>`
   )
 }
 
-function helper(rnd: () => number, i: number): string {
-  const dir = i % 2 === 0 ? 1 : -1
-  const dist = 70 + Math.floor(i / 2) * 28 + rnd() * 10
-  const begin = 0.18 + i * 0.08
-  const dur = 1.5
+// Where each of a crew of one to five lands, measured from the bomb: spread
+// across the view, alternating sides, and inside it even mid-squash.
+const SPOTS: number[][] = [[64], [64, -64], [92, -92, 0], [34, -34, 92, -92], [46, -46, 92, -92, 0]]
+
+// Out of the smoke in an arc, a squash on landing, a hop, then the pose, held
+// until the label goes.
+function helper(rnd: () => number, i: number, x: number): string {
+  const dir = x < 0 ? -1 : 1
+  const begin = 0.36 + i * 0.07
+  const band = COLORS[(i * 3) % COLORS.length] ?? INK
+  const leap = { dur: 1, begin, keyTimes: [0, 0.22, 0.45, 0.58, 0.72, 0.86, 1] }
+  const lift = x === 0 ? -48 : -30 - rnd() * 10
   const hops: [number, number][] = [
     [0, 0],
-    [0.22, -20],
-    [0.45, 0],
-    [0.68, -14],
-    [0.86, 0],
-    [1.25, -8],
+    [x / 2, lift],
+    [x, 0],
+    [x, 0],
+    [x, -12],
+    [x, 0],
+    [x, 0],
   ]
-  const keyTimes = [0, 0.18, 0.36, 0.54, 0.7, 1]
-  const band = COLORS[(i * 3) % COLORS.length] ?? INK
-  const trail = [-6, -11, -16]
-    .map(
-      (y, k) =>
-        `<line x1="${-24 - k * 3}" y1="${y * 1.25}" x2="${-40 - k * 5}" y2="${y * 1.25}" stroke="${INK}" stroke-width="2" stroke-linecap="round" opacity="0.5"/>`,
-    )
+  const squash = ['1 1', '1 1', '1.25 0.75', '0.9 1.12', '1 1', '1.12 0.9', '1 1']
+  // The dashing sprite gives way to the posed one as it lands.
+  const swap = { dur: 1, begin, keyTimes: [0, 0.44, 0.45, 1] }
+  const dashing = `<g>${animate('opacity', [1, 1, 0, 0], swap)}${ninja(band, false)}</g>`
+  const posed = `<g opacity="0">${animate('opacity', [0, 0, 1, 1], swap)}${ninja(band, true)}</g>`
+  const trail = [-8, -16, -24]
+    .map((y, k) => `<line x1="${-30 - k * 3}" y1="${y}" x2="${-50 - k * 6}" y2="${y}" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>`)
     .join('')
+  const trails = `<g opacity="0">${animate('opacity', [0.6, 0.6, 0], { dur: 0.5, begin, keyTimes: [0, 0.7, 1] })}${trail}</g>`
+
   return (
-    `<g transform="translate(${CX} 146)" opacity="0">` +
-    animate('opacity', [1, 1, 0], { dur, begin, keyTimes: [0, 0.7, 1] }) +
+    `<g class="helper" transform="translate(${CX} ${FEET})" opacity="0">` +
+    animate('opacity', [1, 1, 0], { dur: 2.45 - begin, begin, keyTimes: [0, 0.88, 1] }) +
     `<g>${animateTransform(
       'translate',
-      hops.map(([f, h]) => `${n(dir * dist * f)} ${h}`),
-      { dur, begin, keyTimes },
+      hops.map(([a, b]) => `${n(a)} ${n(b)}`),
+      leap,
     )}` +
-    `<g transform="scale(${dir} 1)">${trail}${ninja(band)}</g></g></g>`
+    `<g>${animateTransform('scale', squash, leap)}` +
+    `<g transform="scale(${dir} 1)">${trails}${dashing}${posed}</g></g></g></g>` +
+    sparkle(CX + x + dir * 20, FEET - 50, 7, COLORS[(i * 3 + 1) % COLORS.length] ?? INK, begin + 0.62)
+  )
+}
+
+// A round bomb drops in, its fuse fizzing, and bursts into the smoke.
+function bomb(): string {
+  const body =
+    `<circle r="12" fill="#2B2B33" stroke="${INK}" stroke-width="3"/>` +
+    `<path d="M-6,-4 A7,7 0 0 1 0,-9" fill="none" stroke="#6E6E7C" stroke-width="2.5" stroke-linecap="round"/>` +
+    `<rect x="-4" y="-17" width="8" height="6" rx="1" fill="#6E6E7C" stroke="${INK}" stroke-width="2"/>` +
+    `<path d="M0,-17 q4,-7 10,-6" fill="none" stroke="#B07438" stroke-width="2.5" stroke-linecap="round"/>` +
+    sparkle(10, -23, 6, '#FFD23F', 0)
+
+  return (
+    `<g transform="translate(${CX} 136)" opacity="0">` +
+    animate('opacity', [1, 1, 0], { dur: 0.26, keyTimes: [0, 0.9, 1] }) +
+    `<g>${animateTransform('translate', ['0 -80', '0 0', '0 -7', '0 0'], { dur: 0.22, keyTimes: [0, 0.6, 0.8, 1] })}${body}</g></g>`
   )
 }
 
 function helpers(rnd: () => number, title: string, subtitle: string, count: number): string {
-  const crew = Array.from({ length: Math.max(1, Math.min(count, 5)) }, (_, i) => helper(rnd, i)).join('')
+  const spots = SPOTS[Math.max(1, Math.min(count, SPOTS.length)) - 1] ?? [0]
   return (
-    crew +
+    bomb() +
     cloud(rnd, {
       cx: CX,
-      cy: 128,
+      cy: 134,
       count: 11,
       spread: [18, 32],
       radius: [15, 24],
+      begin: 0.2,
       dur: 1,
       fill: '#F1F1F6',
       edge: '#8E8EA6',
       stretch: [1.6, 0.7],
     }) +
-    label(title, subtitle, { y: 44, fill: '#FF9F1C', begin: 0.3, dur: 2 })
+    spots.map((x, i) => helper(rnd, i, x)).join('') +
+    label(title, subtitle, { y: 44, fill: '#FF9F1C', begin: 0.4, dur: 2.05 })
   )
 }
 
 // ---- review: a magnifying glass sweeps a page of code ----------------------
 
 function review(rnd: () => number, title: string, subtitle: string, findings: number): string {
-  const top = 38
+  const top = 30
   const lines = [
     { indent: 0, length: 62, color: '#B76EF0' },
     { indent: 10, length: 74, color: '#4D96FF' },
@@ -500,48 +617,71 @@ function review(rnd: () => number, title: string, subtitle: string, findings: nu
       .join('')
   const thePage = fadeGroup(pop(`<g transform="translate(${-CX} ${-(top + 46)})">${page}</g>`, CX, top + 46, 0, -3, 0.4), 0, 2.6)
 
-  // The glass zigzags down the page, then leaves to the right.
+  // The glass pops in at the page's top-left, zigzags down it line by line and
+  // pops out, never leaving the page. Its motion is offsets from where it
+  // starts, which its group's own translate already places.
   const lens =
     `<line x1="19" y1="19" x2="40" y2="40" stroke="${INK}" stroke-width="9" stroke-linecap="round"/>` +
     `<line x1="21" y1="21" x2="38" y2="38" stroke="#B07438" stroke-width="5" stroke-linecap="round"/>` +
     `<circle r="26" fill="#BFE3FF" fill-opacity="0.45" stroke="${INK}" stroke-width="5"/>` +
     `<path d="M-15,-8 A17,17 0 0 1 -5,-17" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>`
-  const path = [
-    [CX - 120, top + 10],
-    [CX + 24, top + 18],
-    [CX - 30, top + 40],
-    [CX + 30, top + 62],
-    [CX - 14, top + 80],
-    [CX + 150, top + 40],
+  const path: [number, number][] = [
+    [CX - 44, top + 14],
+    [CX + 30, top + 24],
+    [CX - 36, top + 44],
+    [CX + 28, top + 62],
+    [CX - 24, top + 80],
+    [CX + 34, top + 46],
   ]
-    .map(([x, y]) => `${x},${y}`)
-    .join(';')
+  const sweep = { begin: 0.3, dur: 1.35, keyTimes: [0, 0.2, 0.42, 0.62, 0.8, 1] }
+  const [startX, startY] = path[0] ?? [CX, top]
   const theLens =
-    `<g opacity="0">${animate('opacity', [1, 1, 0], { dur: 1.7, begin: 0.15, keyTimes: [0, 0.9, 1] })}` +
-    `<g transform="translate(${CX - 120} ${top + 10})"><animateMotion values="${path}" dur="1.6s" begin="0.15s" fill="freeze" ` +
-    `keyTimes="0;0.2;0.42;0.62;0.8;1" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.5 0 1 1"/>` +
+    `<g class="lens" transform="translate(${startX} ${startY})">` +
+    `<animateMotion values="${path.map(([x, y]) => `${x - startX},${y - startY}`).join(';')}" dur="${sweep.dur}s" begin="${sweep.begin}s" ` +
+    `fill="freeze" keyTimes="${sweep.keyTimes.join(';')}" calcMode="spline" ` +
+    `keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.5 0 1 1"/><g transform="scale(0)">` +
+    animateTransform('scale', ['0', '1.2', '1', '1', '1.15', '0'], { dur: 1.75, begin: 0.15, keyTimes: [0, 0.09, 0.15, 0.86, 0.92, 1] }) +
     `${lens}</g></g>`
 
-  // A red "!" beside each line with a finding, as the glass passes; a clean
-  // page gets a green check instead.
-  const flagged = [1, 3, 4, 2]
+  // When the glass's centre first reaches height `y`, read along its path.
+  const reaches = (y: number) => {
+    for (let k = 1; k < path.length; k++) {
+      const [, from] = path[k - 1] ?? [0, y]
+      const [, to] = path[k] ?? [0, y]
+      const [t0, t1] = [sweep.keyTimes[k - 1] ?? 0, sweep.keyTimes[k] ?? 1]
+      if (from !== to && (y - from) * (y - to) <= 0) {
+        return sweep.begin + sweep.dur * (t0 + ((t1 - t0) * (y - from)) / (to - from))
+      }
+    }
+    return sweep.begin + sweep.dur
+  }
+
+  // A red "!" just after the end of each line with a finding, as the glass
+  // reaches it. The flagged lines end far enough apart that no two marks
+  // touch, even at their peak. A clean page gets a green check instead.
+  const flagged = [1, 4, 2, 0]
   const marks =
     findings > 0
       ? flagged
           .slice(0, Math.min(findings, flagged.length))
-          .map((line, i) =>
-            fadeGroup(
+          .map(line => {
+            const { indent, length } = lines[line] ?? { indent: 0, length: 0 }
+            const begin = reaches(lineY(line)) + 0.05
+            return fadeGroup(
               pop(
                 `<circle r="8" fill="#FF5E5B" stroke="${INK}" stroke-width="2.5"/>` +
                   `<text y="4.5" text-anchor="middle" ${FONT} font-size="13" font-weight="900" fill="#FFFFFF">!</text>`,
-                CX + 50,
+                CX - 48 + indent + length + 14,
                 lineY(line),
-                0.45 + i * 0.22,
+                begin,
+                0,
+                0.5,
+                'mark',
               ),
-              0.45 + i * 0.22,
-              2.1 - i * 0.22,
-            ),
-          )
+              begin,
+              2.55 - begin,
+            )
+          })
           .join('')
       : fadeGroup(
           pop(
@@ -565,7 +705,7 @@ function review(rnd: () => number, title: string, subtitle: string, findings: nu
 // ---- fixes: a bug walks in and gets swatted -------------------------------
 
 const BUG = '#6E4BD8'
-const GROUND = 128
+const GROUND = 116
 
 // A cartoon beetle facing right, its feet at (0, 0); its eyes come apart so
 // they can be swapped for crosses.
@@ -655,7 +795,7 @@ function swat(rnd: () => number, title: string, subtitle: string): string {
 // ---- plan: a film clapperboard snaps shut ---------------------------------
 
 function clapper(rnd: () => number, title: string, subtitle: string): string {
-  const cy = 94
+  const cy = 84
   const bar = (y: number, id: string) =>
     `<clipPath id="${id}"><rect x="-56" y="${y}" width="112" height="14" rx="2"/></clipPath>` +
     `<rect x="-56" y="${y}" width="112" height="14" rx="2" fill="#2B2B33"/>` +
@@ -721,7 +861,7 @@ function gauge(rnd: () => number, title: string, subtitle: string, percent: numb
   const arc = (p1: number, p2: number, color: string, pulse = '') => {
     const [x1, y1] = at(p1)
     const [x2, y2] = at(p2)
-    return `<path d="M${n(x1)},${n(y1)} A${R},${R} 0 0 1 ${n(x2)},${n(y2)}" fill="none" stroke="${color}" stroke-width="14">${pulse}</path>`
+    return `<path class="band" d="M${n(x1)},${n(y1)} A${R},${R} 0 0 1 ${n(x2)},${n(y2)}" fill="none" stroke="${color}" stroke-width="14">${pulse}</path>`
   }
   // The yellow band throbs twice; the red one keeps throbbing, faster.
   const pulse = isRed
@@ -739,15 +879,15 @@ function gauge(rnd: () => number, title: string, subtitle: string, percent: numb
     ? { values: [-90, 96, rot - 10, rot + 6, rot - 3, rot], keyTimes: [0, 0.4, 0.6, 0.75, 0.88, 1] }
     : { values: [-90, rot + 14, rot - 7, rot + 3, rot], keyTimes: [0, 0.45, 0.7, 0.85, 1] }
   const needle =
-    `<g transform="translate(${gx} ${gy})"><g transform="rotate(-90)">` +
+    `<g class="needle" transform="translate(${gx} ${gy})"><g transform="rotate(-90)">` +
     animateTransform('rotate', swing.values.map(String), { dur: 0.9, begin: 0.2, keyTimes: swing.keyTimes }) +
     `<path d="M-5,0 L0,${-(R - 8)} L5,0 Z" fill="${INK}"/></g>` +
     `<circle r="8" fill="${INK}" stroke="${zone}" stroke-width="3"/></g>`
   const dial =
     `<path d="M${gx - R - 14},${gy} A${R + 14},${R + 14} 0 0 1 ${gx + R + 14},${gy} Z" fill="${CLOUD}" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>` +
-    arc(0, 60, '#2FBF71') +
-    arc(60, 90, YELLOW_ZONE, isRed ? '' : pulse) +
-    arc(90, 100, RED_ZONE, isRed ? pulse : '') +
+    arc(0, YELLOW, '#2FBF71') +
+    arc(YELLOW, RED, YELLOW_ZONE, isRed ? '' : pulse) +
+    arc(RED, 100, RED_ZONE, isRed ? pulse : '') +
     ticks +
     needle
   // The red one rattles on its base as the needle hits the stop.
