@@ -1,7 +1,13 @@
-Read this mod's `docs/spec/FEATURE-fun.md` (decision 1) and `docs/spec/REVIEW-2026-11-14.md`
-(F8, F9 and §7), the root CLAUDE.md, this mod's CLAUDE.md, `docs/ARCHITECTURE.md`, then this
-file, and do Session D1 of this mod's `docs/spec/SESSIONS.md`: detection that reads what
-happened. That is the git subcommand anchored, rejected pushes, a detached HEAD, more test
+Read, in the order the root CLAUDE.md gives a mod session:
+1. what D1's **Read** line names, in this mod's `docs/spec/`;
+2. the root CLAUDE.md, then this mod's CLAUDE.md;
+3. *The session cycle* in the root `docs/DEVELOPMENT-WORKFLOW.md`;
+4. this mod's `docs/ARCHITECTURE.md`: its overview, invariants and baseline, and the sections
+   the Read line names;
+5. `docs/spec/SESSIONS.md`'s header, D1's block and A1's done-note;
+6. this file.
+
+Then do Session D1: detection that reads what happened. That is the git subcommand anchored, rejected pushes, a detached HEAD, more test
 runners, and quoting. Release 0.11.1.
 
 ## State you need that is not in the specs
@@ -16,17 +22,17 @@ runners, and quoting. Release 0.11.1.
 
   D1 touches none of it: its ground is `hooks/detect.ts`, its two tests, and the Bash hook in
   `register.tsx`.
-- **Push status.**
-  - `origin/main` holds everything through
-    `review(cartoon-fx): desktop checks wait for the push, and 7 smaller`.
-  - Waiting locally: A1's two commits, `feat(cartoon-fx): drawings that stay in frame, new
-    helpers (0.11.0)` and its `review(cartoon-fx):` commit. Two repo-level commits from a
-    parallel session sit between them and `origin/main`: `feat: hygiene reads the owner's term
-    list, verify runs named stages` and its review. A push carries all four. List
-    `origin/main..HEAD` before any push.
-- **0.10.3 is the installed release** until the owner pushes 0.11.0 and runs
-  `claude plugin update cartoon-fx`. The desktop check of the redrawn effects waits for that
-  (`docs/BACKLOG.md`).
+- **Push status.** A parallel repo session pushed on 2026-11-14 with the owner's approval.
+  `origin/main` then held A1's two commits and that session's own, through
+  `review: the read order covers an intake and a new mod, and 4 smaller`. This handoff's
+  correction, `docs(cartoon-fx): A1's handoff says 0.11.0 is pushed`, was pushed after it with
+  the owner's approval, so `origin/main` holds everything through that commit. List
+  `origin/main..HEAD` before any push.
+- **0.11.0 is pushed, but whether it is installed is unknown.** The desktop check of the redrawn
+  effects runs after `claude plugin update cartoon-fx`, in a new desktop session. If the owner
+  has run it, D1 asks for its outcome at the start; otherwise it stays in `docs/BACKLOG.md`.
+- **This mod's `CLAUDE.md` changed after A1.** Repo session 3b gave it the root's read order and
+  a *Watch for* section; the standing traps below move there when they recur.
 - **The owner's stored placement is `conversation`.**
 - **The CLI on PATH is 2.1.325.**
 - **Baseline** (`docs/ARCHITECTURE.md`, v0.11.0, CLI 2.1.325):
