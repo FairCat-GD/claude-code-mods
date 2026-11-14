@@ -9,10 +9,10 @@ up, it moves out of this file.
 
 - **Muting single effects** (`/fx mute <name>`). Offered at the round 3 intake and declined by the
   owner; `/fx off` mutes them all.
-- **Detection reads printed output where the engine gives no report.** `detect.ts` takes a push
-  or a commit from the call's `gitOperation` first, and from git's printed lines only where the
-  engine reports none: a tag push, `git --no-pager`. Every test run is judged by its runner's
-  wording. A change to either wording breaks it quietly: nothing plays. Narrowed at 0.11.1.
+- **Detection reads printed output.** `detect.ts` takes a commit from the call's
+  `gitOperation` first, and a push from git's own `To` report first, since the engine also
+  reads a fetch's ref line as a push; printed lines also cover what the engine leaves out, such
+  as a tag push or `git --no-pager`. Every test run is judged by its runner's wording. A change to either wording breaks it quietly: nothing plays. Narrowed at 0.11.1.
 - **A cast where the declarations name no shape:** `awaitingLeaderApproval` on `ExitPlanMode`'s
   result. A declarations change would not show in `tsc`. Read from the as-built code, in repo
   Session 3; left out at the round 2 intake, which took the `ReportFindings` cast.

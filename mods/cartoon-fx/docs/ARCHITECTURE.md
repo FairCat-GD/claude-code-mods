@@ -26,11 +26,11 @@ One effect is on show at a time. A new one replaces any still playing.
 | File | Lines | Holds |
 |---|---|---|
 | `hooks/register.tsx` | 506 | the hooks, playing and placement |
-| `hooks/detect.ts` | 216 | the Bash readers, `isReviewFix`, `tokens` |
+| `hooks/detect.ts` | 221 | the Bash readers, `isReviewFix`, `tokens` |
 | `hooks/fx.ts` | 969 | the ten drawings, their SMIL helpers, and fitting words |
 | `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
 | `types/index.d.ts` | 26 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 1096 | 50 tests |
+| `tests/cartoon-fx.test.tsx` | 1105 | 50 tests |
 
 ## The invariants
 
@@ -74,16 +74,19 @@ One effect is on show at a time. A new one replaces any still playing.
 
 ## Detection (`hooks/detect.ts`)
 
-- **The engine's report first.** A Bash call's `gitOperation` is the engine's own reading of what
-  git did. Where it names a push or a commit, it decides; git's printed output is the fallback for
-  what it leaves out. Read from the CLI build 2.1.325, whose desktop engine holds the same
-  pattern, the engine:
+- **The engine's report first,** but for a push that git reported itself. A Bash call's
+  `gitOperation` is the engine's own reading of what git did. Where it names a commit, it decides;
+  where it names a push, it decides unless git printed its own report, which outranks it. Git's
+  printed output is the fallback for what the engine leaves out. Read from the CLI build 2.1.325,
+  whose desktop engine holds the same pattern, the engine:
   - anchors the subcommand as `gitPart` below does, but takes no `--no-pager`;
   - reports a commit from the first `[<branch>|detached HEAD] (root-commit)? <sha>]` line, of kind
     `cherry-picked` when the command has `git cherry-pick`, `amended` with `--amend`, else
     `committed`;
   - reports a push only without `-n`/`--dry-run`, from the first ref line shaped `sha..sha` or
-    `[new branch]`, so a rejected, up-to-date, deleted or `[new tag]` ref is no push;
+    `[new branch]` anywhere in the output, so a rejected, up-to-date, deleted or `[new tag]` ref
+    is no push, but a fetch's or pull's `a..b main -> origin/main` line earlier in the command
+    is;
   - reports nothing for a call in the background.
 - **The parts of a command.** `parts` splits a compound command where the shell would: at `&&`,
   `||`, `;`, `|` and newlines, but never inside quotes, `$(…)`, backticks or a heredoc's body,
@@ -94,11 +97,12 @@ One effect is on show at a time. A new one replaces any still playing.
   options (`-C <dir>`, `-c <key=value>`, `--no-pager`, `--<option>=<value>`), so `git log
   --grep=push` is no push. `gitPart` takes the part whose subcommand is `push` or `commit`; a flag
   elsewhere in the line (the `-n` of `git log -n 5`) is not read as the push's own.
-- **A push** plays the engine's `gitOperation.push.branch` when it gives one. Otherwise it needs
-  a push part with no `--dry-run` or `-n`, and git's own report under its `To <remote>` line: the
-  first indented ref line with `->` that is not a rejection (`!`) or already up to date (`=`)
-  names the branch, or a tag. With no `To` line, nothing plays, so a log's `HEAD -> main` or a
-  rename's `a -> b` never does.
+- **A push** needs the engine's `gitOperation.push`, or a push part with no `--dry-run` or
+  `-n`. Where git printed its own report, under a `To <remote>` line, that decides: the first
+  indented ref line with `->` that is not a rejection (`!`) or already up to date (`=`) names
+  the branch, or a tag, and with none nothing plays. With no `To` line, the engine's branch
+  plays, unless git said "Everything up-to-date". So a log's `HEAD -> main`, a rename's
+  `a -> b` or a pull's fetched line never plays.
 - **A commit** plays the engine's `gitOperation.commit` of kind `committed` or `amended`, with the
   subject from git's printed line. A `cherry-picked` one plays nothing yet. Otherwise it needs a
   commit part with no `--dry-run`, and git's `[<branch>|detached HEAD] (…)? <sha>] subject` line;
@@ -109,9 +113,9 @@ One effect is on show at a time. A new one replaces any still playing.
   (`npm|pnpm|yarn|bun (run) test|verify`, `vitest`, `jest`, `pytest`, `playwright test`,
   `go test`, `cargo test|nextest|xtask verify`, `swift test`, `deno test`,
   `make test|check|verify`, `claude plugin test`, `node --test`, `dotnet test`, `mix test`,
-  `(bundle exec) rspec`, `(php) phpunit`, `gradle|gradlew (:mod:)test`, `mvn|mvnw (clean) test`,
-  and `xcodebuild … test`, whose action follows its options). A path may come before rspec,
-  phpunit, gradle and mvn.
+  `(bundle exec) rspec`, `(php) phpunit`, `gradle|gradlew (:mod:)test`,
+  `mvn|mvnw (clean) test` but not `test-compile`, and `xcodebuild … test`, whose action follows
+  its options). A path may come before rspec, phpunit, gradle and mvn.
   - Only `LEAD` may come before it: `VAR=value` words (quoted values too), `(` or `{`, and the
     wrappers `time`, `env`, `nice`, `command`, `exec`, `timeout <n>` and `sh|bash|zsh -c`.
   - Before `vitest`, `jest`, `pytest` or `playwright test` may also come a `LAUNCHER` (`npx`,
@@ -120,13 +124,13 @@ One effect is on show at a time. A new one replaces any still playing.
   - The runner ends at its word, so `npm run test:unit` counts and `jest.config.js` doesn't.
     A command that only names a runner (`cat jest.config.js`, `npm ls vitest`,
     `npx playwright install`) is no run.
-  - It must print no failure: no count (`N failed`, `failing`, `failures`, `errors`), no tally
-    of one or more (node's `fail N` line, dotnet's `Failed: N`, maven's and phpunit's
+  - It must print no failure: no count (`N fail`, `failed`, `failing`, `failures`, `errors`),
+    no tally of one or more (node's `fail N` line, dotnet's `Failed: N`, maven's and phpunit's
     `Failures: N` or `Errors: N`), and no mark. A mark counts only at a line's start, after
     spaces, a `[LEVEL]` prefix, `--- ` or `** `: `FAIL`, `FAILED`, `FAILURES!`, `ERRORS!`,
-    `BUILD FAILED|FAILURE`, `TEST FAILED`, a `(fail)` line; `test result: FAILED` counts anywhere.
-    So a test named "shows FAIL badge" passes. A piped run exits with the pipe's last command, so
-    the printed output has the last word.
+    `BUILD FAILED|FAILURE`, `TEST FAILED`, a `(fail)` line; `test result: FAILED` and
+    `verify: FAIL` count anywhere. So a test named "shows FAIL badge" passes. A piped run exits
+    with the pipe's last command, so the printed output has the last word.
   - It must print a pass: an `N passed|passing|pass` count or a tally (node's `pass N` line,
     dotnet's `Passed: N` or `succeeded: N`), or with neither, a runner's own mark (`PASSED_MARK`:
     a line starting `ok` or `PASS`, XCTest's "with 0 failures", "tests passed", `verify: PASS`,
@@ -366,10 +370,11 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
 - **A review's effect is awaited before the report's result returns.** Run beside the result, it
   raced the test kit, which does not wait for it, and the read it costs comes once per review.
 
-- **The engine's `gitOperation` decides a push or a commit; printed output is the fallback.** The
-  engine reads git's output with the same rules on every surface, and a test can hand the hooks
-  a report. The fallback keeps what it leaves out: a tag push, `git --no-pager`, and an engine
-  that gives no report.
+- **The engine's `gitOperation` decides a commit, and a push where git printed no report of its
+  own; printed output is the fallback.** The engine reads git's output with the same rules on
+  every surface, and a test can hand the hooks a report. Git's own `To` block outranks the
+  engine's push, because the engine also reads a fetch's ref line as one. The fallback keeps what
+  the engine leaves out: a tag push, `git --no-pager`, and an engine that gives no report.
 - **A tag push plays "Pushed!" with the tag's name.** The owner's call at D1's start: the engine
   reports no push for a `[new tag]` ref, so it plays from git's printed line.
 

@@ -16,7 +16,7 @@ dropped. Release 0.12.0.
   A2 remain. The root's sessions 3a–3c run beside this round, from the root's
   `docs/spec/REVIEW-2026-11-14.md`.
 - **D1 shipped 0.11.1** (its done-note in `SESSIONS.md`): detection in `hooks/detect.ts` reads
-  the engine's `gitOperation` first, splits commands with quoting in view, anchors the git
+  the engine's `gitOperation` first (for a push, after git's own `To` report), splits commands with quoting in view, anchors the git
   subcommand, and knows eight more runners. `register.tsx` was not touched. The Bash hook still
   plays one effect, the push before the commit before the tests; Q1 makes it play each, in the
   order the command ran them.
@@ -28,8 +28,10 @@ dropped. Release 0.12.0.
   short to the owner. All ten effects share the `/fx` row, so once the row draws the first, the
   rest never fall back to the strip. If the box hid the row, they played out of sight. Q1
   rebuilds `/fx all` on the queue, so it should keep this in view.
-- **Push status.** D1's commit is local. List `origin/main..HEAD` before any push; parallel repo
-  sessions share this checkout.
+- **Push status.** D1's two commits, the session's and its review's, were pushed on 2026-11-14
+  with the owner's approval, so `origin/main` holds everything through D1's review. Whether
+  0.11.1 is installed (`claude plugin update cartoon-fx`) is unknown; Q1 can ask. List
+  `origin/main..HEAD` before any push; parallel repo sessions share this checkout.
 - **The owner's stored placement is `conversation`.**
 - **The CLI on PATH is 2.1.325,** and so is the desktop's engine.
 - **Baseline** (`docs/ARCHITECTURE.md`, v0.11.1, CLI 2.1.325):

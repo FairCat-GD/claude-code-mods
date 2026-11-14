@@ -45,10 +45,11 @@ function parts(command: string): string[] {
       part += c
       continue
     }
-    // At the top, or inside `$(…)`.
-    const doc = c === '<' ? /^<<(-?)\s*(?:'([^']*)'|"([^"]*)"|([^\s;&|<>()'"]+))/.exec(command.slice(i)) : null
+    // At the top, or inside `$(…)`; in `$((…))` arithmetic, `<<` is a shift.
+    const isArithmetic = open.length >= 2 && open.at(-2) === '(' && inside === '('
+    const doc = c === '<' && !isArithmetic ? /^<<(-?)\s*(?:'([^']*)'|"([^"]*)"|([^\s;&|<>()'"]+))/.exec(command.slice(i)) : null
     if (doc !== null && command.charAt(i - 1) !== '<' && command.charAt(i + 2) !== '<') {
-      heredocs.push({ word: doc[2] ?? doc[3] ?? doc[4] ?? '', isIndented: doc[1] === '-' })
+      heredocs.push({ word: doc[2] ?? doc[3] ?? (doc[4] ?? '').replace(/\\/g, ''), isIndented: doc[1] === '-' })
       part += doc[0]
       i += doc[0].length - 1
     } else if (c === '\n' && heredocs.length > 0) {
@@ -113,7 +114,8 @@ const RUNNERS = [
   String.raw`make\s+(?:test|check|verify)|claude\s+plugin\s+test`,
   String.raw`node\s+(?:-\S+\s+)*?--test(?!-)|dotnet\s+test|mix\s+test`,
   String.raw`(?:bundle\s+exec\s+)?(?:\S*/)?rspec|(?:php\s+)?(?:\S*/)?phpunit`,
-  String.raw`(?:\S*/)?gradlew?\s+${FLAGS}(?:\S*:)?test|(?:\S*/)?mvnw?\s+${FLAGS}(?:clean\s+${FLAGS})?test`,
+  // Not maven's `test-compile`, which runs no tests.
+  String.raw`(?:\S*/)?gradlew?\s+${FLAGS}(?:\S*:)?test(?!-)|(?:\S*/)?mvnw?\s+${FLAGS}(?:clean\s+${FLAGS})?test(?!-)`,
   // xcodebuild takes its action after its options.
   String.raw`xcodebuild(?:\s+\S+)*?\s+test(?:-without-building)?`,
 ]
@@ -121,12 +123,13 @@ const RUNNERS = [
 const TEST_RUN = new RegExp(String.raw`^\s*${LEAD}(?:${RUNNERS.join('|')})(?![\w./])`)
 // A piped run (`npm test | tail`) exits with the pipe's last command, so the
 // output has the last word: any failure it reports means the run did not pass.
-const FAILED_COUNT = /\b[1-9]\d*\s+(?:failed|failing|failures?|errors?)\b/i
+const FAILED_COUNT = /\b[1-9]\d*\s+(?:fail|failed|failing|failures?|errors?)\b/i
 // node's `ℹ fail 1`, dotnet's `Failed: 1`, maven's and phpunit's `Failures: 1`.
 const FAILED_TALLY = /^\s*(?:ℹ|#)?\s*fail\s+[1-9]|\b(?:[Ff]ailed|Failures|Errors):\s*[1-9]/m
 // A failure mark counts where runners print it, at a line's start (after maven's
 // `[ERROR]`, go's `--- `, xcodebuild's `** `), so a test named "shows FAIL" passes.
-const FAILED_MARK = /^\s*(?:\[[A-Z]+\]\s+)?(?:--- |\*\* )?(?:(?:BUILD|TEST) )?FAIL(?:ED|URES?)?\b|^\s*(?:\(fail\)|ERRORS!)|test result: FAILED/m
+const FAILED_MARK =
+  /^\s*(?:\[[A-Z]+\]\s+)?(?:--- |\*\* )?(?:(?:BUILD|TEST) )?FAIL(?:ED|URES?)?\b|^\s*(?:\(fail\)|ERRORS!)|test result: FAILED|\bverify: FAIL\b/m
 const PASSED_COUNT = /\b(\d+)\s+(?:passed|passing|pass)\b/gi
 // node's `ℹ pass 48`, dotnet's `Passed: 12` and newer `succeeded: 12`.
 const PASSED_TALLY = /^\s*(?:ℹ|#)?\s*pass\s+(\d+)\s*$|\b(?:Passed|succeeded):\s*(\d+)/gm
@@ -143,18 +146,20 @@ const PASSED_MARK = new RegExp(
 const printed = (out: BashOutput) => `${out.stdout}\n${out.stderr}`
 
 // The branch a successful push updated, or undefined when nothing was pushed.
-// The engine's own report decides; git's printed report is the fallback.
+// git's own report under `To` outranks the engine's, which also takes a fetch's
+// `a..b main -> origin/main` line for the push.
 export function pushedBranch(command: string, out: BashOutput): string | undefined {
-  if (out.backgroundTaskId !== undefined) {
+  const reported = out.gitOperation?.push?.branch
+  const part = gitPart(command, 'push')
+  if (out.backgroundTaskId !== undefined || (reported === undefined && (part === undefined || PUSH_DRY_RUN.test(part)))) {
     return undefined
   }
-  const reported = out.gitOperation?.push?.branch
-  if (reported !== undefined) {
-    return reported
+  const text = printed(out)
+  if (/^To \S/m.test(text)) {
+    return refPushed(text)
   }
-  const part = gitPart(command, 'push')
 
-  return part === undefined || PUSH_DRY_RUN.test(part) ? undefined : refPushed(printed(out))
+  return /Everything up-to-date/.test(text) ? undefined : reported
 }
 
 // The first ref a push's report names under its `To <remote>` line, past those

@@ -285,6 +285,30 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
   - `tsc` and imports clean;
   - `hooks/detect.ts` 216 lines (+112); 19 tracked files, unchanged.
   - The checks ran on CLI 2.1.325, node 26.7.0.
+- **Review (`/code-review high`), 8 findings: 7 fixed, 1 skipped.**
+  - **Git's own `To` report outranks the engine's push.** The engine takes the first
+    `a..b x -> y` line anywhere in the output, so a pull before a rejected or up-to-date push
+    reported "origin/main" as pushed. Where git printed a `To` block, its first good ref decides;
+    with none, the engine's branch plays unless git said "Everything up-to-date". An amendment
+    of the block's "where `gitOperation` gives a push, it decides", from the review, by the
+    session.
+  - **`verify: FAIL` and bun's ` 1 fail` read as failures.** The line-start rule had dropped the
+    former, which `\bFAIL\b` used to catch; the latter was never read.
+  - **`mvn test-compile` and a `gradle test-…` task are no test runs.**
+  - **A `<<\EOF` heredoc ends at `EOF`,** where its backslash had kept it open to the command's
+    end.
+  - **`<<` inside `$((…))` is a shift,** not a heredoc.
+  - **One `out` helper** in the tests, beside the fixtures, in place of three.
+  - **`CHANGELOG.md` links 0.11.1** to the session commit.
+  - **Skipped:** each Bash call scans its command three times (push, commit, tests). The scans
+    are linear over one short string per call; passing the parts through would widen three
+    exported signatures for no measurable gain.
+  - **Falsified,** each failing its own test alone (49 pass, 1 fail): the engine deciding over a
+    `To` block; the up-to-date guard dropped; `N fail` dropped from the count; `verify: FAIL`
+    dropped; `test-compile` counted; the delimiter's backslash kept; arithmetic read as a
+    heredoc.
+  - **Numbers after the review:** 50 tests, unchanged; `validate` 13 / 5 / 4; `tsc` and imports
+    clean; `hooks/detect.ts` 221 lines.
 
 ---
 

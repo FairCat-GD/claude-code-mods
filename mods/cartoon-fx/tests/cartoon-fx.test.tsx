@@ -37,6 +37,8 @@ const PUSHED = {
 }
 const TO = 'To github.com:someone/repo.git'
 const REJECTED = { stdout: 'done', stderr: `${TO}\n ! [rejected]        main -> main (fetch first)\nerror: failed to push some refs`, interrupted: false }
+// A Bash result as the detection rules read it.
+const out = (stdout: string, stderr = '') => ({ stdout, stderr })
 const COMMITTED = { stdout: '[main 5e81772] Add squish effect\n 1 file changed', stderr: '', interrupted: false }
 const VERIFIED = { stdout: ' Test Files  6 passed (6)\n      Tests  42 passed (42)', stderr: '', interrupted: false }
 
@@ -666,8 +668,6 @@ test('a placement another session stored applies from the next effect', async ($
 })
 
 test('what counts as a push, a commit and a passing test run', () => {
-  const out = (stdout: string, stderr = '') => ({ stdout, stderr })
-
   expect(pushedBranch('git push origin main', out('', PUSHED.stderr))).toBe('main')
   expect(pushedBranch('git -C app push', out('', `${TO}\n * [new branch]      feat/x -> feat/x`))).toBe('feat/x')
   expect(pushedBranch('git push', { ...out(''), gitOperation: { push: { branch: 'dev' } } })).toBe('dev')
@@ -711,7 +711,6 @@ test('what counts as a push, a commit and a passing test run', () => {
 })
 
 test('a test run needs its runner at the start of a part, and a pass in its output', () => {
-  const out = (stdout: string) => ({ stdout, stderr: '' })
   const passing = out(VERIFIED.stdout)
 
   // Wrappers, launchers and their flags before the runner.
@@ -739,12 +738,10 @@ test('a test run needs its runner at the start of a part, and a pass in its outp
   expect(testsPassed('cat <<EOF\npytest is slow\nEOF', out('pytest is slow'))).toBeUndefined()
 })
 
-const out = (stdout: string, stderr = '') => ({ stdout, stderr })
-
-test("a push counts on the engine's report, or on a ref line under git's own To line", () => {
+test("a push counts on git's ref line under its To line, or on the engine's report where git printed none", () => {
   const ref = (line: string) => out('', `${TO}\n${line}`)
 
-  // The engine's report decides, whatever else the output holds.
+  // A ref line under To plays, whatever else the output holds.
   expect(
     pushedBranch('git push && git push --tags', {
       ...ref('   8577859..5e81772  main -> main\nEverything up-to-date'),
@@ -761,6 +758,13 @@ test("a push counts on the engine's report, or on a ref line under git's own To 
   expect(pushedBranch('git push -v', ref(' = [up to date]      main -> main'))).toBeUndefined()
   expect(pushedBranch('git push origin main dev', ref(' ! [rejected]        main -> main (fetch first)\n   8577859..5e81772  dev -> dev'))).toBe('dev')
   expect(pushedBranch('git push -q && git log --decorate -1', out('5e81772 (HEAD -> main, origin/main) x'))).toBeUndefined()
+
+  // The engine also takes a pull's fetched line for the push: git's own report outranks it.
+  const pulled = `From github.com:someone/repo\n   1a2b3c4..8577859  main       -> origin/main\n`
+  const engineSays = { gitOperation: { push: { branch: 'origin/main' } } }
+  expect(pushedBranch('git pull && git push', { ...out('', `${pulled}Everything up-to-date`), ...engineSays })).toBeUndefined()
+  expect(pushedBranch('git pull && git push', { ...out('', `${pulled}${REJECTED.stderr}`), ...engineSays })).toBeUndefined()
+  expect(pushedBranch('git pull && git push', { ...out('', `${pulled}${TO}\n   8577859..5e81772  main -> main`), ...engineSays })).toBe('main')
 })
 
 test('the git subcommand is the first word after git and its global options', () => {
@@ -808,6 +812,7 @@ test('more runners count, each by what it prints for a pass', () => {
 
   expect(testsPassed('node app.js', out('ℹ pass 48'))).toBeUndefined()
   expect(testsPassed('xcodebuild -scheme App build', out('** BUILD SUCCEEDED **'))).toBeUndefined()
+  expect(testsPassed('mvn test-compile', out('[INFO] BUILD SUCCESS'))).toBeUndefined()
 })
 
 test("a failure plays nothing, and a FAIL mark counts only at a line's start", () => {
@@ -823,6 +828,8 @@ test("a failure plays nothing, and a FAIL mark counts only at a line's start", (
   expect(testsPassed('xcodebuild test -scheme App | tail', out('** TEST FAILED **'))).toBeUndefined()
   expect(testsPassed('phpunit | tail', out('FAILURES!\nTests: 12, Assertions: 30, Failures: 1.'))).toBeUndefined()
   expect(testsPassed('mix test | tail', out('12 tests, 1 failure'))).toBeUndefined()
+  expect(testsPassed('claude plugin test . | tail -2', out(' 49 pass\n 1 fail'))).toBeUndefined()
+  expect(testsPassed('npm run verify 2>&1 | tail -3', out('      Tests  42 passed (42)\ncartoon-fx: lint  FAIL\nverify: FAIL'))).toBeUndefined()
 })
 
 test('quotes, heredocs and comments keep a command whole', () => {
@@ -843,6 +850,8 @@ test('quotes, heredocs and comments keep a command whole', () => {
   expect(testsPassed("sh -c 'cd app; pytest -q'", out('12 passed in 0.31s'))).toBe('12 passed')
   expect(testsPassed('npm test \\\n  -- --coverage', passing)).toBe('42 passed')
   expect(testsPassed('cat <<EOF > notes.md\nsome notes\nEOF\nnpm test', passing)).toBe('42 passed')
+  expect(testsPassed('cat <<\\EOF > notes.md\nsome $notes\nEOF\nnpm test', passing)).toBe('42 passed')
+  expect(testsPassed('n=$((1<<4))\nnpm test', passing)).toBe('42 passed')
 })
 
 // ---- the drawings, read back from drawFx's output -------------------------

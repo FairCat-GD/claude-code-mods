@@ -11,8 +11,8 @@ All notable changes to cartoon-fx are documented here. The format follows
 ### Fixed
 
 - **Confetti only for a push that happened.** A rejected push plays nothing, even behind
-  `; echo done`, and so does a git command that only mentions a push, such as
-  `git log --grep=push` or a `# … push` comment. A push of a tag still plays, with the tag's
+  `; echo done` or after a `git pull`, and so does a git command that only mentions a push,
+  such as `git log --grep=push` or a `# … push` comment. A push of a tag still plays, with the tag's
   name.
 - **A commit on a detached HEAD stamps,** and a cherry-pick is no longer read as a commit.
 - **More test runners check off:** `node --test`, `rspec`, `dotnet test`, `gradle` and
@@ -102,6 +102,7 @@ and are not recorded. The entry below lists what it does at this version.
   `/fx place conversation` (or `/fx place middle`) puts them back under their rows. The choice is
   remembered across sessions.
 
+[0.11.1]: https://github.com/FairCat-GD/claude-code-mods/commit/b3621a1d2af7e4b3fcc26d6bcf7fecb773f3af3b
 [0.11.0]: https://github.com/FairCat-GD/claude-code-mods/commit/58c85f94813e1d8d755f020a83535378f7a86a25
 [0.10.3]: https://github.com/FairCat-GD/claude-code-mods/commit/ce8ebde090a3e5c4b46fdae209cc0ff7f4f9190d
 [0.10.2]: https://github.com/FairCat-GD/claude-code-mods/commit/5f317d83a118bc2a971426d1dc11f86cfd9d5495
