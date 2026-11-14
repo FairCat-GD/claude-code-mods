@@ -7,18 +7,11 @@ up, it moves out of this file.
 
 ## Deferred
 
-- **Detection reads printed output.** Where the engine gives no `gitOperation`, `detect.ts` finds
-  a push's branch and a commit's hash in git's printed lines. It judges a test run by its runner's
-  wording. A change to either wording breaks it quietly: nothing plays. Read from the as-built
-  code, in repo Session 3; left out at the round 2 intake.
+- **Muting single effects** (`/fx mute <name>`). Offered at the round 3 intake and declined by the
+  owner; `/fx off` mutes them all.
 - **A cast where the declarations name no shape:** `awaitingLeaderApproval` on `ExitPlanMode`'s
   result. A declarations change would not show in `tsc`. Read from the as-built code, in repo
   Session 3; left out at the round 2 intake, which took the `ReportFindings` cast.
-- **Commands are split without parsing quoting.** `parts` cuts a command at `&&`, `;`, `|` and
-  newlines wherever they fall, so a line inside quotes or a heredoc (`cat <<EOF` with a line
-  `pytest is slow`) that starts with a runner reads as a test run. It plays only when the output
-  also shows a pass, as when the heredoc's text holds "42 passed". Left by the direct 0.10.3 fix,
-  which anchored the runner to a part's start and required a pass in the output.
 
 ## Not yet checked by hand
 
