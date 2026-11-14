@@ -16,10 +16,9 @@ repository, checks the drafted message before the commit, secrets and conflict m
   commits of its own level. cartoon-fx's round 3 (A1 first) runs beside 3a–4, in the same
   checkout.
 - **Push status.** `origin/main` holds everything through
-  `docs(cartoon-fx): record what the update to 0.10.3 installed`. The review's three commits wait
-  for the next approved push: this level's, cartoon-fx's test-only fix, and cartoon-fx's
-  round 3 intake. List `origin/main..HEAD` before any push and name any commit that
-  is not this session's.
+  `review(cartoon-fx): desktop checks wait for the push, and 7 smaller`, the last of the
+  review's chat, pushed with the owner's approval on 2026-11-14. Nothing is local. List
+  `origin/main..HEAD` before any push and name any commit that is not this session's.
 - **cartoon-fx** is the installed release 0.10.3, at user scope; its own state is in its
   handoff, and the repo docs never describe its internals.
 - **The owner's term file exists** at `~/.config/hygiene/terms.txt`. Read it only through the
