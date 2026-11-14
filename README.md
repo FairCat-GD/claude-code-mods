@@ -57,7 +57,7 @@ docs/                             the repository's own workflow files
 
 ## Docs
 
-- `CLAUDE.md`: the rules every session follows, and the commands.
+- `CLAUDE.md`: the rules every session follows, the commands and the standing traps.
 - `docs/DEVELOPMENT-WORKFLOW.md`: the session-based workflow, at the repository's level and at each
   mod's.
 - `docs/spec/`: the round in progress. `docs/BACKLOG.md`: what is named but not planned.

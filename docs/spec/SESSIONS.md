@@ -1,35 +1,13 @@
 # The session plan: round 1, the repository setup
 
-One chat per session. Never run two sessions in one chat: the point of the split is that no
-session inherits stale context.
-
-- **Scope** lives here, fixed in advance. The request and its resolved decisions are in `SPEC.md`
-  beside this file, which is read-only; do not re-litigate them. If a session finds a block wrong,
-  it amends the block and records the reason both in the block and in
-  `docs/next-session-prompt.md`.
-- **State** is `docs/next-session-prompt.md`: what the next session needs that the docs do not say.
-  Every session rewrites it as its last act. The repo level keeps no changelog (decision 8); what
-  shipped to cartoon-fx is in `mods/cartoon-fx/CHANGELOG.md`.
-- **When this round closes,** Session 4 deletes this file and `SPEC.md`. Git history keeps them,
-  and anything left open moves to `docs/BACKLOG.md`.
-
-**Before starting**, confirm that the session's own paths are clean (decision 10) and that
-`docs/next-session-prompt.md` names the session you are about to do. **Read order:** the `SPEC.md`
-sections the block names, `CLAUDE.md`, then the prompt. **Then plan, in plan mode,** and ask the
-block's *Ask at the start* questions before any edit.
-
-**Every session ends the same way:**
-1. `npm run verify` green (from Session 1 on), plus the hand checks the block names.
-2. Every new check falsified, once. Checks that already existed are not falsified again.
-3. A `CHANGELOG.md` entry for anything a mod's user would see, in that mod's changelog. No session
-   in this round cuts a version.
-4. The docs the block names kept true. Until Session 4 writes `docs/ARCHITECTURE.md`, the done-note
-   carries what it will need: the deliberate decisions and the counts.
-5. A done-note appended to the block, then the prompt rewritten, then a local commit.
-6. The owner's `/code-review high`, then a review-fixes commit.
-7. The next prompt printed as the chat's last message.
-
-Never push without being asked.
+One block per session, in order, each run by *The session cycle* in
+`docs/DEVELOPMENT-WORKFLOW.md`. The request and its resolved decisions are in `SPEC.md` beside
+this file, which is read-only; do not re-litigate them. A session that finds its block wrong
+amends it and records the reason in the block and in `docs/next-session-prompt.md`. The repo
+level cuts no version and keeps no changelog (decision 8). Until Session 4 writes
+`docs/ARCHITECTURE.md`, each done-note carries what it will need: the deliberate decisions and
+the counts. Session 4 closes the round after its review: it deletes this file, `SPEC.md` and
+`REVIEW-2026-11-14.md`, and anything left open moves to `docs/BACKLOG.md`.
 
 | Session | Scope | Decisions | Version |
 |---|---|---|---|
@@ -996,7 +974,7 @@ the workflow kit's `DEVELOPMENT-WORKFLOW.md`, attached by the owner; this reposi
 - **`CLAUDE.md`'s working protocol** follows the new cycle: the one-line opener that points at
   the handoff, the docs-only command, the close after the review. A *Watch for* section takes
   the standing traps every handoff now repeats: never `git checkout <path>`, explicit paths,
-  `< /dev/null`, the two builds, the installed release running in every session, the ` `
+  `< /dev/null`, the two builds, the installed release running in every session, the `\u2028`
   escape, the toolchain. The privacy section adds the kit's "no names of the owner's other
   projects, and none of their data".
 - **The mod files that point at the protocol:** `templates/mod-template/CLAUDE.md`, and, in its
@@ -1016,6 +994,74 @@ the workflow kit's `DEVELOPMENT-WORKFLOW.md`, attached by the owner; this reposi
 - **A cartoon-fx session may be running beside this one.** If `mods/cartoon-fx/CLAUDE.md` has
   uncommitted changes, leave it, and say so in the handoff.
 - **Keep `CLAUDE.md` lean.** A rule keeps its why only when the why changes the action.
+
+**Done (2026-11-14, no version).**
+- **Decided with the owner at the start:**
+  - **The kit, from its folder on disk,** read-only, rather than attached: the version the review
+    and 3a read, last commit 2026-11-05. Its `DEVELOPMENT-WORKFLOW.md` is 1,443 lines.
+  - **`CLAUDE.md`'s *Working protocol* points at *The session cycle*** rather than restating it,
+    as the kit's `CLAUDE.md` template does. The 11-step list is gone; the two-level read order
+    stays.
+  - ***Do not* merges into one *Watch for*,** as in the kit's template: the forbidden moves, then
+    the environment's traps.
+- **`docs/DEVELOPMENT-WORKFLOW.md`** is the kit's file with one paragraph inserted under its
+  introduction: 1,462 lines, and `diff` against the kit shows those 19 lines alone (the paragraph
+  and its blank line).
+  - It keeps today's two levels, the one copy, versions in mods and none at the repo level, the
+    shared checkout's clean tree, and the installed release with its unpushed-build path.
+  - It adds §5's adaptations: a new mod's round 1 ends at 1.0.0, and cartoon-fx stays at 0.x
+    until the owner decides otherwise at an intake; parallel parts are not used, and
+    `.claude/worktrees/` stays ignored; no milestone architecture reviews; the repo's round 1 had
+    no PDD and its documentation pass writes the first `ARCHITECTURE.md`, while a mod's PDD is
+    optional and its Session 0 writes its `ARCHITECTURE.md`.
+  - The old paragraph's sentence on a public history is gone: the kit's *A clean repository*
+    now says it for every repository.
+- **`CLAUDE.md`:**
+  - the opening paragraph: the round's spec files are the contract, read as the block's Read
+    line names;
+  - *Working protocol*: the cycle but for its step 4; a review kept beside the spec; the close
+    after the round's last review; the one-line opener; the cycle's read order, per level;
+  - the privacy rules: no names of the owner's other projects, none of the owner's data in
+    done-notes and handoffs, and ask when unsure, a private word going on the term list with the
+    owner's yes;
+  - *Git*: the commit step comes after the done-note, the handoff and a last read of the diff;
+  - *Watch for*, from *Do not*: the kit's intro, the forbidden moves, then never
+    `git checkout <path>` (moved from *Git*), `< /dev/null`, the toolchain, the CLI updating
+    itself, the installed mods running in every session, the escape, and the plugin-authoring
+    skill's watch.
+    - Explicit paths and the draft stay in *Git*, and the owner's setup in invariant 7, so they
+      are not repeated.
+    - uv is left out of the toolchain: nothing here uses it.
+- **The mod files that point at the protocol:**
+  - `templates/mod-template/CLAUDE.md`: its read order is one line pointing at the root's, and it
+    has a *Watch for* placeholder for a mod's own traps;
+  - `mods/cartoon-fx/CLAUDE.md`: the same read-order line, in its own commit, `ee78afc`
+    (`docs(cartoon-fx): its read order follows the updated workflow`). Its handoff keeps its
+    standing traps until that mod's next rewrite.
+- **`README.md`:** the Docs list's `CLAUDE.md` line names the standing traps.
+- **Amendments:**
+  - **This file's header follows the kit's new template.** One block per session, each run by
+    *The session cycle*. The "Before starting" lines and the "Every session ends the same way"
+    list are gone, since the cycle holds both. The repo's own lines stay: no version or changelog
+    at this level, the done-notes carrying what `ARCHITECTURE.md` will need, and Session 4's
+    close, now after its review and deleting the review file too. Planned by the block.
+  - **This block's scope named the escape with the raw U+2028 character.** It is restored to the
+    written escape with `perl`. The session's own finding.
+  - **The SPEC §8 pointers stay for Session 4.** §8 is the practices' one home until Session 4
+    moves it into `CLAUDE.md`, so there was nowhere yet to repoint the template's and
+    cartoon-fx's `CLAUDE.md`. The session's own finding.
+- **Measured** (CLI 2.1.325):
+  - **The escape trap holds.** The file-editing tool wrote `\u2028` and `\u2029` into `CLAUDE.md`
+    as the raw characters (`od -c`), and `perl` restored them.
+  - **The toolchain:** node 26.7.0 and npm 11.19.0 in `/opt/homebrew/bin`; `claude` a link to
+    `~/.local/share/claude/versions/2.1.325`; `gh` 2.97.0; git 2.50.1; no global `tsc` or bun.
+- **Checked by hand:**
+  - every path, script and section the paragraph and `CLAUDE.md` name exists: `test -e`, the
+    package's scripts, and `grep` for each section heading and for the cycle's steps 2, 4 and 12;
+  - no raw U+2028 or U+2029 in any file this session touched (`grep -P`);
+  - the docs-only command green on each commit's drafted message, the kit's text included.
+- **Falsified:** nothing; no check was added.
+- **Numbers:** none moved. Docs only, so the docs-only command ran and the full gate did not.
 
 ---
 

@@ -17,12 +17,8 @@ These keep their spelling, because installs and stored data live under them:
 
 ## Read order
 
-A session on this mod reads:
-1. the spec file(s) its block names, in `docs/spec/`;
-2. the root `CLAUDE.md`;
-3. this file;
-4. `docs/ARCHITECTURE.md`, once it exists;
-5. `docs/next-session-prompt.md`.
+A session on this mod reads in the order the root `CLAUDE.md` gives a mod session; its handoff's
+first line copies it.
 
 ## Commands
 
@@ -30,3 +26,8 @@ A session on this mod reads:
 |---|---|
 | `npm run verify -- mod-template` | The repo stages, then this mod's: `validate`, `types`, `tests` and `imports`. Run from the repository's root. |
 | `npm run types` | Lays the API declarations `tsc` types this mod against; after a clone or a CLI update. |
+
+## Watch for
+
+<This mod's standing traps, once it has any, a line or two each: the trap, then what to do
+instead. The root `CLAUDE.md`'s hold for every mod.>

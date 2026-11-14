@@ -13,7 +13,8 @@ Machine identifiers keep their spelling, because installs and stored data live u
   rename loses its stored `$.store` values too, which the engine keys by plugin id
   (`docs/spec/SPEC.md` decision 14, amended).
 
-**Read `docs/spec/SPEC.md` before changing code.** `docs/DEVELOPMENT-WORKFLOW.md` is the
+**The round's spec files in `docs/spec/` are the contract for what the round delivers:** read the
+parts your block's Read line names before changing code. `docs/DEVELOPMENT-WORKFLOW.md` is the
 session-based workflow this repo follows, at two levels. `docs/BACKLOG.md` lists what has been
 named but not planned at the repo level; each mod keeps its own.
 
@@ -33,46 +34,41 @@ named but not planned at the repo level; each mod keeps its own.
 
 ## Working protocol
 
-Every session runs the cycle in `docs/DEVELOPMENT-WORKFLOW.md`:
-1. entry gate;
-2. read order;
-3. a plan agreed in plan mode;
-4. the verify gate;
-5. docs kept true;
-6. the changelog, for a mod;
-7. a done-note in its `SESSIONS.md` block;
-8. the handoff prompt for the next session;
-9. a local commit;
-10. the owner's `/code-review high`, then a review-fixes commit;
-11. the next session's prompt, printed as the last message.
-
-One session per chat. A push or tag needs explicit approval, each time.
+Every session runs *The session cycle* in `docs/DEVELOPMENT-WORKFLOW.md`, but for its step 4:
+parallel parts are not used here. One session per chat. A push or tag needs explicit approval,
+each time.
 
 **Scope lives in the level's `docs/spec/SESSIONS.md`**, one block per session, in order, and in
 the round's spec files. A round 1 has `SPEC.md`, beside `PDD.md` only when the owner wrote a design
 draft ahead of time. After round 1, each request gets one `FEATURE-*.md`, holding the request
-verbatim plus the decisions resolved at intake. All of these are read-only and are not
-re-litigated.
+verbatim plus the decisions resolved at intake. A round that comes from a review keeps it beside
+them, as `REVIEW-<date>.md`. All of these are read-only and are not re-litigated.
 
-A level's `docs/spec/` holds only its round in progress. When a round closes, its files are
-deleted (git history keeps them), and anything still open moves to that level's
-`docs/BACKLOG.md`.
+A level's `docs/spec/` holds only its round in progress. The round closes after its last review:
+a `docs: close round <N>` commit deletes its files (git history keeps them) and puts the review
+commit's sha in the handoff, since that commit holds the last done-note in full. Anything still
+open moves to that level's `docs/BACKLOG.md`.
 
-**State lives in the level's `docs/next-session-prompt.md`**, rewritten by every session as its
-last act.
+**State lives in the level's `docs/next-session-prompt.md`**, rewritten by every session. The
+chat's last message is the one-line opener that points at that file, never the file itself.
 
-**Read order:**
+**Read order** (the cycle's step 2; the handoff's first line copies it):
 - a repo session reads:
-  1. the spec file(s) its block names;
+  1. what its block's **Read** line names;
   2. this file;
-  3. `docs/ARCHITECTURE.md`, once it exists;
-  4. `docs/next-session-prompt.md`.
-- a mod session reads:
-  1. the spec file(s) its block names, in `mods/<name>/docs/spec/`;
-  2. this file;
-  3. `mods/<name>/CLAUDE.md`;
-  4. `mods/<name>/docs/ARCHITECTURE.md`, once it exists;
-  5. `mods/<name>/docs/next-session-prompt.md`.
+  3. *The session cycle* in `docs/DEVELOPMENT-WORKFLOW.md`;
+  4. `docs/ARCHITECTURE.md`'s overview, invariants and baseline, and the sections the Read line
+     names, once it exists;
+  5. `docs/spec/SESSIONS.md`'s header, its block and the previous block's done-note;
+  6. `docs/next-session-prompt.md`.
+- a mod session reads the same at its level:
+  1. what its block's **Read** line names, in `mods/<name>/docs/spec/`;
+  2. this file, then `mods/<name>/CLAUDE.md`;
+  3. *The session cycle*;
+  4. `mods/<name>/docs/ARCHITECTURE.md`'s overview, invariants and baseline, and the sections the
+     Read line names;
+  5. `mods/<name>/docs/spec/SESSIONS.md`'s header, its block and the previous block's done-note;
+  6. `mods/<name>/docs/next-session-prompt.md`.
 
 **The entry gate in a shared checkout.** Parallel sessions share this checkout. A session's tree is
 clean when its own paths and the shared files above have no uncommitted changes. A mod session's
@@ -156,13 +152,18 @@ The why for each is in `docs/spec/SPEC.md` §6.
 
 The repository is private until the owner publishes it, but its whole history will be published.
 So every file, test, fixture, done-note, handoff and commit message follows these rules:
-- **No personal names or email handles.** Write "the owner". The owner's GitHub handle
-  `FairCat-GD` is public, and is used as the author.
+- **No personal names or email handles, and no names of the owner's other projects.** Write the
+  role: "the owner", "another of the owner's projects". The owner's GitHub handle `FairCat-GD` is
+  public, and is used as the author.
 - **No home-directory paths.** Write `~`.
 - **No AI attribution:** no co-author trailers, no "generated with" lines, no session links, and no
   AI credited as author, co-author or addressee. Naming the tools is fine: Claude Code, its plugin
   API, this file, and the workflow's review command.
 - **Fixtures are fictional.**
+- **Done-notes and handoffs never name the owner's own data:** their documents, folders and
+  settings. Record what was measured, not whose it was.
+- **Unsure whether something is public? Ask the owner before writing it.** A word they call
+  private goes on the term list, with their yes.
 
 The hygiene stage of `verify` checks for:
 - the owner's private terms, from `~/.config/hygiene/terms.txt`, one word per line, outside every
@@ -215,8 +216,10 @@ settings, so its session loads only the folders it names.
     name to the owner any commit there that is not this session's.
   - `origin` is the private GitHub repository `FairCat-GD/claude-code-mods`. It stays private
     until the owner publishes it.
-- **Stage explicit paths,** never `git add -A`. Never undo with `git checkout <path>`.
-- **The message is checked before it exists.** As the last act before each commit:
+- **Stage explicit paths,** never `git add -A`.
+- **The message is checked before it exists.** As the last act before each commit, after the
+  done-note, the handoff and a last read of the diff for what no script judges (the workflow's
+  *A clean repository*):
   1. write the message into `"$(git rev-parse --git-dir)/COMMIT_DRAFT"`, which is never
      committed;
   2. run `verify` with `--message` and that file, or the docs-only command;
@@ -237,16 +240,39 @@ settings, so its session loads only the folders it names.
 - **Tags.** `<mod>-v<x.y.z>`, at milestones only.
 - **Attribution and identity.** No trailers. Commits use the owner's global git identity.
 
-## Do not
+## Watch for
 
-- Change the owner's Claude Code setup (invariant 7) without their OK for that change.
-- Import into a mod anything from outside its folder, or from one mod into another.
-- Commit `.claude-plugin/types/`, or any copy of Claude Code's API declarations.
-- Edit another mod's files, or another session's uncommitted changes.
-- Edit a level's `docs/spec/` beyond what the workflow gives your session: your block's done-note
-  and logged amendments, and in the round's last session, the close.
-- Rename a machine identifier, or upgrade a pinned dependency in passing.
-- Loosen a stage to make a mod pass.
-- Put anything private in a file or a commit message.
-- Finish with `npm run verify` red, or with a mod's user-visible changes missing from its
-  `CHANGELOG.md`.
+The standing traps and forbidden moves, a line or two each: the trap, then what to do instead.
+One goes in once it has cost a session time, and comes out once a check, a script or a pin makes
+it impossible. A mod's own go in its `CLAUDE.md`; a session's own, in its block and handoff.
+
+- **Don't:**
+  - change the owner's Claude Code setup (invariant 7) without their OK for that change;
+  - import into a mod anything from outside its folder, or from one mod into another;
+  - commit `.claude-plugin/types/`, or any copy of Claude Code's API declarations;
+  - edit another mod's files, or another session's uncommitted changes;
+  - edit a level's `docs/spec/` beyond what the workflow gives your session: your block's
+    done-note and logged amendments, and in the round's last session, the close;
+  - rename a machine identifier, or upgrade a pinned dependency in passing;
+  - loosen a stage to make a mod pass;
+  - put anything private in a file or a commit message;
+  - finish with `npm run verify` red, or with a mod's user-visible changes missing from its
+    `CHANGELOG.md`.
+- **Never undo with `git checkout <path>`.** It discards changes that may be another session's.
+  Revert your own edits by editing, and falsify a check by copying the file aside and back.
+- **Give stdin-reading commands `< /dev/null`.** A bare `cat > file` with no heredoc hangs.
+- **The toolchain on this Mac:**
+  - node 26.7.0 and npm 11.19.0 in `/opt/homebrew/bin`;
+  - `claude` at `~/.local/bin/claude`, a link to the newest of `~/.local/share/claude/versions/`;
+  - `gh` 2.97.0 in `~/.local/bin`, and git 2.50.1;
+  - no global `tsc` or bun, so use `npx tsc` and `npx biome`.
+- **The CLI updates itself,** even during `npm run types`, and an update can turn the gate red for
+  more than stale declarations. Record the version each check ran on, from `claude --version`
+  (*Two builds run here*, above).
+- **The installed mods run in every session the owner starts,** this one included: cartoon-fx
+  marks a commit and a green `verify`. That is the release, not the tree.
+- **The file-writing tool writes the `\u2028` and `\u2029` escapes as the characters
+  themselves.** Check with `od -c`, and fix with
+  `perl -CSD -pi -e 's/\x{2028}/\\u2028/g; s/\x{2029}/\\u2029/g'`.
+- **Loading the plugin-authoring skill starts a watch on this session's mods folder.** Write
+  nothing under `~/.claude/dev-mods/`.
