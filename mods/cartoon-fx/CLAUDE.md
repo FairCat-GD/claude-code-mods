@@ -33,8 +33,8 @@ as `cartoon-fx@inline` with its own store (`docs/ARCHITECTURE.md`, *Packaging*).
 
 ## Read order
 
-A session on this mod reads in the order the root `CLAUDE.md` gives a mod session; its handoff's
-first line copies it.
+A session on this mod reads in the order the root `CLAUDE.md` gives a mod session. Where the
+handoff's first line names another order, the root's wins, and the next rewrite copies it.
 
 ## Commands
 
@@ -42,3 +42,9 @@ first line copies it.
 |---|---|
 | `npm run verify -- cartoon-fx` | The repo stages, then this mod's: `validate`, `types`, `tests` and `imports`. Run from the repository's root. |
 | `npm run types` | Lays the API declarations `tsc` types this mod against; after a clone or a CLI update. Its session runs this mod's `session.start` as `cartoon-fx@inline`, which reads that copy's stored `placement`, not the release's; type only `/exit` there. |
+
+## Watch for
+
+This mod's own standing traps, a line or two each; the root `CLAUDE.md`'s hold for every mod.
+Until they move here, they are in the *Watch for* of `docs/next-session-prompt.md`. A rewrite of
+that handoff moves the ones that recur here, never just drops them.
