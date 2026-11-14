@@ -9,6 +9,7 @@ const BAND = {
   requestId: 'band',
   props: {
     hasSurvey: false,
+    isCollapsed: false,
     isWorking: true,
     maxRows: 12,
     bodyColumns: 85,
