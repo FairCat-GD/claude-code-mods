@@ -945,6 +945,35 @@ their tests.
 - **The shared checkout.** A cartoon-fx session had uncommitted changes in `mods/cartoon-fx/`
   throughout. They were left alone and never staged. A routine hygiene run reads them, as it reads
   anything a commit could record.
+- **Review (`/code-review high`), 9 findings: 9 fixed and 0 skipped.** The owner chose to fix all.
+  - **Signature lines in git's output.** With `log.showSignature` set, git printed "No signature"
+    into the output hygiene parses, which misfiled unpushed hits as pushed. This was reproduced
+    with an SSH-signed scratch commit. Every git call now sets `log.showSignature=false`.
+  - **A missing object shifted every later read** in the `cat-file --batch` reply. It now fails
+    the stage, naming the object.
+  - **The full scan skipped conflicted paths,** and a conflicted `.env` with them. It now reads
+    their working copies.
+  - **Session links.** The patterns had narrowed to the kit's session paths. They are back to any
+    link on the AI chat hosts, and a docs link on another host still passes.
+  - **A name that is both a stage and a mod** now exits 2, rather than being read as the stage.
+  - **The CLI's catch-all.** Only the stage's own errors and argument errors print as one line;
+    anything else keeps its stack. Outside a git repository, it says so.
+  - **The file header** is down to one line, and so is `plan`'s comment.
+  - **Hygiene's tests** are split by area into four files, with a shared
+    `tests/hygiene-support.ts`, so `node --test` runs them in parallel: about 16s down to 10s.
+  - **Index and tree listings** share one field parser.
+  - **Falsified, each once:**
+    - the signature setting dropped;
+    - the missing-object check dropped;
+    - the conflicted paths left out;
+    - session links narrowed again;
+    - `docs.claude.com` matched;
+    - the outside-a-repository error made generic;
+    - argument errors rethrown;
+    - the ambiguous-name check dropped.
+  - **Numbers after the review** (CLI 2.1.325): `npm run verify` 14 stages, all PASS; tooling tests
+    156 in 9 files (hygiene 109 in 4, verify 15); template 1. cartoon-fx ran 43 over
+    another session's uncommitted work; its last commit has 36.
 
 ---
 

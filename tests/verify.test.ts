@@ -100,13 +100,15 @@ test("types names the tooling's types and each folder's", () => {
   assert.deepEqual(names(plan(['types'], FOLDERS)), ['types', 'alpha: types', 'beta: types', 'mod-template: types'])
 })
 
-test('a name that is both a stage and a mod is the stage', () => {
-  assert.deepEqual(names(plan(['tests'], [...FOLDERS, { name: 'tests', path: 'mods/tests' }])), [
-    'alpha: tests',
-    'beta: tests',
-    'mod-template: tests',
-    'tests: tests',
-  ])
+test('a name that is both a stage and a mod exits 2', () => {
+  const lines: string[] = []
+  const folders = [...FOLDERS, { name: 'tests', path: 'mods/tests' }]
+  assert.equal(
+    main(['tests'], plan(['tests'], folders), line => lines.push(line)),
+    2,
+  )
+  assert.deepEqual(lines, ['verify: tests names both a stage and a mod: rename the mod'])
+  assert.ok(Array.isArray(plan(['beta'], folders)))
 })
 
 test('--message and --all reach hygiene, with the draft resolved where npm was run', () => {

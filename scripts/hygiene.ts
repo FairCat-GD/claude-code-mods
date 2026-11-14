@@ -1,9 +1,4 @@
 // The hygiene stage: nothing private, no secret and no conflict marker enters the history.
-//
-// A routine run reads what a commit could still change. A full scan reads everything, and runs by
-// itself when the stamp is older than the term list or this file. Patterns are built from pieces,
-// so this file never holds what it bans, and a hit names its place, never the term or the secret.
-//
 // Usage: node scripts/hygiene.ts [--terms <file>] [--message <draft>] [--all]
 
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -46,10 +41,7 @@ const AI_TOOL = `\\[?(?:clau${'de'}(?!-)|chatgpt|gpt|copilot|(?-i:Cursor)|codex|
 const ATTRIBUTION = [
   `^\\s*co${'-authored'}-by\\s*:`,
   `\\b(?:generated|written|authored|created|built|assisted|produced)[\\s-]+(?:with|by|using)[\\s:]+(?:the\\s+help\\s+of\\s+)?(?:an?\\s+)?${AI_TOOL}`,
-  `clau${'de'}\\.ai/(?:code|chat|share)\\b`,
-  `chat${'gpt'}\\.com/(?:c|share)/`,
-  `chat\\.open${'ai'}\\.com/`,
-  `gem${'ini'}\\.google\\.com/(?:app|share)\\b`,
+  `\\b(?:[a-z0-9-]+\\.)*(?:clau${'de'}\\.ai|chat${'gpt'}\\.com|chat\\.open${'ai'}\\.com|gem${'ini'}\\.google\\.com)/`,
 ].map(pattern => new RegExp(pattern, 'i'))
 
 // At the start of a line only: Markdown underlines headings with the middle marker.
@@ -60,6 +52,7 @@ export class HygieneError extends Error {}
 export type Terms = ReadonlySet<string>
 export type Report = { failures: string[]; pushed: string[]; fullScan: boolean }
 type Entry = { mode: string; sha: string }
+type Index = { merged: Map<string, Entry>; unmerged: Set<string> }
 
 const tilde = (path: string) => (path.startsWith(`${homedir()}/`) ? `~${path.slice(homedir().length)}` : path)
 
@@ -141,38 +134,39 @@ function* messageHits(text: string, terms: Terms): Generator<[number, string]> {
   }
 }
 
+// Signature checks would print into the output parsed here.
 const git = (repo: string, args: string[], input?: string): Buffer =>
-  execFileSync('git', args, { cwd: repo, input, maxBuffer: 1 << 30, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] })
+  execFileSync('git', ['-c', 'log.showSignature=false', ...args], {
+    cwd: repo,
+    input,
+    maxBuffer: 1 << 30,
+    stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
+  })
 
 const gitOk = (repo: string, args: string[]) => spawnSync('git', args, { cwd: repo, stdio: 'ignore' }).status === 0
 
 // The entries of a `-z` listing.
 const listed = (output: Buffer) => output.toString('utf8').split('\0').filter(Boolean)
 
-// Each path of an index or tree listing, with its mode and object; a conflicted path has no single version.
-const entries = (output: Buffer, stage: (meta: string[]) => boolean, sha: (meta: string[]) => string) => {
-  const found = new Map<string, Entry>()
-  for (const entry of listed(output)) {
+// The fields and the path of each entry in an index or tree listing.
+const fields = (output: Buffer) =>
+  listed(output).map(entry => {
     const tab = entry.indexOf('\t')
-    const meta = entry.slice(0, tab).split(' ')
-    if (stage(meta)) found.set(entry.slice(tab + 1), { mode: meta[0] ?? '', sha: sha(meta) })
+    return { meta: entry.slice(0, tab).split(' '), path: entry.slice(tab + 1) }
+  })
+
+// A conflicted path has no single staged version; its working copy is all there is to read.
+const readIndex = (repo: string): Index => {
+  const index: Index = { merged: new Map(), unmerged: new Set() }
+  for (const { meta, path } of fields(git(repo, ['ls-files', '--stage', '-z']))) {
+    if (meta[2] === '0') index.merged.set(path, { mode: meta[0] ?? '', sha: meta[1] ?? '' })
+    else index.unmerged.add(path)
   }
-  return found
+  return index
 }
 
-const indexEntries = (repo: string) =>
-  entries(
-    git(repo, ['ls-files', '--stage', '-z']),
-    meta => meta[2] === '0',
-    meta => meta[1] ?? '',
-  )
-
 const headEntries = (repo: string) =>
-  entries(
-    git(repo, ['ls-tree', '-r', '-z', 'HEAD']),
-    () => true,
-    meta => meta[2] ?? '',
-  )
+  new Map(fields(git(repo, ['ls-tree', '-r', '-z', 'HEAD'])).map(({ meta, path }) => [path, { mode: meta[0] ?? '', sha: meta[2] ?? '' }]))
 
 // Files a commit could record that git does not know yet; ignored ones stay out.
 const untracked = (repo: string) => listed(git(repo, ['ls-files', '--others', '--exclude-standard', '-z']))
@@ -183,9 +177,11 @@ const blobs = (repo: string, shas: string[]): Buffer[] => {
   const batch = git(repo, ['cat-file', '--batch'], shas.map(sha => `${sha}\n`).join(''))
   const contents: Buffer[] = []
   let offset = 0
-  for (const _ of shas) {
+  for (const sha of shas) {
     const headerEnd = batch.indexOf(0x0a, offset)
     const size = Number(batch.subarray(offset, headerEnd).toString('utf8').split(' ')[2])
+    // A missing object would shift every later read; the stage cannot judge what it cannot read.
+    if (!Number.isInteger(size)) throw new HygieneError(`cannot read object ${sha.slice(0, 10)}`)
     contents.push(batch.subarray(headerEnd + 1, headerEnd + 1 + size))
     offset = headerEnd + 1 + size + 1
   }
@@ -267,6 +263,14 @@ const commits = (repo: string, revisions: string[]): [string, string][] => {
   return found
 }
 
+const toplevel = (cwd: string) => {
+  try {
+    return git(cwd, ['rev-parse', '--show-toplevel']).toString('utf8').trim()
+  } catch {
+    throw new HygieneError('not inside a git repository')
+  }
+}
+
 export const stampPath = (repo: string) => join(git(repo, ['rev-parse', '--path-format=absolute', '--git-common-dir']).toString('utf8').trim(), STAMP)
 
 const needsFullScan = (stamp: string, inputs: string[]) => {
@@ -300,15 +304,16 @@ export const run = (
 
   const stamp = stampPath(repo)
   const fullScan = full || needsFullScan(stamp, [termsPath, ...sources])
-  const index = indexEntries(repo)
+  const { merged: index, unmerged } = readIndex(repo)
   const fresh = untracked(repo)
+  const everything = new Set([...index.keys(), ...unmerged, ...fresh])
   const failures: string[] = []
 
   if (draft !== undefined) for (const [number, kind] of messageHits(draft, terms)) failures.push(`draft line ${number}: ${kind}`)
-  failures.push(...envFiles(new Set([...index.keys(), ...fresh]), terms))
+  failures.push(...envFiles(everything, terms))
 
   const unpushed = ['HEAD', '--not', '--remotes']
-  if (fullScan) failures.push(...scanFiles(repo, new Set([...index.keys(), ...fresh]), index, terms))
+  if (fullScan) failures.push(...scanFiles(repo, everything, index, terms))
   else {
     const changing = pathsACommitCouldChange(repo, fresh)
     failures.push(...scanFiles(repo, changing, index, terms))
@@ -345,10 +350,12 @@ const main = (argv: string[], log: (line: string) => void = console.log): number
       args: argv,
       options: { terms: { type: 'string' }, message: { type: 'string' }, all: { type: 'boolean', default: false } },
     })
-    const repo = git(process.cwd(), ['rev-parse', '--show-toplevel']).toString('utf8').trim()
+    const repo = toplevel(process.cwd())
     const terms = resolve(values.terms ?? join(homedir(), '.config', 'hygiene', 'terms.txt'))
     report = run(repo, terms, { message: values.message === undefined ? undefined : resolve(values.message), full: values.all })
   } catch (error) {
+    // Anything else is a bug in the stage, and keeps its stack.
+    if (!(error instanceof HygieneError || String((error as NodeJS.ErrnoException).code).startsWith('ERR_PARSE_ARGS'))) throw error
     log(`hygiene: ${(error as Error).message}`)
     return 1
   }

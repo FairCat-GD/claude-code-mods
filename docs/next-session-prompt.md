@@ -54,17 +54,18 @@ gate is the docs-only command. No version.
   - **The owner may remove `~/.claude/mods/cartoon-fx`** when they choose; nothing loads it.
 - **Baseline**, measured at 3a on CLI 2.1.325. Measure it again; do not copy it.
   - `npm run verify`: 14 stages, all PASS (6 repo, 4 for cartoon-fx, 4 for `mod-template`).
-  - Tooling tests: 148 in 6 files (hygiene 101, verify 15).
+  - Tooling tests: 156 in 9 files (hygiene 109 in 4, verify 15).
   - Template: 1 test. Its `validate` lists 2 hooks, 0 gating, and calls `$.command.register`.
-  - cartoon-fx: 36 tests. Its `validate` lists 13 hooks, 5 gating (all with `.catch`) and 4
-    state keys, with no warning but the allowed `CLAUDE.md` one.
+  - cartoon-fx: 36 tests at its last commit. Its `validate` lists 13 hooks, 5 gating (all with
+    `.catch`) and 4 state keys, with no warning but the allowed `CLAUDE.md` one. Another
+    session's uncommitted work had 43 tests in the tree at 3a's review.
 - **A CLI update can turn the gate red.** It moved twice during the review, and 2.1.325's new
   `isCollapsed` prop failed cartoon-fx's tests until a test-only fix. Expect an update to need
   more than `npm run types` now and then.
 - **Carry to 3c:**
   - **Its new-mod script must refuse a stage's name** for a mod: `format`, `lint`, `types`,
-    `tooling-tests`, `marketplace`, `hygiene`, `validate`, `tests` or `imports`. `verify` reads
-    such a name as the stage.
+    `tooling-tests`, `marketplace`, `hygiene`, `validate`, `tests` or `imports`. `verify` exits 2
+    when such a name is given, since it names both.
   - **`tests/support.ts` now has `git` and `scratchRepo`.** `tests/marketplace.test.ts`'s own git
     calls are F8's to fold into them.
 - **Carry to Session 4:**

@@ -88,8 +88,7 @@ const STAGE_NAMES = [...new Set([...repoStages(undefined, { all: false }).map(st
 const parseOptions = (argv: readonly string[]) =>
   parseArgs({ args: [...argv], allowPositionals: true, options: { message: { type: 'string' }, all: { type: 'boolean', default: false } } })
 
-// The stages for `verify -- <names>`, or why there are none. A stage name picks that stage, and
-// a mod name that mod's folder; with none of either, every one. A name of both is a stage.
+// The stages `verify -- <names>` picks, or why it picks none.
 export const plan = (argv: readonly string[], folders: Folder[] = modFolders(), cwd = process.env.INIT_CWD ?? process.cwd()): Stage[] | string => {
   let parsed: ReturnType<typeof parseOptions>
   try {
@@ -101,10 +100,12 @@ export const plan = (argv: readonly string[], folders: Folder[] = modFolders(), 
   const unknown = names.filter(name => !STAGE_NAMES.includes(name) && !folders.some(folder => folder.name === name))
   if (unknown.length)
     return `unknown name(s) ${unknown.join(', ')}; stages: ${STAGE_NAMES.join(', ')}; mods: ${folders.map(folder => folder.name).join(', ') || 'none'}`
+  const ambiguous = names.filter(name => STAGE_NAMES.includes(name) && folders.some(folder => folder.name === name))
+  if (ambiguous.length) return `${ambiguous.join(', ')} names both a stage and a mod: rename the mod`
   const kinds = names.filter(name => STAGE_NAMES.includes(name))
   const picked = (kind: string) => !kinds.length || kinds.includes(kind)
   if ((values.message !== undefined || values.all) && !picked('hygiene')) return '--message and --all are for hygiene, which the names leave out'
-  const named = folders.filter(folder => names.includes(folder.name) && !STAGE_NAMES.includes(folder.name))
+  const named = folders.filter(folder => names.includes(folder.name))
   const chosen = named.length ? named : folders
   const hygiene = { message: values.message === undefined ? undefined : resolve(cwd, values.message), all: values.all }
   return [
