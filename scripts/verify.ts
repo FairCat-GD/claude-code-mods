@@ -1,11 +1,12 @@
 // The gate: the repo stages, then four stages per mod and for the template, each failing on its
-// own, then a summary.
+// own, then a summary. Names pick stages, mods or both; hygiene takes the drafted message.
 //
-// Usage: npm run verify [-- <mod> ...]
+// Usage: npm run verify [-- <stage or mod> ...] [--message <draft>] [--all]
 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { accessSync, constants, existsSync } from 'node:fs'
-import { delimiter, join } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
+import { parseArgs } from 'node:util'
 
 import { cliVersion, declarationsProblem, type Folder, hermeticEnv, isFile, modFolders, ROOT } from './repo.ts'
 
@@ -44,7 +45,9 @@ const claudeVersion = () => {
 const claude = (...args: string[]): Command => ({ argv: [findClaude(), ...args], env: hermeticEnv() })
 const node = (...args: string[]): Command => ({ argv: [process.execPath, ...args] })
 
-const repoStages = (scope: Folder[] | undefined): Stage[] => {
+type Hygiene = { message?: string; all: boolean }
+
+const repoStages = (scope: Folder[] | undefined, { message, all }: Hygiene): Stage[] => {
   const paths = scope ? [...TOOLING_PATHS.filter(path => existsSync(join(ROOT, path))), ...scope.map(folder => folder.path)] : ['.']
   return [
     { name: 'format', commands: () => [{ argv: [bin('biome'), 'format', ...paths] }] },
@@ -58,36 +61,60 @@ const repoStages = (scope: Folder[] | undefined): Stage[] => {
         ...(existsSync(join(ROOT, '.claude-plugin/marketplace.json')) ? [claude('plugin', 'validate', '--strict', '.')] : []),
       ],
     },
-    { name: 'hygiene', commands: () => [node('scripts/hygiene.ts')] },
+    {
+      name: 'hygiene',
+      commands: () => [node('scripts/hygiene.ts', ...(message === undefined ? [] : ['--message', message]), ...(all ? ['--all'] : []))],
+    },
   ]
 }
 
-const folderStages = ({ name, path }: Folder): Stage[] => [
-  {
-    name: `${name}: validate`,
-    commands: () => {
-      findClaude()
-      return [{ ...node('scripts/validate.ts', path), env: hermeticEnv() }]
-    },
+const folderStages = (path: string): Record<string, Stage['commands']> => ({
+  validate: () => {
+    findClaude()
+    return [{ ...node('scripts/validate.ts', path), env: hermeticEnv() }]
   },
-  {
-    name: `${name}: types`,
-    commands: () => {
-      const problem = declarationsProblem(join(ROOT, path), path, claudeVersion())
-      if (problem) throw new SetupError(problem)
-      return [{ argv: [bin('tsc'), '-p', path] }]
-    },
+  types: () => {
+    const problem = declarationsProblem(join(ROOT, path), path, claudeVersion())
+    if (problem) throw new SetupError(problem)
+    return [{ argv: [bin('tsc'), '-p', path] }]
   },
-  { name: `${name}: tests`, commands: () => [claude('plugin', 'test', path)] },
-  { name: `${name}: imports`, commands: () => [node('scripts/imports.ts', path)] },
-]
+  tests: () => [claude('plugin', 'test', path)],
+  imports: () => [node('scripts/imports.ts', path)],
+})
 
-// The stages for `verify -- <names>`: every folder when none is named.
-export const plan = (names: readonly string[], folders: Folder[] = modFolders()): Stage[] | { unknown: string[]; known: string[] } => {
-  const unknown = names.filter(name => !folders.some(folder => folder.name === name))
-  if (unknown.length) return { unknown, known: folders.map(folder => folder.name) }
-  const chosen = names.length ? folders.filter(folder => names.includes(folder.name)) : folders
-  return [...repoStages(names.length ? chosen : undefined), ...chosen.flatMap(folderStages)]
+// Every stage's name; `types` names the tooling's and each folder's.
+const STAGE_NAMES = [...new Set([...repoStages(undefined, { all: false }).map(stage => stage.name), ...Object.keys(folderStages(''))])]
+
+const parseOptions = (argv: readonly string[]) =>
+  parseArgs({ args: [...argv], allowPositionals: true, options: { message: { type: 'string' }, all: { type: 'boolean', default: false } } })
+
+// The stages for `verify -- <names>`, or why there are none. A stage name picks that stage, and
+// a mod name that mod's folder; with none of either, every one. A name of both is a stage.
+export const plan = (argv: readonly string[], folders: Folder[] = modFolders(), cwd = process.env.INIT_CWD ?? process.cwd()): Stage[] | string => {
+  let parsed: ReturnType<typeof parseOptions>
+  try {
+    parsed = parseOptions(argv)
+  } catch (error) {
+    return (error as Error).message
+  }
+  const { positionals: names, values } = parsed
+  const unknown = names.filter(name => !STAGE_NAMES.includes(name) && !folders.some(folder => folder.name === name))
+  if (unknown.length)
+    return `unknown name(s) ${unknown.join(', ')}; stages: ${STAGE_NAMES.join(', ')}; mods: ${folders.map(folder => folder.name).join(', ') || 'none'}`
+  const kinds = names.filter(name => STAGE_NAMES.includes(name))
+  const picked = (kind: string) => !kinds.length || kinds.includes(kind)
+  if ((values.message !== undefined || values.all) && !picked('hygiene')) return '--message and --all are for hygiene, which the names leave out'
+  const named = folders.filter(folder => names.includes(folder.name) && !STAGE_NAMES.includes(folder.name))
+  const chosen = named.length ? named : folders
+  const hygiene = { message: values.message === undefined ? undefined : resolve(cwd, values.message), all: values.all }
+  return [
+    ...repoStages(named.length ? named : undefined, hygiene).filter(stage => picked(stage.name)),
+    ...chosen.flatMap(folder =>
+      Object.entries(folderStages(folder.path))
+        .filter(([kind]) => picked(kind))
+        .map(([kind, commands]) => ({ name: `${folder.name}: ${kind}`, commands })),
+    ),
+  ]
 }
 
 const call = ({ argv, env }: Command, log: (line: string) => void) => {
@@ -114,8 +141,8 @@ export const runStage = (stage: Stage, log: (line: string) => void = console.log
 }
 
 export const main = (argv: readonly string[], planned = plan(argv), log: (line: string) => void = console.log): number => {
-  if (!Array.isArray(planned)) {
-    log(`verify: unknown mod(s) ${planned.unknown.join(', ')}; mods: ${planned.known.join(', ') || 'none'}`)
+  if (typeof planned === 'string') {
+    log(`verify: ${planned}`)
     return 2
   }
   const results = planned.map(stage => [stage.name, ...runStage(stage, log)] as const)

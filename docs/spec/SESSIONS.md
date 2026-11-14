@@ -828,6 +828,124 @@ their tests.
 - **The old hashed list stays in history.** Deleting the file does not remove it; that is
   *Going public*'s question for the owner, not this session's.
 
+**Done (2026-11-14, no version).**
+- **Decided with the owner at the start:**
+  - **The kit, from its folder on disk** rather than attached: the version the review read, last
+    commit 2026-11-05.
+  - **The stage names stay as they were:**
+    - repo stages: `format`, `lint`, `types`, `tooling-tests`, `marketplace`, `hygiene`;
+    - per-folder stages: `validate`, `types`, `tests`, `imports`.
+
+    `types` names the tooling's and each folder's.
+  - **The docs-only command is hygiene alone:**
+    `npm run verify -- hygiene --message "$(git rev-parse --git-dir)/COMMIT_DRAFT"`. Measured
+    with `biome format --verbose`: Biome here reads `.ts`, `.tsx` and `.json`, never Markdown, so
+    format and lint would add nothing.
+- **Hygiene** (`scripts/hygiene.ts`), rebuilt on the kit's design:
+  - **The terms come from `~/.config/hygiene/terms.txt`.**
+    - `--terms <file>` points the stage at another list, for the tests.
+    - A line that is not one word fails the stage, and the line is never printed.
+    - `scripts/hygiene_terms.txt` and the hashing are gone.
+  - **Tokens.** Runs of letters, their marks and digits, in any script (`\p{L}\p{M}\p{N}`), with
+    their camel-case words and digit groups.
+    - Terms and tokens alike are NFC-normalised and lowercased.
+    - Lines split on `\n` alone, which drops the old line-break regex and its escape trap.
+  - **Attribution.** The patterns name the tools, so "generated with the codegen script" passes.
+    Measured: 0 hits in this repository's 30 messages.
+  - **Secrets and conflict markers** in the kit's exact shapes, and a `.env` file a commit could
+    record.
+  - **The routine run and the full scan,** as the kit describes them.
+    - The stamp is `hygiene-scanned`, in the common git directory.
+    - The stage's source, for the stamp, is `scripts/hygiene.ts` alone, which keeps its own git
+      helpers.
+  - **It judges the repository it runs in**, the git top level of its working directory, not the
+    scripts' checkout. A test that spawns it in a scratch repository can never read this checkout
+    or its stamp.
+- **`verify`** (`scripts/verify.ts`):
+  - **Each name is a stage or a mod,** and several are accepted (F10's first item).
+    - Mods alone narrow the folders.
+    - Stages alone run just those stages.
+    - Both run those stages for those mods.
+  - **`--message` and `--all` go to hygiene.**
+    - Without hygiene among the stages, they exit 2, as an unknown name does.
+    - The draft's path is resolved where npm was run (`INIT_CWD`).
+  - **A name that is both a stage and a mod is read as the stage.** The stage names come from the
+    stages themselves.
+- **`.claude/worktrees/`** is ignored, anchored to the root, in `.gitignore` (`/.claude/worktrees/`).
+  - Biome follows the ignore file, so `biome.json` is unchanged.
+  - Checked by hand with a badly formatted scratch file there:
+    - git status, `biome format .`, `biome lint .` and hygiene's untracked listing all passed it
+      over;
+    - `git check-ignore` named the new line;
+    - `mods/x/.claude/worktrees/` stays unignored.
+  - The probe and the empty `.claude/` it made were removed.
+- **Tests:**
+  - **`tests/support.ts`** gains `git` and `scratchRepo`. Scratch repositories read no git config
+    but their own: `GIT_CONFIG_GLOBAL=/dev/null`, plus a local `core.excludesFile`, since a
+    machine's global ignore file would otherwise hide test files.
+  - **The term fixture** is `tests/fixtures/hygiene-terms.txt`: two made-up words, one Latin and
+    one Cyrillic.
+  - **Hygiene's tests** went from 8 to 101, ported case for case from the kit's list and the
+    design. The CLI cases spawn the stage with `--terms`, or with `HOME` set to a temporary folder.
+  - **`verify`'s tests** went from 8 to 15.
+- **What hygiene cannot see**, for Session 4's testing strategy:
+  - images and other binaries, their metadata included;
+  - a term joined inside one lowercase run;
+  - attribution in files;
+  - a home-directory path;
+  - a secret of any shape not listed;
+  - a submodule entry.
+- **Docs:**
+  - `CLAUDE.md`:
+    - rule 1;
+    - the hygiene paragraph of the privacy section;
+    - *Commands*: the names `verify` takes, the gate with `--message`, the docs-only command,
+      `--all`, and `hygiene.ts`'s flags;
+    - *Git*: the commit step through the draft;
+  - `README.md`'s sentence on `verify -- <name>`;
+  - `tests/fixtures/README.md`.
+- **Falsified, each once.** The code was broken, the matching tests failed at their own step, and
+  the file was copied back and compared byte for byte:
+  - a missing term file passes, and an empty one fails;
+  - ASCII-only runs miss the Cyrillic cases;
+  - no NFC misses the decomposed one;
+  - no camel-case or digit parts miss `myTermNotes` and `term2026`;
+  - the draft unread;
+  - the co-author trailer pattern broken;
+  - the tool names dropped, which flags the codegen line;
+  - each of the eight secret shapes broken in turn;
+  - tracked `.env` files unread;
+  - no env templates;
+  - the plain key shape unbounded on the left, which flags the hyphenated name;
+  - a loose fine-grained token shape, which flags `github_pat_TEST`;
+  - no conflict markers;
+  - `=======` made a marker;
+  - unstaged changes unread;
+  - unpushed commits' files unread;
+  - pushed commits read by a routine run;
+  - merges' first-parent diff dropped;
+  - a missing stamp keeping a routine run;
+  - the term file left out of the stamp's inputs;
+  - the draft skipped in a full scan;
+  - pushed message hits failing;
+  - the pushed count printed as 0;
+  - in `verify`:
+    - names not picking stages;
+    - `--message` not reaching hygiene;
+    - a flag without hygiene accepted.
+- **The full scan on the owner's term file:** `npm run verify -- hygiene --all` was clean, with 0
+  hits in files and 0 in pushed history. The stamp was written.
+- **Numbers** (CLI 2.1.325):
+  - `npm run verify`: 14 stages, all PASS (±0);
+  - tooling tests 148 in 6 files (+100: hygiene +93, verify +7);
+  - cartoon-fx: 36 tests, and `validate` lists 13 hooks, 5 gating (each with a `.catch`) and 4
+    state keys (±0). This was measured over a tree holding another session's uncommitted
+    cartoon-fx work;
+  - template: 1 test; `validate` lists 2 hooks, 0 gating, and calls `$.command.register` (±0).
+- **The shared checkout.** A cartoon-fx session had uncommitted changes in `mods/cartoon-fx/`
+  throughout. They were left alone and never staged. A routine hygiene run reads them, as it reads
+  anything a commit could record.
+
 ---
 
 ## 3b: The workflow per the updated workflow kit

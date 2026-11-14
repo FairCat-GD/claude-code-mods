@@ -7,3 +7,6 @@ node_modules/
 .DS_Store
 
 .claude/settings.local.json
+
+# Parallel parts' checkouts; anchored, so a part's own gate still reads its own files.
+/.claude/worktrees/

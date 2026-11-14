@@ -81,8 +81,9 @@ else belong to another session: never stage, edit or revert them.
 
 **Rules:**
 
-1. `npm run verify` must be green before you commit.
+1. `npm run verify` must be green before you commit, run with the drafted message (*Git*).
    - A mod session runs `npm run verify -- <mod>`.
+   - A commit that changes only docs runs the docs-only command instead (*Commands*).
    - The full `npm run verify` runs before any push.
    - Expected results are in the done-notes until the level's `ARCHITECTURE.md` has its baseline
      table.
@@ -163,8 +164,19 @@ So every file, test, fixture, done-note, handoff and commit message follows thes
   API, this file, and the workflow's review command.
 - **Fixtures are fictional.**
 
-The hygiene stage of `verify` checks tracked and untracked files, their paths and the staged
-contents against hashed private terms, and checks commit messages for attribution.
+The hygiene stage of `verify` checks for:
+- the owner's private terms, from `~/.config/hygiene/terms.txt`, one word per line, outside every
+  repository; a missing file fails the stage;
+- attribution in commit messages;
+- secrets in their issuers' exact shapes, and a `.env` file a commit could record;
+- conflict markers at the start of a line.
+
+A routine run reads what a commit could still change: changed and untracked files, the drafted
+message, and the commits on no remote. A full scan reads everything. It runs by itself when the
+stamp in the git directory is older than the term list or the stage's source, and on `--all`. A
+hit in a pushed message does not fail; the last line counts them, for the owner. A hit names the
+place, never the term or the secret. A home-directory path and attribution in a file are left to
+the last read of the diff.
 
 ## Commands
 
@@ -173,10 +185,13 @@ contents against hashed private terms, and checks commit messages for attributio
 | `npm ci` | Restores the pinned toolchain from `package-lock.json`: TypeScript, Biome and Node's types. |
 | `npm run types` | Starts an interactive `claude` that loads every mod and the template, so the engine lays this CLI build's declarations beside each; type `/exit` once its prompt shows, then it checks each folder. Run it in a terminal after a clone, a CLI update or a new mod. It keeps the owner's live mods out (no `CLAUDE_CODE_PLUGIN_DIRS`, user settings skipped), and says so and exits when every folder is fresh. A first run in a checkout asks Claude Code's folder-trust question. |
 | `npm run verify` | The gate. Repo stages `format`, `lint`, `types`, `tooling-tests`, `marketplace` and `hygiene`, then `validate`, `types`, `tests` and `imports` for each `mods/<name>` and `mod-template`. Every stage runs; a summary follows; exit 1 on any failure. A stage that cannot start names its fix. |
-| `npm run verify -- <name>` | The repo stages, with `format` and `lint` over the tooling and that folder only, then that mod's four stages. `<name>` is a folder under `mods/` or `mod-template`; an unknown one exits 2. |
+| `npm run verify -- <name> ...` | Each name is a stage or a mod (a folder under `mods/`, or `mod-template`). Mods alone: the repo stages, with `format` and `lint` over the tooling and those folders only, then their four stages each. Stages alone: just those, for every folder. Both: those stages for those mods (`npm run verify -- cartoon-fx tests`). `types` names the tooling's and each folder's. An unknown name exits 2. |
+| `npm run verify -- --message "$(git rev-parse --git-dir)/COMMIT_DRAFT"` | The gate with the drafted message checked too, before each commit. `--message` and `--all` go to hygiene, so they need it among the stages. |
+| `npm run verify -- hygiene --message "$(git rev-parse --git-dir)/COMMIT_DRAFT"` | The docs-only command, for a commit that changes only docs. Biome reads no Markdown here, so hygiene is the only stage that reads them. |
+| `npm run verify -- hygiene --all` | Hygiene's full scan, on demand. |
 | `npx biome format --write <path>` | Applies the formatting `format` checks. `npx biome lint --write <path>` applies lint's safe fixes. |
 | `node --test "tests/*.test.ts"` | The tooling's tests alone. Keep the quotes and the top-level pattern: Node expands it, and it never reaches `tests/fixtures/` or a mod's tests, which run only under `claude plugin test`. |
-| `node scripts/hygiene.ts` | Hygiene alone, for example after a commit to check its message. |
+| `node scripts/hygiene.ts [--message <draft>] [--all] [--terms <file>]` | Hygiene alone, over the repository it runs in. `--terms` is for tests, which point it at `tests/fixtures/hygiene-terms.txt` and never at the owner's file. |
 | `node scripts/validate.ts <folder>` | `claude plugin validate` as the gate judges it: every error and warning fails, but the one a mod's own `CLAUDE.md` draws ("not loaded as project context"). |
 | `node scripts/imports.ts <folder>` | The import scan alone, against the folder's laid declarations. |
 
@@ -201,6 +216,15 @@ settings, so its session loads only the folders it names.
   - `origin` is the private GitHub repository `FairCat-GD/claude-code-mods`. It stays private
     until the owner publishes it.
 - **Stage explicit paths,** never `git add -A`. Never undo with `git checkout <path>`.
+- **The message is checked before it exists.** As the last act before each commit:
+  1. write the message into `"$(git rev-parse --git-dir)/COMMIT_DRAFT"`, which is never
+     committed;
+  2. run `verify` with `--message` and that file, or the docs-only command;
+  3. commit with `git commit -F` from the file;
+  4. delete it, so an old message is never committed again.
+
+  A message that quotes an attribution form fails, even one describing this rule: describe it in
+  words.
 - **Subjects.** Typed (`feat:`, `fix:`, `refactor:`, `docs:`, `review:`), in plain words, at most
   72 characters, ending `(x.y.z)` when the commit cuts a version.
   - A mod's commits put its name as the scope: `feat(cartoon-fx): … (0.11.0)`.

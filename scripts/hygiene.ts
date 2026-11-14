@@ -1,157 +1,364 @@
-// Keeps private terms and AI attribution out of the repository's files and commit messages.
+// The hygiene stage: nothing private, no secret and no conflict marker enters the history.
+//
+// A routine run reads what a commit could still change. A full scan reads everything, and runs by
+// itself when the stamp is older than the term list or this file. Patterns are built from pieces,
+// so this file never holds what it bans, and a hit names its place, never the term or the secret.
+//
+// Usage: node scripts/hygiene.ts [--terms <file>] [--message <draft>] [--all]
 
-import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { closeSync, existsSync, lstatSync, openSync, readFileSync, readlinkSync, statSync, utimesSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { basename, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseArgs } from 'node:util'
 
-import { isFile, ROOT } from './repo.ts'
-
-export const TERMS_FILE = fileURLToPath(new URL('hygiene_terms.txt', import.meta.url))
-const RUN = /[a-z0-9]+/g
-// Camel-case words and digit groups inside a run, so a term joined to another word is still seen.
-const SUBTOKEN = /[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|[0-9]+/g
-// biome-ignore lint/suspicious/noControlCharactersInRegex: the boundaries Python's str.splitlines() splits on, which the line numbers follow.
-const LINE_BREAK = /\r\n|[\n\v\f\r\x1c-\x1e\x85\u2028\u2029]/
+export const SOURCES = [fileURLToPath(import.meta.url)]
+const STAMP = 'hygiene-scanned'
 const GITLINK = '160000'
-// Assembled from pieces so that this file never holds what it bans.
-const ATTRIBUTION: Record<string, RegExp> = {
-  'co-author trailer': new RegExp(`^[ \\t]*co${'-author'}ed-by[ \\t]*:`, 'gim'),
-  'generated-with line': new RegExp(`gener${'ated'}\\s+with`, 'gi'),
-  'AI session link': new RegExp(`https?://(?:[a-z0-9-]+\\.)*(?:clau${'de\\.ai'}|chat${'gpt\\.com'})/`, 'gi'),
-}
+const ENV_TEMPLATES = new Set(['.env.example', '.env.sample', '.env.template'])
+
+// Letters, their marks and digits, in any script.
+const RUN = /[\p{L}\p{M}\p{N}]+/gu
+const ONE_WORD = /^[\p{L}\p{M}\p{N}]+$/u
+const UPPER = /\p{Lu}/u
+const LOWER = /\p{Ll}/u
+const DIGIT = /\p{N}/u
+
+const DASHES = '-'.repeat(5)
+const NOT_BEFORE_TOKEN = '(?<![A-Za-z0-9_])'
+const NOT_AFTER_TOKEN = '(?![A-Za-z0-9_])'
+const NOT_BEFORE_KEY = '(?<![A-Za-z0-9_-])'
+const KEY_BODY = '[A-Za-z0-9_-]'
+const SECRETS = [
+  `${DASHES}BEGIN [A-Z0-9 ]*PRIVATE KEY${DASHES}`,
+  `(?<![A-Z0-9])(?:AK${'IA'}|AS${'IA'})[A-Z0-9]{16}(?![A-Z0-9])`,
+  `${NOT_BEFORE_TOKEN}gh[pousr]_[A-Za-z0-9]{36}${NOT_AFTER_TOKEN}`,
+  `${NOT_BEFORE_TOKEN}github${'_pat_'}[A-Za-z0-9]{22}_[A-Za-z0-9]{59}${NOT_AFTER_TOKEN}`,
+  `(?<![A-Za-z0-9-])xox[bpars]-[0-9]+-[A-Za-z0-9-]+`,
+  `${NOT_BEFORE_KEY}sk${'-ant-'}[a-z]+[0-9]{2}-${KEY_BODY}{80,}`,
+  `${NOT_BEFORE_KEY}sk-(?:proj|svcacct|admin)-${KEY_BODY}{40,}`,
+  `${NOT_BEFORE_KEY}sk-[A-Za-z0-9]{48}(?!${KEY_BODY})`,
+].map(shape => new RegExp(shape))
+
+// Tools, not the companies behind them. A model id is a setting, and only a capitalised Cursor is the tool.
+const AI_TOOL = `\\[?(?:clau${'de'}(?!-)|chatgpt|gpt|copilot|(?-i:Cursor)|codex|gemini|ai)\\b`
+const ATTRIBUTION = [
+  `^\\s*co${'-authored'}-by\\s*:`,
+  `\\b(?:generated|written|authored|created|built|assisted|produced)[\\s-]+(?:with|by|using)[\\s:]+(?:the\\s+help\\s+of\\s+)?(?:an?\\s+)?${AI_TOOL}`,
+  `clau${'de'}\\.ai/(?:code|chat|share)\\b`,
+  `chat${'gpt'}\\.com/(?:c|share)/`,
+  `chat\\.open${'ai'}\\.com/`,
+  `gem${'ini'}\\.google\\.com/(?:app|share)\\b`,
+].map(pattern => new RegExp(pattern, 'i'))
+
+// At the start of a line only: Markdown underlines headings with the middle marker.
+const CONFLICT_MARKERS = [`${'<'.repeat(7)} `, `${'>'.repeat(7)} `]
+
+export class HygieneError extends Error {}
 
 export type Terms = ReadonlySet<string>
+export type Report = { failures: string[]; pushed: string[]; fullScan: boolean }
+type Entry = { mode: string; sha: string }
 
-const splitLines = (text: string): string[] => {
-  const lines = text.split(LINE_BREAK)
-  if (lines.at(-1) === '') lines.pop()
-  return lines
+const tilde = (path: string) => (path.startsWith(`${homedir()}/`) ? `~${path.slice(homedir().length)}` : path)
+
+// The camel-case words and digit groups of a run, read before lowercasing.
+const parts = (run: string): string[] => {
+  const chars = [...run]
+  const starts = [0]
+  for (let index = 1; index < chars.length; index++) {
+    const before = chars[index - 1] ?? ''
+    const here = chars[index] ?? ''
+    const after = chars[index + 1] ?? ''
+    if (DIGIT.test(before) !== DIGIT.test(here) || (LOWER.test(before) && UPPER.test(here)) || (UPPER.test(before) && UPPER.test(here) && LOWER.test(after)))
+      starts.push(index)
+  }
+  return starts.map((start, index) => chars.slice(start, starts[index + 1]).join(''))
 }
 
-const decode = (data: Uint8Array) => new TextDecoder('utf-8').decode(data)
+export const tokens = (text: string): Set<string> => {
+  const found = new Set<string>()
+  for (const [run] of text.normalize('NFC').matchAll(RUN)) {
+    found.add(run.toLowerCase())
+    for (const part of parts(run)) found.add(part.toLowerCase())
+  }
+  return found
+}
 
-export const loadTerms = (path = TERMS_FILE): Terms =>
-  new Set(
-    splitLines(readFileSync(path, 'utf8'))
-      .map(line => line.trim())
-      .filter(line => line && !line.startsWith('#')),
+const holdsTerm = (text: string, terms: Terms) => [...tokens(text)].some(token => terms.has(token))
+
+const missing = (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT'
+
+export const loadTerms = (path: string): Terms => {
+  let text: string
+  try {
+    text = readFileSync(path, 'utf8')
+  } catch (error) {
+    if (missing(error)) throw new HygieneError(`no term list at ${tilde(path)}`)
+    throw error
+  }
+  const terms = new Set<string>()
+  for (const [index, line] of text.split('\n').entries()) {
+    const term = line.normalize('NFC').trim().toLowerCase()
+    if (!term) continue
+    // A line of two words could never match, and would look clean.
+    if (!ONE_WORD.test(term)) throw new HygieneError(`term list line ${index + 1} is not one word`)
+    terms.add(term)
+  }
+  return terms
+}
+
+// A path that is safe to print: a component holding a term would print the term.
+export const mask = (path: string, terms: Terms) =>
+  path
+    .split('/')
+    .map(part => (holdsTerm(part, terms) ? '***' : part))
+    .join('/')
+
+// In any case: APFS opens `.ENV` as `.env`.
+const isEnvFile = (path: string) => {
+  const name = basename(path).toLowerCase()
+  return (name === '.env' || name.startsWith('.env.')) && !ENV_TEMPLATES.has(name)
+}
+
+function* lineHits(line: string, terms: Terms): Generator<string> {
+  if (holdsTerm(line, terms)) yield 'private term'
+  if (SECRETS.some(shape => shape.test(line))) yield 'secret'
+}
+
+function* fileHits(text: string, terms: Terms): Generator<[number, string]> {
+  for (const [index, line] of text.split('\n').entries()) {
+    for (const kind of lineHits(line, terms)) yield [index + 1, kind]
+    if (CONFLICT_MARKERS.some(marker => line.startsWith(marker))) yield [index + 1, 'conflict marker']
+  }
+}
+
+function* messageHits(text: string, terms: Terms): Generator<[number, string]> {
+  for (const [index, line] of text.split('\n').entries()) {
+    for (const kind of lineHits(line, terms)) yield [index + 1, kind]
+    if (ATTRIBUTION.some(pattern => pattern.test(line))) yield [index + 1, 'attribution']
+  }
+}
+
+const git = (repo: string, args: string[], input?: string): Buffer =>
+  execFileSync('git', args, { cwd: repo, input, maxBuffer: 1 << 30, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] })
+
+const gitOk = (repo: string, args: string[]) => spawnSync('git', args, { cwd: repo, stdio: 'ignore' }).status === 0
+
+// The entries of a `-z` listing.
+const listed = (output: Buffer) => output.toString('utf8').split('\0').filter(Boolean)
+
+// Each path of an index or tree listing, with its mode and object; a conflicted path has no single version.
+const entries = (output: Buffer, stage: (meta: string[]) => boolean, sha: (meta: string[]) => string) => {
+  const found = new Map<string, Entry>()
+  for (const entry of listed(output)) {
+    const tab = entry.indexOf('\t')
+    const meta = entry.slice(0, tab).split(' ')
+    if (stage(meta)) found.set(entry.slice(tab + 1), { mode: meta[0] ?? '', sha: sha(meta) })
+  }
+  return found
+}
+
+const indexEntries = (repo: string) =>
+  entries(
+    git(repo, ['ls-files', '--stage', '-z']),
+    meta => meta[2] === '0',
+    meta => meta[1] ?? '',
   )
 
-const digests = new Map<string, string>()
-const digest = (token: string) => {
-  let hash = digests.get(token)
-  if (hash === undefined) {
-    hash = createHash('sha256').update(token, 'utf8').digest('hex')
-    digests.set(token, hash)
-  }
-  return hash
-}
+const headEntries = (repo: string) =>
+  entries(
+    git(repo, ['ls-tree', '-r', '-z', 'HEAD']),
+    () => true,
+    meta => meta[2] ?? '',
+  )
 
-function* termHits(text: string, terms: Terms): Generator<[number, string]> {
-  for (const [index, line] of splitLines(text).entries()) {
-    const tokens = new Set(line.toLowerCase().match(RUN) ?? [])
-    for (const token of line.match(SUBTOKEN) ?? []) tokens.add(token.toLowerCase())
-    const hits = new Set([...tokens].map(digest).filter(hash => terms.has(hash)))
-    for (const hash of [...hits].sort()) yield [index + 1, hash]
-  }
-}
+// Files a commit could record that git does not know yet; ignored ones stay out.
+const untracked = (repo: string) => listed(git(repo, ['ls-files', '--others', '--exclude-standard', '-z']))
 
-export const scanFiles = (root: string, paths: Iterable<string>, terms: Terms): string[] => {
-  const problems: string[] = []
-  for (const path of paths) {
-    for (const [, hash] of termHits(path, terms)) problems.push(`${path}: private term in the path (hash ${hash.slice(0, 12)})`)
-    const file = join(root, path)
-    if (!isFile(file)) continue
-    const data = readFileSync(file)
-    if (data.includes(0)) continue
-    for (const [number, hash] of termHits(decode(data), terms)) problems.push(`${path}:${number}: private term (hash ${hash.slice(0, 12)})`)
-  }
-  return problems
-}
-
-export const scanStaged = (root: string, staged: ReadonlyMap<string, Buffer>, terms: Terms): string[] => {
-  const problems: string[] = []
-  for (const [path, data] of staged) {
-    const file = join(root, path)
-    if (data.includes(0) || (isFile(file) && readFileSync(file).equals(data))) continue
-    for (const [number, hash] of termHits(decode(data), terms)) problems.push(`${path} (staged):${number}: private term (hash ${hash.slice(0, 12)})`)
-  }
-  return problems
-}
-
-export const scanMessages = (commits: Iterable<[string, string]>, terms: Terms): string[] => {
-  const problems: string[] = []
-  for (const [sha, message] of commits) {
-    for (const [kind, pattern] of Object.entries(ATTRIBUTION)) {
-      for (const match of message.matchAll(pattern)) {
-        const number = message.slice(0, match.index).split('\n').length
-        problems.push(`commit ${sha.slice(0, 12)}, message line ${number}: ${kind}`)
-      }
-    }
-    for (const [number, hash] of termHits(message, terms)) {
-      problems.push(`commit ${sha.slice(0, 12)}, message line ${number}: private term (hash ${hash.slice(0, 12)})`)
-    }
-  }
-  return problems
-}
-
-const git = (root: string, ...args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 30 })
-
-export const repositoryFiles = (root: string): string[] => {
-  // Untracked files count too, so a new file is checked before it is staged.
-  const listing = git(root, 'ls-files', '-z', '--cached', '--others', '--exclude-standard')
-  return [...new Set(listing.split('\0').filter(Boolean))].sort()
-}
-
-export const stagedContents = (root: string): Map<string, Buffer> => {
-  // The index is what a commit records, and it can differ from the working tree.
-  const entries = new Map<string, string>()
-  for (const entry of git(root, 'ls-files', '-z', '--stage').split('\0').filter(Boolean)) {
-    const tab = entry.indexOf('\t')
-    const [mode = '', sha = ''] = entry.slice(0, tab).split(' ')
-    if (mode !== GITLINK) entries.set(entry.slice(tab + 1), sha)
-  }
-  const input = [...entries.values()].map(sha => `${sha}\n`).join('')
-  const batch = execFileSync('git', ['cat-file', '--batch'], { cwd: root, input, maxBuffer: 1 << 30 })
-  const contents = new Map<string, Buffer>()
+// The contents of many objects through one `git cat-file --batch`.
+const blobs = (repo: string, shas: string[]): Buffer[] => {
+  if (!shas.length) return []
+  const batch = git(repo, ['cat-file', '--batch'], shas.map(sha => `${sha}\n`).join(''))
+  const contents: Buffer[] = []
   let offset = 0
-  for (const path of entries.keys()) {
+  for (const _ of shas) {
     const headerEnd = batch.indexOf(0x0a, offset)
     const size = Number(batch.subarray(offset, headerEnd).toString('utf8').split(' ')[2])
-    contents.set(path, batch.subarray(headerEnd + 1, headerEnd + 1 + size))
+    contents.push(batch.subarray(headerEnd + 1, headerEnd + 1 + size))
     offset = headerEnd + 1 + size + 1
   }
   return contents
 }
 
-export const commitMessages = (root: string): [string, string][] => {
+const workingCopy = (repo: string, path: string): Buffer | undefined => {
+  const file = join(repo, path)
+  let stat: ReturnType<typeof lstatSync>
   try {
-    execFileSync('git', ['rev-parse', '--verify', '--quiet', 'HEAD'], { cwd: root, stdio: 'ignore' })
+    stat = lstatSync(file)
   } catch {
-    return []
+    return undefined
   }
-  const log = git(root, 'log', '--format=%H%x00%B%x1e', 'HEAD')
-  return log
-    .split('\x1e')
-    .map(record => record.replace(/^\n+|\n+$/g, ''))
-    .filter(Boolean)
-    .map(record => {
-      const nul = record.indexOf('\0')
-      return [record.slice(0, nul), record.slice(nul + 1)]
+  // A link is its target's name. Following one could walk out of the repository.
+  if (stat.isSymbolicLink()) return Buffer.from(readlinkSync(file))
+  return stat.isFile() ? readFileSync(file) : undefined
+}
+
+// Hits in a path and its versions. With no version it has left the tree, which is the fix.
+function* pathHits(path: string, versions: Buffer[], terms: Terms): Generator<string> {
+  if (!versions.length) return
+  const printable = mask(path, terms)
+  if (holdsTerm(path, terms)) yield `${printable}: private term in the path`
+  for (const data of versions) {
+    if (data.includes(0)) continue
+    for (const [number, kind] of fileHits(data.toString('utf8'), terms)) yield `${printable}:${number}: ${kind}`
+  }
+}
+
+// The staged and the working copy of each path, once if they match.
+const scanFiles = (repo: string, paths: Iterable<string>, index: Map<string, Entry>, terms: Terms): string[] => {
+  const sorted = [...paths].filter(path => index.get(path)?.mode !== GITLINK).sort()
+  const inIndex = sorted.filter(path => index.has(path))
+  const contents = blobs(
+    repo,
+    inIndex.map(path => index.get(path)?.sha ?? ''),
+  )
+  const staged = new Map(inIndex.map((path, at) => [path, contents[at]]))
+  return sorted.flatMap(path => {
+    const versions = [staged.get(path), workingCopy(repo, path)].filter(data => data !== undefined)
+    const [first, second] = versions
+    return [...pathHits(path, first && second?.equals(first) ? [first] : versions, terms)]
+  })
+}
+
+// Files that commits on no remote changed, as they stand now.
+const scanAtHead = (repo: string, paths: Iterable<string>, terms: Terms): string[] => {
+  const changed = [...paths]
+  if (!changed.length) return []
+  const tree = headEntries(repo)
+  const present = changed.filter(path => (tree.get(path)?.mode ?? GITLINK) !== GITLINK).sort()
+  const contents = blobs(
+    repo,
+    present.map(path => tree.get(path)?.sha ?? ''),
+  )
+  return present.flatMap((path, at) => [...pathHits(path, contents[at] ? [contents[at]] : [], terms)])
+}
+
+const envFiles = (paths: Iterable<string>, terms: Terms) =>
+  [...paths]
+    .filter(isEnvFile)
+    .sort()
+    .map(path => `${mask(path, terms)}: an env file a commit could record`)
+
+const pathsACommitCouldChange = (repo: string, fresh: string[]) => {
+  const changed = new Set(fresh)
+  for (const against of [['HEAD'], ['--cached', 'HEAD'], []])
+    for (const path of listed(git(repo, ['diff', '--name-only', '-z', '--no-renames', ...against]))) changed.add(path)
+  return changed
+}
+
+const commits = (repo: string, revisions: string[]): [string, string][] => {
+  const fields = git(repo, ['log', '--format=%H%x00%B%x00', ...revisions])
+    .toString('utf8')
+    .split('\0')
+  const found: [string, string][] = []
+  for (let at = 0; at + 1 < fields.length; at += 2) found.push([(fields[at] ?? '').trim(), fields[at + 1] ?? ''])
+  return found
+}
+
+export const stampPath = (repo: string) => join(git(repo, ['rev-parse', '--path-format=absolute', '--git-common-dir']).toString('utf8').trim(), STAMP)
+
+const needsFullScan = (stamp: string, inputs: string[]) => {
+  if (!existsSync(stamp)) return true
+  const scanned = statSync(stamp, { bigint: true }).mtimeNs
+  return inputs.some(input => statSync(input, { bigint: true }).mtimeNs > scanned)
+}
+
+const touch = (path: string) => {
+  closeSync(openSync(path, 'a'))
+  const now = new Date()
+  utimesSync(path, now, now)
+}
+
+export const run = (
+  repo: string,
+  termsPath: string,
+  { message, full = false, sources = SOURCES }: { message?: string; full?: boolean; sources?: string[] } = {},
+): Report => {
+  const terms = loadTerms(termsPath)
+  let draft: string | undefined
+  if (message !== undefined) {
+    try {
+      draft = readFileSync(message, 'utf8')
+    } catch (error) {
+      if (missing(error)) throw new HygieneError(`no draft at ${tilde(message)}`)
+      throw error
+    }
+  }
+  if (!gitOk(repo, ['rev-parse', '--verify', '--quiet', 'HEAD'])) return { failures: [], pushed: [], fullScan: false }
+
+  const stamp = stampPath(repo)
+  const fullScan = full || needsFullScan(stamp, [termsPath, ...sources])
+  const index = indexEntries(repo)
+  const fresh = untracked(repo)
+  const failures: string[] = []
+
+  if (draft !== undefined) for (const [number, kind] of messageHits(draft, terms)) failures.push(`draft line ${number}: ${kind}`)
+  failures.push(...envFiles(new Set([...index.keys(), ...fresh]), terms))
+
+  const unpushed = ['HEAD', '--not', '--remotes']
+  if (fullScan) failures.push(...scanFiles(repo, new Set([...index.keys(), ...fresh]), index, terms))
+  else {
+    const changing = pathsACommitCouldChange(repo, fresh)
+    failures.push(...scanFiles(repo, changing, index, terms))
+    const changed = listed(git(repo, ['log', '--format=', '--name-only', '-z', '--no-renames', '--diff-merges=first-parent', ...unpushed]))
+    // A path about to change is judged by its new versions, or no fix to it could ever pass.
+    failures.push(...scanAtHead(repo, new Set(changed.filter(path => !changing.has(path))), terms))
+  }
+
+  const onNoRemote = new Set(
+    git(repo, ['rev-list', ...unpushed])
+      .toString('utf8')
+      .split(/\s+/)
+      .filter(Boolean),
+  )
+  const pushed: string[] = []
+  for (const [sha, body] of commits(repo, fullScan ? ['HEAD'] : unpushed)) {
+    for (const [number, kind] of messageHits(body, terms)) {
+      const place = `commit ${sha.slice(0, 10)} line ${number}: ${kind}`
+      if (onNoRemote.has(sha)) failures.push(place)
+      else pushed.push(place)
+    }
+  }
+
+  // A path's staged and working copies can hit on the same line.
+  const unique = [...new Set(failures)]
+  if (fullScan && !unique.length) touch(stamp)
+  return { failures: unique, pushed, fullScan }
+}
+
+const main = (argv: string[], log: (line: string) => void = console.log): number => {
+  let report: Report
+  try {
+    const { values } = parseArgs({
+      args: argv,
+      options: { terms: { type: 'string' }, message: { type: 'string' }, all: { type: 'boolean', default: false } },
     })
+    const repo = git(process.cwd(), ['rev-parse', '--show-toplevel']).toString('utf8').trim()
+    const terms = resolve(values.terms ?? join(homedir(), '.config', 'hygiene', 'terms.txt'))
+    report = run(repo, terms, { message: values.message === undefined ? undefined : resolve(values.message), full: values.all })
+  } catch (error) {
+    log(`hygiene: ${(error as Error).message}`)
+    return 1
+  }
+  for (const failure of report.failures) log(failure)
+  log(report.failures.length ? `hygiene: ${report.failures.length} hit(s)` : 'hygiene: clean')
+  if (report.fullScan) {
+    for (const place of report.pushed) log(`pushed ${place}`)
+    log(`hygiene: full scan, ${report.pushed.length} hit(s) in pushed history`)
+  }
+  return report.failures.length ? 1 : 0
 }
 
-export const check = (root: string, terms: Terms): string[] => [
-  ...scanFiles(root, repositoryFiles(root), terms),
-  ...scanStaged(root, stagedContents(root), terms),
-  ...scanMessages(commitMessages(root), terms),
-]
-
-if (import.meta.main) {
-  const problems = check(ROOT, loadTerms())
-  for (const problem of problems) console.log(problem)
-  console.log(`hygiene: ${problems.length} problem(s)`)
-  process.exitCode = problems.length ? 1 : 0
-}
+if (import.meta.main) process.exitCode = main(process.argv.slice(2))

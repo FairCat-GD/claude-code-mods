@@ -15,6 +15,10 @@ const FOLDERS = [
 const REPO_STAGES = ['format', 'lint', 'types', 'tooling-tests', 'marketplace', 'hygiene']
 const quiet = () => {}
 const exits = (code: number) => ({ argv: [process.execPath, '-e', `process.exit(${code})`] })
+const names = (planned: ReturnType<typeof plan>) => {
+  assert.ok(Array.isArray(planned), String(planned))
+  return planned.map(stage => stage.name)
+}
 
 test('every command in a stage runs after one fails', t => {
   const marker = join(temporaryFolder(t), 'ran')
@@ -72,13 +76,70 @@ test("verify -- <mod> runs the repo stages and that mod's stages only", () => {
   )
 })
 
-test('an unknown mod exits 2 and lists the known ones', () => {
+test('an unknown name exits 2 and lists the stages and mods', () => {
   const lines: string[] = []
   assert.equal(
     main(['nope'], plan(['nope'], FOLDERS), line => lines.push(line)),
     2,
   )
-  assert.deepEqual(lines, ['verify: unknown mod(s) nope; mods: alpha, beta, mod-template'])
+  assert.deepEqual(lines, [
+    'verify: unknown name(s) nope; stages: format, lint, types, tooling-tests, marketplace, hygiene, validate, tests, imports; mods: alpha, beta, mod-template',
+  ])
+})
+
+test('a stage name runs that stage alone', () => {
+  assert.deepEqual(names(plan(['hygiene'], FOLDERS)), ['hygiene'])
+  assert.deepEqual(names(plan(['format', 'hygiene'], FOLDERS)), ['format', 'hygiene'])
+})
+
+test('a mod and a stage name run that stage for that mod', () => {
+  assert.deepEqual(names(plan(['beta', 'tests'], FOLDERS)), ['beta: tests'])
+})
+
+test("types names the tooling's types and each folder's", () => {
+  assert.deepEqual(names(plan(['types'], FOLDERS)), ['types', 'alpha: types', 'beta: types', 'mod-template: types'])
+})
+
+test('a name that is both a stage and a mod is the stage', () => {
+  assert.deepEqual(names(plan(['tests'], [...FOLDERS, { name: 'tests', path: 'mods/tests' }])), [
+    'alpha: tests',
+    'beta: tests',
+    'mod-template: tests',
+    'tests: tests',
+  ])
+})
+
+test('--message and --all reach hygiene, with the draft resolved where npm was run', () => {
+  const planned = plan(['hygiene', '--message', 'draft', '--all'], FOLDERS, '/work')
+  assert.ok(Array.isArray(planned))
+  assert.deepEqual(planned[0]?.commands()[0]?.argv.slice(1), ['scripts/hygiene.ts', '--message', '/work/draft', '--all'])
+  const full = plan(['--message', '/elsewhere/draft'], FOLDERS, '/work')
+  assert.ok(Array.isArray(full))
+  assert.deepEqual(
+    full
+      .find(stage => stage.name === 'hygiene')
+      ?.commands()[0]
+      ?.argv.slice(1),
+    ['scripts/hygiene.ts', '--message', '/elsewhere/draft'],
+  )
+})
+
+test('--message or --all without hygiene exits 2', () => {
+  for (const argv of [
+    ['tests', '--all'],
+    ['format', '--message', 'draft'],
+  ]) {
+    const lines: string[] = []
+    assert.equal(
+      main(argv, plan(argv, FOLDERS), line => lines.push(line)),
+      2,
+    )
+    assert.deepEqual(lines, ['verify: --message and --all are for hygiene, which the names leave out'])
+  }
+})
+
+test('a --message with no file exits 2', () => {
+  assert.equal(main(['--message'], plan(['--message'], FOLDERS), quiet), 2)
 })
 
 test('tooling-tests collects nothing under tests/fixtures/, even a fixture test file', t => {

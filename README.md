@@ -41,8 +41,8 @@ npm run verify
 
 `verify` is the gate: format, lint, types and the tooling's tests, the marketplace and hygiene
 checks, then `claude plugin validate`, `tsc`, `claude plugin test` and the import scan for each mod
-and the template. `npm run verify -- <mod>` checks the tooling and one mod. Every command is in
-`CLAUDE.md`'s Commands table.
+and the template. `npm run verify -- <name> ...` runs only the stages or mods it names. Every
+command is in `CLAUDE.md`'s Commands table.
 
 ## Layout
 
