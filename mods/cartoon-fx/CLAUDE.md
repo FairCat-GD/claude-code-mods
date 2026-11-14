@@ -33,12 +33,8 @@ as `cartoon-fx@inline` with its own store (`docs/ARCHITECTURE.md`, *Packaging*).
 
 ## Read order
 
-A session on this mod reads:
-1. the spec file(s) its block names, in `docs/spec/`;
-2. the root `CLAUDE.md`;
-3. this file;
-4. `docs/ARCHITECTURE.md`;
-5. `docs/next-session-prompt.md`.
+A session on this mod reads in the order the root `CLAUDE.md` gives a mod session; its handoff's
+first line copies it.
 
 ## Commands
 
