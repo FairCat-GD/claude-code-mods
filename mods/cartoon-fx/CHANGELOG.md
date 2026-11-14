@@ -6,6 +6,22 @@ All notable changes to cartoon-fx are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.1] — 2026-11-14
+
+### Fixed
+
+- **Confetti only for a push that happened.** A rejected push plays nothing, even behind
+  `; echo done`, and so does a git command that only mentions a push, such as
+  `git log --grep=push` or a `# … push` comment. A push of a tag still plays, with the tag's
+  name.
+- **A commit on a detached HEAD stamps,** and a cherry-pick is no longer read as a commit.
+- **More test runners check off:** `node --test`, `rspec`, `dotnet test`, `gradle` and
+  `./gradlew test`, `mvn test`, `xcodebuild test`, `phpunit` and `mix test`.
+- **A test named "shows FAIL badge" no longer spoils a pass.** A runner's FAIL mark counts only at
+  the start of a line, where runners print it.
+- **Quoted text and heredocs are read whole.** A commit message or a note that says
+  "npm test; …" is not taken for a test run, and `bash -c "cd app && npm test"` still counts.
+
 ## [0.11.0] — 2026-11-14
 
 ### Changed

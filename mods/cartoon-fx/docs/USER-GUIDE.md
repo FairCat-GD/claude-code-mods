@@ -29,13 +29,17 @@ Each stays on screen for about three to four seconds, and a new one replaces one
 - **Subagents started together** (within about half a second) play once, with their count.
 - **Long words fit the picture.** A long title or subtitle, such as a long branch name, shrinks
   to fit, and past a readable size ends in "…".
-- **A test run** counts when the command, or a part of it after `&&`, `;` or `|`, starts with one
-  of the common test or verify commands: `npm test`, `npm run verify`, `pytest`, `cargo test`,
-  `go test`, `vitest`, `jest`, `playwright test`, `make test` and the like. Environment variables,
-  a wrapper such as `timeout 600` or `bash -c`, and a launcher such as `npx`, `uv run` or
-  `python -m` may come before it. Its output must also say it passed, with a count or the runner's
-  own word for a pass. A command that only names a runner, such as `cat jest.config.js`, doesn't
-  count.
+- **A push** plays when git reports a branch it updated, or a tag it pushed, which plays with the
+  tag's name. A git command that only mentions a push, such as `git log --grep=push`, plays
+  nothing.
+- **A test run** counts when the command, or a part of it after `&&`, `;` or `|` outside quotes,
+  starts with one of the common test or verify commands: `npm test`, `npm run verify`, `pytest`,
+  `cargo test`, `go test`, `vitest`, `jest`, `playwright test`, `make test`, `node --test`,
+  `rspec`, `dotnet test`, `./gradlew test`, `mvn test`, `xcodebuild test`, `phpunit`,
+  `mix test` and the like. Environment variables, a wrapper such as `timeout 600` or `bash -c`,
+  and a launcher such as `npx`, `uv run` or `python -m` may come before it. Its output must also
+  say it passed, with a count or the runner's own word for a pass. A command that only names a
+  runner, such as `cat jest.config.js`, or mentions one in quotes or a heredoc, doesn't count.
 
 ## `/fx`
 

@@ -236,6 +236,56 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
 - **Fictional output only** (root invariant 6). Shape fixtures on what each runner prints, with
   made-up names and counts.
 
+**Done (2026-11-14, 0.11.1).**
+- **Decided with the owner at the start:**
+  - **Tag push:** plays "Pushed!" with the tag's name, as before. The recommended answer; the
+    question went unanswered and the plan named it as the default, which the owner approved.
+  - **The 0.11.0 desktop check:** the owner's first `/fx all` (take 4) ran while a question box
+    was open, and looked short of ten. Rerun with nothing open (take 5), all ten played in the
+    `/fx` row, on the installed 0.11.0 (desktop engine 2.1.325). The first run's gap is put down
+    to the box covering the row; it was not reproduced.
+- **The engine's classifier, read from the CLI build 2.1.325** (the desktop's 2.1.325 binary
+  holds the same pattern). It anchors `git (-c|-C <v>|--opt=<v>)* <sub>` without `--no-pager`;
+  takes a commit from the first `[<branch>|detached HEAD] (root-commit)? <sha>]` line, `kind`
+  `cherry-picked` for any `git cherry-pick` in the command and `amended` for `--amend`; takes a
+  push only without `-n`/`--dry-run`, from the first ref line shaped `sha..sha` or
+  `[new branch]`. A rejected, up-to-date, deleted or `[new tag]` ref is no push.
+- **Shipped, in `hooks/detect.ts` alone:**
+  - `parts` is a scanner: quotes, `$(…)`, backticks, heredoc bodies, comments and line
+    continuations no longer split, and `sh -c '…'`'s string is split as a command of its own;
+  - a part's git subcommand is the first word after `git` and its global options;
+  - `gitOperation` decides a push or a commit; the printed fallback needs a ref line under `To`
+    that is not `!` or `=`, and a commit line may read `detached HEAD`; a `cherry-picked` report
+    counts as none;
+  - eight new runners, line-start failure marks, and the runners' own tallies and marks.
+- **Amendments:**
+  - **`sh -c '…'` is split again** (the session's own finding, at plan time with the owner):
+    quoting alone would have stopped `bash -c "cd app && npm test"` from counting.
+  - **The "Everything up-to-date" check went**, since a push now needs its ref line: a push
+    followed by a `git push --tags` with nothing new plays (the session's own finding).
+  - **The quoting item had already left `docs/BACKLOG.md`** at the round's opening, so nothing
+    left it here; the narrowed printed-output item went back under *Deferred*, so
+    `ARCHITECTURE.md`'s *Known debt* points at something true.
+- **Measured:** `node --test` on node 26.7.0 prints `ℹ pass N` / `ℹ fail N`, and `# pass N` with
+  the TAP reporter. No other new runner is installed here (xcodebuild needs full Xcode), so their
+  fixtures follow each runner's documented output (`docs/BACKLOG.md`).
+- **Falsified**, each by copying `detect.ts` aside, breaking it and copying it back; each failed
+  its own test, 49 pass and 1 fail unless noted:
+  - the subcommand matched to any later word;
+  - `!` ref lines allowed, and the first `->` anywhere restored (48 and 2: with the hook test);
+  - the old commit-line pattern; a `cherry-picked` report counted;
+  - each of the eight runners removed in turn;
+  - the failure mark matched anywhere; the failure tallies dropped; the pass tallies dropped;
+    the new pass marks dropped;
+  - the plain split restored; the `sh -c` recursion removed;
+  - the "Everything up-to-date" check restored ahead of the engine's report.
+- **Numbers:**
+  - 50 tests (+7: six of detection, one hook);
+  - `validate` 13 hooks, 5 gating, each with a `.catch`, and 4 state keys, unchanged;
+  - `tsc` and imports clean;
+  - `hooks/detect.ts` 216 lines (+112); 19 tracked files, unchanged.
+  - The checks ran on CLI 2.1.325, node 26.7.0.
+
 ---
 
 ## Q1: The queue

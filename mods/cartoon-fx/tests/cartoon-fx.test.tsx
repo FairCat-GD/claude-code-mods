@@ -35,6 +35,8 @@ const PUSHED = {
   stderr: 'To github.com:someone/repo.git\n   8577859..5e81772  main -> main\n',
   interrupted: false,
 }
+const TO = 'To github.com:someone/repo.git'
+const REJECTED = { stdout: 'done', stderr: `${TO}\n ! [rejected]        main -> main (fetch first)\nerror: failed to push some refs`, interrupted: false }
 const COMMITTED = { stdout: '[main 5e81772] Add squish effect\n 1 file changed', stderr: '', interrupted: false }
 const VERIFIED = { stdout: ' Test Files  6 passed (6)\n      Tests  42 passed (42)', stderr: '', interrupted: false }
 
@@ -608,6 +610,18 @@ test('a failed push draws nothing', async ($, on) => {
   for (const ui of [row, band]) await ui.unmount()
 })
 
+test('a rejected push behind "; echo done" returns no error, and draws nothing', async ($, on) => {
+  engine(on, REJECTED)
+  await start($)
+  await $.tool.call({ tool: 'Bash', command: 'git push origin main; echo done', tool_use_id: 't1' })
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+
+  expect(await row.find({ type: 'Svg' })).toBeUndefined()
+  expect(await band.find({ type: 'Svg' })).toBeUndefined()
+  for (const ui of [row, band]) await ui.unmount()
+})
+
 test('on the terminal the strip shows a row effect at once, with no replay', async ($, on) => {
   const { clock } = engine(on, PUSHED)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
@@ -655,7 +669,7 @@ test('what counts as a push, a commit and a passing test run', () => {
   const out = (stdout: string, stderr = '') => ({ stdout, stderr })
 
   expect(pushedBranch('git push origin main', out('', PUSHED.stderr))).toBe('main')
-  expect(pushedBranch('git -C app push', out('', ' * [new branch]      feat/x -> feat/x'))).toBe('feat/x')
+  expect(pushedBranch('git -C app push', out('', `${TO}\n * [new branch]      feat/x -> feat/x`))).toBe('feat/x')
   expect(pushedBranch('git push', { ...out(''), gitOperation: { push: { branch: 'dev' } } })).toBe('dev')
   expect(pushedBranch('git push', out('', 'Everything up-to-date'))).toBeUndefined()
   expect(pushedBranch('git push --dry-run', out('', PUSHED.stderr))).toBeUndefined()
@@ -723,6 +737,112 @@ test('a test run needs its runner at the start of a part, and a pass in its outp
   expect(testsPassed('swift test', out('Executed 12 tests, with 0 failures (0 unexpected)'))).toBe('')
   expect(testsPassed('npm test', out(''))).toBeUndefined()
   expect(testsPassed('cat <<EOF\npytest is slow\nEOF', out('pytest is slow'))).toBeUndefined()
+})
+
+const out = (stdout: string, stderr = '') => ({ stdout, stderr })
+
+test("a push counts on the engine's report, or on a ref line under git's own To line", () => {
+  const ref = (line: string) => out('', `${TO}\n${line}`)
+
+  // The engine's report decides, whatever else the output holds.
+  expect(
+    pushedBranch('git push && git push --tags', {
+      ...ref('   8577859..5e81772  main -> main\nEverything up-to-date'),
+      gitOperation: { push: { branch: 'main' } },
+    }),
+  ).toBe('main')
+  expect(pushedBranch('git push && git push --tags', ref('   8577859..5e81772  main -> main\nEverything up-to-date'))).toBe('main')
+
+  // A tag the engine leaves out plays by its name.
+  expect(pushedBranch('git push --tags', ref(' * [new tag]         v1.2.0 -> v1.2.0'))).toBe('v1.2.0')
+
+  // Rejected, up to date, or with no To line: nothing was pushed.
+  expect(pushedBranch('git push origin main; echo done', REJECTED)).toBeUndefined()
+  expect(pushedBranch('git push -v', ref(' = [up to date]      main -> main'))).toBeUndefined()
+  expect(pushedBranch('git push origin main dev', ref(' ! [rejected]        main -> main (fetch first)\n   8577859..5e81772  dev -> dev'))).toBe('dev')
+  expect(pushedBranch('git push -q && git log --decorate -1', out('5e81772 (HEAD -> main, origin/main) x'))).toBeUndefined()
+})
+
+test('the git subcommand is the first word after git and its global options', () => {
+  const pushed = out('', `${TO}\n   8577859..5e81772  main -> main`)
+
+  expect(pushedBranch('git log --decorate --grep=push -3', out('5e81772 (HEAD -> main, origin/main) x'))).toBeUndefined()
+  expect(pushedBranch("git commit -m 'fix push'", out('[main 5e81772] fix push\n rename a.ts -> b.ts (100%)'))).toBeUndefined()
+  expect(pushedBranch('git status -sb # check before push', out('R  old.ts -> new.ts'))).toBeUndefined()
+
+  // The log's `-n` is not the push's dry run.
+  expect(pushedBranch('git log --grep=push -n 5 && git push origin main', pushed)).toBe('main')
+  expect(pushedBranch('git -C "my app" push', pushed)).toBe('main')
+  expect(pushedBranch('git --git-dir=.git --no-pager push', pushed)).toBe('main')
+  expect(committed('git -c user.name=someone commit -m x', out('[main 5e81772] x'))).toEqual({ sha: '5e81772', isAmend: false, subject: 'x' })
+  expect(committed('git --no-pager commit -m x', out('[main 5e81772] x'))).toEqual({ sha: '5e81772', isAmend: false, subject: 'x' })
+  expect(committed('git log -1 --format="[main 5e81772] %s" # the last commit', out('[main 5e81772] x'))).toBeUndefined()
+})
+
+test('a commit on a detached HEAD counts, and a cherry-pick is no commit', () => {
+  expect(committed('git commit -m x', out('[detached HEAD 5e81772] x'))).toEqual({ sha: '5e81772', isAmend: false, subject: 'x' })
+  expect(committed('git commit -m x', { ...out('[detached HEAD 5e81772] x'), gitOperation: { commit: { sha: '5e81772ab', kind: 'committed' } } })).toEqual({
+    sha: '5e81772',
+    isAmend: false,
+    subject: 'x',
+  })
+
+  expect(committed('git cherry-pick 1a2b3c4', out('[main 5e81772] x'))).toBeUndefined()
+  expect(
+    committed('git cherry-pick 1a2b3c4', { ...out('[main 5e81772] x'), gitOperation: { commit: { sha: '5e81772ab', kind: 'cherry-picked' } } }),
+  ).toBeUndefined()
+})
+
+test('more runners count, each by what it prints for a pass', () => {
+  expect(testsPassed('node --test "tests/*.test.ts"', out('✔ adds (0.07ms)\nℹ tests 48\nℹ suites 0\nℹ pass 48\nℹ fail 0\nℹ cancelled 0'))).toBe('48 passed')
+  expect(testsPassed('node --test-reporter=tap --test', out('# tests 48\n# pass 48\n# fail 0'))).toBe('48 passed')
+  expect(testsPassed('bundle exec rspec', out('Finished in 0.4 seconds\n12 examples, 0 failures, 1 pending'))).toBe('')
+  expect(testsPassed('dotnet test', out('Passed!  - Failed:     0, Passed:    12, Skipped:     0, Total:    12 - App.Tests.dll'))).toBe('12 passed')
+  expect(testsPassed('dotnet test', out('Test summary: total: 12, failed: 0, succeeded: 12, skipped: 0'))).toBe('12 passed')
+  expect(testsPassed('./gradlew test', out('> Task :test\n\nBUILD SUCCESSFUL in 4s'))).toBe('')
+  expect(testsPassed('gradle --no-daemon :app:test', out('BUILD SUCCESSFUL in 4s'))).toBe('')
+  expect(testsPassed('mvn -q clean test', out('[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0\n[INFO] BUILD SUCCESS'))).toBe('')
+  expect(testsPassed("xcodebuild -scheme App -destination 'platform=macOS' test", out('** TEST SUCCEEDED **'))).toBe('')
+  expect(testsPassed('vendor/bin/phpunit', out('OK (12 tests, 30 assertions)'))).toBe('')
+  expect(testsPassed('mix test', out('Finished in 0.1 seconds\n1 doctest, 12 tests, 0 failures'))).toBe('')
+
+  expect(testsPassed('node app.js', out('ℹ pass 48'))).toBeUndefined()
+  expect(testsPassed('xcodebuild -scheme App build', out('** BUILD SUCCEEDED **'))).toBeUndefined()
+})
+
+test("a failure plays nothing, and a FAIL mark counts only at a line's start", () => {
+  expect(testsPassed('npm test', out('   ✓ src/badge.test.ts > shows FAIL badge\n Test Files  1 passed (1)\n      Tests  12 passed (12)'))).toBe('12 passed')
+  expect(testsPassed('npm test 2>&1 | tail', out(' FAIL  src/badge.test.ts > shows a badge\n      Tests  12 passed (12)'))).toBeUndefined()
+
+  expect(testsPassed('node --test', out('ℹ tests 3\nℹ pass 2\nℹ fail 1'))).toBeUndefined()
+  expect(testsPassed('bundle exec rspec', out('12 examples, 1 failure'))).toBeUndefined()
+  expect(testsPassed('dotnet test', out('Failed!  - Failed:     1, Passed:    11, Skipped:     0, Total:    12'))).toBeUndefined()
+  expect(testsPassed('dotnet test', out('Test summary: total: 12, failed: 1, succeeded: 11, skipped: 0'))).toBeUndefined()
+  expect(testsPassed('./gradlew test | tail', out('12 tests completed, 1 failed\n\nBUILD FAILED in 4s'))).toBeUndefined()
+  expect(testsPassed('mvn test | tail', out('[ERROR] Tests run: 12, Failures: 0, Errors: 1, Skipped: 0\n[INFO] BUILD FAILURE'))).toBeUndefined()
+  expect(testsPassed('xcodebuild test -scheme App | tail', out('** TEST FAILED **'))).toBeUndefined()
+  expect(testsPassed('phpunit | tail', out('FAILURES!\nTests: 12, Assertions: 30, Failures: 1.'))).toBeUndefined()
+  expect(testsPassed('mix test | tail', out('12 tests, 1 failure'))).toBeUndefined()
+})
+
+test('quotes, heredocs and comments keep a command whole', () => {
+  const passing = out(' Test Files  1 passed (1)\n      Tests  42 passed (42)')
+
+  expect(testsPassed('cat <<EOF\npytest is slow\nEOF', passing)).toBeUndefined()
+  expect(testsPassed("cat <<-'EOF' > notes.md\n\tnpm test; then ship\n\tEOF", passing)).toBeUndefined()
+  expect(testsPassed('echo "first; npm test"', passing)).toBeUndefined()
+  expect(testsPassed("printf 'a | pytest'", passing)).toBeUndefined()
+  expect(testsPassed('ls # and then; npm test', passing)).toBeUndefined()
+
+  const message = `git commit -m "$(cat <<'EOF'\nfix: the "push" step; then git push\nEOF\n)"`
+  expect(committed(message, out('[main 5e81772] fix: the "push" step'))).toEqual({ sha: '5e81772', isAmend: false, subject: 'fix: the "push" step' })
+  expect(pushedBranch(message, out('[main 5e81772] x', `${TO}\n   8577859..5e81772  main -> main`))).toBeUndefined()
+
+  // What the shell still runs as a command of its own.
+  expect(testsPassed('bash -c "cd app && npm test"', passing)).toBe('42 passed')
+  expect(testsPassed("sh -c 'cd app; pytest -q'", out('12 passed in 0.31s'))).toBe('12 passed')
+  expect(testsPassed('npm test \\\n  -- --coverage', passing)).toBe('42 passed')
+  expect(testsPassed('cat <<EOF > notes.md\nsome notes\nEOF\nnpm test', passing)).toBe('42 passed')
 })
 
 // ---- the drawings, read back from drawFx's output -------------------------

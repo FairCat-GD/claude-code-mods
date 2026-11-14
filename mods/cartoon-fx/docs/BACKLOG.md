@@ -9,6 +9,10 @@ up, it moves out of this file.
 
 - **Muting single effects** (`/fx mute <name>`). Offered at the round 3 intake and declined by the
   owner; `/fx off` mutes them all.
+- **Detection reads printed output where the engine gives no report.** `detect.ts` takes a push
+  or a commit from the call's `gitOperation` first, and from git's printed lines only where the
+  engine reports none: a tag push, `git --no-pager`. Every test run is judged by its runner's
+  wording. A change to either wording breaks it quietly: nothing plays. Narrowed at 0.11.1.
 - **A cast where the declarations name no shape:** `awaitingLeaderApproval` on `ExitPlanMode`'s
   result. A declarations change would not show in `tsc`. Read from the as-built code, in repo
   Session 3; left out at the round 2 intake, which took the `ReportFindings` cast.
@@ -17,12 +21,16 @@ up, it moves out of this file.
 
 Checks that need a person at the machine. Each has an automated check covering most of it;
 these are the parts only a person can see. `/fx all` was checked by hand on the installed release
-at 0.10.1, in the desktop app and in a terminal. A `/code-review` with findings, and its fixes,
-were checked at 0.10.2 in the desktop app: both played beside the findings card.
+at 0.10.1, in the desktop app and in a terminal, and at 0.11.0 in the desktop app, where all ten
+played in its row. A `/code-review` with findings, and its fixes, were checked at 0.10.2 in the
+desktop app: both played beside the findings card.
 
-- **The redrawn effects in the desktop app** (0.11.0): `/fx all` in a desktop session after the
-  update, each drawing whole, under its row and in the strip. Their frames were checked by eye
-  in a browser before the commit, and the structural tests cover their geometry.
+- **The new test runners against real output** (0.11.1): `rspec`, `dotnet test`, gradle,
+  `mvn test`, `xcodebuild test`, `phpunit` and `mix test` are none of them installed here, so
+  their fixtures follow each runner's documented output; only `node --test` was measured. Each
+  has a test for a pass and a failure.
+- **A rejected push in a live session** (0.11.1): a push the remote refuses, behind `; echo done`,
+  plays nothing. Covered by a hook test and the engine's own pattern, read from its build.
 - **Labels in a font other than those measured** (0.11.0): words are fitted by widths measured
   with Arial Rounded MT Bold and system-ui on macOS. A Windows or Linux desktop falls back to
   other fonts, unmeasured; the estimate's margin is all that covers them.

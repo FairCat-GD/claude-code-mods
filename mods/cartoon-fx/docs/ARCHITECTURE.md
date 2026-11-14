@@ -1,6 +1,6 @@
 # cartoon-fx — architecture, as built
 
-This is cartoon-fx as it stands at 0.11.0, written from its code. Every session that changes the
+This is cartoon-fx as it stands at 0.11.1, written from its code. Every session that changes the
 mod keeps it true.
 
 ## Overview
@@ -26,11 +26,11 @@ One effect is on show at a time. A new one replaces any still playing.
 | File | Lines | Holds |
 |---|---|---|
 | `hooks/register.tsx` | 506 | the hooks, playing and placement |
-| `hooks/detect.ts` | 104 | the Bash readers, `isReviewFix`, `tokens` |
+| `hooks/detect.ts` | 216 | the Bash readers, `isReviewFix`, `tokens` |
 | `hooks/fx.ts` | 969 | the ten drawings, their SMIL helpers, and fitting words |
 | `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
 | `types/index.d.ts` | 26 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 976 | 43 tests |
+| `tests/cartoon-fx.test.tsx` | 1096 | 50 tests |
 
 ## The invariants
 
@@ -45,9 +45,10 @@ One effect is on show at a time. A new one replaces any still playing.
 3. **The same seed always draws the same picture.** `random(seed)` is a seeded PRNG, so a redraw
    doesn't reshuffle the confetti. *Enforced by* the terminal test, which checks the glyphs are
    identical 900 ms later.
-4. **A failure plays nothing.** A denied or errored call, a dry run, a push with nothing to push,
-   a test run that reports any failure, and a plan turned down all play nothing. *Enforced by*
-   tests for the failed push, the plan turned down, the failing run, and none fixed.
+4. **A failure plays nothing.** A denied or errored call, a dry run, a rejected push, a push with
+   nothing to push, a test run that reports any failure, and a plan turned down all play nothing.
+   *Enforced by* tests for the failed push, the rejected push, the plan turned down, the failing
+   runs, and none fixed.
 5. **The drawings carry no script.** Each effect is SVG animated with SMIL alone, so it draws
    wherever the app shows an `<Svg>`.
 
@@ -73,24 +74,44 @@ One effect is on show at a time. A new one replaces any still playing.
 
 ## Detection (`hooks/detect.ts`)
 
-- **The parts of a command.** `parts` splits a compound command on `&&`, `||`, `;`, `|` and
-  newlines. It does not parse quoting, so a quoted or heredoc line counts as a part of its own.
-- **The git part of a command.** `gitPart` takes the part that runs `git … push` or
-  `git … commit`. A flag elsewhere in the line (the `-n` of `git commit -n`) is not read as the
-  push's own.
-- **A push** needs that part, no `--dry-run` or `-n`, and no "Everything up-to-date". Its branch
-  comes from the call's `gitOperation.push.branch` when the engine gives one. Otherwise it comes
-  from the first `-> branch` after the push's `To <remote>` line, so a fetch or pull earlier in the
-  command doesn't count.
-- **A commit** needs that part and no `--dry-run`. Its short hash comes from `gitOperation.commit`,
-  or from git's `[branch (root-commit)? sha] subject` line. It is an amend when the engine says
-  `amended`, or when the command has `--amend`.
+- **The engine's report first.** A Bash call's `gitOperation` is the engine's own reading of what
+  git did. Where it names a push or a commit, it decides; git's printed output is the fallback for
+  what it leaves out. Read from the CLI build 2.1.325, whose desktop engine holds the same
+  pattern, the engine:
+  - anchors the subcommand as `gitPart` below does, but takes no `--no-pager`;
+  - reports a commit from the first `[<branch>|detached HEAD] (root-commit)? <sha>]` line, of kind
+    `cherry-picked` when the command has `git cherry-pick`, `amended` with `--amend`, else
+    `committed`;
+  - reports a push only without `-n`/`--dry-run`, from the first ref line shaped `sha..sha` or
+    `[new branch]`, so a rejected, up-to-date, deleted or `[new tag]` ref is no push;
+  - reports nothing for a call in the background.
+- **The parts of a command.** `parts` splits a compound command where the shell would: at `&&`,
+  `||`, `;`, `|` and newlines, but never inside quotes, `$(…)`, backticks or a heredoc's body,
+  and after `\` a newline only joins the lines. A heredoc's body (`<<`, `<<-`, a quoted
+  delimiter) and a `#` comment belong to no part. The string of `sh|bash|zsh -c '…'` is split
+  again, as a command of its own.
+- **The git part of a command.** A part's subcommand is the first word after `git` and its global
+  options (`-C <dir>`, `-c <key=value>`, `--no-pager`, `--<option>=<value>`), so `git log
+  --grep=push` is no push. `gitPart` takes the part whose subcommand is `push` or `commit`; a flag
+  elsewhere in the line (the `-n` of `git log -n 5`) is not read as the push's own.
+- **A push** plays the engine's `gitOperation.push.branch` when it gives one. Otherwise it needs
+  a push part with no `--dry-run` or `-n`, and git's own report under its `To <remote>` line: the
+  first indented ref line with `->` that is not a rejection (`!`) or already up to date (`=`)
+  names the branch, or a tag. With no `To` line, nothing plays, so a log's `HEAD -> main` or a
+  rename's `a -> b` never does.
+- **A commit** plays the engine's `gitOperation.commit` of kind `committed` or `amended`, with the
+  subject from git's printed line. A `cherry-picked` one plays nothing yet. Otherwise it needs a
+  commit part with no `--dry-run`, and git's `[<branch>|detached HEAD] (…)? <sha>] subject` line;
+  it is an amend when that part has `--amend`.
 - **A review-fix commit** is one whose subject starts `review`, or starts `fix` and names a review.
   It plays `fixes` in place of the stamp.
 - **A passing test run** is a part that starts with one of `RUNNERS`
   (`npm|pnpm|yarn|bun (run) test|verify`, `vitest`, `jest`, `pytest`, `playwright test`,
   `go test`, `cargo test|nextest|xtask verify`, `swift test`, `deno test`,
-  `make test|check|verify`, `claude plugin test`).
+  `make test|check|verify`, `claude plugin test`, `node --test`, `dotnet test`, `mix test`,
+  `(bundle exec) rspec`, `(php) phpunit`, `gradle|gradlew (:mod:)test`, `mvn|mvnw (clean) test`,
+  and `xcodebuild … test`, whose action follows its options). A path may come before rspec,
+  phpunit, gradle and mvn.
   - Only `LEAD` may come before it: `VAR=value` words (quoted values too), `(` or `{`, and the
     wrappers `time`, `env`, `nice`, `command`, `exec`, `timeout <n>` and `sh|bash|zsh -c`.
   - Before `vitest`, `jest`, `pytest` or `playwright test` may also come a `LAUNCHER` (`npx`,
@@ -99,13 +120,19 @@ One effect is on show at a time. A new one replaces any still playing.
   - The runner ends at its word, so `npm run test:unit` counts and `jest.config.js` doesn't.
     A command that only names a runner (`cat jest.config.js`, `npm ls vitest`,
     `npx playwright install`) is no run.
-  - It must print no failure count (`N failed`, `failing`, `errors`), no `FAIL`/`FAILED` mark,
-    no `(fail)` line and no `test result: FAILED`. A piped run exits with the pipe's last command,
-    so the printed output has the last word.
-  - It must print a pass: an `N passed|passing|pass` count, or with none, a runner's own mark
-    (`PASSED_MARK`: a line starting `ok` or `PASS`, XCTest's "with 0 failures", "tests passed",
-    `verify: PASS`). A run that prints neither plays nothing.
-  - The count shown is the largest `N passed|passing|pass`, or none with only a mark.
+  - It must print no failure: no count (`N failed`, `failing`, `failures`, `errors`), no tally
+    of one or more (node's `fail N` line, dotnet's `Failed: N`, maven's and phpunit's
+    `Failures: N` or `Errors: N`), and no mark. A mark counts only at a line's start, after
+    spaces, a `[LEVEL]` prefix, `--- ` or `** `: `FAIL`, `FAILED`, `FAILURES!`, `ERRORS!`,
+    `BUILD FAILED|FAILURE`, `TEST FAILED`, a `(fail)` line; `test result: FAILED` counts anywhere.
+    So a test named "shows FAIL badge" passes. A piped run exits with the pipe's last command, so
+    the printed output has the last word.
+  - It must print a pass: an `N passed|passing|pass` count or a tally (node's `pass N` line,
+    dotnet's `Passed: N` or `succeeded: N`), or with neither, a runner's own mark (`PASSED_MARK`:
+    a line starting `ok` or `PASS`, XCTest's "with 0 failures", "tests passed", `verify: PASS`,
+    `N examples|tests, 0 failures`, `BUILD SUCCESS(FUL)`, `** TEST SUCCEEDED **`, phpunit's
+    `OK (N tests` or `OK, but`). A run that prints none plays nothing.
+  - The count shown is the largest count or tally, or none with only a mark.
 - **Calls in the background** (`backgroundTaskId`) count as none of these.
 - **One command may do several.** The push wins, then the commit, then the tests.
 
@@ -246,11 +273,14 @@ It uses no network, process or file access.
 ## Testing strategy — the layers, and what each cannot see
 
 The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
-- **`claude plugin test`** runs the 43 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 50 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`).
   - Rows are mounted on the `desktop` surface, and the terminal tests on `terminal`.
-  - Two tests cover the detection rules as plain functions.
+  - Eight tests cover the detection rules as plain functions, and one hook test the rejected
+    push behind `; echo done`. Their output is fictional, shaped on what each tool prints: git's
+    and node's as measured on this machine (node 26.7.0), the other new runners' from their
+    documented output, since none is installed here.
   - Seven read `drawFx`'s output back as structure, for every kind with the longest words the
     mod gives it and the extremes of its value. A small parser in the test file finds the named
     pieces and composes their transforms, taking an animated translate at its last value and
@@ -276,14 +306,16 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
   played "Reviewed!" beside its findings card, and its re-report with the fixes played "Bugs
   squashed!" there too, under `placement: conversation`. At 0.11.0, the owner checked every
   drawing's frames by eye before the commit, paused at set times on dark and light in a
-  browser, and the strip of a `--plugin-dir` terminal session played all ten (CLI 2.1.325).
+  browser, and the strip of a `--plugin-dir` terminal session played all ten (CLI 2.1.325). On
+  the installed 0.11.0, `/fx all` in a desktop session (engine 2.1.325) played all ten in its
+  row.
   What nobody has checked by hand is in `docs/BACKLOG.md`.
 
 ## Packaging
 
 - **The release.** The owner installs the release from this repository's marketplace as
   `cartoon-fx@claude-code-mods`, at user scope. The installed copy is the mod's tracked files at
-  the pushed commit, every one of them (19 at 0.11.0), byte for byte. That includes `CLAUDE.md`,
+  the pushed commit, every one of them (19 at 0.11.1), byte for byte. That includes `CLAUDE.md`,
   `docs/` and the tests. It lives in
   `~/.claude/plugins/cache/claude-code-mods/cartoon-fx/<version>/`, and changes only when
   `claude plugin update cartoon-fx` finds a new version.
@@ -334,21 +366,26 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
 - **A review's effect is awaited before the report's result returns.** Run beside the result, it
   raced the test kit, which does not wait for it, and the read it costs comes once per review.
 
+- **The engine's `gitOperation` decides a push or a commit; printed output is the fallback.** The
+  engine reads git's output with the same rules on every surface, and a test can hand the hooks
+  a report. The fallback keeps what it leaves out: a tag push, `git --no-pager`, and an engine
+  that gives no report.
+- **A tag push plays "Pushed!" with the tag's name.** The owner's call at D1's start: the engine
+  reports no push for a `[new tag]` ref, so it plays from git's printed line.
+
 ## Known debt, deliberately deferred
 
 In `docs/BACKLOG.md` under *Deferred*:
-- detection by reading printed output, which a change to git's or a runner's wording would break,
-  where the engine gives no `gitOperation`;
-- a cast where the declarations don't name the shape: `awaitingLeaderApproval`;
-- commands split without parsing quoting, so a quoted or heredoc line that starts with a runner
-  reads as a test run when the output also shows a pass.
+- detection by reading printed output, which a change to git's or a runner's wording would break:
+  every test run, and a push or commit the engine does not report;
+- a cast where the declarations don't name the shape: `awaitingLeaderApproval`.
 
-## Baseline (v0.11.0)
+## Baseline (v0.11.1)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 43 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 50 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |

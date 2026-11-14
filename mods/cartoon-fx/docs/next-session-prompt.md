@@ -1,62 +1,54 @@
 Read, in the order the root CLAUDE.md gives a mod session:
-1. what D1's **Read** line names, in this mod's `docs/spec/`;
+1. what Q1's **Read** line names, in this mod's `docs/spec/`;
 2. the root CLAUDE.md, then this mod's CLAUDE.md;
 3. *The session cycle* in the root `docs/DEVELOPMENT-WORKFLOW.md`;
 4. this mod's `docs/ARCHITECTURE.md`: its overview, invariants and baseline, and the sections
    the Read line names;
-5. `docs/spec/SESSIONS.md`'s header, D1's block and A1's done-note;
+5. `docs/spec/SESSIONS.md`'s header, Q1's block and D1's done-note;
 6. this file.
 
-Then do Session D1: detection that reads what happened. That is the git subcommand anchored, rejected pushes, a detached HEAD, more test
-runners, and quoting. Release 0.11.1.
+Then do Session Q1: the queue. Everything plays in order, three wait at most, and stale ones are
+dropped. Release 0.12.0.
 
 ## State you need that is not in the specs
 
-- **Round 3 is fun, a queue, new moments and controls:** A1 is done; D1, Q1, T1, T2, C1 and A2
-  remain. The root's sessions 3a–3c run beside this round, from the root's
+- **Round 3 is fun, a queue, new moments and controls:** A1 and D1 are done; Q1, T1, T2, C1 and
+  A2 remain. The root's sessions 3a–3c run beside this round, from the root's
   `docs/spec/REVIEW-2026-11-14.md`.
-- **A1 shipped 0.11.0** (its done-note in `SESSIONS.md`):
-  - the lens, the marks, the gauge's bands from the new `hooks/zones.ts`, and labels that fit;
-  - new helpers and a smoke that shrinks away;
-  - seven structural tests over `drawFx`'s output.
-
-  D1 touches none of it: its ground is `hooks/detect.ts`, its two tests, and the Bash hook in
-  `register.tsx`.
-- **Push status.** A parallel repo session pushed on 2026-11-14 with the owner's approval.
-  `origin/main` then held A1's two commits and that session's own, through
-  `review: the read order covers an intake and a new mod, and 4 smaller`. This handoff's
-  correction, `docs(cartoon-fx): A1's handoff says 0.11.0 is pushed`, was pushed after it with
-  the owner's approval, so `origin/main` holds everything through that commit. List
-  `origin/main..HEAD` before any push.
-- **0.11.0 is pushed, but whether it is installed is unknown.** The desktop check of the redrawn
-  effects runs after `claude plugin update cartoon-fx`, in a new desktop session. If the owner
-  has run it, D1 asks for its outcome at the start; otherwise it stays in `docs/BACKLOG.md`.
-- **This mod's `CLAUDE.md` changed after A1.** Repo session 3b gave it the root's read order and
-  a *Watch for* section; the standing traps below move there when they recur.
+- **D1 shipped 0.11.1** (its done-note in `SESSIONS.md`): detection in `hooks/detect.ts` reads
+  the engine's `gitOperation` first, splits commands with quoting in view, anchors the git
+  subcommand, and knows eight more runners. `register.tsx` was not touched. The Bash hook still
+  plays one effect, the push before the commit before the tests; Q1 makes it play each, in the
+  order the command ran them.
+- **The engine's classifier is read, not measured.** D1 read `gitOperation`'s rules from the CLI
+  build 2.1.325 (*Detection* in `docs/ARCHITECTURE.md`). T1 still measures a cherry-pick and a
+  merge live, as its block says.
+- **The 0.11.0 desktop check passed.** In this desktop session, `/fx all` (take 5) played all ten
+  in its row. A first run (take 4), made while a question box covered the conversation, looked
+  short to the owner. All ten effects share the `/fx` row, so once the row draws the first, the
+  rest never fall back to the strip. If the box hid the row, they played out of sight. Q1
+  rebuilds `/fx all` on the queue, so it should keep this in view.
+- **Push status.** D1's commit is local. List `origin/main..HEAD` before any push; parallel repo
+  sessions share this checkout.
 - **The owner's stored placement is `conversation`.**
-- **The CLI on PATH is 2.1.325.**
-- **Baseline** (`docs/ARCHITECTURE.md`, v0.11.0, CLI 2.1.325):
-  - 43 tests;
+- **The CLI on PATH is 2.1.325,** and so is the desktop's engine.
+- **Baseline** (`docs/ARCHITECTURE.md`, v0.11.1, CLI 2.1.325):
+  - 50 tests;
   - `validate`: 13 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
     allowed `CLAUDE.md` one;
   - `tsc` and the import scan clean.
-
-  D1 adds a case per row of the review's §7, so the test count may move. Each case is
-  falsified.
-- **How A1 checked things live, reusable here:**
+- **How earlier sessions checked things live, reusable here:**
   - A terminal check can be started from the Terminal panel:
     `claude --plugin-dir mods/cartoon-fx "/fx all"`, from the repository's root, runs `/fx all`
     as its opening prompt. `read_terminal` reads the strip, and closing the tab ends the session.
     An effect lasts about three seconds, so the first one can play out before the first read;
     `/fx <name>` alone with reads in the same batch catches it.
-  - A scratch page served on `127.0.0.1` (`python3 -m http.server`, from the scratch folder)
-    opens in the app's browser pane with its scripts running. A `file://` page opens only as a
-    static snapshot.
-  - Node imports `hooks/fx.ts` once a resolve hook adds `.ts` to its extensionless `./zones`.
+  - A desktop check needs the owner to type `/fx`, with no dialog open over the conversation:
+    pause, and let them run it.
 - **Repo Session 3b or 4** repoints this mod's `CLAUDE.md` (lines 9–10) and
   `docs/ARCHITECTURE.md` (*Testing strategy*) away from the root `docs/spec/SPEC.md`, in a
-  `docs(cartoon-fx):` commit of its own. Leave those lines to it. Repo Session 3b may also have
-  re-copied the root `docs/DEVELOPMENT-WORKFLOW.md`; follow it as it stands.
+  `docs(cartoon-fx):` commit of its own. Leave those lines to it. Follow the root
+  `docs/DEVELOPMENT-WORKFLOW.md` as it stands.
 
 ## Watch for
 
@@ -76,9 +68,7 @@ runners, and quoting. Release 0.11.1.
   *Values*). Read them forward-only, and never drop one without a changelog line.
 - **The owner's update path is `claude plugin update cartoon-fx`,** and it installs only a new
   `plugin.json` version.
-- **D1 is a fix bump** (0.11.1): new runners count as detection that was missing; anything the
-  owner would call a feature is a stop.
-- **Fictional output only** (root invariant 6): fixtures shaped on what each runner prints,
-  with made-up names and counts.
+- **A new `$.state` key is a machine identifier,** named once (Q1's ask).
+- **Fictional output only** (root invariant 6).
 - **Comments state the present.** No session ids, no "used to", no review stories.
 - **Every push needs its own approval.** List `origin/main..HEAD` first.

@@ -8,14 +8,94 @@ export type BashOutput = {
   gitOperation?: { push?: { branch: string }; commit?: { sha: string; kind: string } }
 }
 
-// The commands of a compound one (`cd app && npm test | tail`), split where the shell would.
-const parts = (command: string) => command.split(/&&|\|\||[;|\n]/)
+// The commands of a compound one (`cd app && npm test | tail`), split where the shell
+// would: never inside quotes, `$(…)`, backticks, a comment or a heredoc's body.
+function parts(command: string): string[] {
+  const found: string[] = []
+  const open: string[] = [] // the quotes and `$(` being read, innermost last
+  const heredocs: { word: string; isIndented: boolean }[] = []
+  let part = ''
+  const cut = () => {
+    found.push(part)
+    part = ''
+  }
+  for (let i = 0; i < command.length; i++) {
+    const c = command.charAt(i)
+    const inside = open.at(-1)
+    if (inside === "'") {
+      if (c === "'") open.pop()
+      part += c
+      continue
+    }
+    if (c === '\\') {
+      // A backslash keeps the next character, and before a newline joins the lines.
+      if (command.charAt(i + 1) !== '\n') part += command.slice(i, i + 2)
+      i++
+      continue
+    }
+    if (c === '$' && command.charAt(i + 1) === '(') {
+      open.push('(')
+      part += '$('
+      i++
+      continue
+    }
+    if (inside === '"' || inside === '`') {
+      if (c === inside) open.pop()
+      else if (c === '`') open.push(c)
+      part += c
+      continue
+    }
+    // At the top, or inside `$(…)`.
+    const doc = c === '<' ? /^<<(-?)\s*(?:'([^']*)'|"([^"]*)"|([^\s;&|<>()'"]+))/.exec(command.slice(i)) : null
+    if (doc !== null && command.charAt(i - 1) !== '<' && command.charAt(i + 2) !== '<') {
+      heredocs.push({ word: doc[2] ?? doc[3] ?? doc[4] ?? '', isIndented: doc[1] === '-' })
+      part += doc[0]
+      i += doc[0].length - 1
+    } else if (c === '\n' && heredocs.length > 0) {
+      if (open.length === 0) cut()
+      i = pastBodies(command, i + 1, heredocs.splice(0)) - 1
+    } else if (c === '#' && /(?:^|[\s;&|()])$/.test(part)) {
+      const end = command.indexOf('\n', i)
+      i = (end < 0 ? command.length : end) - 1
+    } else if (open.length === 0 && /^(?:&&|\|\||[;|\n])/.test(command.slice(i, i + 2))) {
+      cut()
+      if (command.startsWith('&&', i) || command.startsWith('||', i)) i++
+    } else {
+      if (c === "'" || c === '"' || c === '`' || (c === '(' && inside === '(')) open.push(c)
+      else if (c === ')' && inside === '(') open.pop()
+      part += c
+    }
+  }
+  cut()
 
-// The part of a compound command that runs `git <sub>` (`git -C dir push`, the
-// push of `git commit -m x && git push`), so flags elsewhere in the line are not
-// read as its own. A word "push" or "commit" in some other git command still
-// needs git's own report in the output to count.
-const gitPart = (command: string, sub: 'push' | 'commit') => parts(command).find(part => new RegExp(`\\bgit\\b.*\\b${sub}\\b`).test(part))
+  // `bash -c '…'` runs a command line of its own.
+  return found.flatMap(part => {
+    const inner = SH_C.exec(part)
+    return inner === null ? [part] : [part, ...parts(inner[1] ?? (inner[2] ?? '').replace(/\\(.)/g, '$1'))]
+  })
+}
+const SH_C = /(?:^|[\s(])(?:ba|z)?sh\s+-c\s+(?:'([^']*)'|"((?:[^"\\]|\\.)*)")/
+
+// Where the bodies of `docs`, starting at `from`, end: just past each delimiter's line.
+function pastBodies(command: string, from: number, docs: { word: string; isIndented: boolean }[]) {
+  let at = from
+  for (const doc of docs) {
+    while (at < command.length) {
+      const end = command.indexOf('\n', at)
+      const line = command.slice(at, end < 0 ? command.length : end)
+      at = end < 0 ? command.length : end + 1
+      if ((doc.isIndented ? line.replace(/^\t+/, '') : line) === doc.word) break
+    }
+  }
+
+  return at
+}
+
+// A part's git subcommand: the first word after `git` and its global options
+// (`git -C app push`), so a later word (`git log --grep=push`) is not one.
+const WORD = String.raw`(?:"[^"]*"|'[^']*'|[^\s"'])+`
+const GIT = new RegExp(String.raw`(?<![\w.-])git(?:\s+(?:-[Cc]\s+${WORD}|--no-pager|--[\w-]+=${WORD}))*\s+([\w-]+)`)
+const gitPart = (command: string, sub: 'push' | 'commit') => parts(command).find(part => GIT.exec(part)?.[1] === sub)
 const PUSH_DRY_RUN = /\s(--dry-run|-n)(\s|$)/
 const DRY_RUN = /\s--dry-run(\s|$)/
 
@@ -31,52 +111,84 @@ const RUNNERS = [
   String.raw`(?:${LAUNCHER})?(?:\S*/)?(?:vitest|jest|pytest|playwright\s+test)`,
   String.raw`go\s+test|cargo\s+(?:test|nextest|xtask\s+verify)|swift\s+test|deno\s+test`,
   String.raw`make\s+(?:test|check|verify)|claude\s+plugin\s+test`,
+  String.raw`node\s+(?:-\S+\s+)*?--test(?!-)|dotnet\s+test|mix\s+test`,
+  String.raw`(?:bundle\s+exec\s+)?(?:\S*/)?rspec|(?:php\s+)?(?:\S*/)?phpunit`,
+  String.raw`(?:\S*/)?gradlew?\s+${FLAGS}(?:\S*:)?test|(?:\S*/)?mvnw?\s+${FLAGS}(?:clean\s+${FLAGS})?test`,
+  // xcodebuild takes its action after its options.
+  String.raw`xcodebuild(?:\s+\S+)*?\s+test(?:-without-building)?`,
 ]
 // The runner ends at its word: `npm run test:unit` counts, `jest.config.js` doesn't.
 const TEST_RUN = new RegExp(String.raw`^\s*${LEAD}(?:${RUNNERS.join('|')})(?![\w./])`)
 // A piped run (`npm test | tail`) exits with the pipe's last command, so the
 // output has the last word: any failure it reports means the run did not pass.
 const FAILED_COUNT = /\b[1-9]\d*\s+(?:failed|failing|failures?|errors?)\b/i
-const FAILED_MARK = /\bFAIL(?:ED)?\b|^\s*\(fail\)|test result: FAILED/m
+// node's `ℹ fail 1`, dotnet's `Failed: 1`, maven's and phpunit's `Failures: 1`.
+const FAILED_TALLY = /^\s*(?:ℹ|#)?\s*fail\s+[1-9]|\b(?:[Ff]ailed|Failures|Errors):\s*[1-9]/m
+// A failure mark counts where runners print it, at a line's start (after maven's
+// `[ERROR]`, go's `--- `, xcodebuild's `** `), so a test named "shows FAIL" passes.
+const FAILED_MARK = /^\s*(?:\[[A-Z]+\]\s+)?(?:--- |\*\* )?(?:(?:BUILD|TEST) )?FAIL(?:ED|URES?)?\b|^\s*(?:\(fail\)|ERRORS!)|test result: FAILED/m
 const PASSED_COUNT = /\b(\d+)\s+(?:passed|passing|pass)\b/gi
-// Runners that print no "N passed" still say so: go's `ok`/`PASS`, XCTest, swift-testing.
-const PASSED_MARK = /^\s*(?:ok|PASS)\b|\bExecuted \d+ tests?, with 0 failures\b|\btests?'? passed\b|\bverify: PASS\b/m
+// node's `ℹ pass 48`, dotnet's `Passed: 12` and newer `succeeded: 12`.
+const PASSED_TALLY = /^\s*(?:ℹ|#)?\s*pass\s+(\d+)\s*$|\b(?:Passed|succeeded):\s*(\d+)/gm
+// Runners that print no "N passed" still say so: go's `ok`/`PASS`, XCTest, swift-testing,
+// rspec and mix, gradle and maven, xcodebuild, phpunit.
+const PASSED_MARK = new RegExp(
+  [
+    String.raw`^\s*(?:ok|PASS)\b|\bExecuted \d+ tests?, with 0 failures\b|\btests?'? passed\b|\bverify: PASS\b`,
+    String.raw`\b\d+ (?:examples?|tests?), 0 failures\b|\bBUILD SUCCESS(?:FUL)?\b|\*\* TEST SUCCEEDED \*\*|^OK (?:\(\d+ tests?|, but\b)`,
+  ].join('|'),
+  'm',
+)
 
 const printed = (out: BashOutput) => `${out.stdout}\n${out.stderr}`
 
 // The branch a successful push updated, or undefined when nothing was pushed.
+// The engine's own report decides; git's printed report is the fallback.
 export function pushedBranch(command: string, out: BashOutput): string | undefined {
+  if (out.backgroundTaskId !== undefined) {
+    return undefined
+  }
+  const reported = out.gitOperation?.push?.branch
+  if (reported !== undefined) {
+    return reported
+  }
   const part = gitPart(command, 'push')
-  if (out.backgroundTaskId !== undefined || part === undefined || PUSH_DRY_RUN.test(part)) {
-    return undefined
-  }
-  const text = printed(out)
-  if (/Everything up-to-date/.test(text)) {
-    return undefined
-  }
-  // The push's own ref lines follow its "To <remote>" line; a fetch or pull
-  // earlier in the command prints "->" lines of its own before it.
-  const pushed = text.search(/^To \S/m)
 
-  return out.gitOperation?.push?.branch ?? /\S+\s+->\s+(\S+)/.exec(pushed < 0 ? text : text.slice(pushed))?.[1]
+  return part === undefined || PUSH_DRY_RUN.test(part) ? undefined : refPushed(printed(out))
+}
+
+// The first ref a push's report names under its `To <remote>` line, past those
+// rejected (`!`) or already up to date (`=`).
+function refPushed(text: string) {
+  const lines = text.split(/\r\n|\r|\n/)
+  for (const [i, line] of lines.entries()) {
+    if (!line.startsWith('To ')) continue
+    for (const ref of lines.slice(i + 1)) {
+      if (!/^\s/.test(ref)) break
+      const to = /\S\s+->\s+(\S+)/.exec(ref)?.[1]
+      if (to !== undefined && !/^\s*[!=]\s/.test(ref)) return to
+    }
+  }
+
+  return undefined
 }
 
 // The commit just made (short hash, whether an amend, its subject as git printed
-// it), or undefined when none was.
+// it), or undefined when none was. A cherry-pick is not one.
 export function committed(command: string, out: BashOutput): { sha: string; isAmend: boolean; subject: string } | undefined {
-  const part = gitPart(command, 'commit')
-  if (out.backgroundTaskId !== undefined || part === undefined || DRY_RUN.test(part)) {
+  if (out.backgroundTaskId !== undefined) {
     return undefined
   }
-  const line = /^\[[^\]\s]+(?: \([^)]*\))? ([0-9a-f]{7,40})\] ?(.*)$/m.exec(out.stdout)
+  const line = /^\[(?:[^\]\s]+|detached HEAD)(?: \([^)]*\))? ([0-9a-f]{7,40})\] ?(.*)$/m.exec(out.stdout)
   const subject = line?.[2] ?? ''
   const made = out.gitOperation?.commit
-  if (made !== undefined) {
+  if (made !== undefined && made.kind !== 'cherry-picked') {
     return { sha: made.sha.slice(0, 7), isAmend: made.kind === 'amended', subject }
   }
+  const part = gitPart(command, 'commit')
   const sha = line?.[1]
 
-  return sha === undefined ? undefined : { sha: sha.slice(0, 7), isAmend: /\s--amend\b/.test(command), subject }
+  return part === undefined || DRY_RUN.test(part) || sha === undefined ? undefined : { sha: sha.slice(0, 7), isAmend: /\s--amend\b/.test(part), subject }
 }
 
 // "42 passed" (or "" without a count) for a test run whose output says it passed,
@@ -86,10 +198,10 @@ export function testsPassed(command: string, out: BashOutput): string | undefine
     return undefined
   }
   const text = printed(out)
-  if (FAILED_COUNT.test(text) || FAILED_MARK.test(text)) {
+  if (FAILED_COUNT.test(text) || FAILED_TALLY.test(text) || FAILED_MARK.test(text)) {
     return undefined
   }
-  const counts = [...text.matchAll(PASSED_COUNT)].map(match => Number(match[1]))
+  const counts = [...text.matchAll(PASSED_COUNT), ...text.matchAll(PASSED_TALLY)].map(match => Number(match[1] ?? match[2]))
   if (counts.length === 0) {
     return PASSED_MARK.test(text) ? '' : undefined
   }
