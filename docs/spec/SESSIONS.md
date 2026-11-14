@@ -1051,8 +1051,9 @@ the workflow kit's `DEVELOPMENT-WORKFLOW.md`, attached by the owner; this reposi
     moves it into `CLAUDE.md`, so there was nowhere yet to repoint the template's and
     cartoon-fx's `CLAUDE.md`. The session's own finding.
 - **Measured** (CLI 2.1.325):
-  - **The escape trap holds.** The file-editing tool wrote `\u2028` and `\u2029` into `CLAUDE.md`
-    as the raw characters (`od -c`), and `perl` restored them.
+  - **The escape trap holds.** The file-editing tool wrote the two escapes as raw characters
+    twice: into `CLAUDE.md`, and into this done-note in `SESSIONS.md` (`od -c`, `grep -P`).
+    `perl` restored both.
   - **The toolchain:** node 26.7.0 and npm 11.19.0 in `/opt/homebrew/bin`; `claude` a link to
     `~/.local/share/claude/versions/2.1.325`; `gh` 2.97.0; git 2.50.1; no global `tsc` or bun.
 - **Checked by hand:**
@@ -1062,6 +1063,28 @@ the workflow kit's `DEVELOPMENT-WORKFLOW.md`, attached by the owner; this reposi
   - the docs-only command green on each commit's drafted message, the kit's text included.
 - **Falsified:** nothing; no check was added.
 - **Numbers:** none moved. Docs only, so the docs-only command ran and the full gate did not.
+- **Review (`/code-review high`), 8 findings: 8 fixed and 0 skipped.** The owner chose to fix all.
+  - **cartoon-fx's `CLAUDE.md` said its handoff copies the new read order,** which its current
+    handoff does not. It now says the root's order wins where the handoff names another, and the
+    next rewrite copies it.
+  - **cartoon-fx's own standing traps had no new home.** Its `CLAUDE.md` gains a *Watch for*
+    saying they sit in its handoff until a rewrite moves the recurring ones there, never just
+    dropping them. Both cartoon-fx fixes are in their own `review(cartoon-fx):` commit.
+  - **A mod's `CLAUDE.md` is read by `validate`,** so the docs-only command did not cover the two
+    mod files. `npm run verify -- mod-template cartoon-fx validate` passed, with only the allowed
+    warning, and the full gate ran before the push.
+  - **The read order said nothing for an intake,** which has no block. It now reads what its
+    level's between-rounds handoff names.
+  - **The handoff gave 3c the template's lines 5–8,** which include Session 4's SPEC §8 pointer.
+    It now names lines 5–7 and leaves the pointer to Session 4.
+  - **The mod read order assumed an `ARCHITECTURE.md`;** it now says "once it exists", like the
+    repo's.
+  - **Invariant 7 did not name the owner's term file,** which the new privacy rule has sessions
+    edit. It is now part of the setup.
+  - **The escape measurement named one file;** it now names both.
+  - **Falsified:** nothing; no check was added.
+  - **Numbers after the review** (CLI 2.1.325), the full gate before the push: `npm run verify`
+    14 stages, all PASS; tooling tests 156; cartoon-fx 43; template 1 (±0 each).
 
 ---
 

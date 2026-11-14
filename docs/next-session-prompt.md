@@ -18,15 +18,11 @@ No version. Ask the block's two questions at the start.
   - On 2026-11-14 the owner asked for a review of the repository and of cartoon-fx, then for the
     updated workflow kit to be checked. The review is `docs/spec/REVIEW-2026-11-14.md`; 3a–3c
     are the sessions it inserted, and Session 4's block is amended for them.
-- **Push status.** `origin/main` holds everything through
-  `review(cartoon-fx): desktop checks wait for the push, and 7 smaller`. Local and unpushed:
-  - 3a's two commits;
-  - a cartoon-fx session's `feat(cartoon-fx): drawings that stay in frame, new helpers (0.11.0)`
-    and its review commit;
-  - 3b's `docs(cartoon-fx): its read order follows the updated workflow` and
-    `docs: the workflow re-copied from the updated kit, traps in CLAUDE.md`.
-
-  List `origin/main..HEAD` before any push, and name any commit that is not this session's.
+- **Push status.** Pushed at the owner's word: `origin/main` holds everything through
+  `review: the read order covers an intake and a new mod, and 4 smaller`, 3b's review commit.
+  That push carried 3a's commits, cartoon-fx's 0.11.0 and its review, and 3b's four. Nothing
+  waits locally. List `origin/main..HEAD` before any push, and name any commit that is not this
+  session's.
 - **What 3b left that 3c builds on:**
   - **The workflow is the kit's current one,** with this repository's *In this repository*
     paragraph. Its cycle has twelve steps, and step 4, parallel parts, is not used here. The
@@ -34,7 +30,8 @@ No version. Ask the block's two questions at the start.
   - **Standing traps live in `CLAUDE.md`'s *Watch for*,** which took in the old *Do not*. A
     handoff carries only its session's own traps now.
   - **`templates/mod-template/CLAUDE.md`** points at the root's read order and has a *Watch for*
-    placeholder. Its copy instructions (its lines 5–8) are 3c's to replace with the script.
+    placeholder. Its copy instructions (lines 5–7, through "and the changelog.") are 3c's to
+    replace with the script. The SPEC §8 pointer and the sentence after them are Session 4's.
 - **What 3a left that 3c builds on:**
   - **`verify` takes stage names and mod names,** and `--message` and `--all` for hygiene. A
     name that is both a stage and a mod exits 2.
@@ -52,9 +49,10 @@ No version. Ask the block's two questions at the start.
   - **3a's done-note lists what hygiene cannot see,** for `ARCHITECTURE.md`'s testing strategy.
   - **cartoon-fx's `ARCHITECTURE.md` was written as built,** before the kit kept Decided apart
     from Built. Whether it moves to the new outline is the owner's call, at a cartoon-fx intake.
-- **cartoon-fx.** The installed release is 0.10.3, at user scope; 0.11.0 is committed locally
-  and not pushed. Its own state is in its handoff, which still carries the standing traps until
-  its next rewrite. The repo docs never describe its internals.
+- **cartoon-fx.** The installed release is 0.10.3, at user scope; 0.11.0 is pushed, and reaches
+  the owner on `claude plugin update cartoon-fx`. Its own state is in its handoff, which still
+  carries the standing traps until its next rewrite; its `CLAUDE.md` says to move the recurring
+  ones there. The repo docs never describe its internals.
 - **The owner's term file** is read only through the stage. Never print it, and never let a test
   read it.
 - **Decisions written down nowhere else:**

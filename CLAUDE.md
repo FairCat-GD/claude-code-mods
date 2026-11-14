@@ -66,9 +66,10 @@ chat's last message is the one-line opener that points at that file, never the f
   2. this file, then `mods/<name>/CLAUDE.md`;
   3. *The session cycle*;
   4. `mods/<name>/docs/ARCHITECTURE.md`'s overview, invariants and baseline, and the sections the
-     Read line names;
+     Read line names, once it exists;
   5. `mods/<name>/docs/spec/SESSIONS.md`'s header, its block and the previous block's done-note;
   6. `mods/<name>/docs/next-session-prompt.md`.
+- an intake has no block yet: it reads what its level's between-rounds handoff names.
 
 **The entry gate in a shared checkout.** Parallel sessions share this checkout. A session's tree is
 clean when its own paths and the shared files above have no uncommitted changes. A mod session's
@@ -119,8 +120,8 @@ The why for each is in `docs/spec/SPEC.md` §6.
 6. **Tests use fictional data and read no docs.** Fixtures live in `tests/fixtures/`.
 7. **Nothing touches the owner's Claude Code setup without asking.**
    - The setup is `~/.claude/settings.json`, the installed plugins and marketplaces,
-     `~/.claude/mods/`, the session mods folder the plugin-authoring skill watches, and a mod's
-     stored values in the owner's sessions.
+     `~/.claude/mods/`, the session mods folder the plugin-authoring skill watches, a mod's
+     stored values in the owner's sessions, and the owner's term file.
    - This binds tests, harnesses and sessions alike.
    - Ask for each change, and show it before making it.
 8. **Machine identifiers keep their spelling** (above).
