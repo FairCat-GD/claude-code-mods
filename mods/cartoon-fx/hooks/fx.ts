@@ -70,6 +70,21 @@ const animate = (attr: string, values: (string | number)[], t: Timing) =>
 const animateTransform = (type: 'translate' | 'scale' | 'rotate', values: string[], t: Timing) =>
   `<animateTransform attributeName="transform" type="${type}" values="${values.join(';')}" ${timing(t)}/>`
 
+// A keySpline, x1 y1 x2 y2: how a segment's progress eases over its time.
+type Spline = [number, number, number, number]
+
+// The share of a segment's time an eased motion takes to cover `part` of it.
+function timeFor([x1, y1, x2, y2]: Spline, part: number): number {
+  const at = (a: number, b: number, s: number) => 3 * a * s * (1 - s) ** 2 + 3 * b * s * s * (1 - s) + s ** 3
+  let [lo, hi] = [0, 1]
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2
+    if (at(y1, y2, mid) < part) lo = mid
+    else hi = mid
+  }
+  return at(x1, x2, (lo + hi) / 2)
+}
+
 // Hidden until `begin`, shown, then faded out by the end of `dur`.
 const fadeGroup = (content: string, begin: number, dur: number, holdUntil = 0.8) =>
   `<g opacity="0">${animate('opacity', [0, 1, 1, 0], { dur, begin, keyTimes: [0, 0.03, holdUntil, 1] })}${content}</g>`
@@ -77,8 +92,7 @@ const fadeGroup = (content: string, begin: number, dur: number, holdUntil = 0.8)
 // What pops springs to this size before it settles.
 export const PEAK = 1.28
 
-// Springs `content` in from nothing at (x, y), around its own origin. `cls`
-// names the piece for the structural tests.
+// Springs `content` in from nothing at (x, y); `cls` names it for the tests.
 const pop = (content: string, x: number, y: number, begin: number, rotate = 0, dur = 0.5, cls = '') =>
   `<g${cls ? ` class="${cls}"` : ''} transform="translate(${n(x)} ${n(y)})${rotate ? ` rotate(${rotate})` : ''}"><g transform="scale(0)">` +
   animateTransform('scale', ['0.2', String(PEAK), '0.9', '1.05', '1'], { dur, begin, keyTimes: [0, 0.35, 0.6, 0.8, 1] }) +
@@ -89,9 +103,7 @@ const pop = (content: string, x: number, y: number, begin: number, rotate = 0, d
 // What a label keeps clear of the view's edges at its peak.
 const MARGIN = 4
 
-// Advance widths in ems: each class a little over the widest of its letters in
-// Arial Rounded MT Bold and system-ui at weights 800 and 900, as a browser
-// measured them. Any other character counts a whole em.
+// Ems per character, a little over the widest measured (docs/ARCHITECTURE.md); others count 1.
 const EMS: [RegExp, number][] = [
   [/[ il.,:;'|!·Ij]/, 0.33],
   [/[ft/\\()[\]{}]/, 0.42],
@@ -105,9 +117,7 @@ const EMS: [RegExp, number][] = [
 
 type TextOptions = { spacing?: number; stroke?: number; isCentred?: boolean }
 
-// A text's box around its anchor, for `text-anchor="middle"`: estimated, since
-// no text metrics reach a mod. `isCentred` is a middle or central baseline;
-// otherwise the anchor is the alphabetic baseline.
+// A middle-anchored text's box, estimated: no text metrics reach a mod.
 export function textBox(text: string, size: number, { spacing = 0, stroke = 0, isCentred = false }: TextOptions = {}) {
   const advance = [...text].reduce((sum, c) => sum + (EMS.find(([set]) => set.test(c))?.[1] ?? 1) * size + spacing, 0)
   const [top, bottom] = isCentred ? [-0.55 * size, 0.55 * size] : [-0.8 * size, 0.25 * size]
@@ -117,8 +127,7 @@ export function textBox(text: string, size: number, { spacing = 0, stroke = 0, i
 
 type Placed = { box: ReturnType<typeof textBox>; dy: number }
 
-// How far texts reach from their group's origin once scaled by `peak` and
-// turned by `rotate` degrees: the half-width across, and the top and bottom.
+// How far texts reach from their origin, scaled by `peak` and turned by `rotate`.
 function reach(texts: Placed[], peak: number, rotate: number) {
   const a = (rotate * Math.PI) / 180
   const corners = texts.flatMap(({ box, dy }) => [-box.width / 2, box.width / 2].flatMap(x => [dy + box.top, dy + box.bottom].map(y => [x, y] as const)))
@@ -128,8 +137,7 @@ function reach(texts: Placed[], peak: number, rotate: number) {
   return { half: Math.max(...across), top: Math.min(...down), bottom: Math.max(...down) }
 }
 
-// The largest size down to `floor`, in half steps, at which the text fits;
-// cut short with "…" when even the floor is too large.
+// The largest size down to `floor` that fits; past it, the text is cut with "…", to "…" alone.
 function fit(text: string, size: number, floor: number, fits: (text: string, size: number) => boolean) {
   let s = size
   while (s - 0.5 >= floor && !fits(text, s)) s -= 0.5
@@ -137,7 +145,7 @@ function fit(text: string, size: number, floor: number, fits: (text: string, siz
     return { text, size: s }
   }
   const chars = [...text]
-  while (chars.length > 1 && !fits(`${chars.join('').trimEnd()}…`, s)) chars.pop()
+  while (chars.length > 0 && !fits(`${chars.join('').trimEnd()}…`, s)) chars.pop()
 
   return { text: `${chars.join('').trimEnd()}…`, size: s }
 }
@@ -146,9 +154,7 @@ function fit(text: string, size: number, floor: number, fits: (text: string, siz
 
 type LabelOptions = { y: number; fill: string; begin: number; dur: number; size?: number; rotate?: number }
 
-// The word that pops out, tilted like a cartoon sound effect. Long words
-// shrink, then are cut, to stay inside the view at the pop's peak, and the
-// label moves up or down as far as that needs.
+// The word that pops out, tilted like a cartoon sound effect; it fits the view at its peak.
 function label(title: string, subtitle: string, { y, fill, begin, dur, size = 30, rotate = -6 }: LabelOptions): string {
   const room = VIEW_WIDTH / 2 - MARGIN
   const titleAt = (text: string, s: number): Placed => ({ box: textBox(text, s, { stroke: 6, isCentred: true }), dy: 0 })
@@ -157,6 +163,7 @@ function label(title: string, subtitle: string, { y, fill, begin, dur, size = 30
   const subAt = (text: string, s: number): Placed => ({ box: textBox(text, s, { stroke: 4 }), dy })
   const tail = subtitle ? fit(subtitle, 14, 10, (text, s) => reach([subAt(text, s)], PEAK, rotate).half <= room) : undefined
   const { top, bottom } = reach([titleAt(head.text, head.size), ...(tail ? [subAt(tail.text, tail.size)] : [])], PEAK, rotate)
+  // A safety net for words longer than the drawing placed its label for.
   const at = Math.max(MARGIN - top, Math.min(y, HEIGHT - MARGIN - bottom))
 
   const ink = `stroke="${INK}" stroke-linejoin="round" paint-order="stroke"`
@@ -184,10 +191,8 @@ type CloudOptions = {
   stretch?: [number, number]
 }
 
-// A puff of smoke: overlapping circles that swell, drift out and shrink to
-// nothing. None turns transparent, so no edge shows through a fading fill on
-// any background. Drawn twice, the edge layer under the fill layer, so only
-// the cloud's outer rim is outlined.
+// A puff: circles that swell, drift and shrink away, never fading, so no edge shows through.
+// The edge layer under the fill layer outlines only the cloud's rim.
 function cloud(rnd: () => number, o: CloudOptions): string {
   const { cx, cy, count, begin = 0, dur = 0.8, fill = CLOUD, edge = CLOUD_EDGE, stretch = [1.5, 0.75] } = o
   const blobs = Array.from({ length: count }, (_, i) => {
@@ -415,7 +420,7 @@ function check(rnd: () => number, title: string, subtitle: string): string {
     ring +
     fadeGroup(pop(badge, CX, cy, 0.05, 0, 0.45), 0.05, 2.2) +
     sparkles +
-    label(title, subtitle, { y: 146, fill: '#7BE04A', begin: 0.5, dur: 1.8, size: 28, rotate: -4 })
+    label(title, subtitle, { y: 145, fill: '#7BE04A', begin: 0.5, dur: 1.8, size: 28, rotate: -4 })
   )
 }
 
@@ -484,8 +489,7 @@ const BODY = '#D97757'
 const EYES = '#2B1A12'
 const FEET = 152
 
-// A pixel helper in a ninja headband, facing right, its feet at (0, 0):
-// mid-dash, or landed in its victory pose (arms up, eyes ^ ^, a wide stance).
+// A pixel ninja facing right, feet at (0, 0): mid-dash, or posed (arms up, eyes ^ ^).
 function ninja(band: string, isPosed: boolean): string {
   const px = (x: number, y: number, w: number, h: number, fill: string) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}"/>`
   const legs = (isPosed ? [1, 3, 9, 11] : [2, 4, 8, 10]).map(x => px(x, 6, 1, 2, BODY)).join('')
@@ -509,12 +513,10 @@ function ninja(band: string, isPosed: boolean): string {
   )
 }
 
-// Where each of a crew of one to five lands, measured from the bomb: spread
-// across the view, alternating sides, and inside it even mid-squash.
+// Where a crew of one to five lands, from the bomb: inside the view even mid-squash.
 const SPOTS: number[][] = [[64], [64, -64], [92, -92, 0], [34, -34, 92, -92], [46, -46, 92, -92, 0]]
 
-// Out of the smoke in an arc, a squash on landing, a hop, then the pose, held
-// until the label goes.
+// Leaps from the smoke, squashes, hops, then holds its pose until the label goes.
 function helper(rnd: () => number, i: number, x: number): string {
   const dir = x < 0 ? -1 : 1
   const begin = 0.36 + i * 0.07
@@ -617,9 +619,7 @@ function review(rnd: () => number, title: string, subtitle: string, findings: nu
       .join('')
   const thePage = fadeGroup(pop(`<g transform="translate(${-CX} ${-(top + 46)})">${page}</g>`, CX, top + 46, 0, -3, 0.4), 0, 2.6)
 
-  // The glass pops in at the page's top-left, zigzags down it line by line and
-  // pops out, never leaving the page. Its motion is offsets from where it
-  // starts, which its group's own translate already places.
+  // Its motion is offsets from its group's translate, so the start counts once.
   const lens =
     `<line x1="19" y1="19" x2="40" y2="40" stroke="${INK}" stroke-width="9" stroke-linecap="round"/>` +
     `<line x1="21" y1="21" x2="38" y2="38" stroke="#B07438" stroke-width="5" stroke-linecap="round"/>` +
@@ -633,32 +633,31 @@ function review(rnd: () => number, title: string, subtitle: string, findings: nu
     [CX - 24, top + 80],
     [CX + 34, top + 46],
   ]
-  const sweep = { begin: 0.3, dur: 1.35, keyTimes: [0, 0.2, 0.42, 0.62, 0.8, 1] }
+  const ease: Spline = [0.4, 0, 0.6, 1]
+  const sweep = { begin: 0.3, dur: 1.35, keyTimes: [0, 0.2, 0.42, 0.62, 0.8, 1], splines: [ease, ease, ease, ease, [0.5, 0, 1, 1] as Spline] }
   const [startX, startY] = path[0] ?? [CX, top]
   const theLens =
     `<g class="lens" transform="translate(${startX} ${startY})">` +
     `<animateMotion values="${path.map(([x, y]) => `${x - startX},${y - startY}`).join(';')}" dur="${sweep.dur}s" begin="${sweep.begin}s" ` +
     `fill="freeze" keyTimes="${sweep.keyTimes.join(';')}" calcMode="spline" ` +
-    `keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.5 0 1 1"/><g transform="scale(0)">` +
+    `keySplines="${sweep.splines.map(s => s.join(' ')).join(';')}"/><g transform="scale(0)">` +
     animateTransform('scale', ['0', '1.2', '1', '1', '1.15', '0'], { dur: 1.75, begin: 0.15, keyTimes: [0, 0.09, 0.15, 0.86, 0.92, 1] }) +
     `${lens}</g></g>`
 
-  // When the glass's centre first reaches height `y`, read along its path.
+  // When the glass's centre first reaches height `y`, read along its eased path.
   const reaches = (y: number) => {
     for (let k = 1; k < path.length; k++) {
       const [, from] = path[k - 1] ?? [0, y]
       const [, to] = path[k] ?? [0, y]
       const [t0, t1] = [sweep.keyTimes[k - 1] ?? 0, sweep.keyTimes[k] ?? 1]
       if (from !== to && (y - from) * (y - to) <= 0) {
-        return sweep.begin + sweep.dur * (t0 + ((t1 - t0) * (y - from)) / (to - from))
+        return sweep.begin + sweep.dur * (t0 + (t1 - t0) * timeFor(sweep.splines[k - 1] ?? ease, (y - from) / (to - from)))
       }
     }
     return sweep.begin + sweep.dur
   }
 
-  // A red "!" just after the end of each line with a finding, as the glass
-  // reaches it. The flagged lines end far enough apart that no two marks
-  // touch, even at their peak. A clean page gets a green check instead.
+  // A "!" after each flagged line as the glass reaches it; these lines end too far apart to touch.
   const flagged = [1, 4, 2, 0]
   const marks =
     findings > 0
@@ -699,7 +698,7 @@ function review(rnd: () => number, title: string, subtitle: string, findings: nu
     sparkle(CX - 80 + i * 40 + rnd() * 10, top - 10 + rnd() * 16, 5 + rnd() * 4, i % 2 ? '#4D96FF' : '#FFD23F', 1.3 + rnd() * 0.3),
   ).join('')
 
-  return thePage + marks + theLens + twinkles + label(title, subtitle, { y: 162, fill: '#6FB6FF', begin: 1.3, dur: 1.4, size: 26, rotate: -4 })
+  return thePage + marks + theLens + twinkles + label(title, subtitle, { y: 145, fill: '#6FB6FF', begin: 1.3, dur: 1.4, size: 26, rotate: -4 })
 }
 
 // ---- fixes: a bug walks in and gets swatted -------------------------------
@@ -788,7 +787,7 @@ function swat(rnd: () => number, title: string, subtitle: string): string {
     cloud(rnd, { cx: CX + 46, cy: GROUND, count: 4, spread: [5, 10], radius: [6, 10], begin: 0.72, dur: 0.6 }) +
     theSwatter +
     dizzy +
-    label(title, subtitle, { y: 164, fill: '#7BE04A', begin: 0.85, dur: 1.8, size: 26, rotate: -4 })
+    label(title, subtitle, { y: 148, fill: '#7BE04A', begin: 0.85, dur: 1.8, size: 26, rotate: -4 })
   )
 }
 
@@ -840,7 +839,7 @@ function clapper(rnd: () => number, title: string, subtitle: string): string {
     rays(rnd, { cx: clapX, cy: clapY, count: 8, from: [10, 16], to: [28, 40], flat: 1, begin: 0.55 }) +
     cloud(rnd, { cx: clapX, cy: clapY, count: 4, spread: [4, 9], radius: [5, 8], begin: 0.55, dur: 0.6, fill: '#FFFFFF', edge: '#B9B9C6' }) +
     sparkles +
-    label(title, subtitle, { y: 162, fill: '#FF9F1C', begin: 0.6, dur: 1.9, size: 26, rotate: -4 })
+    label(title, subtitle, { y: 148, fill: '#FF9F1C', begin: 0.6, dur: 1.9, size: 26, rotate: -4 })
   )
 }
 
@@ -934,7 +933,7 @@ function gauge(rnd: () => number, title: string, subtitle: string, percent: numb
     fadeGroup(theGauge, 0, isRed ? 3.1 : 2.9, 0.85) +
     steam +
     signs +
-    label(title, subtitle, { y: 150, fill: zone, begin: 0.9, dur: isRed ? 2.2 : 2, size: 26, rotate: -3 })
+    label(title, subtitle, { y: 147, fill: zone, begin: 0.9, dur: isRed ? 2.2 : 2, size: 26, rotate: -3 })
   )
 }
 

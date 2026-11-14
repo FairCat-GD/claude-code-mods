@@ -111,7 +111,7 @@ in the next session's handoff; if the owner does not push, the check goes to `do
     snapshot, and a `.claude/launch.json` would be an untracked repo-level file. Nothing of it
     is committed.
   - **Smoke:** puffs that shrink away. Drafts of today, A (fades as one shape) and B (shrinks)
-    were rendered inline in plan mode; the owner asked Claude to choose, and it chose B. The
+    were rendered inline in plan mode; the owner left the choice to the session, which chose B. The
     owner confirmed it on the contact sheet.
   - **Helpers:** the draft as drawn. A bomb, smoke behind, ninjas at 4× leaping to spread spots,
     then a squash, a hop and a victory pose.
@@ -158,7 +158,7 @@ in the next session's handoff; if the owner does not push, the check goes to `do
   - The owner looked at every drawing's frames on the contact sheet before the commit: "All
     good".
   - In `claude --plugin-dir mods/cartoon-fx` terminal sessions (CLI 2.1.325), the strip played
-    all ten. Claude started them from the Terminal panel at the owner's request, with `/fx all`
+    all ten. The session started them from the Terminal panel at the owner's request, with `/fx all`
     as the opening prompt: SAVED, tests, review, fixes, compact, helpers, yellow and red were
     read off the strip. Plan and push played between samples, so `/fx plan` and `/fx push` were
     each read on their own.
@@ -179,6 +179,28 @@ in the next session's handoff; if the owner does not push, the check goes to `do
   - the largest drawing is the confetti at 49,337 characters (−1,406), and five helpers draw
     28,642 (+10,031);
   - 19 tracked files (+1).
+- **Review (`/code-review high`), 9 findings: 9 fixed, 0 skipped.**
+  - **The marks pop as the glass arrives.** They were timed by the lens's keyTimes alone, but
+    the motion eases on keySplines, so a mark could pop before the glass reached its line.
+    `timeFor` now inverts each segment's spline, and `fx.ts` writes the splines from the same
+    list.
+  - **The bottom labels pass the `y` they land at:** review 145, fixes 148, plan 148, tests 145,
+    gauge 147, each the highest it reached with any of the tested words. The vertical move
+    stays only as a safety net, for words no test covers.
+  - **The handoff names every unpushed commit,** the parallel repo session's two included.
+  - **`CHANGELOG.md` links 0.11.0** to the session commit.
+  - **The done-note says "the session"** where it had credited the AI by name (root
+    `CLAUDE.md`, no AI attribution).
+  - **Comments in `fx.ts` are one line each,** where they had grown to paragraphs.
+  - **The lens test composes its motion in the lens's own frame** (after its translate, before
+    what it holds), so it stays right if the lens is ever nested in a transformed group.
+  - **The long-branch check reads the label's subtitle,** not the drawing's second text.
+  - **`fit` cuts down to "…" alone,** so even the last cut never returns text that it knows
+    still overflows.
+  - **Falsified:** all seven structural tests again, each failing alone (42 pass, 1 fail), since
+    the lens test was rewritten. The branch check failed alone when a cut dropped its "…".
+  - **Numbers after the review:** unchanged: 43 tests, `validate` 13 / 5 / 4, `tsc` and
+    imports clean.
 
 ---
 

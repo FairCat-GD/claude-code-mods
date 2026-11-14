@@ -19,10 +19,11 @@ runners, and quoting. Release 0.11.1.
 - **Push status.**
   - `origin/main` holds everything through
     `review(cartoon-fx): desktop checks wait for the push, and 7 smaller`.
-  - A1's session commit waits locally, and the review commit will join it. List
+  - Waiting locally: A1's two commits, `feat(cartoon-fx): drawings that stay in frame, new
+    helpers (0.11.0)` and its `review(cartoon-fx):` commit. Two repo-level commits from a
+    parallel session sit between them and `origin/main`: `feat: hygiene reads the owner's term
+    list, verify runs named stages` and its review. A push carries all four. List
     `origin/main..HEAD` before any push.
-  - `CHANGELOG.md`'s link reference for 0.11.0 waits for the session commit's sha. The review
-    commit adds it.
 - **0.10.3 is the installed release** until the owner pushes 0.11.0 and runs
   `claude plugin update cartoon-fx`. The desktop check of the redrawn effects waits for that
   (`docs/BACKLOG.md`).

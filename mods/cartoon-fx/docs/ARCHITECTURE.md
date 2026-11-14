@@ -27,10 +27,10 @@ One effect is on show at a time. A new one replaces any still playing.
 |---|---|---|
 | `hooks/register.tsx` | 506 | the hooks, playing and placement |
 | `hooks/detect.ts` | 104 | the Bash readers, `isReviewFix`, `tokens` |
-| `hooks/fx.ts` | 970 | the ten drawings, their SMIL helpers, and fitting words |
+| `hooks/fx.ts` | 969 | the ten drawings, their SMIL helpers, and fitting words |
 | `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
 | `types/index.d.ts` | 26 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 972 | 43 tests |
+| `tests/cartoon-fx.test.tsx` | 976 | 43 tests |
 
 ## The invariants
 
@@ -120,9 +120,10 @@ One effect is on show at a time. A new one replaces any still playing.
   lands at 1.35.
 - **Words that fit.** A label fits its title and subtitle inside the view, with a 4-unit margin,
   at its pop's peak, its tilt included. It shrinks each in half steps down to 70% of its size
-  (a subtitle to 10), then cuts it with "…". Then it moves up or down as far as its peak box
-  needs. The stamp fits its word inside the imprint's inner frame (down to 20; AMENDED needs it)
-  and its hash under it. `alt` keeps the whole words.
+  (a subtitle to 10), then cuts it with "…". Each drawing passes the height its label lands at
+  with the words the tests cover; a label moves up or down only for words longer than those.
+  The stamp fits its word inside the imprint's inner frame (down to 20; AMENDED needs it) and
+  its hash under it. `alt` keeps the whole words.
   - Widths come from `textBox`, an estimate: no text metrics reach a mod. Each character class
     counts a little over the widest of its letters, as Chromium on macOS measured Arial Rounded
     MT Bold (where the font stack lands there) and system-ui, at weights 800 and 900. Any other

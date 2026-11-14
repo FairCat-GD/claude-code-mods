@@ -792,7 +792,8 @@ function own(el: El): M {
 
   return transform(el.attrs.transform)
 }
-const toView = (el: El): M => (el.parent === undefined ? ID : mul(toView(el.parent), own(el)))
+// From `top`'s frame (the view's, by default) down to `el`'s.
+const toView = (el: El, top?: El): M => (el === top || el.parent === undefined ? ID : mul(toView(el.parent, top), own(el)))
 
 // A shape's corners in its own units, its stroke included; a text's from the
 // same estimate the drawing fits its words by.
@@ -874,7 +875,8 @@ test('every label stays inside the view at its peak, the longest words of every 
   expect(clipped).toEqual([])
 
   // Too long even at the smallest size, the words are cut, and say so.
-  const branch = all(parse(drawFx('push', 1000, 'Pushed!', LONG_BRANCH))).filter(e => e.tag === 'text')[1]?.text ?? ''
+  const [label] = named(parse(drawFx('push', 1000, 'Pushed!', LONG_BRANCH)), 'label')
+  const branch = all(label ?? parse('')).find(e => e.tag === 'text' && e.attrs.y !== undefined)?.text ?? ''
   expect(branch.endsWith('…')).toBe(true)
   expect(LONG_BRANCH.startsWith(branch.slice(0, -1))).toBe(true)
 })
@@ -889,9 +891,11 @@ test("the review's magnifying glass stays inside the view along its whole path",
     const parts = all(lens ?? root).filter(e => e.tag === 'circle' || e.tag === 'line')
     expect(parts.length).toBeGreaterThan(0)
 
-    const out = path.flatMap(([dx = 0, dy = 0]) =>
-      parts.flatMap(part => corners(part).map(corner => apply(toView(part), corner))).filter(([x, y]) => outside(view, [x + dx, y + dy])),
-    )
+    // The motion moves the lens within its own frame: after its translate, before what it holds.
+    const out = path.flatMap(([dx = 0, dy = 0]) => {
+      const moved = mul(toView(lens ?? root), step('translate', [dx, dy]))
+      return parts.flatMap(part => corners(part).map(corner => apply(mul(moved, toView(part, lens)), corner))).filter(point => outside(view, point))
+    })
     expect(out).toEqual([])
   }
 })
