@@ -10,9 +10,10 @@ No version. The close comes after the review: the review commit carries the last
 
 - **Round 1 is the repository setup.** Sessions 1–3, 3a, 3b and 3c are done; Session 4 closes
   the round.
-- **Push status.** `origin/main` holds everything through 3b's review commit, plus cartoon-fx's
-  commits since. 3c's commits are local. List `origin/main..HEAD` before any push, and name any
-  commit that is not this session's.
+- **Push status.** `origin/main` ends at cartoon-fx's `d311c75` (its Q1 review). At 3c's end,
+  local only: 3c's two commits, and cartoon-fx's `32f1ae0` and `69450c0` (0.13.0), which are its
+  sessions'. List `origin/main..HEAD` before any push, and name any commit that is not this
+  session's.
 - **What 3c left that Session 4 builds on:**
   - **`npm run new-mod -- <name> "<description>"`** makes a mod: the template renamed throughout,
     0.1.0 dated today, the marketplace entry in name order. It prints the README row, `npm run
@@ -31,9 +32,12 @@ No version. The close comes after the review: the review commit carries the last
   - **3a's done-note lists what hygiene cannot see,** for `ARCHITECTURE.md`'s testing strategy.
   - **cartoon-fx's `ARCHITECTURE.md` was written as built,** before the kit kept Decided apart
     from Built. Whether it moves to the new outline is the owner's call, at a cartoon-fx intake.
-- **cartoon-fx.** Its own state is in its handoff; the repo docs never describe its internals. At
-  3c's end, its session had `mods/cartoon-fx/hooks/register.tsx` uncommitted, which turned its
-  `validate`, `types` and `tests` red; check its state before measuring the baseline.
+- **cartoon-fx.** Its own state is in its handoff; the repo docs never describe its internals.
+  During 3c its session had files under `mods/cartoon-fx/hooks/` uncommitted, which turned its
+  stages red until it committed 0.13.0; check its state before measuring the baseline.
+- **The gate's `claude` stages write the CLI's config into `~/.claude`** (`.claude.json` and a
+  backup), measured in 3c's review. The tooling tests give the CLI a scratch home; the gate does
+  not. It is in `docs/BACKLOG.md` for the owner.
 - **The owner's term file** is read only through the stage. Never print it, and never let a test
   read it.
 - **Decisions written down nowhere else:**
@@ -42,9 +46,9 @@ No version. The close comes after the review: the review commit carries the last
   - **`gh` is signed in** as `FairCat-GD`, and git's helper for github.com is
     `gh auth git-credential`. The marketplace clone uses SSH.
   - **The owner may remove `~/.claude/mods/cartoon-fx`** when they choose; nothing loads it.
-- **Baseline.** Measure it; do not copy it. At 3c's end, CLI 2.1.325: tooling tests 162 in 10
-  files; the template 1 test, `validate` 2 hooks, 0 gating, and `$.command.register`; the 6 repo
-  stages and the template's 4 PASS. cartoon-fx's own table is in its `ARCHITECTURE.md`.
+- **Baseline.** Measure it; do not copy it. At 3c's review, CLI 2.1.325: tooling tests 166 in 10
+  files; the template 1 test, `validate` 2 hooks, 0 gating, and `$.command.register`; the full
+  `npm run verify` 14 stages PASS, with cartoon-fx at 0.13.0. cartoon-fx's own table is in its `ARCHITECTURE.md`.
 
 ## Watch for
 

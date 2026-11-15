@@ -4,9 +4,9 @@ import { join } from 'node:path'
 import { type TestContext, test } from 'node:test'
 
 import { check, newestVersion, trackedPaths } from '../scripts/marketplace.ts'
+import { MARKETPLACE } from '../scripts/repo.ts'
 import { FIXTURES, git, temporaryFolder } from './support.ts'
 
-const MARKETPLACE = '.claude-plugin/marketplace.json'
 const ALPHA = 'mods/alpha/.claude-plugin/plugin.json'
 
 // A copy of a fixture root that the test may break.

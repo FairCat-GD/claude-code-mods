@@ -5,15 +5,12 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 
-import { modFolders, modNames, ROOT, report } from './repo.ts'
+import { type Json, MARKETPLACE, modFolders, modNames, ROOT, report } from './repo.ts'
 
-const MARKETPLACE = '.claude-plugin/marketplace.json'
 const NAME = 'claude-code-mods'
 const OWNER = 'FairCat-GD'
 const VERSION = /^\d+\.\d+\.\d+$/
 const ENGINE_FILES = /(^|\/)\.claude-plugin\/types(\/|$)/
-
-type Json = Record<string, unknown>
 
 const readJson = (file: string, problems: string[], label: string): Json | undefined => {
   if (!existsSync(file)) {

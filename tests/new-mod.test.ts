@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { cpSync, readdirSync, readFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { type TestContext, test } from 'node:test'
 
 import { check } from '../scripts/marketplace.ts'
-import { formatJson, newMod } from '../scripts/new-mod.ts'
-import { claudeCommand, DECLARATIONS, ROOT, TEMPLATE } from '../scripts/repo.ts'
+import { formatJson, isoDate, newMod, nextSteps } from '../scripts/new-mod.ts'
+import { claudeCommand, DECLARATIONS, MARKETPLACE, ROOT, TEMPLATE } from '../scripts/repo.ts'
 import { FIXTURES, temporaryFolder } from './support.ts'
 
 const DESCRIPTION = 'Fictional: paints the prompt a colour no one has seen.'
@@ -64,17 +64,29 @@ test('one-field objects stay on one line, as the repository writes them', () => 
   )
 })
 
+// The CLI writes its own config where it runs, so it runs in a home of the test's own.
+const scratchHome = (t: TestContext) => {
+  const home = temporaryFolder(t)
+  return { HOME: home, CLAUDE_CONFIG_DIR: join(home, '.claude') }
+}
+
 test('the marketplace stage passes on the root the mod was made in, and validate on the mod', t => {
   const root = scratchRoot(t)
   newMod(root, 'gamma', DESCRIPTION, TODAY)
   assert.deepEqual(check(root, []), [])
+  const home = scratchHome(t)
   const { argv, env } = claudeCommand('plugin', 'validate', '--strict', root)
   const [command = '', ...args] = argv
-  const strict = spawnSync(command, args, { encoding: 'utf8', env })
+  const strict = spawnSync(command, args, { encoding: 'utf8', env: { ...env, ...home } })
   assert.equal(strict.status, 0, strict.stdout + strict.stderr)
-  const validate = spawnSync(process.execPath, ['scripts/validate.ts', join(root, 'mods/gamma')], { cwd: ROOT, encoding: 'utf8' })
+  const validate = spawnSync(process.execPath, ['scripts/validate.ts', join(root, 'mods/gamma')], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, ...home },
+  })
   assert.equal(validate.status, 0, validate.stdout + validate.stderr)
   assert.match(validate.stdout, /^validate: 0 problem\(s\)$/m)
+  assert.ok(existsSync(home.CLAUDE_CONFIG_DIR), "the CLI's config went to the scratch home")
 })
 
 test('a name that cannot be a mod, a missing description and an existing folder are refused, writing nothing', t => {
@@ -99,4 +111,38 @@ test('a name that cannot be a mod, a missing description and an existing folder 
     assert.throws(() => newMod(root, name, description, TODAY), why, name)
     assert.deepEqual(snapshot(root), before, name)
   }
+})
+
+test('a failure after the checks leaves the repository as it was', t => {
+  const root = scratchRoot(t)
+  writeFileSync(join(root, TEMPLATE, 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n')
+  const before = snapshot(root)
+  assert.throws(() => newMod(root, 'gamma', DESCRIPTION, TODAY), /has no version entry/)
+  assert.deepEqual(snapshot(root), before)
+
+  const writable = scratchRoot(t)
+  const unchanged = snapshot(writable)
+  chmodSync(join(writable, MARKETPLACE), 0o444)
+  assert.throws(() => newMod(writable, 'gamma', DESCRIPTION, TODAY), /EACCES/)
+  assert.equal(existsSync(join(writable, 'mods/gamma')), false)
+  assert.deepEqual(snapshot(writable), unchanged)
+})
+
+test('a file that is not text is copied byte for byte', t => {
+  const root = scratchRoot(t)
+  const bytes = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff]), Buffer.from('mod-template')])
+  writeFileSync(join(root, TEMPLATE, 'icon.png'), bytes)
+  newMod(root, 'gamma', DESCRIPTION, TODAY)
+  assert.deepEqual(readFileSync(join(root, 'mods/gamma/icon.png')), bytes)
+})
+
+test('a one-field object too long for one line stays expanded, as Biome keeps it', () => {
+  const long = 'x'.repeat(160)
+  assert.equal(formatJson({ author: { name: long } }), `{\n  "author": {\n    "name": "${long}"\n  }\n}\n`)
+})
+
+test("the README row escapes a pipe in the description, and the date is the local day's", () => {
+  assert.ok(nextSteps('gamma', 'a | b').includes('     | [gamma](mods/gamma/) | a \\| b |'))
+  assert.equal(isoDate(new Date(2031, 1, 3, 0, 30)), '2031-02-03')
+  assert.equal(isoDate(new Date(2031, 1, 3, 23, 59)), '2031-02-03')
 })

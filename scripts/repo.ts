@@ -7,11 +7,14 @@ import { delimiter, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const ROOT = fileURLToPath(new URL('..', import.meta.url))
-export const TEMPLATE = 'templates/mod-template'
+export const TEMPLATE_NAME = 'mod-template'
+export const TEMPLATE = `templates/${TEMPLATE_NAME}`
+export const MARKETPLACE = '.claude-plugin/marketplace.json'
 export const DECLARATIONS = '.claude-plugin/types'
 export const TYPES_FIX = 'run `npm run types`'
 
 export type Folder = { name: string; path: string }
+export type Json = Record<string, unknown>
 
 // What stops a check starting, with the fix it names.
 export class SetupError extends Error {}
@@ -49,6 +52,14 @@ export const cliVersion = (output: string) => output.trim().split(/\s+/)[0] ?? '
 // The CLI's version now; it can update itself mid-run, so a caller that needs one reading keeps it.
 export const readClaudeVersion = () => cliVersion(execFileSync(findClaude(), ['--version'], { encoding: 'utf8', env: hermeticEnv(), timeout: 60_000 }))
 
+// Every file under `dir`, but those under a path `skip` passes over.
+export const filesUnder = (dir: string, skip: (path: string) => boolean = () => false): string[] =>
+  readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+    const path = join(dir, entry.name)
+    if (skip(path)) return []
+    return entry.isDirectory() ? filesUnder(path, skip) : [path]
+  })
+
 export const modNames = (root = ROOT): string[] => {
   const mods = join(root, 'mods')
   if (!existsSync(mods)) return []
@@ -61,7 +72,7 @@ export const modNames = (root = ROOT): string[] => {
 // Every folder the per-mod stages check, by the name `verify -- <name>` takes.
 export const modFolders = (root = ROOT): Folder[] => [
   ...modNames(root).map(name => ({ name, path: `mods/${name}` })),
-  ...(existsSync(join(root, TEMPLATE)) ? [{ name: 'mod-template', path: TEMPLATE }] : []),
+  ...(existsSync(join(root, TEMPLATE)) ? [{ name: TEMPLATE_NAME, path: TEMPLATE }] : []),
 ]
 
 export const laidVersion = (folder: string): string | undefined => {

@@ -12,6 +12,11 @@ on a mod goes there.
 
 - **New mods.** Left out at the round 1 intake. Each new mod starts with its own intake in
   `mods/<name>/`, once round 1 has built the template and `docs/MOD-KICKOFF.md`.
+- **The gate's `claude` stages run in the owner's config.** `claude plugin validate` writes
+  `.claude.json` and a backup into its config folder (measured in Session 3c's review, CLI
+  2.1.325), so `verify` touches `~/.claude` on every run. The tooling tests run the CLI with a
+  scratch `HOME` and `CLAUDE_CONFIG_DIR`; whether the gate should too, given invariant 7, is the
+  owner's call.
 - **CI.** Left out at the round 1 intake. The workflow holds the gate in the session, and the
   owner's review and push approval stand behind it.
 - **Going public.** Left out at the round 1 intake. Making the repository public is the owner's

@@ -1198,6 +1198,39 @@ layout*, *What a mod is*), §6 (invariants 2–4); `CLAUDE.md`; `templates/mod-t
   `validate`, `types` and `tests` failed on `mods/cartoon-fx/hooks/register.tsx`, which the
   cartoon-fx session beside this one had uncommitted. This session left it alone; the commit
   ran `npm run verify -- mod-template` with its drafted message.
+- **Review (`/code-review high`), 10 findings: 10 fixed and 0 skipped.** The owner chose to fix
+  all.
+  - **A failure partway left a half-made mod.** `newMod` now reads, renames and checks every
+    file, the manifest, the changelog's entry and the marketplace before writing anything, then
+    writes the mod and the marketplace last; a write that fails removes the folder. Its `main`
+    reports any error as "nothing was written".
+  - **The tooling tests ran the real CLI in the owner's config.** It runs with a scratch `HOME`
+    and `CLAUDE_CONFIG_DIR`, and the test checks the CLI's config landed there. That measured
+    the gate doing the same in `~/.claude`, now in `docs/BACKLOG.md`. The tests still need the CLI
+    on PATH, which the README already makes a prerequisite.
+  - **Binary template files were read and rewritten as text.** A file that is not UTF-8, or holds
+    a NUL, is copied byte for byte.
+  - **A long one-field object was put on one line past Biome's 160.** `formatJson` keeps it
+    expanded unless the line fits.
+  - **The handoff misnamed what is pushed;** it now names `origin/main`'s last commit and each
+    local one.
+  - **A `|` in the description broke the printed README row;** it is escaped.
+  - **The date depended on Node's ICU;** `isoDate` builds it from the local day.
+  - **`new-mod.ts` repeated** the marketplace path, the template's name, `Json` and a directory
+    walk. `MARKETPLACE`, `TEMPLATE_NAME`, `Json` and `filesUnder` now live in `repo.ts`, used by
+    `marketplace.ts`, `imports.ts`, `new-mod.ts` and the marketplace test.
+  - **`validate.ts`'s `report` was shadowed** by `judge`'s and `describe`'s parameter; it is
+    `result` now.
+  - **The commit ran the scoped gate while the full one was red.** By the review the cartoon-fx
+    session had committed (0.13.0), so the full `npm run verify` ran before the review commit.
+  - **Falsified,** each failing at its own test: no clean-up after a failed write, and no check
+    of the changelog's entry (the failure test); text decoding for every file (the byte test);
+    no width check (the expanded-object test); no escape, and a UTC date (the row-and-date test,
+    which checks 00:30 and 23:59 local); no scratch home (the marketplace-stage test). That last
+    break ran `claude plugin validate` in the owner's config once, as every gate run does.
+  - **Numbers after the review** (CLI 2.1.325): tooling tests 166 in 10 files (+4: new-mod 9);
+    the template unmoved (1 test; 2 hooks, 0 gating); the full `npm run verify` 14 stages PASS, cartoon-fx at
+    0.13.0.
 
 ---
 

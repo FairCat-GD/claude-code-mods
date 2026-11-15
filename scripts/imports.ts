@@ -1,28 +1,21 @@
 // Keeps a mod self-contained: every relative import resolves inside its folder, and every bare
 // import names a module the engine's declarations declare.
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import ts from 'typescript'
 
-import { DECLARATIONS, isFile, noDeclarations, report } from './repo.ts'
+import { DECLARATIONS, filesUnder, isFile, noDeclarations, report } from './repo.ts'
 
 const SOURCE = /\.(?:[cm]?[jt]s|[jt]sx)$/
 const CANDIDATES = ['', '.ts', '.tsx', '.d.ts', '.js', '.jsx', '.mjs', '.mts', '/index.ts', '/index.tsx', '/index.d.ts', '/index.js']
 // A JavaScript suffix may name the TypeScript source it compiles from, as bundler resolution allows.
 const SOURCE_OF: Record<string, string[]> = { '.js': ['.ts', '.tsx'], '.jsx': ['.tsx'], '.mjs': ['.mts'], '.cjs': ['.cts'] }
 
-const walk = (dir: string, skip: (path: string) => boolean): string[] =>
-  readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
-    const path = join(dir, entry.name)
-    if (skip(path)) return []
-    return entry.isDirectory() ? walk(path, skip) : [path]
-  })
-
 // The module names `declare module '<name>'` gives at the top level of each declaration file.
 export const declaredModules = (declarations: string): Set<string> => {
   const names = new Set<string>()
-  for (const file of walk(declarations, () => false).filter(path => path.endsWith('.ts'))) {
+  for (const file of filesUnder(declarations).filter(path => path.endsWith('.ts'))) {
     const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, false)
     for (const statement of source.statements) {
       if (ts.isModuleDeclaration(statement) && ts.isStringLiteral(statement.name)) names.add(statement.name.text)
@@ -40,7 +33,7 @@ const resolves = (target: string) => {
 export const scanImports = (folder: string, declared: ReadonlySet<string>): string[] => {
   const root = resolve(folder)
   const engineFiles = join(root, DECLARATIONS)
-  const files = walk(root, path => path === engineFiles || path.endsWith('/node_modules')).filter(path => SOURCE.test(path))
+  const files = filesUnder(root, path => path === engineFiles || path.endsWith('/node_modules')).filter(path => SOURCE.test(path))
   const problems: string[] = []
   for (const file of files.sort()) {
     const text = readFileSync(file, 'utf8')

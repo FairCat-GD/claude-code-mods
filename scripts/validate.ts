@@ -22,20 +22,20 @@ const findings = (node: unknown, key: 'errors' | 'warnings'): Finding[] => {
 const isExpected = (warning: Finding) => warning.path === EXPECTED.path && EXPECTED.message.test(warning.message ?? '')
 
 // What fails the stage in a `validate --json` report.
-export const judge = (report: unknown): string[] => {
+export const judge = (result: unknown): string[] => {
   const problems = [
-    ...findings(report, 'errors').map(error => `error at ${error.path}: ${error.message}`),
-    ...findings(report, 'warnings')
+    ...findings(result, 'errors').map(error => `error at ${error.path}: ${error.message}`),
+    ...findings(result, 'warnings')
       .filter(warning => !isExpected(warning))
       .map(warning => `warning at ${warning.path}: ${warning.message}`),
   ]
-  if (!problems.length && (report as { success?: unknown } | null)?.success !== true) problems.push('validate did not succeed')
+  if (!problems.length && (result as { success?: unknown } | null)?.success !== true) problems.push('validate did not succeed')
   return problems
 }
 
 // The report as lines to read: what each file hooks and calls, then what it was faulted for.
-export const describe = (report: unknown): string[] => {
-  const files = [(report as { manifest?: unknown })?.manifest, ...(((report as { contents?: unknown[] })?.contents ?? []) as unknown[])]
+export const describe = (result: unknown): string[] => {
+  const files = [(result as { manifest?: unknown })?.manifest, ...(((result as { contents?: unknown[] })?.contents ?? []) as unknown[])]
   return files.flatMap(file => {
     const { notes = [], errors = [], warnings = [] } = (file ?? {}) as { notes?: string[]; errors?: Finding[]; warnings?: Finding[] }
     return [
