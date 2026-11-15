@@ -1,59 +1,73 @@
-Read docs/spec/SPEC.md in full, docs/spec/REVIEW-2026-11-14.md, CLAUDE.md, every done-note in
-docs/spec/SESSIONS.md (3a–3c's included), mods/cartoon-fx/docs/ARCHITECTURE.md, *The session
-cycle* in docs/DEVELOPMENT-WORKFLOW.md, docs/spec/SESSIONS.md's header and Session 4's block with
-its amendment, then this file, and do Session 4: the repo's documentation pass; close the round.
+Read CLAUDE.md, *The session cycle* in docs/DEVELOPMENT-WORKFLOW.md (and *Rounds*, step 5, the
+close), docs/ARCHITECTURE.md's overview, invariants and baseline, docs/spec/SESSIONS.md's header
+and Session 4's block with its done-note, then this file, and close round 1. No version.
 
-No version. The close comes after the review: the review commit carries the last done-note, then
-`docs: close round 1` deletes `docs/spec/` and fills in that commit's sha.
+**Not before cartoon-fx's round 3 is done.** The owner holds the close until cartoon-fx's T2, C1
+and A2 are finished, with A2's review committed: check `mods/cartoon-fx/docs/next-session-prompt.md`
+says no round is in progress there. Until then no repo-level session runs; a new mod's intake can,
+since it works at the mod level.
 
 ## State you need that is not in the specs
 
-- **Round 1 is the repository setup.** Sessions 1–3, 3a, 3b and 3c are done; Session 4 closes
-  the round.
-- **Push status.** `origin/main` ends at cartoon-fx's `d311c75` (its Q1 review). At 3c's end,
-  local only: 3c's two commits, and cartoon-fx's `32f1ae0` and `69450c0` (0.13.0), which are its
-  sessions'. List `origin/main..HEAD` before any push, and name any commit that is not this
-  session's.
-- **What 3c left that Session 4 builds on:**
-  - **`npm run new-mod -- <name> "<description>"`** makes a mod: the template renamed throughout,
-    0.1.0 dated today, the marketplace entry in name order. It prints the README row, `npm run
-    types`, `verify` and the intake. `docs/USER-GUIDE.md` and `docs/MOD-KICKOFF.md` start a mod
-    with it.
-  - **The template ships `docs/ARCHITECTURE.md`** in the kit's outline, with what every mod
-    shares filled in, and a short `docs/USER-GUIDE.md`. A mod's Session 0 writes the rest of its
-    architecture from the intake; `MOD-KICKOFF.md` says so.
-  - **`scripts/repo.ts` is where the scripts share:** finding and running `claude`, its version,
-    the declarations' checks, `report`. The root `ARCHITECTURE.md`'s gate section can name it.
-- **Carry to Session 4:**
-  - **Pointers to the deleted spec.** The root `CLAUDE.md` (decision 14, §6, §8), the template's
-    `CLAUDE.md` and `mods/cartoon-fx/CLAUDE.md` (§8) point at `docs/spec/SPEC.md`, which the close
-    deletes. §8 is the practices' one home until Session 4 moves it into `CLAUDE.md`. The template's
-    `ARCHITECTURE.md` points into no spec file.
-  - **3a's done-note lists what hygiene cannot see,** for `ARCHITECTURE.md`'s testing strategy.
-  - **cartoon-fx's `ARCHITECTURE.md` was written as built,** before the kit kept Decided apart
-    from Built. Whether it moves to the new outline is the owner's call, at a cartoon-fx intake.
-- **cartoon-fx.** Its own state is in its handoff; the repo docs never describe its internals.
-  During 3c its session had files under `mods/cartoon-fx/hooks/` uncommitted, which turned its
-  stages red until it committed 0.13.0; check its state before measuring the baseline.
-- **The gate's `claude` stages write the CLI's config into `~/.claude`** (`.claude.json` and a
-  backup), measured in 3c's review. The tooling tests give the CLI a scratch home; the gate does
-  not. It is in `docs/BACKLOG.md` for the owner.
-- **The owner's term file** is read only through the stage. Never print it, and never let a test
-  read it.
+- **Round 1 is the repository setup.** Sessions 1–3, 3a, 3b, 3c and 4 are done, each with its
+  review. Only the close remains.
+- **Push status.** `origin/main` holds everything through cartoon-fx's
+  `review(cartoon-fx): a commit no longer picks a cherry too, and 8 smaller`. Waiting locally at
+  Session 4's end: cartoon-fx's `ca97ca2` (its session's), then Session 4's commits. List
+  `origin/main..HEAD` before any push, and name any commit that is not this session's.
+- **What the close does,** in one `docs: close round 1` commit:
+  1. the entry gate: the tree clean, cartoon-fx's round 3 closed, and no `docs/spec/SPEC.md`
+     pointer left outside `docs/spec/` (`grep -rn 'docs/spec/SPEC.md'`, outside that folder and
+     `docs/DEVELOPMENT-WORKFLOW.md`);
+  2. `claude --version`; if it moved since 2.1.325, run `npm run types` and the full
+     `npm run verify`, and correct `docs/ARCHITECTURE.md`'s baseline line if a count moved;
+  3. delete `docs/spec/SPEC.md`, `docs/spec/SESSIONS.md` and `docs/spec/REVIEW-2026-11-14.md`;
+  4. replace this file with the between-rounds handoff below, filling in Session 4's review
+     commit's sha, the push status and anything the later sessions changed;
+  5. the docs-only command with the drafted message, then the commit. The close has no review;
+     its message records anything its last read of the diff found.
 - **Decisions written down nowhere else:**
-  - **The plugin-authoring skill writes the desktop build's declarations beside itself,** one
-    file, not what `tsc` uses here.
-  - **`gh` is signed in** as `FairCat-GD`, and git's helper for github.com is
-    `gh auth git-credential`. The marketplace clone uses SSH.
   - **The owner may remove `~/.claude/mods/cartoon-fx`** when they choose; nothing loads it.
-- **Baseline.** Measure it; do not copy it. At 3c's review, CLI 2.1.325: tooling tests 166 in 10
-  files; the template 1 test, `validate` 2 hooks, 0 gating, and `$.command.register`; the full
-  `npm run verify` 14 stages PASS, with cartoon-fx at 0.13.0. cartoon-fx's own table is in its `ARCHITECTURE.md`.
+  - **cartoon-fx's `ARCHITECTURE.md` predates the Decided/Built outline.** Whether it moves to it
+    is the owner's call, at a cartoon-fx intake; its backlog says so.
+- **Baseline** (`docs/ARCHITECTURE.md`, CLI 2.1.325): `npm run verify` 14 stages PASS; tooling
+  tests 166 in 10 files; the template 1 test, 2 hooks, 0 gating; each mod's counts in its own
+  baseline.
+
+## The between-rounds handoff the close writes
+
+```markdown
+No round is in progress. Read CLAUDE.md, *The session cycle* in docs/DEVELOPMENT-WORKFLOW.md,
+docs/ARCHITECTURE.md's overview, invariants and baseline, then this file; then the sections of
+docs/ARCHITECTURE.md the request touches, and any a block will point at. The next session is
+an **intake**: write the owner's request down verbatim, ask what it leaves open, and plan the
+round in `docs/spec/`, a Read line in every block (see `docs/DEVELOPMENT-WORKFLOW.md`, *Rounds*).
+A new mod is not a repo-level round: it starts with `npm run new-mod` and its own intake
+(`docs/USER-GUIDE.md`, *Starting a new mod*).
+
+## State you need that is not in the docs
+
+- **Round 1, the repository setup (Sessions 1–3, 3a–3c and 4), is closed.** Its spec files are
+  deleted; the last done-note is in `docs/spec/SESSIONS.md` as of Session 4's review commit
+  (`<sha>`).
+- **Push status:** <what `origin/main` holds, and what waits for the next approved push>.
+- **Open items live in `docs/BACKLOG.md`**, including whether the gate's `claude` stages should
+  run with a scratch home, and what going public needs.
+- **The owner may remove `~/.claude/mods/cartoon-fx`** when they choose; nothing loads it.
+- **Baseline** (`docs/ARCHITECTURE.md`, CLI <version>): `npm run verify` <n> stages PASS; tooling
+  tests 166 in 10 files; the template 1 test, 2 hooks, 0 gating; each mod's counts in its own
+  baseline.
 
 ## Watch for
 
-- **The baseline is measured, not copied,** and counts 3a's and 3c's tooling tests.
 - **The repo-level docs never describe a mod's internals.** They point at the mod's own
-  `ARCHITECTURE.md`.
-- **Don't make a real mod to try the script.** Try it in a scratch copy of the repository.
+  `docs/ARCHITECTURE.md`, and a mod session cannot edit them.
+- **A mod's session may be running beside a repo session.** Its folder is not yours; its
+  uncommitted work can turn the full gate red for its folder.
+```
+
+## Watch for
+
+- **The close changes only docs,** so it runs the docs-only command; nothing in it is read by
+  `validate`.
 - **A cartoon-fx session may be running beside this one.** Its folder is not yours.

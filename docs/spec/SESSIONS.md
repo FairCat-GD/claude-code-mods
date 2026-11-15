@@ -1295,3 +1295,73 @@ layout*, *What a mod is*), §6 (invariants 2–4); `CLAUDE.md`; `templates/mod-t
   deletes `docs/spec/` and fills in that commit's sha. The last Watch-for line above no longer
   applies.
 - **The baseline** counts 3a's and 3c's new tooling tests.
+
+**Done (2026-11-15, no version; the close held).**
+- **Decided with the owner at the start:**
+  - **The close is held until cartoon-fx's round 3 is done.** The owner's words: "finish repo
+    part, tell next mod session that when the mod sessions are done then we close the round",
+    confirmed as holding `docs: close round 1` until cartoon-fx's T2, C1 and A2 are done. Session
+    4 ends at its review commit; a later repo chat makes the close. The root handoff names it, and
+    cartoon-fx's handoff tells its sessions.
+  - **A made mod is committed by its intake,** with its docs, in
+    `docs(<name>): open round 1 — <theme>`.
+  - **A new mod's Session 1 releases 0.1.0,** rewriting the made entry, which no one installed.
+  - **The root baseline points at each mod's own,** rather than copying its counts, which a mod
+    session could never correct.
+  - **Round 1's fresh-clone promise is checked now,** with the owner at the terminal.
+- **`docs/ARCHITECTURE.md`,** from the workflow's outline, Decided kept apart from Built:
+  overview, context, stack and pins, layout and boundaries, the eight invariants with their why
+  and *Enforced by*, what a mod is, the repository's data, one section each for the gate,
+  hygiene, the marketplace stage, `validate` and the import scan, the declarations, and the
+  template with `new-mod`; the six-layer testing strategy with hygiene's blind spots from 3a;
+  packaging; deliberate decisions; known debt; the baseline; and a decision log. The log carries
+  SPEC's amendments that outlast the round, so the close loses no decision, and the two decided
+  today.
+- **`docs/USER-GUIDE.md`,** for the owner: using a mod, working in the repository, starting a new
+  mod from its name to its intake, running sessions side by side, and the term list.
+- **`docs/MOD-KICKOFF.md`,** adapted from the kit's current `KICKOFF.md`: the intake starts from
+  what `new-mod` made and commits it; it asks only what the repository does not settle; Session 1
+  releases 0.1.0 from the made mod; the documentation pass releases 1.0.0; no workflow copy and
+  no hygiene design; a SPEC template for a mod, with or without a design draft.
+- **`CLAUDE.md`:** the ARCHITECTURE read paragraph, with the user guide and the kickoff; the
+  two-levels list; "once it exists" gone from both read orders; a new mod's intake reads the
+  kickoff, and is the one session to start with its own paths uncommitted; rule 1's expected
+  results in the baseline; the invariants' why and the identifiers' store key point at
+  `ARCHITECTURE.md`; SPEC §8 moved in as *What every mod follows*; the measured versions brought
+  to 2.1.325.
+- **`README.md`:** the Docs list names the three new files, and points at the user guide for
+  updating, trying a build and starting a mod.
+- **`docs/BACKLOG.md`:** *New mods* says how one starts; *Going public* names round 1's SPEC as in
+  history.
+- **The template:** its `CLAUDE.md` loses the SPEC §8 pointer and gains the ARCHITECTURE read
+  paragraph; its handoff names the root `docs/MOD-KICKOFF.md` and says the intake commits the made
+  files and Session 1 releases 0.1.0.
+- **cartoon-fx,** in its own `docs(cartoon-fx):` commit after this one, as its handoff asked: its
+  `CLAUDE.md` and `docs/ARCHITECTURE.md` point at the root's docs instead of the SPEC, and its
+  handoff says the repo's close waits for its round 3.
+- **Amendments:**
+  - **The close moves out of this session,** at the owner's word (above). Its handoff holds the
+    between-rounds text the close puts in place, so this session's review covers it. Amended at
+    plan time, with the owner.
+  - **The baseline's "each mod's counts" is a row per mod pointing at its own baseline.** Amended
+    at plan time, with the owner.
+  - **cartoon-fx's handoff is edited too,** beyond the two pointers its handoff named, so its
+    sessions know the close waits for them. At the owner's word.
+- **Measured** (CLI 2.1.325; node 26.7.0, npm 11.19.0, git 2.50.1):
+  - **The baseline,** the full `npm run verify` before any edit: 14 stages PASS; tooling tests
+    166 in 10 files (hygiene 109 in 4, verify 15, marketplace 13, imports 10, new-mod 9,
+    validate 6, types 4); the template 1 test, `validate` 2 hooks, 0 gating and
+    `$.command.register`; cartoon-fx 70 tests, 13 hooks, 5 gating, 4 state keys.
+  - **A fresh clone,** in the scratchpad: `git clone` of this checkout at `ca97ca2`, `npm ci`
+    (0 vulnerabilities), then `npm run new-mod -- demo-mod "A fictional mod for a dry run"`,
+    which printed the four steps. Before `npm run types`, every folder's `types` and `imports`
+    failed naming `npm run types`. The owner ran `npm run types` in a terminal tab: it asked the
+    folder-trust question, laid 2.1.325's declarations in all three folders and said so after
+    `/exit`. The full `npm run verify` then passed 18 stages, its hygiene a full scan with 0 hits,
+    and `npm run verify -- demo-mod` passed its 10. The clone was removed.
+  - **The declarations** at 2.1.325 are about 24,200 lines (`claude-code/index.d.ts` 18,284).
+- **Checked by hand:** the owner answered the trust prompt and typed `/exit` in the clone's
+  `npm run types`. Every path the new docs name exists, and every command they name was run in
+  the clone or here.
+- **Falsified:** nothing; no check was added.
+- **Numbers:** none moved. `npm run verify` 14 stages; tooling tests 166; template 1 (±0).

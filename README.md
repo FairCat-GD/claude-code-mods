@@ -17,7 +17,8 @@ tooling holds every mod to the same rules.
 claude plugin install <mod> --marketplace FairCat-GD/claude-code-mods
 ```
 
-In the desktop app: + beside the prompt, then Plugins, then Add marketplace.
+In the desktop app: + beside the prompt, then Plugins, then Add marketplace. Updating, and trying
+an unpushed build, are in `docs/USER-GUIDE.md`.
 
 ## Developing
 
@@ -49,6 +50,7 @@ npm run new-mod -- <name> "<description>"
 ```
 
 `new-mod` makes a mod from the template and adds its marketplace entry; it prints what is left.
+Starting a mod, from choosing its name to its intake, is in `docs/USER-GUIDE.md`.
 
 ## Layout
 
@@ -64,10 +66,15 @@ docs/                             the repository's own workflow files
 
 ## Docs
 
-- `CLAUDE.md`: the rules every session follows, the commands and the standing traps.
+- `CLAUDE.md`: the rules every session follows, the practices every mod follows, the commands and
+  the standing traps.
+- `docs/ARCHITECTURE.md`: how the repository is built, its invariants and its baseline.
+- `docs/USER-GUIDE.md`: using a mod, working in the repository, and starting a new mod.
+- `docs/MOD-KICKOFF.md`: the guide for a new mod's intake.
 - `docs/DEVELOPMENT-WORKFLOW.md`: the session-based workflow, at the repository's level and at each
   mod's.
-- `docs/spec/`: the round in progress. `docs/BACKLOG.md`: what is named but not planned.
+- `docs/spec/`: the round in progress, when there is one. `docs/BACKLOG.md`: what is named but not
+  planned.
 - Each mod's `README.md`, `CHANGELOG.md` and `docs/`.
 
 ## License

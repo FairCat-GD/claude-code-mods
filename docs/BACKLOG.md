@@ -10,8 +10,8 @@ on a mod goes there.
 
 ## Deferred
 
-- **New mods.** Left out at the round 1 intake. Each new mod starts with its own intake in
-  `mods/<name>/`, once round 1 has built the template and `docs/MOD-KICKOFF.md`.
+- **New mods.** Left out at the round 1 intake. Each starts with `npm run new-mod` and its own
+  intake in `mods/<name>/` (`docs/USER-GUIDE.md`, *Starting a new mod*); none is named yet.
 - **The gate's `claude` stages run in the owner's config.** `claude plugin validate` writes
   `.claude.json` and a backup into its config folder (measured in Session 3c's review, CLI
   2.1.325), so `verify` touches `~/.claude` on every run. The tooling tests run the CLI with a
@@ -27,7 +27,8 @@ on a mod goes there.
   judge.
   - **History holds what the updated rules keep out** (found by the 2026-11-14 review, F3 and
     F12). Every commit up to Session 3a holds `scripts/hygiene_terms.txt`, hashes a dictionary
-    of names can reverse, and `docs/spec/SPEC.md` names the project hygiene was ported from.
+    of names can reverse, and round 1's `docs/spec/SPEC.md`, in history, names the project hygiene
+    was first ported from.
     Rewriting history or accepting both is the owner's call, before going public.
 - **Sharing mods with anyone but the owner.** Left out at the round 1 intake. The install lines for
   other people, and what a private repository asks of them, wait until the repository goes

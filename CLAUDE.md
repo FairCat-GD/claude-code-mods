@@ -11,7 +11,14 @@ Machine identifiers keep their spelling, because installs and stored data live u
   `FairCat-GD/claude-code-mods`;
 - each mod's name: its folder, its `plugin.json` `name`, its install id and its slash commands. A
   rename loses its stored `$.store` values too, which the engine keys by plugin id
-  (`docs/spec/SPEC.md` decision 14, amended).
+  (`docs/ARCHITECTURE.md`, *The repository's data*).
+
+**Read the level's `docs/ARCHITECTURE.md`: its overview, invariants and baseline, and the
+sections your block names, before changing code.** It describes how the level is built, and keeps
+what is **Decided**, which changes only with the owner, apart from what is **Built**, which every
+session keeps true (*The documents* in `docs/DEVELOPMENT-WORKFLOW.md`). `docs/USER-GUIDE.md`
+describes behaviour from the user's side: the owner's use of the repository at the root, a mod's
+behaviour in its folder. `docs/MOD-KICKOFF.md` guides a new mod's intake.
 
 **The round's spec files in `docs/spec/` are the contract for what the round delivers:** read the
 parts your block's Read line names before changing code. `docs/DEVELOPMENT-WORKFLOW.md` is the
@@ -23,7 +30,7 @@ named but not planned at the repo level; each mod keeps its own.
 - **The repo level** covers the tooling, the gate, hygiene, the marketplace and the mod template.
   Its workflow files are at the root:
   - `docs/spec/`, `docs/next-session-prompt.md` and `docs/BACKLOG.md`;
-  - `docs/ARCHITECTURE.md` and `docs/USER-GUIDE.md`, once round 1 writes them.
+  - `docs/ARCHITECTURE.md`, `docs/USER-GUIDE.md` and `docs/MOD-KICKOFF.md`.
 - **The mod level** covers one mod. Its workflow files are in `mods/<name>/`: `CLAUDE.md`,
   `CHANGELOG.md`, `README.md`, and a `docs/` holding the same files as the root's. Its rounds,
   session ids, handoff and versions are its own.
@@ -58,7 +65,7 @@ chat's last message is the one-line opener that points at that file, never the f
   2. this file;
   3. *The session cycle* in `docs/DEVELOPMENT-WORKFLOW.md`;
   4. `docs/ARCHITECTURE.md`'s overview, invariants and baseline, and the sections the Read line
-     names, once it exists;
+     names;
   5. `docs/spec/SESSIONS.md`'s header, its block and the previous block's done-note;
   6. `docs/next-session-prompt.md`.
 - a mod session reads the same at its level:
@@ -66,15 +73,17 @@ chat's last message is the one-line opener that points at that file, never the f
   2. this file, then `mods/<name>/CLAUDE.md`;
   3. *The session cycle*;
   4. `mods/<name>/docs/ARCHITECTURE.md`'s overview, invariants and baseline, and the sections the
-     Read line names, once it exists;
+     Read line names;
   5. `mods/<name>/docs/spec/SESSIONS.md`'s header, its block and the previous block's done-note;
   6. `mods/<name>/docs/next-session-prompt.md`.
-- an intake has no block yet: it reads what its level's between-rounds handoff names.
+- an intake has no block yet: it reads what its level's between-rounds handoff names. A new mod's
+  intake also reads `docs/MOD-KICKOFF.md`.
 
 **The entry gate in a shared checkout.** Parallel sessions share this checkout. A session's tree is
 clean when its own paths and the shared files above have no uncommitted changes. A mod session's
 own paths are its mod's folder; a repo session's are everything outside `mods/`. Changes anywhere
-else belong to another session: never stage, edit or revert them.
+else belong to another session: never stage, edit or revert them. A new mod's intake is the one
+session that starts with its own paths uncommitted: what `npm run new-mod` made, which it commits.
 
 **Rules:**
 
@@ -82,8 +91,7 @@ else belong to another session: never stage, edit or revert them.
    - A mod session runs `npm run verify -- <mod>`.
    - A commit that changes only docs runs the docs-only command instead (*Commands*).
    - The full `npm run verify` runs before any push.
-   - Expected results are in the done-notes until the level's `ARCHITECTURE.md` has its baseline
-     table.
+   - Expected results are in the level's `ARCHITECTURE.md` baseline table.
 2. Falsify each new check once before trusting it: break the assertion, watch it fail at its own
    step, restore it. Checks that already existed are not falsified again.
 3. A mod's user-visible changes get a line in its `CHANGELOG.md`.
@@ -100,7 +108,7 @@ else belong to another session: never stage, edit or revert them.
 
 ## Invariants — these are rules, not preferences
 
-The why for each is in `docs/spec/SPEC.md` §6.
+The why for each is in `docs/ARCHITECTURE.md`, *The invariants*.
 
 1. **Nothing private enters the repository** (see below). *Enforced by* the hygiene stage.
 2. **A mod is self-contained.**
@@ -135,19 +143,41 @@ The why for each is in `docs/spec/SPEC.md` §6.
     `npm run types` does it for every mod and the template.
   - They are `claude-code/index.d.ts`, `claude-code-tools/` and `claude-code-mcp/` (additions to
     `claude-code`, not modules to import), and a `tsconfig.json` each mod's own extends. About
-    22,700 lines at 2.1.310: grep them for the name at hand (`'tool.call'`, `Pane: {`).
+    24,200 lines at 2.1.325: grep them for the name at hand (`'tool.call'`, `Pane: {`).
   - They are never committed (invariant 5); the engine writes a `.gitignore` of `*` beside them.
 - **Two builds run here.**
   - `claude plugin validate` and `claude plugin test` run the `claude` CLI on PATH, which
-    updates itself: 2.1.296 at intake, 2.1.310 by Session 1's end. `tsc` types against the
-    declarations that same CLI laid, and verify fails when they are from another build.
-  - The desktop app runs its own engine, 2.1.308 at intake.
+    updates itself: 2.1.296 at intake, 2.1.325 by round 1's documentation pass. `tsc` types
+    against the declarations that same CLI laid, and verify fails when they are from another
+    build.
+  - The desktop app runs its own engine: 2.1.308 at intake, 2.1.325 by 2026-11-15.
   - A done-note records the versions its checks ran on.
 - **A hooks module runs in the engine's environment.**
   - There is no DOM, no Node and no `import()`; it reaches everything outside itself through `$`.
   - JSX compiles against the global `h`, and elements come from `$.ui.resolve(e)`.
 - **A mod's tests run under `claude plugin test`, not Node.** The practices every mod follows,
-  its tests included, are in `docs/spec/SPEC.md` §8.
+  its tests included, are below.
+
+## What every mod follows
+
+Whatever a mod does:
+1. **The full workflow, at the mod level.** Its `CLAUDE.md` holds its own rules and commands, its
+   `docs/` its rounds. A new mod starts from `npm run new-mod` and its intake
+   (`docs/MOD-KICKOFF.md`); its round 1 ends at 1.0.0.
+2. **The layout, the manifest and the invariants** of `docs/ARCHITECTURE.md`.
+3. **Tests.**
+   - Every behaviour has a test.
+   - A UI test loops over `['terminal', 'desktop']` and never assumes a surface.
+   - A test that depends on time pins the clock (`mock.clock`).
+   - Fixtures are fictional.
+4. **Hooks fail on purpose.** Every hook `claude plugin validate` lists as gating has a `.catch`
+   that decides what its failure does. A mod that only reacts to something never refuses it.
+5. **Stored values are the owner's data.** They are read forward-only, and never dropped without a
+   changelog line.
+6. **Reach is named.** A mod uses network, process or file access only where its purpose needs
+   it, and its `ARCHITECTURE.md` names each use.
+7. **Its `README.md`** says what the mod does, gives the install lines and lists its commands. Its
+   `CHANGELOG.md` is written for the person using the mod.
 
 ## This repository will be public: nothing private goes in
 

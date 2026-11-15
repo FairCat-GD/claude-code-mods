@@ -4,8 +4,12 @@
 
 Every mod starts as the repository's template, made into its own by
 `npm run new-mod -- <name> "<description>"` from the repository's root. The root `CLAUDE.md`
-holds the rules every mod follows, and `docs/spec/SPEC.md` §8 the practices. This file adds only
-what is this mod's own.
+holds the rules and practices every mod follows; this file adds only what is this mod's own.
+
+**Read `docs/ARCHITECTURE.md`'s overview, invariants and baseline, and the sections your block
+names, before changing code.** It keeps what is **Decided**, which changes only with the owner,
+apart from what is **Built**, which every session keeps true. `docs/USER-GUIDE.md` is the mod's
+behaviour from the user's side.
 
 ## Machine identifiers
 
