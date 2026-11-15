@@ -6,6 +6,25 @@ All notable changes to cartoon-fx are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-11-15
+
+### Added
+
+- **`/fx off` and `/fx on`** turn every animation off and on again, in every open session from
+  its next one, and in every session after. Turning them off also stops the one playing and
+  drops what waits behind it. `/fx` itself still plays them while they are off.
+- **`/fx size small`, `medium` or `large`** sets how large the desktop app draws them: 416 × 304,
+  546 × 399 or 832 × 608. It applies from the next animation, in every open session, and is
+  remembered. `/fx size` alone says which size is in use.
+
+### Changed
+
+- **Animations are smaller by default.** The desktop app now draws them at `medium`, two thirds
+  of their old size, so one no longer pushes the conversation down by most of a screen.
+  `/fx size large` brings back the old size.
+- **The terminal's row sparkles.** The glyphs on each side of the words fly outward a step at a
+  time, four times a second, and a few twinkle, instead of standing still.
+
 ## [0.14.0] — 2026-11-15
 
 ### Added

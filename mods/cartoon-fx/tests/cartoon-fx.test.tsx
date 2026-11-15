@@ -3,7 +3,7 @@ import type { Mounted, TestBody } from 'claude-code/testing'
 
 import { cherryPicked, committed, isReviewFix, mergesOf, prOpened, pushedBranch, ranAt, rebasedWith, testsPassed } from '../hooks/detect'
 import type { BashOutput } from '../hooks/detect'
-import { drawFx, FX_MS, textBox } from '../hooks/fx'
+import { drawFx, FX_MS, glyphRow, SPARKS, textBox } from '../hooks/fx'
 import { RED, YELLOW } from '../hooks/zones'
 import type { FxKind } from '../types'
 
@@ -548,7 +548,7 @@ test('/fx names what it has when asked for something else', async ($, on) => {
 
   const ran = await $.command.run(fx('fireworks'))
   expect(ran.text).toBe(
-    'cartoon-fx has no "fireworks". Try: plan, commit, cherry, rebase, push, pr, merge, tests, review, fixes, compact, helpers, context, redzone or all.',
+    'cartoon-fx has no "fireworks". Try: plan, commit, cherry, rebase, push, pr, merge, tests, review, fixes, compact, helpers, context, redzone or all; off or on; size small, medium or large; place conversation or place bottom.',
   )
 })
 
@@ -582,14 +582,104 @@ test('a placement kept from an earlier session is used from the start', async ($
   await band.unmount()
 })
 
-test('the svg shows the middle of its drawing box, drawn 3.2 times its size', async ($, on) => {
+// The opening tag of the drawing a mounted row or strip draws.
+const svgTagIn = async (ui: Pick<Mounted, 'find'>) => /^<svg[^>]*>/.exec(String((await ui.find({ type: 'Svg' }))?.props.source))?.[0]
+
+test('the svg shows the middle of its drawing box, at medium (2.1 times its size) unless a size is kept', async ($, on) => {
   engine(on, PUSHED)
   await start($)
   await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
   const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
 
-  expect(String((await row.find({ type: 'Svg' }))?.props.source)).toContain('viewBox="90 0 260 190" width="832" height="608"')
+  expect(await svgTagIn(row)).toContain('viewBox="90 0 260 190" width="546" height="399"')
   await row.unmount()
+})
+
+test('/fx size is kept, and draws the next effect at that size in this session and another', async ($, on) => {
+  const kept: Record<string, unknown> = {}
+  const { clock } = engine(on, PUSHED, 10, false, kept)
+  await start($)
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  await $.command.run(fx('place bottom'))
+
+  expect((await $.command.run(fx('size  Small'))).text).toBe('cartoon-fx: animations play small (416 × 304), from the next one.')
+  expect(kept.size).toBe('small')
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
+  expect(await svgTagIn(band)).toContain('width="416" height="304"')
+
+  kept.size = 'large' // `/fx size large` in another session
+  await clock.advance(slot('push'))
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't2' })
+  expect(await svgTagIn(band)).toContain('width="832" height="608"')
+
+  expect((await $.command.run(fx('size'))).text).toBe('cartoon-fx: animations play large (832 × 608). Try: size small, medium or large.')
+  expect((await $.command.run(fx('size huge'))).text).toBe('cartoon-fx has no size "huge". Try: small, medium or large.')
+  expect(kept.size).toBe('large')
+  await band.unmount()
+})
+
+test('a missing or unknown stored value plays, at medium', async ($, on) => {
+  engine(on, PUSHED, 10, false, { isMuted: 'yes', size: 'huge' })
+  await start($)
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+
+  expect(await altIn(row)).toBe('Pushed! main')
+  expect(await svgTagIn(row)).toContain('width="546" height="399"')
+  await row.unmount()
+})
+
+test('/fx off mutes every moment but what /fx replays, and /fx on plays them again', async ($, on) => {
+  const kept: Record<string, unknown> = {}
+  const { clock } = engine(on, PUSHED, 10, false, kept)
+  await start($)
+  const first = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+
+  expect((await $.command.run(fx('Off'))).text).toBe('cartoon-fx: animations are off. /fx still plays them.')
+  expect(kept.isMuted).toBe(true)
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
+  expect(await altIn(first)).toBeUndefined()
+  expect(await altIn(band)).toBeUndefined()
+
+  const replay = await $.command.run(fx('push'))
+  const output = await $.ui.mount(fxOutput('out1', replay.text ?? ''))
+  expect(await altIn(output)).toBe('Pushed! main')
+  await clock.advance(slot('push'))
+
+  expect((await $.command.run(fx('on'))).text).toBe('cartoon-fx: animations are on.')
+  expect(kept.isMuted).toBe(false)
+  const second = await $.ui.mount({ ...callRow('t2'), surface: 'desktop' })
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't2' })
+  expect(await altIn(second)).toBe('Pushed! main')
+  for (const ui of [first, band, output, second]) await ui.unmount()
+})
+
+test('/fx off empties the queue: the effect on show stops, and nothing that waited plays after /fx on', async ($, on) => {
+  const { clock } = engine(on, { stdout: `${VERIFIED.stdout}\n${COMMITTED.stdout}`, stderr: PUSHED.stderr, interrupted: false })
+  await start($)
+  const first = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+  const second = await $.ui.mount({ ...callRow('t2'), surface: 'desktop' })
+
+  await $.tool.call({ tool: 'Bash', command: 'npm test && git commit -m "Add squish" && git push', tool_use_id: 't1' })
+  expect(await altIn(first)).toBe('All green! 42 passed')
+  await clock.advance(1000)
+  await $.command.run(fx('off'))
+  expect(await altIn(first)).toBeUndefined()
+
+  // Nothing is busy any more, so the next moment plays at once, whole.
+  await $.command.run(fx('on'))
+  await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't2' })
+  expect(await altIn(second)).toBe('Pushed! main')
+  await clock.advance(FX_MS.push + HOLD - 1)
+  expect(await altIn(second)).toBe('Pushed! main')
+
+  // The stamp and the confetti that waited behind the checkmark are gone.
+  for (const kind of ['push', 'commit', 'push'] as const) {
+    await clock.advance(slot(kind))
+    expect(await altIn(first)).toBeUndefined()
+  }
+  for (const ui of [first, second]) await ui.unmount()
 })
 
 test('the terminal gets a row of coloured glyphs in the strip instead', async ($, on) => {
@@ -628,18 +718,46 @@ test('a rejected push behind "; echo done" returns no error, and draws nothing',
   for (const ui of [row, band]) await ui.unmount()
 })
 
-test('on the terminal the strip shows a row effect at once, with no replay', async ($, on) => {
+test("on the terminal the strip's row steps a frame every 250 ms, the same for one seed at one frame, and ends on time", async ($, on) => {
   const { clock } = engine(on, PUSHED)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  const glyphs = async () => (await band.findAll({ type: 'Text' })).map(text => text.text).join('')
+  const glyphs = async (ui: Pick<Mounted, 'findAll'>) => (await ui.findAll({ type: 'Text' })).map(text => text.text).join('')
 
+  // Played before the strip first draws: the session's start says it is the terminal.
   await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 't1' })
-  const before = await glyphs()
-  expect(before).toContain('Pushed! main')
-  await clock.advance(900)
-  expect(await glyphs()).toBe(before) // the same drawing, not a fresh one
-  await band.unmount()
+  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const first = await glyphs(band)
+  expect(first).toContain(' Pushed! main ')
+  await clock.advance(249)
+  expect(await glyphs(band)).toBe(first)
+  await clock.advance(1)
+  const second = await glyphs(band)
+  expect(second).not.toBe(first)
+  expect(second).toContain(' Pushed! main ')
+
+  const another = await $.ui.mount({ ...BAND, requestId: 'band2', surface: 'terminal' })
+  expect(await glyphs(another)).toBe(second) // one seed at one frame draws one row
+  await clock.advance(FX_MS.push + HOLD - 251)
+  expect(await glyphs(band)).toContain('Pushed! main')
+  await clock.advance(1)
+  expect(await glyphs(band)).not.toContain('Pushed! main') // not replayed from the start
+  for (const ui of [band, another]) await ui.unmount()
+})
+
+test("the terminal row's sparks step outward a place a frame, the same for one seed at one frame", () => {
+  const seed = 1_731_000_123
+  expect(glyphRow(seed, 4)).toEqual(glyphRow(seed, 4))
+  expect(glyphRow(seed, 5)).not.toEqual(glyphRow(seed, 4))
+  expect(glyphRow(seed + 1, 4)).not.toEqual(glyphRow(seed, 4))
+  for (const frame of [0, 1, 7]) {
+    const now = glyphRow(seed, frame)
+    const after = glyphRow(seed, frame + 1)
+    for (const side of ['left', 'right'] as const) {
+      expect(now[side]).toHaveLength(SPARKS)
+      // Each spark keeps its colour one place further out; a twinkle changes only its glyph.
+      expect(after[side].slice(1).map(spark => spark.color)).toEqual(now[side].slice(0, -1).map(spark => spark.color))
+    }
+  }
 })
 
 test("a subagent's push plays in the strip straight away", async ($, on) => {

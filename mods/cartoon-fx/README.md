@@ -11,7 +11,7 @@ Short cartoon animations for the moments worth marking in a Claude Code session:
 - a gauge as the context window reaches its yellow and red zones.
 
 In the desktop app each one plays under the conversation row that set it off, or in the strip
-above the prompt. The terminal shows a row of coloured glyphs around the words in that strip.
+above the prompt. The terminal shows the words in that strip, with coloured glyphs flying out from them.
 
 ## Install
 
@@ -31,3 +31,5 @@ In the desktop app: + beside the prompt, then Plugins, then Add marketplace.
 | `/fx <name>` | Plays one: `plan`, `commit`, `cherry`, `rebase`, `push`, `pr`, `merge`, `tests`, `review`, `fixes`, `compact`, `helpers`, `context` or `redzone`. Any other name gets this list. |
 | `/fx place bottom` | Plays every effect in the strip above the prompt, from now on and in later sessions. |
 | `/fx place conversation` | Plays effects under the row that set them off again, which is the default. `/fx place middle` does the same. |
+| `/fx off` / `/fx on` | Turns every effect off or on again, from now on and in later sessions. `/fx` still plays while they are off. |
+| `/fx size small`, `medium` or `large` | How large the desktop app draws them; `medium` is the default. |

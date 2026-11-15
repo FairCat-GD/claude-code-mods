@@ -19,10 +19,14 @@ export type FxKind =
 // (the strip above the prompt box for one with no row), or always in that strip.
 export type Placement = 'conversation' | 'bottom'
 
+// How large the desktop draws an effect, kept by `/fx size`.
+export type Size = 'small' | 'medium' | 'large'
+
 // The effect on show: its identity (id), which one, which drawing of it (seed),
 // its words, the helper count, number of findings or context percentage it draws
-// (value), when it ends, and the conversation row it plays in (`tool:<id>`,
-// `fx:(take N)` or `reply:<text>`), if any.
+// (value), when it ends, the size it is drawn at, the terminal row's frame
+// (absent before the first), and the conversation row it plays in
+// (`tool:<id>`, `fx:(take N)` or `reply:<text>`), if any.
 export type Shown = {
   id: number
   kind: FxKind
@@ -31,6 +35,8 @@ export type Shown = {
   subtitle: string
   value: number
   until: number
+  size: Size
+  frame?: number
   row?: string
 }
 

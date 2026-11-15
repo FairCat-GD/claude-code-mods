@@ -1,6 +1,6 @@
 # cartoon-fx — architecture, as built
 
-This is cartoon-fx as it stands at 0.14.0, written from its code. Every session that changes the
+This is cartoon-fx as it stands at 0.15.0, written from its code. Every session that changes the
 mod keeps it true.
 
 ## Overview
@@ -15,23 +15,24 @@ cartoon-fx is one hooks module (`hooks/register.tsx`), with three helpers beside
 It does two things:
 - **It watches the session.** Tool calls, compactions, subagent starts and finished turns. When
   something worth marking happens, it **plays** an effect: one `Shown` value in `$.state`, held
-  for the effect's length plus a short hold, or it queues it behind the one on show.
+  for the effect's length plus a short hold, or it queues it behind the one on show. While `/fx
+  off` has muted them, it plays nothing but `/fx`'s own replays.
 - **It draws the effect on show.** Its `ui.render` hooks draw it into one of two places:
   - the conversation row that set it off, or for a card the desktop draws its own way, the row
     just before it (desktop only);
   - the strip above the prompt (`AbovePrompt`). The terminal always uses the strip, as a row of
-    coloured glyphs.
+    coloured glyphs that steps a frame every 250 ms.
 
 One effect is on show at a time. The others wait their turn in a queue.
 
 | File | Lines | Holds |
 |---|---|---|
-| `hooks/register.tsx` | 665 | the hooks, the queue, playing and placement |
+| `hooks/register.tsx` | 728 | the hooks, the queue, playing and placement, muting and size |
 | `hooks/detect.ts` | 395 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
-| `hooks/fx.ts` | 1295 | the fourteen drawings, their SMIL helpers, and fitting words |
+| `hooks/fx.ts` | 1323 | the fourteen drawings, their SMIL helpers, fitting words, the three sizes, and the terminal's row |
 | `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
-| `types/index.d.ts` | 41 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 1646 | 75 tests |
+| `types/index.d.ts` | 47 | `FxKind`, `Placement`, `Size`, `Shown`, and the `$.state` contract |
+| `tests/cartoon-fx.test.tsx` | 1764 | 80 tests |
 
 ## The invariants
 
@@ -45,8 +46,9 @@ One effect is on show at a time. The others wait their turn in a queue.
    line and returns, and no hook waits on the queue. *Enforced by* the code and by the tests, which check that the
    row still draws the engine's own content, with the effect beneath it.
 3. **The same seed always draws the same picture.** `random(seed)` is a seeded PRNG, so a redraw
-   doesn't reshuffle the confetti. *Enforced by* the terminal test, which checks the glyphs are
-   identical 900 ms later.
+   doesn't reshuffle the confetti; the terminal's row is the same for one seed at one frame.
+   *Enforced by* the terminal tests: two strips at one frame draw the same glyphs, and
+   `glyphRow` gives the same sparks for one seed and frame.
 4. **A failure plays nothing.** A denied or errored call, a dry run, a rejected push, a push with
    nothing to push, a test run that reports any failure, and a plan turned down all play nothing.
    *Enforced by* tests for the failed push, the rejected push, the plan turned down, the failing
@@ -60,19 +62,19 @@ One effect is on show at a time. The others wait their turn in a queue.
 
 | Hook | Gating | Reacts to | Plays |
 |---|---|---|---|
-| `session.start` | | a new or reloaded session | Clears `shown` (a reload drops the timers that would end it), takes up the stored placement, and registers `/fx` (`immediate`). |
+| `session.start` | | a new or reloaded session | Clears `shown` (a reload drops the timers that would end it), notes the session's surface, takes up the stored placement, and registers `/fx` (`immediate`). |
 | `tool.call` (every tool) | ✓ | `ReportFindings`, and every finished call | `review` or `fixes` from a code review's report, in the row just before its card; then the context check. Registered first, so it is outermost (below). |
 | `tool.call` `{ tool: 'Bash' }` | ✓ | a finished Bash call | each of `tests`, `commit` (a review-fix commit as `fixes`), `cherry`, `rebase`, `push`, `pr` and `merge` it did, in the order the command ran them. |
 | `tool.call` `{ tool: 'ExitPlanMode' }` | ✓ | a plan the person accepted | `plan`, unless a teammate's plan still waits on its lead (`awaitingLeaderApproval`). |
 | `turn.complete` | | a finished turn | The context check. |
 | `session.compact` | ✓ | a compaction, not a precompute or a subagent's | `compact`, with tokens before and after. |
 | `agent.spawn` | ✓ | a subagent started | `helpers`, gathering spawns within 400 ms into one, with their count. |
-| `command.run` `{ command: 'fx' }` | | `/fx` | Replays effects, or stores a placement. |
+| `command.run` `{ command: 'fx' }` | | `/fx` | Replays effects, or stores a placement, `isMuted` (`off`, `on`) or a size. |
 | `ui.render` `ToolUse` | | a tool call's own row (desktop) | Draws the effect under the row that set it off. Passes over a call the desktop draws as its own card (`OWN_CARDS`). |
 | `ui.render` `ToolGroup` | | a folded group of calls (desktop) | Draws the effect under the group holding its call. An unfolded group's rows are `ToolUse`. |
 | `ui.render` `AssistantMessage` | | a reply's text row (desktop) | Draws a review's effect under the reply whose text comes just before its card. |
 | `ui.render` `CommandOutput` `{ command: 'fx' }` | | `/fx`'s output row (desktop) | Draws the effect under the row whose `(take N)` tag it carries. |
-| `ui.render` `AbovePrompt` | | the strip above the prompt | Draws effects with no row, effects under `/fx place bottom`, and fallbacks from rows; on the terminal, every effect as glyphs. Stays out of the way of a survey (`hasSurvey`), and draws nothing while collapsed (`isCollapsed`). Notes whether it is collapsed, for the queue. |
+| `ui.render` `AbovePrompt` | | the strip above the prompt | Draws effects with no row, effects under `/fx place bottom`, and fallbacks from rows; on the terminal, every effect as glyphs, a frame at a time. Stays out of the way of a survey (`hasSurvey`), and draws nothing while collapsed (`isCollapsed`). Notes whether it is collapsed, for the queue. |
 
 ## Detection (`hooks/detect.ts`)
 
@@ -200,8 +202,10 @@ One effect is on show at a time. The others wait their turn in a queue.
 ## The drawings (`hooks/fx.ts`)
 
 - **The box and the view.** Every effect fits one 440 × 190 box. The SVG shows its middle 260
-  units (`viewBox="90 0 260 190"`), drawn ×3.2 (832 × 608); a narrower surface shrinks it. Pieces
-  that fly past the sides leave the frame.
+  units (`viewBox="90 0 260 190"`), drawn at the effect's size (`SCALES`): `small` ×1.6
+  (416 × 304), `medium` ×2.1 (546 × 399) or `large` ×3.2 (832 × 608). A narrower surface shrinks
+  it. Only `width` and `height` change with the size, so every structural check holds at each.
+  Pieces that fly past the sides leave the frame.
 - **The animation** is SMIL (`animate`, `animateTransform`, `animateMotion`), with no script.
   Shared pieces: the tilted label, smoke clouds, motion rays, sparkles and squash streaks.
 - **What pops** springs to `PEAK` (1.28) times its size before it settles; the stamp's imprint
@@ -252,11 +256,13 @@ One effect is on show at a time. The others wait their turn in a queue.
 
 ## Playing and placement
 
-- **`play`** takes up the stored placement and gives the effect its `id`, a counter, which is its
-  identity: the drawing cache, the end and the move to the strip all key by it. With nothing on
-  show, it starts the effect; otherwise the effect waits in the queue.
-- **Starting** sets `shown`: `{ id, kind, seed, title, subtitle, value, until, row? }`, with
-  `seed` the clock's now, which only picks the drawing.
+- **`play`** reads `isMuted` from the store and plays nothing while it is `true`. Otherwise it
+  takes up the stored placement, reads the stored size, and gives the effect its `id`, a
+  counter, which is its identity: the drawing cache, the end and the move to the strip all key by
+  it. With nothing on show, it starts the effect; otherwise the effect waits in the queue.
+- **Starting** sets `shown`: `{ id, kind, seed, title, subtitle, value, until, size, frame?,
+  row? }`, with `seed` the clock's now, which only picks the drawing. The effect keeps the size it
+  was played at, and the move to the strip keeps it too.
   - It schedules the end: `FX_MS[kind] + HOLD_MS` (600 ms). The hold lets a surface that mounts
     late still show the whole drawing.
   - The end clears `shown` only while it still holds this id. `GAP_MS` (300 ms) later, the next
@@ -273,7 +279,11 @@ One effect is on show at a time. The others wait their turn in a queue.
     an effect that would play there is dropped when its turn comes: one with no row, any under
     `/fx place bottom`, and every one on the terminal.
   - A fault in the queue's own timers empties it, so the next effect still plays. Each reset
-    (a fault, or `session.start`) is counted, and a timer set before one does nothing after it.
+    (a fault, `/fx off`, or `session.start`) is counted, and a timer set before one does nothing
+    after it.
+  - **`/fx off` empties the queue:** it resets it and clears `shown`, so the effect on show stops
+    and nothing waiting plays, `/fx`'s samples included. Other open sessions stop playing from
+    their next effect; what they already queued plays out.
     `session.start` also forgets whether the strip was collapsed.
 - **The order of one call's effects.** The every-tool `tool.call` hook is registered before the
   Bash and ExitPlanMode hooks. A plugin's registrations nest first outermost, so the call's own
@@ -313,7 +323,17 @@ One effect is on show at a time. The others wait their turn in a queue.
     desktop 2.1.308). So the fallback, timed from the call's hook, sees the mark the rows leave
     in `drawnId`.
 - **The terminal** draws no SVG. The strip shows five glyphs (`✦ • ▪ ✶ ✧ ◆ ∗ ❋`) on each side of
-  the words, coloured from the same seed. Rows are left alone.
+  the words, from `glyphRow(seed, frame)` in `hooks/fx.ts`. Rows are left alone.
+  - **Sparks fly out.** Each side is a stream of sparks, spark `k` coloured and shaped by its own
+    `random`. At frame `f`, place `p` (0 by the words) shows spark `f − p + 5`, so a new spark is
+    born by the words each frame and the others step outward. About one in five twinkles, drawn
+    as `✧`, from a draw of its own for that frame and place.
+  - **Frames are state writes.** Where the strip is on the terminal (noted by `session.start`
+    from its surface, then by every strip draw), starting an effect arms a timer through
+    `later`: every 250 ms (`FRAME_MS`) it writes `shown` with `frame` one higher, while that
+    effect is still on show. On the terminal only the strip reads `shown` (every row hook returns
+    before reading it there), so a frame redraws the strip alone: 11 to 15 per effect. The timer
+    lives in `onShow` beside the end, so a new effect cancels it.
 - **`/fx`** replays from `SAMPLES`, fixed words and values, in the order of `/fx all`. They take
   their turns in the queue, entered with one placement read and one clock read for the run. All of them play in that run's output row, found by its `(take N)`
   tag. The engine puts the plugin's name before the output
@@ -337,6 +357,8 @@ session:
 |---|---|---|
 | `placement` | `conversation` or `bottom` | `/fx place …` |
 | `fxTakes` | the number of the last `/fx` take | every `/fx` run |
+| `isMuted` | `true` after `/fx off`, `false` after `/fx on` | `/fx off`, `/fx on` |
+| `size` | `small`, `medium` or `large` | `/fx size …` |
 
 - **How the store is keyed.** The engine keys a plugin's store by its id, `<name>@<marketplace>`,
   not by its name. It keeps it in `~/.claude/plugins/store/`, one JSON file per id; an id with `@`
@@ -347,12 +369,13 @@ session:
   - The engine carries a store to a new id only for renamed built-in plugins. So a new name or a
     new marketplace starts empty.
 - **Read forward-only.** A stored `placement` that isn't one of the two values is ignored. A
-  missing `fxTakes` counts as 0.
+  missing `fxTakes` counts as 0. An `isMuted` other than `true` is on, and a `size` other than the
+  three is `medium`: a store from before 0.15.0, the owner's included, plays at medium.
 
 ## Reach
 
 Beyond the hooks above, cartoon-fx calls only what `validate` lists:
-- `$.store.get` and `$.store.set`, for the two values above;
+- `$.store.get` and `$.store.set`, for the four values above;
 - `$.state.get` and `$.state.set` (through `read` and `update`), for its own four values;
 - `$.session.usage()`, for the context window's percentage;
 - `$.session.messages()`, for the row just before a review's card;
@@ -366,7 +389,7 @@ It uses no network, process or file access.
 
 The repository's six layers (the root `docs/ARCHITECTURE.md`, *Testing strategy*) apply. For this
 mod:
-- **`claude plugin test`** runs the 75 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 80 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`), so a queue test moves it a turn at a time (`slot`: length + hold +
     gap) and reads which effect each row or the strip draws.
@@ -379,6 +402,11 @@ mod:
     `/fx all`; a collapsed strip, on the desktop and on the terminal; a session start emptying
     the queue past a gap timer set before it, and forgetting a collapsed strip. Two `/fx` tests
     step through all fourteen samples and a takeover.
+  - Seven cover the controls and the terminal's row: `/fx off` muting all but replays, and
+    `/fx on`; `/fx off` emptying the queue; a size kept by `/fx size` or another session; a
+    missing or unknown stored value playing at medium; the default size; the row stepping a frame
+    every 250 ms, identical in two strips at one frame and ending on time; and `glyphRow`'s
+    sparks stepping outward.
   - Thirteen tests cover the detection rules as plain functions, `ranAt` among them, and seven
     hook tests the rejected push behind `; echo done`, a cherry-pick, a commit and a cherry-pick in
     one command, a merged branch, a merged pull request, a rebase and a pull request opened. Their output and the engine's reports are fictional, shaped on
@@ -422,13 +450,17 @@ mod:
   At 0.14.0, in `--plugin-dir` terminal sessions (CLI 2.1.325), `git rebase main` in a scratch
   repository played "Rebased! topic onto main" in the strip, and `/fx pr` played "PR opened!
   #42"; the owner checked both drawings' frames before the commit. No pull request was opened.
+  At 0.15.0, in `--plugin-dir` terminal sessions (CLI 2.1.325), `/fx off` then a commit in a
+  scratch repository played nothing; `/fx on` then a commit played "SAVED <sha>"; and `/fx all`
+  played with each row's sparks stepping outward between reads a third of a second apart. The
+  owner picked the row's design and rate from three variants looped in plan mode.
   What nobody has checked by hand is in `docs/BACKLOG.md`.
 
 ## Packaging
 
 - **The release.** The owner installs the release from this repository's marketplace as
   `cartoon-fx@claude-code-mods`, at user scope. The installed copy is the mod's tracked files at
-  the pushed commit, every one of them (19 at 0.14.0), byte for byte. That includes `CLAUDE.md`,
+  the pushed commit, every one of them (19 at 0.15.0), byte for byte. That includes `CLAUDE.md`,
   `docs/` and the tests. It lives in
   `~/.claude/plugins/cache/claude-code-mods/cartoon-fx/<version>/`, and changes only when
   `claude plugin update cartoon-fx` finds a new version.
@@ -452,8 +484,15 @@ mod:
 - **The drawing is built once per effect.** Rows and the strip draw again on every scroll, and the
   confetti alone is some 50,000 characters. `svgOf` keeps the last drawing, keyed by the effect's
   id; two effects started in one millisecond share a seed, never an id.
-- **Placement is read from the store on every play.** `/fx place` in one session applies in every
-  other open session from its next effect.
+- **Placement, muting and size are read from the store on every play.** `/fx place`, `/fx off`
+  and `/fx size` in one session apply in every other open session from its next effect.
+- **The size travels with the effect,** in `shown`, rather than in a `$.state` key of its own:
+  no new machine identifier, and one id is never drawn at two sizes, so the drawing cache needs
+  no other key.
+- **The terminal's row moves by state writes,** four a second, on the terminal alone. A surface
+  module (`Client`) with its own frame clock would redraw without them, but is a new kind of
+  module, unmeasured on the terminal; one write and a strip redraw per frame was the owner's
+  accepted cost.
 - **`/fx` takes are numbered across sessions** (`fxTakes`), so the rows of a resumed transcript
   never share a tag.
 - **Thresholds with hysteresis.** Yellow at 75% (reset below 70%) and red at 90% (reset below
@@ -531,12 +570,12 @@ In `docs/BACKLOG.md` under *Deferred*:
   engine reports neither), and a command that rebases and merges plays the rebase alone;
 - a `glab mr create` the engine reports plays nothing (no `gh pr create` part).
 
-## Baseline (v0.14.0)
+## Baseline (v0.15.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 75 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 80 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |

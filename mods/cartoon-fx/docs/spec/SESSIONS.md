@@ -742,6 +742,68 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
 - **The owner's stored values are read forward-only:** an old store with no new key behaves as
   today, and an unknown value is ignored.
 
+**Done (2026-11-15, 0.15.0).**
+- **Decided with the owner at the start:**
+  - **The store keys: `isMuted`** (`true` or `false`) **and `size`** (`small`, `medium` or
+    `large`), now in `CLAUDE.md`, *Machine identifiers*.
+  - **The terminal's row: "sparks fly out"** (over "twinkle in place" and "burst, twinkle,
+    fade"), **a frame every 250 ms** (over 150 and 400), picked from the three variants looped on
+    a dark and a light terminal in plan mode.
+  - Set by the spec, not asked: `small` ×1.6 (416 × 304), `medium` ×2.1 (546 × 399, two thirds),
+    `large` ×3.2 (832 × 608).
+- **Shipped:**
+  - **In `hooks/register.tsx`:** `play` reads `isMuted` first and plays nothing while it is
+    `true`; `/fx off` stores it, resets the queue and clears `shown`; `/fx on` stores `false`.
+    `sizeOf` reads `size` (anything else is `medium`) in `play` and once per `/fx` run.
+    `/fx size` alone names the size in use, and an unknown one names the three. Where the strip
+    is on the terminal, `show` arms `nextFrame` through `later` every `FRAME_MS`, kept in `onShow`
+    beside the end. `session.start` notes the session's surface, so an effect before the strip's
+    first draw moves too. `/fx`'s description, argument hint and unknown-argument reply name the
+    new words.
+  - **In `hooks/fx.ts`:** `SCALES` and `pixelsOf` replace `SCALE`, and `drawFx` takes a size;
+    `glyphRow(seed, frame)` draws the row, with `GLYPHS` moved here from the hooks.
+  - **In `types/index.d.ts`:** `Size`, and `Shown` gains `size` and `frame?`. No new `$.state`
+    key.
+- **Amendments:**
+  - **The drawing cache keys by id alone.** The handoff asked that a size change never reuse a
+    drawing made at another size; the effect carries the size it was played at, so one id is
+    never drawn at two sizes, and a size key in the cache would have been dead code.
+  - **`/fx off` also drops `/fx`'s waiting samples.** "Muting empties the queue", read whole;
+    the replay on show stops with the rest.
+- **Checked by hand,** in `--plugin-dir` terminal sessions (CLI 2.1.325) started from the
+  Terminal panel, one per slash command, in a scratch repository with a fictional identity:
+  - `/fx off` answered "animations are off. /fx still plays them."; two commits then played
+    nothing, read every 2 s across each;
+  - `/fx on`, then a commit played "SAVED <sha>" in the strip, its sparks moving between reads a
+    second apart (a first run fell between 2 s reads);
+  - `/fx all` played with each row's sparks stepping outward between reads a third of a second
+    apart, the words still.
+  - The desktop check of the three sizes waits for the owner's update at the round's end
+    (`docs/BACKLOG.md`).
+- **Falsified,** each by copying the file aside, breaking it and copying it back (79 pass, 1 fail,
+  unless noted):
+  - `play` ignoring the mute; replays muted too: the mute test;
+  - the mute read as any truthy value: the missing-or-unknown test;
+  - `/fx off` without the reset; without clearing `shown`: the queue test;
+  - the stored size ignored; not stored; not drawn: the size test;
+  - an unknown size taken as stored: the missing-or-unknown test;
+  - the fallback size `large`; `medium` drawn ×3.2: the default-size and missing-or-unknown
+    tests (78 / 2);
+  - no frames; the surface not noted at session start; the frame ignored by the strip; the strip
+    on the terminal never marking its effect drawn, so the fallback replays it: the frames test;
+  - sparks stepping inward; the row ignoring the frame: the `glyphRow` test.
+  - Two first tries broke nothing a test could see, and were re-aimed: `drawFx`'s default
+    parameter (the hooks always pass a size) and a stretched `until` (the end timer, not
+    `until`, ends an effect).
+- **Numbers:**
+  - 80 tests (+5: the mute, the queue, the size, missing or unknown values, `glyphRow`; two
+    reworked: the default size and the terminal's frames);
+  - `validate` 13 hooks, 5 gating, each with a `.catch`, and 4 state keys, unchanged;
+  - `tsc` and imports clean;
+  - `hooks/register.tsx` 728 lines (+63), `hooks/fx.ts` 1323 (+28), `types/index.d.ts` 47 (+6);
+    19 tracked files, unchanged.
+  - The checks ran on CLI 2.1.325, node 26.7.0.
+
 ---
 
 ## A2: The fun pass, and the close

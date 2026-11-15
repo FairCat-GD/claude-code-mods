@@ -73,6 +73,9 @@ Each stays on screen for about three to four seconds.
 | `/fx <name>` | Plays one: `plan`, `commit`, `cherry`, `rebase`, `push`, `pr`, `merge`, `tests`, `review`, `fixes`, `compact`, `helpers`, `context` or `redzone`. A name it doesn't have gets this list. |
 | `/fx place bottom` | Plays every effect in the strip above the prompt, from now on. |
 | `/fx place conversation` | Plays effects under the row that set them off again, which is the default. `/fx place middle` does the same. |
+| `/fx off` | Turns every effect off, in every open session from its next one, and in later sessions. The one playing stops, and what waits behind it is dropped. `/fx` still plays its replays. |
+| `/fx on` | Turns them on again, which is the default. |
+| `/fx size small`, `medium` or `large` | Sets how large the desktop app draws effects: 416 × 304, 546 × 399 (the default) or 832 × 608, from the next one, in every open session and later ones. `/fx size` alone says which is in use. The terminal's row has one size. |
 
 - `/fx`'s replays use sample words ("SAVED 5e81772", "42 passed").
 - A replay takes its turns like everything else, and none of its samples is skipped. Something
@@ -82,6 +85,8 @@ Each stays on screen for about three to four seconds.
 - Its answer ends with a take number, such as `playing push (take 3)`. The number counts up across
   sessions, and each run's animations play under that run's own answer.
 - Letter case and extra spaces don't matter: `/fx Place  Bottom` works.
+- **Your choices are remembered** across sessions: where effects play, whether they are off, and
+  their size.
 
 ## Where effects play
 
@@ -110,7 +115,8 @@ Each stays on screen for about three to four seconds.
 | | Desktop app | Terminal |
 |---|---|---|
 | Where | under the row, or in the strip | always in the strip above the prompt |
-| What | the animated cartoon | the words, with a row of coloured glyphs on each side (`✦ • ▪ ✶ …`) |
+| What | the animated cartoon | the words, with a row of coloured glyphs on each side (`✦ • ▪ ✶ …`) that fly outward from the words and twinkle |
+| `/fx size` | sets the cartoon's size | stored all the same, but the row has one size |
 | `/fx place` | moves effects between rows and the strip | stored all the same, but the terminal always uses the strip |
 
 The strip steps aside while Claude Code shows a survey there.
@@ -125,6 +131,7 @@ The strip steps aside while Claude Code shows a survey there.
   version and changes nothing.
 - **Try an unpushed build** with `claude --plugin-dir <repo>/mods/cartoon-fx`, run as a shell
   command in a terminal. For that session it replaces the installed copy. It keeps its own take
-  number and placement, so trying a build leaves the installed one's alone.
-- **Your placement and take number belong to the install.** A copy loaded under another name or
-  from another marketplace starts afresh (`docs/ARCHITECTURE.md`, *Values*).
+  number, placement, off or on, and size, so trying a build leaves the installed one's alone.
+- **Your placement, take number, off or on, and size belong to the install.** A copy loaded
+  under another name or from another marketplace starts afresh (`docs/ARCHITECTURE.md`,
+  *Values*).

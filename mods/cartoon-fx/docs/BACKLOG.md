@@ -53,6 +53,11 @@ desktop app: both played beside the findings card.
   their drawing under their row, and `/fx all` plays all fourteen. The rebase was checked in a
   `--plugin-dir` terminal session's strip, `/fx pr` there too, and the frames by eye; the tests
   cover the rows.
+- **The sizes in the desktop** (0.15.0): `/fx size small`, `medium` and `large`, each with
+  `/fx commit`, draw the stamp at 416 × 304, 546 × 399 and 832 × 608 under its row. The tests
+  check the size each drawing asks for; what the app makes of it was not seen.
+- **`/fx off` and the moving row** (0.15.0) were checked in `--plugin-dir` terminal sessions'
+  strip; the desktop's own view of a muted session was not.
 - **A pull request opened** (0.14.0): never run, since it is an action on GitHub. Built from the
   declarations and the CLI's code (2.1.325): `gh pr create` prints the new URL alone on stdout,
   and the engine reports `pr: { number, action: 'created' }`. Covered by the hook and detection

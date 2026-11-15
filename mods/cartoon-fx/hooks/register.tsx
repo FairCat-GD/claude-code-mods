@@ -1,9 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import type { BoxProps, BuiltinToolInputs, ElementConstructor, EngineInterface, Register, RenderElement, RenderSurface, SvgProps, Timer } from 'claude-code'
 
-import type { FxKind, Placement, Shown } from '../types'
+import type { FxKind, Placement, Shown, Size } from '../types'
 import { cherryPicked, committed, isReviewFix, mergesOf, prOpened, pushedBranch, ranAt, rebasedWith, testsPassed, tokens } from './detect'
-import { COLORS, drawFx, FX_MS, random } from './fx'
+import { drawFx, FX_MS, glyphRow, pixelsOf } from './fx'
+import type { Spark } from './fx'
 import { RED, RED_RESET, RESET, YELLOW } from './zones'
 
 const shown = atom({ plugin: 'cartoon-fx', key: 'shown' } as const, null)
@@ -24,6 +25,9 @@ const FALLBACK_MS = 900
 
 // Between one effect and the next, so each mounts a fresh drawing.
 const GAP_MS = 300
+
+// The terminal's row steps a frame this often while its effect is on show.
+const FRAME_MS = 250
 
 // At most this many real moments wait behind the one on show; another is dropped.
 const MAX_WAITING = 3
@@ -49,19 +53,17 @@ const SAMPLES: [FxKind, string, string, number][] = [
   ['redzone', 'Red zone!', 'context 92% full', 92],
 ]
 
-// The terminal draws no SVG: a row of coloured glyphs around the words instead.
-const GLYPHS = ['✦', '•', '▪', '✶', '✧', '◆', '∗', '❋']
-
 const short = (text: string) => (text.length > 34 ? `${text.slice(0, 33)}…` : text)
 
 const wordsOf = (effect: Shown) => (effect.subtitle ? `${effect.title} ${effect.subtitle}` : effect.title)
 
 // The effect's drawing, built once per effect: rows and the strip re-render on
-// every scroll, and the confetti alone is some 50,000 characters.
+// every scroll, and the confetti alone is some 50,000 characters. An effect
+// keeps the size it was played at, so one id never stands for two sizes.
 let lastDrawing: { id: number; source: string } | undefined
 const svgOf = (effect: Shown) => {
   if (lastDrawing?.id !== effect.id) {
-    lastDrawing = { id: effect.id, source: drawFx(effect.kind, effect.seed, effect.title, effect.subtitle, effect.value) }
+    lastDrawing = { id: effect.id, source: drawFx(effect.kind, effect.seed, effect.title, effect.subtitle, effect.value, effect.size) }
   }
 
   return { source: lastDrawing.source, alt: wordsOf(effect) }
@@ -154,15 +156,39 @@ async function syncPlacement($: EngineInterface) {
   }
 }
 
+// `/fx off` as stored, in this session or another; anything but `true` is on.
+const isMuted = async ($: EngineInterface) => (await $.store.get('isMuted')) === true
+
+// The size `/fx size` last stored, in this session or another; `medium` if none is.
+async function sizeOf($: EngineInterface): Promise<Size> {
+  const kept = await $.store.get('size')
+
+  return kept === 'small' || kept === 'medium' || kept === 'large' ? kept : 'medium'
+}
+
+// `/fx size <wanted>`: stores a size, or with none names the one in use.
+async function resize($: EngineInterface, wanted: string) {
+  const sizeWords = (size: Size) => `${size} (${pixelsOf(size).join(' × ')})`
+  if (wanted === '') {
+    return `cartoon-fx: animations play ${sizeWords(await sizeOf($))}. Try: size small, medium or large.`
+  }
+  if (wanted !== 'small' && wanted !== 'medium' && wanted !== 'large') {
+    return `cartoon-fx has no size "${wanted}". Try: small, medium or large.`
+  }
+  await $.store.set('size', wanted)
+
+  return `cartoon-fx: animations play ${sizeWords(wanted)}, from the next one.`
+}
+
 // An effect waiting its turn. `/fx`'s samples (`isReplay`) wait past the cap and the limit.
-type Waiting = Omit<Shown, 'seed' | 'until'> & { queuedAt: number; isReplay: boolean }
+type Waiting = Omit<Shown, 'seed' | 'until' | 'frame'> & { queuedAt: number; isReplay: boolean }
 
 // The queue, in module memory: it lives and dies with the timers that move it.
 // `isBusy` holds from an effect's start through the gap after it. `era` counts
 // resets, so a timer set before one does nothing after it.
 let effects = 0
 let line: Waiting[] = []
-let onShow: { id: number; end: Timer } | undefined
+let onShow: { id: number; end: Timer; frame?: Timer } | undefined
 let isBusy = false
 let era = 0
 
@@ -192,16 +218,21 @@ const shownAs = (effect: Waiting | Shown, seed: number, until: number, row: stri
   subtitle: effect.subtitle,
   value: effect.value,
   until,
+  size: effect.size,
   ...(row === undefined ? {} : { row }),
 })
 
-// Plays an effect now, or queues it behind the one on show. Never waits on the queue.
+// Plays an effect now, or queues it behind the one on show, unless `/fx off`
+// muted them. Never waits on the queue.
 async function play($: EngineInterface, kind: FxKind, title: string, subtitle = '', value = 0, row?: string) {
+  if (await isMuted($)) {
+    return
+  }
   await syncPlacement($)
-  await enter($, await $.clock.now(), kind, title, subtitle, value, row, false)
+  await enter($, await $.clock.now(), kind, title, subtitle, value, await sizeOf($), row, false)
 }
 
-// `play`'s second half, for a placement taken up and a time read already.
+// `play`'s second half, for a placement taken up and a time and size read already.
 async function enter(
   $: EngineInterface,
   now: number,
@@ -209,10 +240,11 @@ async function enter(
   title: string,
   subtitle: string,
   value: number,
+  size: Size,
   row: string | undefined,
   isReplay: boolean,
 ) {
-  const effect: Waiting = { id: ++effects, kind, title, subtitle, value, queuedAt: now, isReplay, ...(row === undefined ? {} : { row }) }
+  const effect: Waiting = { id: ++effects, kind, title, subtitle, value, size, queuedAt: now, isReplay, ...(row === undefined ? {} : { row }) }
   if (!isBusy) {
     isBusy = true
     await start($, effect, now).catch(error => {
@@ -242,15 +274,29 @@ async function start($: EngineInterface, effect: Waiting, now: number) {
   await show($, shownAs(effect, now, now + lasts, effect.row), lasts)
 }
 
-// Sets `effect` on show for `lasts`, with the move to the strip for a row.
+// Sets `effect` on show for `lasts`, with the move to the strip for a row, and
+// the terminal row's frames where the strip is on the terminal.
 async function show($: EngineInterface, effect: Shown, lasts: number) {
   onShow?.end.cancel()
+  onShow?.frame?.cancel()
   const end = later($, lasts, () => ended($, effect.id))
   onShow = { id: effect.id, end }
+  if (strip.surface === 'terminal') {
+    onShow.frame = later($, FRAME_MS, () => nextFrame($, effect.id))
+  }
   await update($, shown, () => effect)
   if (effect.row !== undefined) {
     later($, FALLBACK_MS, () => toStripUnlessDrawn($, effect))
   }
+}
+
+// Steps the terminal's row of effect `id` a frame, while it is on show.
+async function nextFrame($: EngineInterface, id: number) {
+  if (onShow?.id !== id) {
+    return
+  }
+  onShow.frame = later($, FRAME_MS, () => nextFrame($, id))
+  await update($, shown, s => (s?.id === id ? { ...s, frame: (s.frame ?? 0) + 1 } : s))
 }
 
 // Ends effect `id` if it is still on show, and starts the next after the gap.
@@ -374,14 +420,14 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     reset()
     drawnId = undefined
-    strip = { isCollapsed: false }
+    strip = { isCollapsed: false, ...(e.surface === null ? {} : { surface: e.surface }) }
     await update($, shown, () => null)
     await syncPlacement($)
     await $.command.register({
       name: 'fx',
       description:
-        'Replay a cartoon-fx animation (plan, commit, cherry, rebase, push, pr, merge, tests, review, fixes, compact, helpers, context, redzone, all) or move them (place conversation, place bottom)',
-      argumentHint: '[name|all|place conversation|place bottom]',
+        'Replay a cartoon-fx animation (plan, commit, cherry, rebase, push, pr, merge, tests, review, fixes, compact, helpers, context, redzone, all), turn them off or on, size them (size small, medium, large) or move them (place conversation, place bottom)',
+      argumentHint: '[name|all|off|on|size small|medium|large|place conversation|place bottom]',
       immediate: true,
     })
 
@@ -524,9 +570,24 @@ export const register: Register = on => {
             : 'cartoon-fx: animations play above the prompt box.',
       }
     }
+    if (wanted === 'off' || wanted === 'on') {
+      await $.store.set('isMuted', wanted === 'off')
+      if (wanted === 'on') {
+        return { text: 'cartoon-fx: animations are on.' }
+      }
+      // Muting empties the queue: the effect on show stops, and nothing waiting plays.
+      reset()
+      await update($, shown, () => null)
+
+      return { text: 'cartoon-fx: animations are off. /fx still plays them.' }
+    }
+    if (wanted === 'size' || wanted.startsWith('size ')) {
+      return { text: await resize($, wanted.slice('size'.length).trim()) }
+    }
     const samples = SAMPLES.filter(([kind]) => wanted === 'all' || kind === wanted)
     if (samples.length === 0) {
-      return { text: `cartoon-fx has no "${wanted}". Try: ${SAMPLES.map(([kind]) => kind).join(', ')} or all.` }
+      const names = SAMPLES.map(([kind]) => kind).join(', ')
+      return { text: `cartoon-fx has no "${wanted}". Try: ${names} or all; off or on; size small, medium or large; place conversation or place bottom.` }
     }
 
     // This run's own output row is where its effects play. The engine puts the
@@ -541,9 +602,10 @@ export const register: Register = on => {
     // one's samples still waiting.
     line = line.filter(waiting => !waiting.isReplay)
     await syncPlacement($)
+    const size = await sizeOf($)
     const now = await $.clock.now()
     for (const [kind, title, subtitle, value] of samples) {
-      await enter($, now, kind, title, subtitle, value, fxRow(tag), true)
+      await enter($, now, kind, title, subtitle, value, size, fxRow(tag), true)
     }
 
     return { text }
@@ -635,21 +697,22 @@ export const register: Register = on => {
 
     if (e.surface === 'terminal') {
       const { Box, Text } = $.ui.resolve(e)
-      const rnd = random(effect.seed)
-      const bits = (side: string) =>
-        Array.from({ length: 5 }, (_, i) => (
-          <Text key={`${side}${i}`} color={COLORS[Math.floor(rnd() * COLORS.length)]}>
-            {GLYPHS[Math.floor(rnd() * GLYPHS.length)]}{' '}
+      const { left, right } = glyphRow(effect.seed, effect.frame ?? 0)
+      const bits = (side: string, sparks: Spark[]) =>
+        sparks.map(({ glyph, color }, i) => (
+          <Text key={`${side}${i}`} color={color}>
+            {glyph}{' '}
           </Text>
         ))
 
+      // The left side reads outward from the words, so its sparks fly away from them too.
       return (
         <Box justifyContent="center">
-          {bits('l')}
+          {bits('l', [...left].reverse())}
           <Text bold color="#FFD23F">
             {` ${words} `}
           </Text>
-          {bits('r')}
+          {bits('r', right)}
         </Box>
       )
     }

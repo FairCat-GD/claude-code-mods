@@ -2,7 +2,7 @@
 // mod celebrates. The same seed always draws the same picture, so a redraw
 // does not reshuffle it. Every effect fits the same 440 × 190 box.
 
-import type { FxKind } from '../types'
+import type { FxKind, Size } from '../types'
 import { RED, YELLOW } from './zones'
 
 export const WIDTH = 440
@@ -11,8 +11,8 @@ export const HEIGHT = 190
 // flies past the sides leaves the frame, as in a cartoon.
 const VIEW_X = 90
 const VIEW_WIDTH = 260
-// Drawn this many times larger; a surface narrower than that shrinks it to fit.
-export const SCALE = 3.2
+// Drawn this many times larger at each size; a surface narrower than that shrinks it to fit.
+export const SCALES: Record<Size, number> = { small: 1.6, medium: 2.1, large: 3.2 }
 const CX = WIDTH / 2
 const CY = 118
 
@@ -1285,11 +1285,39 @@ const DRAWINGS: Record<FxKind, Draw> = {
   redzone: (rnd, title, subtitle, value) => gauge(rnd, title, subtitle, value, true),
 }
 
-export function drawFx(kind: FxKind, seed: number, title: string, subtitle = '', value = 0): string {
-  const body = DRAWINGS[kind](random(seed), title, subtitle, value)
+// The width and height an effect is drawn at, in pixels.
+export const pixelsOf = (size: Size) => [Math.round(VIEW_WIDTH * SCALES[size]), Math.round(HEIGHT * SCALES[size])] as const
 
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW_X} 0 ${VIEW_WIDTH} ${HEIGHT}" width="${VIEW_WIDTH * SCALE}" height="${HEIGHT * SCALE}">` +
-    `${body}</svg>`
-  )
+export function drawFx(kind: FxKind, seed: number, title: string, subtitle = '', value = 0, size: Size = 'medium'): string {
+  const body = DRAWINGS[kind](random(seed), title, subtitle, value)
+  const [width, height] = pixelsOf(size)
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW_X} 0 ${VIEW_WIDTH} ${HEIGHT}" width="${width}" height="${height}">${body}</svg>`
+}
+
+// ---- the terminal's row ----------------------------------------------------
+
+// The terminal draws no SVG: the words between two rows of coloured glyphs.
+const GLYPHS = ['✦', '•', '▪', '✶', '✧', '◆', '∗', '❋']
+const TWINKLE = '✧'
+export const SPARKS = 5
+
+export type Spark = { glyph: string; color: string }
+
+// One side's sparks at `frame`, nearest the words first. A new spark is born by
+// the words each frame and the others step outward; a few twinkle.
+function sparksAt(seed: number, frame: number, side: number): Spark[] {
+  return Array.from({ length: SPARKS }, (_, at) => {
+    const spark = random(seed + side * 7919 + (frame - at + SPARKS) * 104_729)
+    const color = COLORS[Math.floor(spark() * COLORS.length)] ?? INK
+    const glyph = GLYPHS[Math.floor(spark() * GLYPHS.length)] ?? TWINKLE
+    const twinkles = random(seed + side * 31 + frame * 1009 + at * 131)() < 0.2
+
+    return { glyph: twinkles ? TWINKLE : glyph, color }
+  })
+}
+
+// The row's two sides at `frame`: the same seed and frame always draw the same sparks.
+export function glyphRow(seed: number, frame: number): { left: Spark[]; right: Spark[] } {
+  return { left: sparksAt(seed, frame, 0), right: sparksAt(seed, frame, 1) }
 }

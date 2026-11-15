@@ -21,8 +21,9 @@ These keep their spelling, because installs and stored data live under them:
 - its slash command, `/fx`;
 - its `$.state` keys, declared in `types/index.d.ts` under `PluginState['cartoon-fx']`: `shown`,
   `isYellow`, `isRed` and `placement`;
-- its `$.store` keys, `placement` and `fxTakes`. They hold the owner's data, across sessions:
-  where effects play, and the number of the last `/fx` take. They live under the plugin id
+- its `$.store` keys, `placement`, `fxTakes`, `isMuted` and `size`. They hold the owner's data,
+  across sessions: where effects play, the number of the last `/fx` take, whether `/fx off` muted
+  them, and the size `/fx size` chose. They live under the plugin id
   (`docs/ARCHITECTURE.md`, *Values*), so a new name or marketplace starts with none.
 
 ## Trying an unpushed build
@@ -50,8 +51,9 @@ handoff carries only its session's own.
 
 - **Biome formats every file in this folder,** and there is no folder `biome.json`: run
   `npx biome format --write mods/cartoon-fx` before the gate.
-- **`placement` and `fxTakes` are the owner's data** in `$.store` (`docs/ARCHITECTURE.md`,
-  *Values*). Read them forward-only, and never drop one without a changelog line.
+- **`placement`, `fxTakes`, `isMuted` and `size` are the owner's data** in `$.store`
+  (`docs/ARCHITECTURE.md`, *Values*). Read them forward-only, and never drop one without a
+  changelog line.
 - **A new `$.state` or `$.store` key is a machine identifier,** named once, with the owner.
 - **The owner's update path is `claude plugin update cartoon-fx`,** which installs only a new
   `plugin.json` version: every change meant for the owner cuts one.
