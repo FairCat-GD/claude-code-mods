@@ -1,6 +1,6 @@
 # cartoon-fx — architecture, as built
 
-This is cartoon-fx as it stands at 0.15.0, written from its code. Every session that changes the
+This is cartoon-fx as it stands at 0.16.0, written from its code. Every session that changes the
 mod keeps it true.
 
 ## Overview
@@ -9,8 +9,7 @@ cartoon-fx is one hooks module (`hooks/register.tsx`), with three helpers beside
 - `hooks/detect.ts` reads what a finished Bash call did: a push, a commit, a cherry-pick, a
   rebase, a merge, a pull request opened, a passing test run;
 - `hooks/fx.ts` draws each effect as an animated SVG string;
-- `hooks/zones.ts` holds the context window's zones, which the hooks play by and the gauge
-  draws.
+- `hooks/zones.ts` holds the context window's zones, which the hooks play by.
 
 It does two things:
 - **It watches the session.** Tool calls, compactions, subagent starts and finished turns. When
@@ -29,10 +28,10 @@ One effect is on show at a time. The others wait their turn in a queue.
 |---|---|---|
 | `hooks/register.tsx` | 727 | the hooks, the queue, playing and placement, muting and size |
 | `hooks/detect.ts` | 395 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
-| `hooks/fx.ts` | 1324 | the fourteen drawings, their SMIL helpers, fitting words, the three sizes, and the terminal's row |
-| `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
+| `hooks/fx.ts` | 1508 | the fourteen drawings, their SMIL helpers, fitting words, the three sizes, and the terminal's row |
+| `hooks/zones.ts` | 7 | the yellow and red zones and their resets |
 | `types/index.d.ts` | 47 | `FxKind`, `Placement`, `Size`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 1882 | 83 tests |
+| `tests/cartoon-fx.test.tsx` | 1959 | 86 tests |
 
 ## The invariants
 
@@ -43,10 +42,11 @@ One effect is on show at a time. The others wait their turn in a queue.
    `.catch`.
 2. **The mod only reacts.** It never denies, rewrites or delays a call, a compaction or a spawn.
    It returns what `next` returned. Queueing is bookkeeping: `play` puts an effect on show or in
-   line and returns, and no hook waits on the queue. *Enforced by* the code and by the tests, which check that the
-   row still draws the engine's own content, with the effect beneath it.
+   line and returns, and no hook waits on the queue. *Enforced by* the code and by the tests,
+   which check that the row still draws the engine's own content, with the effect beneath it.
 3. **The same seed always draws the same picture.** `random(seed)` is a seeded PRNG, so a redraw
-   doesn't reshuffle the confetti; the terminal's row is the same for one seed at one frame.
+   doesn't reshuffle the confetti or the smoke; the terminal's row is the same for one seed at
+   one frame.
    *Enforced by* the terminal tests: two strips at one frame draw the same glyphs, and
    `glyphRow` gives the same sparks for one seed and frame.
 4. **A failure plays nothing.** A denied or errored call, a dry run, a rejected push, a push with
@@ -99,9 +99,9 @@ One effect is on show at a time. The others wait their turn in a queue.
   - reports a `pr` for `gh pr <verb>` anywhere in the command, the first of `create`, `edit`,
     `merge`, … that it finds (`merge` is `merged`, or `auto-merge-enabled` with `--auto`), and for
     `glab mr <verb>`. Its number is from the last pull request URL in the output, else "pull
-    request …#N". `gh pr create` prints the new URL alone on its line, to a pipe as to a terminal. `gh pr
-    merge` prints that line only to a terminal, and the Bash tool's output is not one, so a pull
-    request Claude merges reports no `pr`;
+    request …#N". `gh pr create` prints the new URL alone on its line, to a pipe as to a
+    terminal. `gh pr merge` prints that line only to a terminal, and the Bash tool's output is
+    not one, so a pull request Claude merges reports no `pr`;
   - reports a push only without `-n`/`--dry-run`, from the first ref line shaped `sha..sha` or
     `[new branch]` anywhere in the output, so a rejected, up-to-date, deleted or `[new tag]` ref
     is no push, but a fetch's or pull's `a..b main -> origin/main` line earlier in the command
@@ -151,9 +151,9 @@ One effect is on show at a time. The others wait their turn in a queue.
   git's `Successfully rebased and updated refs/heads/<branch>.` line, read anywhere, since git
   prints its `Rebasing (n/m)` progress before it with `\r` (git 2.50.1, to a pipe), then `onto`
   and the base from the part (`rebaseBase`): `--onto`'s value, else the first word past the
-  options and the values of `-s`, `-X`, `-x`, `-C`, `--whitespace`, `--empty` and the long forms. A base with no ref's shape
-  (`HEAD~3`) is left out, and so is the branch on a detached HEAD: "topic onto main", "onto
-  main", "topic" or no words.
+  options and the values of `-s`, `-X`, `-x`, `-C`, `--whitespace`, `--empty` and the long
+  forms. A base with no ref's shape (`HEAD~3`) is left out, and so is the branch on a detached
+  HEAD: "topic onto main", "onto main", "topic" or no words.
 - **A pull request opened** needs the engine's `pr` of action `created` and a part that starts,
   after `LEAD`, with `gh pr create` (`gh` by name or path), with no `--dry-run` outside its quoted
   words. It plays `#N` with the number of the first line that is a pull request URL alone, the
@@ -194,10 +194,10 @@ One effect is on show at a time. The others wait their turn in a queue.
 - **One command may do several,** and each plays. `ranAt` gives the index of the first part that
   pushed, committed, ran tests, cherry-picked, rebased, merged (`git merge`), merged a pull
   request (`gh pr merge`) or opened one (`gh pr create`), and the Bash hook plays them in that
-  order. `partsOf` keeps
-  the last command's parts, so one call splits its command once for all four readers. One the engine reported with no part of its own (an alias such as `gp`) comes after,
-  in the order tests, commit, cherry-pick, rebase, push, pull request opened, merge, pull request
-  merged.
+  order. `partsOf` keeps the last command's parts, so one call splits its command once for
+  every reader. One the engine reported with no part of its own (an alias such as `gp`) comes
+  after, in the order tests, commit, cherry-pick, rebase, push, pull request opened, merge, pull
+  request merged.
 
 ## The drawings (`hooks/fx.ts`)
 
@@ -207,9 +207,15 @@ One effect is on show at a time. The others wait their turn in a queue.
   it. Only `width` and `height` change with the size, so every structural check holds at each.
   Pieces that fly past the sides leave the frame.
 - **The animation** is SMIL (`animate`, `animateTransform`, `animateMotion`), with no script.
-  Shared pieces: the tilted label, smoke clouds, motion rays, sparkles and squash streaks.
+  Shared pieces: the tilted label, smoke clouds, motion rays, sparkles, squash streaks, outlined
+  metal rods, "!" warning signs and sweat drops.
+  - An `animateTransform` replaces its element's own `transform`, so a piece that moves sits in
+    a group of its own inside the one that places it, unless its moves are given as absolute
+    positions.
+  - A line drawn as it plays (the clipboard's ticks) sets `pathLength` and animates its dash, so
+    no path is measured.
 - **What pops** springs to `PEAK` (1.28) times its size before it settles; the stamp's imprint
-  lands at 1.35.
+  lands at 1.35, and the clipboard's star slaps on from 2.4.
 - **Words that fit.** A label fits its title and subtitle inside the view, with a 4-unit margin,
   at its pop's peak, its tilt included. It shrinks each in half steps down to 70% of its size
   (a subtitle to 10), then cuts it with "…". Each drawing passes the height its label lands at
@@ -223,10 +229,15 @@ One effect is on show at a time. The others wait their turn in a queue.
 - **Smoke** (`cloud`) is overlapping circles, an edge layer under a fill layer, that swell,
   drift out and shrink to nothing. None fades, so no edge shows through a fill on any
   background.
-- **Names for the tests.** The pieces the structural tests read carry a `class`: `label`,
-  `lens`, `mark`, `band`, `needle`, `puff`, `helper`, `cherries`, `slider`, `jack`, `blocks` and
-  `claw`. Nothing else reads
-  them.
+- **Names for the tests.** The pieces the structural tests read carry a `class`:
+  - `label`, `puff`;
+  - `rocket`, `flame`, `pad`;
+  - `clipboard`, `box`, `tick`, `sticker`;
+  - `suitcase`, `load`;
+  - `lens`, `eye`, `iris`, `mark`;
+  - `helper`, `cherries`, `slider`, `jack`, `blocks` and `claw`.
+
+  Nothing else reads them.
 - **One drawing per kind.** `drawFx` takes its drawing from `DRAWINGS`, a record over `FxKind`,
   so a kind with no drawing does not type-check.
 - **The fourteen effects and their lengths** (`FX_MS`):
@@ -237,22 +248,21 @@ One effect is on show at a time. The others wait their turn in a queue.
   | `commit` | a rubber stamp leaves SAVED or AMENDED and the hash | 2300 |
   | `cherry` | a gloved hand plucks a pair of cherries; the branch bends, snaps back and wobbles | 2600 |
   | `rebase` | an arcade claw lifts two purple blocks off a grey base and sets them on the blue tower, with a bump | 2900 |
-  | `push` | confetti, 46 pieces, with the branch | 2600 |
+  | `push` | a rocket shakes on its pad, lifts off through its smoke at 0.45 s and speeds out of the top, leaving puffs behind; 30 pieces of confetti burst from the pad | 2600 |
   | `pr` | a crank turns, a jack-in-the-box's lid flops open, and a party-hatted jack springs out and wobbles | 2600 |
   | `merge` | a zipper slider runs along two strands, blue and purple, closing them into one; it bounces as it lands | 2700 |
-  | `tests` | a checkmark badge with the count | 2400 |
-  | `review` | a magnifying glass zigzags down a page; a red "!" after each flagged line (up to 4) as the glass reaches it, or a green check | 2800 |
+  | `tests` | a pencil ticks a tilted clipboard's four boxes, one after another, then a gold star slaps on | 2400 |
+  | `review` | a magnifying glass zigzags down a page, a giant googly eye in it looking the way it goes, then blinking; a red "!" after each flagged line (up to 4) as the glass reaches it, or a green check | 2800 |
   | `fixes` | a bug walks in and is swatted | 2700 |
   | `compact` | a press squishes pages into a cube | 2600 |
   | `helpers` | a smoke bomb drops and bursts; up to five pixel ninjas leap out in front of the smoke, land and hold a victory pose | 2600 |
-  | `context` | a gauge swings into the yellow | 3100 |
-  | `redzone` | a gauge slams into the red, rattles and steams | 3300 |
+  | `context` | three things drop onto an open suitcase, the lid slams them in with a puff of dust, and a sleeve pokes out of the bulging case | 3100 |
+  | `redzone` | five things drop in and the lid slams; the case rattles, and twice its lid bursts open a crack, a sock springing out and steam puffing | 3300 |
 
-- **`value`** is the helper count, the context percentage, or the number of findings. Past
-  the drawn range it is clamped: five helpers at most and one at least, four marks, and the
-  needle between 0 and 100.
-- **The gauge's bands** are green to `YELLOW`, yellow to `RED`, red to 100, read from
-  `hooks/zones.ts`, the same numbers the context check plays by.
+- **`value`** is the helper count or the number of findings. Past the drawn range it is clamped:
+  five helpers at most and one at least, and four marks.
+- **The suitcase draws no number.** Its load follows the zone, three things in the yellow and
+  five in the red, and the percentage is in its words.
 
 ## Playing and placement
 
@@ -278,18 +288,18 @@ One effect is on show at a time. The others wait their turn in a queue.
     it plays after the sample on show. A new `/fx` run drops an earlier run's waiting samples.
   - **Where the strip is collapsed** (`isCollapsed`, which the strip's hook notes on every draw),
     an effect that would play there is dropped when its turn comes: one with no row, any under
-    `/fx place bottom`, and every one on the terminal.
+    `/fx place bottom`, and every one on the terminal. `session.start` forgets whether the strip
+    was collapsed.
   - A fault in the queue's own timers empties it, so the next effect still plays. Each reset
     (a fault, `/fx off`, or `session.start`) is counted, and a timer set before one does nothing
     after it.
   - **`/fx off` empties the queue:** it resets it and clears `shown`, so the effect on show stops
     and nothing waiting plays, `/fx`'s samples included. Other open sessions stop playing from
     their next effect; what they already queued plays out.
-    `session.start` also forgets whether the strip was collapsed.
 - **The order of one call's effects.** The every-tool `tool.call` hook is registered before the
   Bash and ExitPlanMode hooks. A plugin's registrations nest first outermost, so the call's own
   effect is queued before the context check its result may set off: a push that crosses 75% plays
-  the confetti, then the gauge.
+  the rocket, then the suitcase.
 - **Rows.** An effect belongs to the row of what set it off: `tool:<tool_use_id>` for a call, or
   `fx:(take N)` for `/fx`'s output row.
   - **A card the desktop draws its own way** (`OWN_CARDS`: `ReportFindings`) shows no hook's
@@ -342,9 +352,10 @@ One effect is on show at a time. The others wait their turn in a queue.
     frame's own `.catch` then cancels the next tick, so `later`'s reset never empties the queue
     for a cosmetic step.
 - **`/fx`** replays from `SAMPLES`, fixed words and values, in the order of `/fx all`. They take
-  their turns in the queue, entered with one placement read and one clock read for the run. All of them play in that run's output row, found by its `(take N)`
-  tag. The engine puts the plugin's name before the output
-  text, so the tag, not the whole text, identifies the row.
+  their turns in the queue, entered with one placement read, one size read and one clock read for
+  the run. All of them play in that run's output row, found by its `(take N)` tag. The engine
+  puts the plugin's name before the output text, so the tag, not the whole text, identifies the
+  row.
 
 ## Values: `$.state` and `$.store`
 
@@ -396,16 +407,16 @@ It uses no network, process or file access.
 
 The repository's six layers (the root `docs/ARCHITECTURE.md`, *Testing strategy*) apply. For this
 mod:
-- **`claude plugin test`** runs the 83 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 86 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`), so a queue test moves it a turn at a time (`slot`: length + hold +
     gap) and reads which effect each row or the strip draws.
   - Rows are mounted on the `desktop` surface, and the terminal tests on `terminal`.
-  - Fifteen cover the queue: a push then the gauge, and the gauge behind a push whose start is held
-    on the clock (which only the hooks' registration order keeps in line); a test, commit and
-    push in that order, a merge, cherry-pick and push in theirs, and a rebase, push and pull
-    request opened in theirs; the cap and the limit; two effects in one millisecond; the move to the
-    strip keeping its place, and a second effect in a row that is gone; a real moment during
+  - Fifteen cover the queue: a push then the yellow zone, and the zone behind a push whose start
+    is held on the clock (which only the hooks' registration order keeps in line); a test, commit
+    and push in that order, a merge, cherry-pick and push in theirs, and a rebase, push and pull
+    request opened in theirs; the cap and the limit; two effects in one millisecond; the move to
+    the strip keeping its place, and a second effect in a row that is gone; a real moment during
     `/fx all`; a collapsed strip, on the desktop and on the terminal; a session start emptying
     the queue past a gap timer set before it, and forgetting a collapsed strip. Two `/fx` tests
     step through all fourteen samples and a takeover.
@@ -418,23 +429,32 @@ mod:
     strip is collapsed or under a survey; a frame the host never takes (a test hook answering
     every write of it as a miss) stopping the frames but not the queue; and `glyphRow`'s sparks
     stepping outward.
-  - Thirteen tests cover the detection rules as plain functions, `ranAt` among them, and seven
-    hook tests the rejected push behind `; echo done`, a cherry-pick, a commit and a cherry-pick in
-    one command, a merged branch, a merged pull request, a rebase and a pull request opened. Their output and the engine's reports are fictional, shaped on
-    what each tool prints and what the engine was measured to report: git's and node's as measured on this machine (node 26.7.0), the other new
-    runners' from their documented output, since none is installed here.
-  - Eight read `drawFx`'s output back as structure, for every kind with the longest words the
+  - Thirteen tests cover the detection rules as plain functions, `ranAt` among them. Seven hook
+    tests cover the rejected push behind `; echo done`, a cherry-pick, a commit and a cherry-pick
+    in one command, a merged branch, a merged pull request, a rebase and a pull request opened.
+    Their output and the engine's reports are fictional, shaped on what each tool prints and
+    what the engine was measured to report: git's and node's as measured on this machine (node
+    26.7.0), the other new runners' from their documented output, since none is installed here.
+  - Eleven read `drawFx`'s output back as structure, for every kind with the longest words the
     mod gives it and the extremes of its value. A small parser in the test file finds the named
-    pieces and composes their transforms, taking an animated translate at its last value and
-    an animated scale at its peak. They check:
+    pieces and composes their transforms. It takes an animated translate at its last value, and
+    an animated scale at its peak, or where it settles. It reads the corners of rects, circles,
+    lines and texts, of polygons, and of paths drawn with `M`, `L`, `Q`, `C` and `Z` alone, by
+    their control points. They check:
     - each drawing stays under the `<Svg>` cap of 131,072 characters;
     - every label's peak box, the lens along its path, every helper where it lands, and the
       picked cherries, the zipper's slider, the jack and the moved blocks where they land lie
       inside the view;
     - the marks never touch;
-    - the bands' edges equal the zones;
     - no puff circle fades on its own;
-    - the helpers are drawn after the smoke and fade no sooner than the label.
+    - the helpers are drawn after the smoke and fade no sooner than the label;
+    - the rocket stands inside the view on its pad, and its last move takes it wholly above the
+      view (the flame, which flickers below the pad, is left out);
+    - the clipboard's four ticks each start in their box, one after another, before the star,
+      and the board comes to rest inside the view;
+    - the suitcase lands inside the view, with three things packed in the yellow and five in
+      the red, at every percentage;
+    - the googly eye's iris looks both ways and stays inside its white at every offset.
 - **What the kit cannot see:**
   - what an `<Svg>` actually paints, or whether the app runs its SMIL: the structural tests
     check the geometry the code writes, with text widths estimated, and the frames are checked
@@ -443,35 +463,41 @@ mod:
   - the real order and timing of tool results, turns and compactions;
   - real git and test-runner output beyond the fixtures;
   - a desktop engine newer than the CLI.
-- **By hand.** `/fx all` played every effect in the desktop app (under its row) and in the terminal
-  (glyphs in the strip), on the installed release (CLI 2.1.310, desktop 2.1.308). On the installed
-  0.10.2, in a desktop session started after the update, a `/code-review` with five findings
-  played "Reviewed!" beside its findings card, and its re-report with the fixes played "Bugs
-  squashed!" there too, under `placement: conversation`. At 0.11.0, the owner checked every
-  drawing's frames by eye before the commit, paused at set times on dark and light in a
-  browser, and the strip of a `--plugin-dir` terminal session played all ten (CLI 2.1.325). On
-  the installed 0.11.0, `/fx all` in a desktop session (engine 2.1.325) played all ten in its
-  row.
-  At 0.12.0, in a `--plugin-dir` terminal session (CLI 2.1.325), one command that ran
-  `node --test`, committed and pushed to a local bare remote in a scratch repository played
-  "All green! 2 passed", "SAVED <sha>" and "Pushed! main" in the strip, in that order.
-  At 0.13.0, in `--plugin-dir` terminal sessions (CLI 2.1.325) in a scratch repository, a
-  cherry-pick played "Cherry picked! <sha>" and `git merge --no-ff side` played "Merged! side" in
-  the strip, and the owner checked both drawings' frames before the commit.
-  At 0.14.0, in `--plugin-dir` terminal sessions (CLI 2.1.325), `git rebase main` in a scratch
-  repository played "Rebased! topic onto main" in the strip, and `/fx pr` played "PR opened!
-  #42"; the owner checked both drawings' frames before the commit. No pull request was opened.
-  At 0.15.0, in `--plugin-dir` terminal sessions (CLI 2.1.325), `/fx off` then a commit in a
-  scratch repository played nothing; `/fx on` then a commit played "SAVED <sha>"; and `/fx all`
-  played with each row's sparks stepping outward between reads a third of a second apart. The
-  owner picked the row's design and rate from three variants looped in plan mode.
+- **By hand.** Terminal checks ran in `--plugin-dir` sessions, in a scratch repository where
+  they needed one; frames were checked on a contact sheet paused at set times on dark and light.
+  - On the installed release (CLI 2.1.310, desktop 2.1.308), `/fx all` played every effect in
+    the desktop app, under its row, and in the terminal, as glyphs in the strip.
+  - On the installed 0.10.2, in a desktop session started after the update, a `/code-review`
+    with five findings played "Reviewed!" beside its findings card. Its re-report with the fixes
+    played "Bugs squashed!" there too, under `placement: conversation`.
+  - At 0.11.0, the owner checked every drawing's frames before the commit, and the strip of a
+    terminal session played all ten (CLI 2.1.325). On the installed 0.11.0, `/fx all` in a
+    desktop session (engine 2.1.325) played all ten in its row.
+  - At 0.12.0 (CLI 2.1.325), one command that ran `node --test`, committed and pushed to a local
+    bare remote played "All green! 2 passed", "SAVED <sha>" and "Pushed! main" in the strip, in
+    that order.
+  - At 0.13.0 (CLI 2.1.325), a cherry-pick played "Cherry picked! <sha>" and
+    `git merge --no-ff side` played "Merged! side" in the strip. The owner checked both drawings'
+    frames before the commit.
+  - At 0.14.0 (CLI 2.1.325), `git rebase main` played "Rebased! topic onto main" in the strip,
+    and `/fx pr` played "PR opened! #42". The owner checked both drawings' frames before the
+    commit. No pull request was opened.
+  - At 0.15.0 (CLI 2.1.325), `/fx off` then a commit played nothing, and `/fx on` then a commit
+    played "SAVED <sha>". `/fx all` played with each row's sparks stepping outward between reads
+    a third of a second apart. The owner picked the row's design and rate from three variants
+    looped in plan mode.
+  - At 0.16.0 (CLI 2.1.325), the owner picked the four redrawn designs from drafts played in
+    plan mode, and checked their frames before the commit. Two `/fx all` runs in the terminal
+    read thirteen of the fourteen in the strip, the sparks stepping between reads; "Action!"
+    played during startup, before the first read, in both runs and in a `/fx plan` of its own.
+
   What nobody has checked by hand is in `docs/BACKLOG.md`.
 
 ## Packaging
 
 - **The release.** The owner installs the release from this repository's marketplace as
   `cartoon-fx@claude-code-mods`, at user scope. The installed copy is the mod's tracked files at
-  the pushed commit, every one of them (19 at 0.15.0), byte for byte. That includes `CLAUDE.md`,
+  the pushed commit, every one of them (19 at 0.16.0), byte for byte. That includes `CLAUDE.md`,
   `docs/` and the tests. It lives in
   `~/.claude/plugins/cache/claude-code-mods/cartoon-fx/<version>/`, and changes only when
   `claude plugin update cartoon-fx` finds a new version.
@@ -493,7 +519,7 @@ mod:
 ## Deliberate decisions
 
 - **The drawing is built once per effect.** Rows and the strip draw again on every scroll, and the
-  confetti alone is some 50,000 characters. `svgOf` keeps the last drawing, keyed by the effect's
+  push's rocket alone is some 49,000 characters. `svgOf` keeps the last drawing, keyed by the effect's
   id; two effects started in one millisecond share a seed, never an id.
 - **Placement, muting and size are read from the store on every play.** `/fx place`, `/fx off`
   and `/fx size` in one session apply in every other open session from its next effect.
@@ -511,14 +537,21 @@ mod:
   never share a tag.
 - **Thresholds with hysteresis.** Yellow at 75% (reset below 70%) and red at 90% (reset below
   85%), so a window hovering at a line plays once. Going straight past the yellow into the red
-  plays the red alone. `hooks/zones.ts` is their one home, so the gauge's bands cannot drift
-  from them.
+  plays the red alone. `hooks/zones.ts` is their one home.
 - **A label's width is estimated, and generous.** With no text metrics, the estimate leans wide
   (6–13% over each word measured), so a long word shrinks a little sooner than it must rather
   than ever clip. A font other than those measured (another system's fallback) is not
   covered.
 - **Smoke shrinks rather than fades.** A puff drawn as overlapping layers cannot fade cleanly
   circle by circle, and shrinking keeps it opaque, and cartoonish, to the end.
+- **Fun is the measure of the art.** Any drawing may be redone, and a design is settled with the
+  owner from rendered frames, never from a description alone (round 3's intake). At A2 the owner
+  picked four of the fourteen to redo, each from two drafts played in plan mode: the push's
+  rocket, the tests' clipboard, the zones' suitcase and the review's googly eye.
+- **A redone drawing keeps its length.** Each of the four fits its old `FX_MS`, so the queue's
+  turns, and the reasoning behind the 12 s wait, did not move.
+- **The zones show no number.** The suitcase packs three things in the yellow and five in the
+  red, whatever the percentage, which its words carry, as drafted and picked.
 - **Subagents started within 400 ms play as one effect,** with their count, under the first one's
   Agent row.
 - **A `/code-review` report plays twice at most:** `review` with its findings, then `fixes` with
@@ -538,17 +571,18 @@ mod:
   every surface, and a test can hand the hooks a report. Git's own `To` block outranks the
   engine's push, because the engine also reads a fetch's ref line as one. The fallback keeps what
   the engine leaves out: a tag push, `git --no-pager`, and an engine that gives no report.
-- **A cherry-pick and a merge play only on the engine's report** (round 3's decision 6). Git's
-  printed lines cannot tell a cherry-pick's commit from any other, nor a merge from a pull's.
+- **A new moment plays only on the engine's report.** Round 3's intake settled that a
+  cherry-pick, a merge, a rebase and a pull request opened are read from the engine's
+  `gitOperation`, never from printed output: git's printed lines cannot tell a cherry-pick's
+  commit from any other, nor a merge from a pull's.
 - **A merged pull request is wired, though it plays nothing today.** The engine reads its number
   from what `gh pr merge` prints, which `gh` prints only to a terminal. It plays as soon as the
   engine reports one, settled with the owner at T1's start.
 - **A merge's words come from its own part,** not the engine's `ref`, which is the next word
   split at spaces alone: the message's first word in `git merge -m "…" topic`, or `topic;` in
-  `git merge topic; git status`. The engine's report stays the trigger (decision 6).
-- **A rebase and a pull request opened play only on the engine's report** (decision 6), and
-  each needs its own part, as the cherry-pick does: the engine's patterns also match words in a
-  quoted message.
+  `git merge topic; git status`. The engine's report stays the trigger.
+- **A rebase and a pull request opened each need their own part,** as the cherry-pick does: the
+  engine's patterns also match words in a quoted message.
 - **A rebase's words come from git's line and the part,** not the engine's `ref`: the branch
   rebased, then `onto` the base, settled with the owner at T2's start. The engine's `ref` is the
   upstream split at spaces alone (`main;`, or `theirs` in `git rebase -X theirs main`).
@@ -560,10 +594,10 @@ mod:
 - **A tag push plays "Pushed!" with the tag's name.** The owner's call at D1's start: the engine
   reports no push for a `[new tag]` ref, so it plays from git's printed line.
 
-- **Effects queue rather than replace each other** (round 3's decision 5): every one is seen
-  whole. Three wait at most and 12 s is the longest wait, settled at Q1's start: a test, commit
-  and push that also crosses 75% has its gauge wait exactly 10 s (turns of 3.3, 3.2 and 3.5 s),
-  so 10 s would sit on the edge.
+- **Effects queue rather than replace each other** (the owner's call at round 3's intake): every
+  one is seen whole. Three wait at most and 12 s is the longest wait, settled at Q1's start: a
+  test, commit and push that also crosses 75% has its yellow zone wait exactly 10 s (turns of
+  3.3, 3.2 and 3.5 s), so 10 s would sit on the edge.
 - **A replay is the owner's own request,** so its samples wait past the cap and the limit, and
   real moments cut in ahead of them to stay near their moment.
 - **The queue lives in module memory,** not `$.state`: no render reads it, and it lives and dies
@@ -584,12 +618,12 @@ In `docs/BACKLOG.md` under *Deferred*:
   engine reports neither), and a command that rebases and merges plays the rebase alone;
 - a `glab mr create` the engine reports plays nothing (no `gh pr create` part).
 
-## Baseline (v0.15.0)
+## Baseline (v0.16.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 83 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 86 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |

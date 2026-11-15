@@ -861,3 +861,83 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
 - **The review comes before the close** where the workflow the repository runs by then says so
   (repo Session 3b may have re-copied it); follow the root `docs/DEVELOPMENT-WORKFLOW.md` as it
   stands when A2 runs.
+
+**Done (2026-11-15, 0.16.0).**
+- **Decided with the owner at the start:**
+  - **Which drawings to redo.** All fourteen played live, with eight paused frames each, in an
+    inline viewer built from `hooks/fx.ts` itself. The owner picked four: `push`, `tests`,
+    `context` and `redzone`, and `review`.
+  - **Their designs**, each the recommended one of two drafts played inline in plan mode, in the
+    house helpers:
+    - push: a rocket that shakes on its pad and blasts off, confetti bursting from the pad
+      (over a paper plane);
+    - tests: a pencil ticking a clipboard's boxes, then a gold star slapped on (over a traffic
+      light);
+    - the zones: a suitcase packed too full, bursting in the red (over a balloon);
+    - review: a googly eye in the magnifying glass (over a red pen).
+  - **Version 0.16.0** (decision 8, the intake's proposal).
+- **Shipped:**
+  - **In `hooks/fx.ts`:**
+    - `rocket`, `clipboard` and `suitcase` replace `confetti`, `check` and `gauge`, and `review`'s
+      lens holds an eye whose iris looks the way the glass heads, then blinks;
+    - each keeps its kind's `FX_MS`;
+    - `confettiPiece` takes an origin and a start;
+    - `rod`, a "!" `sign` and a `sweat` drop are shared pieces, with `SMOKE` and `SMOKE_EDGE`;
+    - fx.ts no longer imports `./zones`.
+  - **The suitcase draws no percentage.** Three things in the yellow and five in the red, as
+    drafted; `value` now matters for the helpers and the marks alone.
+  - **In the tests:** the bands test went. Four structural tests came in, and the transform
+    helper can now settle a scale at rest. `corners()` reads polygons, and paths drawn with
+    M, L, Q, C and Z alone.
+  - **Comment-only fixes from the cold read:** in `register.tsx` (the largest drawing),
+    `detect.ts` (`partsOf`'s readers) and `types/index.d.ts` (`value`). `hooks/zones.ts`'s
+    comment lost the gauge.
+- **Amendments:**
+  - **The red suitcase's springing sock moves in a group of its own.** Its spring was an
+    `animateTransform` on the group that placed it, which SMIL replaces, so it sprang at the
+    440 box's left edge, out of the view. The draft had the same fault, which the suitcase test found.
+    `ARCHITECTURE.md` now states the rule. The session's own finding.
+  - **Polished on the contact sheet, before the owner looked:**
+    - the rocket's trail puffs begin as it passes each height, where the draft's came early;
+    - the suitcase's load piles above the rim, and the slamming lid pushes it in, with dust
+      puffing from the sides (the draft's dropped out of sight);
+    - the lid slams only after the last thing lands;
+    - the sleeve is larger.
+  - **The cold read went past the drawings:**
+    - this mod's `CLAUDE.md` named none of the four moments T1 and T2 added;
+    - ARCHITECTURE's pointers to "decision 5" and "decision 6" now state the decision in place,
+      since the close deletes the file they point into;
+    - its *By hand* paragraph became a list by version;
+    - a `session.start` line moved into the bullet it belongs to;
+    - long lines were wrapped.
+- **Frames:** A1's contact sheet, built by a Node script in the session's scratch folder from a
+  copy of `hooks/fx.ts`, served on 127.0.0.1 and opened in the browser pane.
+  - Each redone drawing had a live loop, the whole 440 box with the view outlined, ten paused
+    frames on dark and four on light.
+  - The cases were: push with `main` and the long branch; tests with 42, 123456 and no count;
+    the yellow at 76 and 140, and the red at 92 and 140; review with 3, 0, 1 and 12 findings.
+  - Nothing of it is committed.
+- **Checked by hand:**
+  - The owner looked at every redone drawing's frames before the commit: "All good".
+  - In `--plugin-dir` terminal sessions (CLI 2.1.325), with the inline copy's store unmuted, two
+    `/fx all` runs read thirteen of fourteen in the strip, the sparks stepping between reads.
+    "Action!" played during startup, before the first read, in both runs and in a `/fx plan` of
+    its own, which answered "playing plan (take 13)". The strip draws every kind the same way.
+  - The round's desktop check waits for the push and the owner's update (`docs/BACKLOG.md`,
+    *Round 3 in the desktop*).
+- **Falsified,** each by copying `hooks/fx.ts` aside, breaking it and copying it back. Each break
+  failed its own test alone (85 pass, 1 fail):
+  - the rocket stopping at −100; the rocket set below the view;
+  - the ticks a row low; the star before the last tick;
+  - the red packing four; the case below the view (both again after the polish);
+  - the iris darting 16; the eye looking only right.
+- **Numbers:**
+  - 86 tests (+3: four new, the bands test gone);
+  - `validate` 13 hooks, 5 gating, each with a `.catch`, and 4 state keys, unchanged;
+  - `tsc` and imports clean;
+  - drawing sizes:
+    - the push draws 48,703 characters with the long branch, the largest still;
+    - the red suitcase draws 21,164, the clipboard 13,081 and the review 9,225 at 12 findings;
+  - `hooks/fx.ts` 1508 lines (+184), `tests/cartoon-fx.test.tsx` 1959 (+77), `hooks/zones.ts` 7
+    (−1); 19 tracked files, unchanged.
+  - The checks ran on CLI 2.1.325, node 26.7.0.

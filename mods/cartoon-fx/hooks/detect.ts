@@ -83,8 +83,8 @@ function parts(command: string): string[] {
 }
 const SH_C = /(?:^|[\s(])(?:ba|z)?sh\s+-c\s+(?:'([^']*)'|"((?:[^"\\]|\\.)*)")/
 
-// The last command's parts, kept: each Bash call reads them for a push, a commit,
-// a test run and their order.
+// The last command's parts, kept: each Bash call reads them for each of its moments
+// and their order.
 let lastParts: { command: string; found: readonly string[] } | undefined
 function partsOf(command: string): readonly string[] {
   if (lastParts?.command !== command) {

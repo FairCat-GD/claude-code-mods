@@ -3,7 +3,6 @@
 // does not reshuffle it. Every effect fits the same 440 × 190 box.
 
 import type { FxKind, Size } from '../types'
-import { RED, YELLOW } from './zones'
 
 export const WIDTH = 440
 export const HEIGHT = 190
@@ -15,7 +14,6 @@ const VIEW_WIDTH = 260
 export const SCALES: Record<Size, number> = { small: 1.6, medium: 2.1, large: 3.2 }
 export const DEFAULT_SIZE: Size = 'medium'
 const CX = WIDTH / 2
-const CY = 118
 
 // How long each effect runs, its last piece faded.
 export const FX_MS: Record<FxKind, number> = {
@@ -39,6 +37,8 @@ export const COLORS = ['#FF5E5B', '#FFD23F', '#3BCEAC', '#4D96FF', '#B76EF0', '#
 const INK = '#3A2200'
 const CLOUD = '#FFF6E8'
 const CLOUD_EDGE = '#F4A261'
+const SMOKE = '#F1F1F6'
+const SMOKE_EDGE = '#8E8EA6'
 const FONT = `font-family="ui-rounded, 'SF Pro Rounded', 'Arial Rounded MT Bold', system-ui, sans-serif"`
 
 export function random(seed: number): () => number {
@@ -268,6 +268,36 @@ function sparkle(x: number, y: number, size: number, color: string, begin: numbe
   )
 }
 
+// A metal rod, outlined so it reads on a dark background too.
+const rod = (x1: number, y1: number, x2: number, y2: number) =>
+  [
+    [INK, 5.5],
+    ['#9AA0AE', 2.5],
+  ]
+    .map(([color, width]) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" stroke-linecap="round"/>`)
+    .join('')
+
+// A "!" warning sign that pops in at (x, y) and wags, gone by `end`.
+const sign = (fill: string, mark: string, x: number, y: number, begin: number, end: number) =>
+  fadeGroup(
+    pop(
+      `<g><g transform="rotate(0)">${animateTransform('rotate', ['0', '-14', '12', '-8', '6', '0'], { dur: 0.7, begin: begin + 0.2 })}` +
+        `<path d="M0,-22 L22,16 L-22,16 Z" fill="${fill}" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>` +
+        `<text y="9" text-anchor="middle" ${FONT} font-size="24" font-weight="900" fill="${mark}">!</text></g></g>`,
+      x,
+      y,
+      begin,
+    ),
+    begin,
+    end - begin,
+  )
+
+// A sweat drop that slides by (dx, dy) and fades.
+const sweat = (x: number, y: number, dx: number, dy: number, begin: number) =>
+  `<g transform="translate(${x} ${y})" opacity="0">${animate('opacity', [1, 1, 0], { dur: 0.6, begin, keyTimes: [0, 0.6, 1] })}` +
+  `<g>${animateTransform('translate', ['0 0', `${dx} ${dy}`], { dur: 0.6, begin, keyTimes: [0, 1], splines: '0.3 0 0.7 1' })}` +
+  `<path d="M0,-7 C3,-2 5,1 5,3 A5,5 0 0 1 -5,3 C-5,1 -3,-2 0,-7Z" fill="#8FD0FF" stroke="${INK}" stroke-width="1.5"/></g></g>`
+
 // Quick horizontal streaks on both sides of a squash.
 function streaks(cx: number, ys: number[], gap: number, begin: number): string {
   return [-1, 1]
@@ -288,16 +318,16 @@ function streaks(cx: number, ys: number[], gap: number, begin: number): string {
     .join('')
 }
 
-// ---- push: confetti --------------------------------------------------------
+// ---- push: a rocket blasts off ---------------------------------------------
 
-// One piece of confetti: bursts out, slows in the air, then flutters down.
-function confettiPiece(rnd: () => number, color: string): string {
+// One piece of confetti: bursts out of (x, y) from `start`, slows in the air, then flutters down.
+function confettiPiece(rnd: () => number, color: string, x: number, y: number, start: number): string {
   const up = 260 + rnd() * 260
   const side = (rnd() * 2 - 1) * 540
   const drag = 2.6 + rnd() * 1.4
   const gravity = 430
   const dur = 1.7 + rnd() * 0.6
-  const begin = 0.04 + rnd() * 0.1
+  const begin = start + rnd() * 0.1
   const sway = 6 + rnd() * 10
   const swayRate = 4 + rnd() * 4
   const phase = rnd() * Math.PI * 2
@@ -329,7 +359,7 @@ function confettiPiece(rnd: () => number, color: string): string {
   const flip = 0.25 + rnd() * 0.35
   const t = `dur="${n(dur)}s" begin="${n(begin)}s" fill="freeze"`
   return (
-    `<g transform="translate(${CX} ${CY})" opacity="0">` +
+    `<g transform="translate(${n(x)} ${n(y)})" opacity="0">` +
     `<animateMotion values="${path}" ${t}/>` +
     `<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.03;0.72;1" ${t}/>` +
     `<g><animateTransform attributeName="transform" type="rotate" from="0" to="${n(spin)}" ${t}/>` +
@@ -337,13 +367,58 @@ function confettiPiece(rnd: () => number, color: string): string {
   )
 }
 
-function confetti(rnd: () => number, title: string, subtitle: string): string {
-  const pieces = Array.from({ length: 46 }, (_, i) => confettiPiece(rnd, COLORS[i % COLORS.length] ?? INK)).join('')
+const PAD_Y = 160
+const LIFT_OFF = 0.45
+
+// Shakes on its pad, lifts off through its smoke and speeds out of the top; confetti bursts from the pad.
+function rocket(rnd: () => number, title: string, subtitle: string): string {
+  const pad =
+    `<g class="pad">${rod(CX - 22, PAD_Y + 8, CX - 30, PAD_Y + 24)}${rod(CX + 22, PAD_Y + 8, CX + 30, PAD_Y + 24)}` +
+    `<rect x="${CX - 30}" y="${PAD_Y}" width="60" height="8" rx="3" fill="#8E8E9A" stroke="${INK}" stroke-width="3"/></g>`
+  const flame =
+    `<g class="flame" transform="translate(0 2)"><g transform="scale(1 0.4)">${animateTransform('scale', ['1 0.4', '1 1.1', '1 0.8', '1 1.3', '1 0.9'], { dur: 0.2, begin: 0.12, repeat: true })}` +
+    `<path d="M-9,0 Q0,36 9,0Z" fill="#FF9F1C" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>` +
+    `<path d="M-4,0 Q0,18 4,0Z" fill="#FFD23F"/></g></g>`
+  const body =
+    `<g stroke="${INK}" stroke-width="3" stroke-linejoin="round">` +
+    `<path d="M-12,-18 L-26,4 L-11,0Z" fill="#FF5E5B"/><path d="M12,-18 L26,4 L11,0Z" fill="#FF5E5B"/>` +
+    `<path d="M0,-64 C16,-48 17,-20 13,0 L-13,0 C-17,-20 -16,-48 0,-64Z" fill="#FFFFFF"/>` +
+    `<path d="M0,-64 C8,-57 12,-49 14,-42 L-14,-42 C-12,-49 -8,-57 0,-64Z" fill="#FF5E5B"/>` +
+    `<circle cy="-24" r="8" fill="#4D96FF"/></g>` +
+    `<path d="M-4,-28 A5,5 0 0 1 1,-31" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>`
+  const shake = animateTransform('translate', ['0 0', '-1.5 0', '1.5 0', '-1.5 0', '1.5 0', '-1 0', '1 0', '0 0'], { dur: 0.42, begin: 0.03 })
+  const lift = { dur: 1.3, keyTimes: [0, 0.35, 1], splines: '0 0 1 1;0.55 0 1 1' }
+  const ship =
+    `<g transform="translate(${CX} ${PAD_Y - 4})"><g class="rocket">${animateTransform('translate', ['0 0', '0 0', '0 -320'], lift)}` +
+    `<g>${shake}${flame}${body}</g></g></g>`
+
+  // A puff left at each height as the rocket passes it.
+  const trail = [0, 1, 2, 3]
+    .map(k =>
+      cloud(rnd, { cx: CX, cy: PAD_Y - 32 - k * 34, count: 3, spread: [3, 7], radius: [6, 9], begin: 0.7 + k * 0.08, dur: 0.6, fill: SMOKE, edge: SMOKE_EDGE }),
+    )
+    .join('')
+  const pieces = Array.from({ length: 30 }, (_, i) => confettiPiece(rnd, COLORS[i % COLORS.length] ?? INK, CX, PAD_Y - 14, LIFT_OFF)).join('')
+
   return (
-    rays(rnd, { cx: CX, cy: CY, count: 12, from: [20, 30], to: [70, 92], begin: 0.02 }) +
+    fadeGroup(pad, 0, 2.4, 0.85) +
+    ship +
+    cloud(rnd, {
+      cx: CX,
+      cy: PAD_Y + 2,
+      count: 9,
+      spread: [14, 28],
+      radius: [11, 18],
+      begin: 0.3,
+      dur: 1.2,
+      fill: SMOKE,
+      edge: SMOKE_EDGE,
+      stretch: [1.9, 0.5],
+    }) +
+    trail +
+    rays(rnd, { cx: CX, cy: PAD_Y - 6, count: 10, from: [30, 38], to: [58, 72], flat: 0.5, begin: LIFT_OFF }) +
     pieces +
-    cloud(rnd, { cx: CX, cy: CY, count: 9, spread: [16, 26], radius: [13, 22] }) +
-    label(title, subtitle, { y: CY - 4, fill: '#FFD23F', begin: 0.1, dur: 2.2 })
+    label(title, subtitle, { y: 96, fill: '#FFD23F', begin: 0.85, dur: 1.7 })
   )
 }
 
@@ -395,37 +470,100 @@ function stamp(rnd: () => number, word: string, subtitle: string): string {
   )
 }
 
-// ---- tests: a checkmark badge ----------------------------------------------
+// ---- tests: a pencil ticks off a clipboard ---------------------------------
 
-function check(rnd: () => number, title: string, subtitle: string): string {
-  const cy = 76
-  const tick =
-    `<path d="M-15,1 L-5,12 L16,-11" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" ` +
-    `stroke-linejoin="round" stroke-dasharray="48" stroke-dashoffset="48">` +
-    animate('stroke-dashoffset', [48, 0], { dur: 0.3, begin: 0.32 }) +
-    `</path>`
-  const badge =
-    `<circle r="34" fill="#2FBF71" stroke="#155E37" stroke-width="4"/>` +
-    `<path d="M-24,-12 A26,26 0 0 1 -8,-25" fill="none" stroke="#86E5AE" stroke-width="5" stroke-linecap="round"/>` +
-    tick
-  const ring =
-    `<circle cx="${CX}" cy="${cy}" r="34" fill="none" stroke="#7BE04A" stroke-width="5" opacity="0">` +
-    animate('r', [34, 80], { dur: 0.55, begin: 0.3 }) +
-    animate('opacity', [0.9, 0], { dur: 0.55, begin: 0.3 }) +
-    `</circle>`
-  const twinkles = ['#FFD23F', '#7BE04A', '#3BCEAC', '#FF9F1C']
-  const sparkles = Array.from({ length: 9 }, (_, i) => {
-    const a = (i / 9) * Math.PI * 2 + rnd() * 0.3
-    const r = 54 + rnd() * 26
-    const color = twinkles[i % twinkles.length] ?? INK
-    return sparkle(CX + Math.cos(a) * r * 1.5, cy + Math.sin(a) * r * 0.8, 6 + rnd() * 6, color, 0.45 + rnd() * 0.35)
-  }).join('')
+const BOARD_TOP = 22
+const BOARD_MID = BOARD_TOP + 60
+const BOARD_TILT = -3
+// The checklist's rows, the boxes' left edge, and when each box is ticked.
+const CHECK_ROWS = [50, 70, 90, 110]
+const CHECK_X = CX - 34
+const TICKED = CHECK_ROWS.map((_, i) => 0.36 + i * 0.17)
+const STAR_AT = 1.05
+
+// Where a point on the board sits once the board is tilted.
+function onBoard(x: number, y: number): [number, number] {
+  const a = (BOARD_TILT * Math.PI) / 180
+  const [dx, dy] = [x - CX, y - BOARD_MID]
+  return [CX + dx * Math.cos(a) - dy * Math.sin(a), BOARD_MID + dx * Math.sin(a) + dy * Math.cos(a)]
+}
+
+const starPoints = (outer: number, inner: number) =>
+  Array.from({ length: 10 }, (_, i) => {
+    const r = i % 2 ? inner : outer
+    const a = (i / 10) * Math.PI * 2 - Math.PI / 2
+    return `${n(Math.cos(a) * r)},${n(Math.sin(a) * r)}`
+  }).join(' ')
+
+function clipboard(rnd: () => number, title: string, subtitle: string): string {
+  const lines = [24, 12, 30, 18]
+  const board =
+    `<rect x="${CX - 50}" y="${BOARD_TOP}" width="100" height="120" rx="8" fill="#C98B4E" stroke="${INK}" stroke-width="3"/>` +
+    `<rect x="${CX - 42}" y="${BOARD_TOP + 10}" width="84" height="102" rx="3" fill="#FFFFFF" stroke="${INK}" stroke-width="2"/>` +
+    `<rect x="${CX - 18}" y="${BOARD_TOP - 6}" width="36" height="14" rx="4" fill="#C9CCD6" stroke="${INK}" stroke-width="3"/>` +
+    CHECK_ROWS.map(
+      (y, i) =>
+        `<rect class="box" x="${CHECK_X}" y="${y - 6}" width="12" height="12" rx="2" fill="#FFFFFF" stroke="${INK}" stroke-width="2"/>` +
+        `<line x1="${CHECK_X + 20}" y1="${y}" x2="${CHECK_X + 40 + (lines[i] ?? 0)}" y2="${y}" stroke="#C9C2B0" stroke-width="4" stroke-linecap="round"/>`,
+    ).join('')
+  const ticks = CHECK_ROWS.map(
+    (y, i) =>
+      `<path class="tick" d="M${CHECK_X + 1},${y} L${CHECK_X + 5},${y + 5} L${CHECK_X + 15},${y - 8}" pathLength="10" fill="none" ` +
+      `stroke="#2FBF71" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10 10" stroke-dashoffset="10">` +
+      animate('stroke-dashoffset', [10, 0], { dur: 0.12, begin: TICKED[i] ?? 0 }) +
+      `</path>`,
+  ).join('')
+  // The star slaps on from twice its size.
+  const sticker =
+    `<g class="sticker" transform="translate(${CX + 44} ${BOARD_TOP + 16}) rotate(-14)"><g transform="scale(0)">` +
+    animateTransform('scale', ['2.4', '0.88', '1.06', '1'], { dur: 0.3, begin: STAR_AT, keyTimes: [0, 0.5, 0.8, 1] }) +
+    `<polygon points="${starPoints(24, 11)}" fill="#FFD23F" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+    `<path d="M-6,-9 L-2,-14" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/></g></g>`
+
+  const pencil =
+    `<g transform="rotate(35)" stroke="${INK}" stroke-width="2" stroke-linejoin="round">` +
+    `<rect x="-4.5" y="-46" width="9" height="34" fill="#FFD23F"/><rect x="-4.5" y="-53" width="9" height="8" rx="2" fill="#FF70A6"/>` +
+    `<path d="M-4.5,-12 L0,0 L4.5,-12Z" fill="#F4D3A8"/><path d="M-1.5,-4 L0,0 L1.5,-4Z" fill="${INK}"/></g>`
+  // In from the right, through each box as its tick draws, then off the top.
+  const stops: [number, [number, number]][] = [
+    [0, [360, 150]],
+    [0.08, [360, 150]],
+    ...CHECK_ROWS.flatMap((y, i): [number, [number, number]][] => [
+      [TICKED[i] ?? 0, onBoard(CHECK_X + 1, y)],
+      [(TICKED[i] ?? 0) + 0.12, onBoard(CHECK_X + 15, y - 8)],
+    ]),
+    [1.3, [380, -30]],
+  ]
+  const thePencil =
+    `<g transform="translate(360 150)">` +
+    animateTransform(
+      'translate',
+      stops.map(([, [x, y]]) => `${n(x)} ${n(y)}`),
+      { dur: 1.3, keyTimes: stops.map(([t]) => Math.round((t / 1.3) * 1000) / 1000) },
+    ) +
+    `${pencil}</g>`
+
+  const [starX, starY] = onBoard(CX + 44, BOARD_TOP + 16)
+  const twinkles = ['#FFD23F', '#7BE04A', '#3BCEAC']
+  const sparkles = [
+    [300, 20],
+    [312, 64],
+    [152, 40],
+  ]
+    .map(([x = 0, y = 0], i) => sparkle(x, y, 6 + rnd() * 5, twinkles[i % twinkles.length] ?? INK, STAR_AT + 0.08 + i * 0.08))
+    .join('')
 
   return (
-    ring +
-    fadeGroup(pop(badge, CX, cy, 0.05, 0, 0.45), 0.05, 2.2) +
+    fadeGroup(
+      pop(`<g class="clipboard" transform="translate(${-CX} ${-BOARD_MID})">${board}${ticks}${sticker}</g>`, CX, BOARD_MID, 0, BOARD_TILT, 0.35),
+      0,
+      2.35,
+      0.85,
+    ) +
+    thePencil +
+    rays(rnd, { cx: starX, cy: starY, count: 8, from: [26, 32], to: [42, 52], flat: 1, begin: STAR_AT + 0.02 }) +
     sparkles +
-    label(title, subtitle, { y: 145, fill: '#7BE04A', begin: 0.5, dur: 1.8, size: 28, rotate: -4 })
+    label(title, subtitle, { y: 145, fill: '#7BE04A', begin: 1.1, dur: 1.25, size: 28, rotate: -4 })
   )
 }
 
@@ -589,8 +727,8 @@ function helpers(rnd: () => number, title: string, subtitle: string, count: numb
       radius: [15, 24],
       begin: 0.2,
       dur: 1,
-      fill: '#F1F1F6',
-      edge: '#8E8EA6',
+      fill: SMOKE,
+      edge: SMOKE_EDGE,
       stretch: [1.6, 0.7],
     }) +
     spots.map((x, i) => helper(rnd, i, x)).join('') +
@@ -598,7 +736,13 @@ function helpers(rnd: () => number, title: string, subtitle: string, count: numb
   )
 }
 
-// ---- review: a magnifying glass sweeps a page of code ----------------------
+// ---- review: a magnifying glass with a googly eye sweeps a page of code ----
+
+// The eye's white and iris, and how far the iris darts across and down.
+const EYE_R = 24
+const IRIS_R = 11
+const LOOK_X = 7
+const LOOK_Y = 2
 
 function review(rnd: () => number, title: string, subtitle: string, findings: number): string {
   const top = 30
@@ -624,12 +768,6 @@ function review(rnd: () => number, title: string, subtitle: string, findings: nu
       .join('')
   const thePage = fadeGroup(pop(`<g transform="translate(${-CX} ${-(top + 46)})">${page}</g>`, CX, top + 46, 0, -3, 0.4), 0, 2.6)
 
-  // Its motion is offsets from its group's translate, so the start counts once.
-  const lens =
-    `<line x1="19" y1="19" x2="40" y2="40" stroke="${INK}" stroke-width="9" stroke-linecap="round"/>` +
-    `<line x1="21" y1="21" x2="38" y2="38" stroke="#B07438" stroke-width="5" stroke-linecap="round"/>` +
-    `<circle r="26" fill="#BFE3FF" fill-opacity="0.45" stroke="${INK}" stroke-width="5"/>` +
-    `<path d="M-15,-8 A17,17 0 0 1 -5,-17" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>`
   const path: [number, number][] = [
     [CX - 44, top + 14],
     [CX + 30, top + 24],
@@ -640,13 +778,44 @@ function review(rnd: () => number, title: string, subtitle: string, findings: nu
   ]
   const ease: Spline = [0.4, 0, 0.6, 1]
   const sweep = { begin: 0.3, dur: 1.35, keyTimes: [0, 0.2, 0.42, 0.62, 0.8, 1], splines: [ease, ease, ease, ease, [0.5, 0, 1, 1] as Spline] }
+
+  // A giant eye in the glass looks the way the glass is heading, darting at each turn, then blinks.
+  const darting = sweep.dur + 0.25
+  const looks = path.slice(1).flatMap(([x, y], k): [number, string][] => {
+    const [fromX, fromY] = path[k] ?? [x, y]
+    const look = `${Math.sign(x - fromX) * LOOK_X} ${Math.sign(y - fromY) * LOOK_Y}`
+    const [t0, t1] = [(sweep.keyTimes[k] ?? 0) * sweep.dur + 0.06, (sweep.keyTimes[k + 1] ?? 1) * sweep.dur]
+    return [
+      [t0 / darting, look],
+      [t1 / darting, look],
+    ]
+  })
+  const blink = sweep.begin + sweep.dur + 0.05
+  const eye =
+    `<g class="eye">${animateTransform('scale', ['1 1', '1 0.08', '1 1'], { dur: 0.2, begin: blink })}` +
+    `<circle r="${EYE_R}" fill="#FFFFFF"/>` +
+    `<g class="iris">${animateTransform('translate', ['0 0', ...looks.map(([, look]) => look), '0 0'], {
+      dur: darting,
+      begin: sweep.begin,
+      keyTimes: [0, ...looks.map(([t]) => Math.round(t * 1000) / 1000), 1],
+    })}` +
+    `<circle r="${IRIS_R}" fill="#4D96FF" stroke="${INK}" stroke-width="2"/><circle r="5.5" fill="${INK}"/>` +
+    `<circle cx="-3.5" cy="-3.5" r="2.2" fill="#FFFFFF"/></g></g>`
+  const lens =
+    `<line x1="19" y1="19" x2="40" y2="40" stroke="${INK}" stroke-width="9" stroke-linecap="round"/>` +
+    `<line x1="21" y1="21" x2="38" y2="38" stroke="#B07438" stroke-width="5" stroke-linecap="round"/>` +
+    eye +
+    `<circle r="26" fill="none" stroke="${INK}" stroke-width="5"/>` +
+    `<path d="M-15,-8 A17,17 0 0 1 -5,-17" fill="none" stroke="#BFE3FF" stroke-width="4" stroke-linecap="round" opacity="0.8"/>`
+
+  // Its motion is offsets from its group's translate, so the start counts once.
   const [startX, startY] = path[0] ?? [CX, top]
   const theLens =
     `<g class="lens" transform="translate(${startX} ${startY})">` +
     `<animateMotion values="${path.map(([x, y]) => `${x - startX},${y - startY}`).join(';')}" dur="${sweep.dur}s" begin="${sweep.begin}s" ` +
     `fill="freeze" keyTimes="${sweep.keyTimes.join(';')}" calcMode="spline" ` +
     `keySplines="${sweep.splines.map(s => s.join(' ')).join(';')}"/><g transform="scale(0)">` +
-    animateTransform('scale', ['0', '1.2', '1', '1', '1.15', '0'], { dur: 1.75, begin: 0.15, keyTimes: [0, 0.09, 0.15, 0.86, 0.92, 1] }) +
+    animateTransform('scale', ['0', '1.2', '1', '1', '1.15', '0'], { dur: 2, begin: 0.15, keyTimes: [0, 0.08, 0.13, 0.88, 0.93, 1] }) +
     `${lens}</g></g>`
 
   // When the glass's centre first reaches height `y`, read along its eased path.
@@ -848,97 +1017,121 @@ function clapper(rnd: () => number, title: string, subtitle: string): string {
   )
 }
 
-// ---- context: a gauge swings into the yellow, or slams into the red --------
+// ---- context: a suitcase packed too full ------------------------------------
 
-const YELLOW_ZONE = '#FFD23F'
-const RED_ZONE = '#FF5E5B'
+const CASE_TOP = 80
+const CASE_BOTTOM = 124
+// The lid's hinge, at the case's back edge.
+const HINGE = `${CX - 60} 82`
+// The red one's lid bursts open a crack at these times, a sock springing out.
+const BURSTS = [1.3, 1.75]
 
-function gauge(rnd: () => number, title: string, subtitle: string, percent: number, isRed: boolean): string {
-  const gx = CX
-  const gy = 116
-  const R = 64
-  const zone = isRed ? RED_ZONE : YELLOW_ZONE
-  const at = (p: number, r = R): [number, number] => {
-    const a = Math.PI * (1 - p / 100)
-    return [gx + r * Math.cos(a), gy - r * Math.sin(a)]
-  }
-  const arc = (p1: number, p2: number, color: string, pulse = '') => {
-    const [x1, y1] = at(p1)
-    const [x2, y2] = at(p2)
-    return `<path class="band" d="M${n(x1)},${n(y1)} A${R},${R} 0 0 1 ${n(x2)},${n(y2)}" fill="none" stroke="${color}" stroke-width="14">${pulse}</path>`
-  }
-  // The yellow band throbs twice; the red one keeps throbbing, faster.
-  const pulse = isRed
-    ? animate('stroke-width', [14, 22, 14], { dur: 0.5, begin: 1.05, repeat: true })
-    : animate('stroke-width', [14, 21, 14, 21, 14], { dur: 0.9, begin: 1.05 })
-  const ticks = Array.from({ length: 11 }, (_, i) => {
-    const [x1, y1] = at(i * 10, R - 13)
-    const [x2, y2] = at(i * 10, R - 7)
-    return `<line x1="${n(x1)}" y1="${n(y1)}" x2="${n(x2)}" y2="${n(y2)}" stroke="${INK}" stroke-width="2"/>`
-  }).join('')
-  const rot = -90 + 1.8 * Math.min(Math.max(percent, 0), 100)
-  // Into the yellow the needle swings and settles; into the red it slams past
-  // the end stop and bounces back.
-  const swing = isRed
-    ? { values: [-90, 96, rot - 10, rot + 6, rot - 3, rot], keyTimes: [0, 0.4, 0.6, 0.75, 0.88, 1] }
-    : { values: [-90, rot + 14, rot - 7, rot + 3, rot], keyTimes: [0, 0.45, 0.7, 0.85, 1] }
-  const needle =
-    `<g class="needle" transform="translate(${gx} ${gy})"><g transform="rotate(-90)">` +
-    animateTransform('rotate', swing.values.map(String), { dur: 0.9, begin: 0.2, keyTimes: swing.keyTimes }) +
-    `<path d="M-5,0 L0,${-(R - 8)} L5,0 Z" fill="${INK}"/></g>` +
-    `<circle r="8" fill="${INK}" stroke="${zone}" stroke-width="3"/></g>`
-  const dial =
-    `<path d="M${gx - R - 14},${gy} A${R + 14},${R + 14} 0 0 1 ${gx + R + 14},${gy} Z" fill="${CLOUD}" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>` +
-    arc(0, YELLOW, '#2FBF71') +
-    arc(YELLOW, RED, YELLOW_ZONE, isRed ? '' : pulse) +
-    arc(RED, 100, RED_ZONE, isRed ? pulse : '') +
-    ticks +
-    needle
-  // The red one rattles on its base as the needle hits the stop.
-  const rattle = isRed
-    ? animateTransform(
-        'rotate',
-        ['0', '-4', '4', '-4', '3', '-2', '0'].map(a => `${a} ${gx} ${gy}`),
-        { dur: 0.7, begin: 1.05 },
+const sock = (color: string) =>
+  `<path d="M-6,-14 L6,-14 L6,4 L14,4 Q18,4 18,10 L18,12 L-6,12Z" fill="${color}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>`
+// What drops in, in order: three things in the yellow, all five in the red.
+const LOAD: [number, string][] = [
+  [CX - 30, sock('#FF70A6')],
+  [
+    CX + 10,
+    `<path d="M-14,-12 L-6,-16 Q0,-12 6,-16 L14,-12 L18,-4 L11,-1 L11,14 L-11,14 L-11,-1 L-18,-4Z" fill="#4D96FF" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>`,
+  ],
+  [
+    CX - 8,
+    `<rect x="-14" y="-9" width="28" height="18" rx="2" fill="#7BE04A" stroke="${INK}" stroke-width="2.5"/><line x1="-14" y1="5" x2="14" y2="5" stroke="#FFFFFF" stroke-width="2"/>`,
+  ],
+  [
+    CX + 32,
+    `<circle cy="2" r="10" fill="#FFD23F" stroke="${INK}" stroke-width="2.5"/><circle cx="7" cy="-8" r="6" fill="#FFD23F" stroke="${INK}" stroke-width="2.5"/>` +
+      `<path d="M12,-9 L18,-7 L12,-5Z" fill="#FF9F1C" stroke="${INK}" stroke-width="1.5"/><circle cx="8" cy="-9" r="1.2" fill="${INK}"/>`,
+  ],
+  [CX - 40, sock('#B76EF0')],
+]
+
+function suitcase(rnd: () => number, title: string, subtitle: string, isRed: boolean): string {
+  const end = isRed ? 3.1 : 2.9
+  const count = isRed ? 5 : 3
+  // Each thing drops onto the pile a beat after the last, and the slamming lid pushes the pile in.
+  const shut = 0.25 + count * 0.15
+  const fall = LOAD.slice(0, count)
+    .map(([x, thing], i) => {
+      const t = { dur: 0.4, begin: 0.1 + i * 0.15, keyTimes: [0, 0.7, 0.85, 1] }
+      const pile = [`${x} -40`, `${x} ${CASE_TOP - 10}`, `${x} ${CASE_TOP - 16}`, `${x} ${CASE_TOP - 10}`]
+      return (
+        `<g class="load" transform="translate(${x} -40)">${animateTransform('translate', pile, t)}` +
+        `<g>${animateTransform('translate', ['0 0', '0 18'], { dur: 0.05, begin: shut + 0.03 })}${thing}</g></g>`
       )
+    })
+    .join('')
+  const turn = 2.4
+  const at = (times: number[]) => times.map(t => Math.round((t / turn) * 1000) / 1000)
+  const slam = { angles: ['-100', '-100', '8', '-4', '0', '0'], times: [0, shut, shut + 0.07, shut + 0.12, shut + 0.17, turn] }
+  const lidMoves = isRed
+    ? {
+        angles: [...slam.angles.slice(0, -1), ...BURSTS.flatMap(() => ['0', '-24', '0']), '0'],
+        times: [...slam.times.slice(0, -1), ...BURSTS.flatMap(t => [t, t + 0.08, t + 0.18]), turn],
+      }
+    : slam
+  const lid =
+    `<g>${animateTransform(
+      'rotate',
+      lidMoves.angles.map(a => `${a} ${HINGE}`),
+      { dur: turn, keyTimes: at(lidMoves.times) },
+    )}` +
+    `<rect x="${CX - 62}" y="${CASE_TOP - 14}" width="124" height="18" rx="7" fill="#FFB347" stroke="${INK}" stroke-width="3"/>` +
+    `<path d="M${CX - 14},${CASE_TOP - 14} Q${CX},${CASE_TOP - 30} ${CX + 14},${CASE_TOP - 14}" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/></g>`
+  const height = CASE_BOTTOM - CASE_TOP
+  const body =
+    `<rect x="${CX - 62}" y="${CASE_TOP}" width="124" height="${height}" rx="8" fill="#FF9F1C" stroke="${INK}" stroke-width="3"/>` +
+    `<rect x="${CX - 36}" y="${CASE_TOP}" width="10" height="${height}" fill="#E07B00"/>` +
+    `<rect x="${CX + 26}" y="${CASE_TOP}" width="10" height="${height}" fill="#E07B00"/>` +
+    `<rect x="${CX - 62}" y="${CASE_TOP}" width="124" height="${height}" rx="8" fill="none" stroke="${INK}" stroke-width="3"/>` +
+    [CX - 37, CX + 25].map(x => `<rect x="${x}" y="${CASE_TOP - 3}" width="12" height="8" rx="2" fill="#C9CCD6" stroke="${INK}" stroke-width="2"/>`).join('')
+  // A sleeve caught in the seam once the lid is shut.
+  const sleeve =
+    `<g transform="translate(${CX + 60} ${CASE_TOP - 1})" opacity="0">${animate('opacity', [0, 1], { dur: 0.05, begin: shut + 0.1 })}` +
+    `<g>${animateTransform('rotate', ['0', '14', '-8', '12', '0'], { dur: 0.8, begin: shut + 0.2, repeat: isRed })}` +
+    `<rect x="0" y="-5" width="22" height="10" rx="4" fill="#4D96FF" stroke="${INK}" stroke-width="2"/>` +
+    `<line x1="16" y1="-4" x2="16" y2="4" stroke="#FFFFFF" stroke-width="2"/></g></g>`
+  const spring = isRed
+    ? `<g transform="translate(${CX + 20} ${CASE_TOP + 16})"><g>${animateTransform(
+        'translate',
+        ['0 0', ...BURSTS.flatMap(() => ['0 0', '0 -44', '0 0']), '0 0'],
+        {
+          dur: turn,
+          keyTimes: at([0, ...BURSTS.flatMap(t => [t, t + 0.08, t + 0.2]), turn]),
+        },
+      )}${sock('#FF70A6')}</g></g>`
     : ''
-  const theGauge =
-    `<g transform="translate(${gx} ${gy})"><g transform="scale(0)">` +
-    animateTransform('scale', ['0.5', '1.1', '0.97', '1'], { dur: 0.3, begin: 0, keyTimes: [0, 0.5, 0.8, 1] }) +
-    `<g transform="translate(${-gx} ${-gy})"><g>${rattle}${dial}</g></g></g></g>`
+  // It squashes as the lid slams, and stays bulging; the red one rattles on.
+  const squash = animateTransform('scale', ['1 1', '1 1', '1.12 0.84', '0.96 1.08', '1.05 1.04'], {
+    dur: shut + 0.5,
+    keyTimes: [0, shut, shut + 0.1, shut + 0.25, shut + 0.5].map(t => Math.round((t / (shut + 0.5)) * 1000) / 1000),
+  })
+  const rattle = isRed ? animateTransform('rotate', ['0', '-3', '3', '-2', '2', '0'], { dur: 0.3, begin: shut + 0.3, repeat: true }) : ''
+  const theCase =
+    `<g class="suitcase" transform="translate(${CX} ${CASE_BOTTOM})"><g>${rattle}<g>${squash}` +
+    `<g transform="translate(${-CX} ${-CASE_BOTTOM})">${fall}${spring}${body}${sleeve}${lid}</g></g></g></g>`
 
-  const sign = (fill: string, mark: string) =>
-    `<g><g transform="rotate(0)">` +
-    animateTransform('rotate', ['0', '-14', '12', '-8', '6', '0'], { dur: 0.7, begin: 1.15 }) +
-    `<path d="M0,-22 L22,16 L-22,16 Z" fill="${fill}" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>` +
-    `<text y="9" text-anchor="middle" ${FONT} font-size="24" font-weight="900" fill="${mark}">!</text></g></g>`
-  const signs = isRed
-    ? fadeGroup(pop(sign(RED_ZONE, '#FFFFFF'), gx + R + 28, gy - 58, 0.95), 0.95, 2.2) +
-      fadeGroup(pop(sign(RED_ZONE, '#FFFFFF'), gx - R - 28, gy - 58, 1.05), 1.05, 2.1)
-    : fadeGroup(pop(sign(YELLOW_ZONE, INK), gx + R + 28, gy - 58, 0.95), 0.95, 2)
   const steam = isRed
-    ? [-1, 1]
-        .map((side, i) =>
-          cloud(rnd, {
-            cx: gx + side * 40,
-            cy: gy - R - 20,
-            count: 4,
-            spread: [5, 10],
-            radius: [6, 10],
-            begin: 1.1 + i * 0.15,
-            dur: 0.8,
-            fill: '#F1F1F6',
-            edge: '#8E8EA6',
-          }),
-        )
-        .join('')
+    ? BURSTS.map(begin =>
+        cloud(rnd, { cx: CX + 40, cy: CASE_TOP - 6, count: 4, spread: [5, 10], radius: [6, 10], begin, dur: 0.7, fill: SMOKE, edge: SMOKE_EDGE }),
+      ).join('')
     : ''
+  const zone = isRed ? '#FF5E5B' : '#FFD23F'
+  const signs = isRed
+    ? sign(zone, '#FFFFFF', 316, 40, shut + 0.2, end) + sign(zone, '#FFFFFF', 124, 40, shut + 0.3, end)
+    : sign(zone, INK, 316, 44, shut + 0.2, end)
+  const drop = isRed ? sweat(CX + 66, CASE_TOP + 6, 20, -10, 1.2) : sweat(CX + 64, CASE_TOP + 4, 6, 20, shut + 0.4)
 
   return (
-    fadeGroup(theGauge, 0, isRed ? 3.1 : 2.9, 0.85) +
+    fadeGroup(theCase, 0, end, 0.85) +
+    [-1, 1]
+      .map(side => cloud(rnd, { cx: CX + side * 66, cy: CASE_BOTTOM - 6, count: 4, spread: [6, 12], radius: [7, 11], begin: shut + 0.06, dur: 0.6 }))
+      .join('') +
     steam +
+    drop +
     signs +
-    label(title, subtitle, { y: 147, fill: zone, begin: 0.9, dur: isRed ? 2.2 : 2, size: 26, rotate: -3 })
+    label(title, subtitle, { y: 147, fill: zone, begin: shut + 0.3, dur: isRed ? 2 : 1.8, size: 26, rotate: -3 })
   )
 }
 
@@ -1096,15 +1289,6 @@ function zipper(rnd: () => number, title: string, subtitle: string): string {
 }
 
 // ---- pr: a jack-in-the-box springs out -------------------------------------
-
-// A metal rod, outlined so it reads on a dark background too.
-const rod = (x1: number, y1: number, x2: number, y2: number) =>
-  [
-    [INK, 5.5],
-    ['#9AA0AE', 2.5],
-  ]
-    .map(([color, width]) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" stroke-linecap="round"/>`)
-    .join('')
 
 // The box's mouth, where the lid hinges and the spring rises from.
 const BOX_X = 184
@@ -1267,13 +1451,13 @@ function claw(rnd: () => number, title: string, subtitle: string): string {
 
 type Draw = (rnd: () => number, title: string, subtitle: string, value: number) => string
 
-// Every kind has its drawing; `value` is the helper count for `helpers`, the context
-// percentage for `context` and `redzone`, and the number of findings for `review`.
+// Every kind has its drawing; `value` is the helper count for `helpers` and the number
+// of findings for `review`. The zones' percentage is in their words alone.
 const DRAWINGS: Record<FxKind, Draw> = {
-  push: confetti,
+  push: rocket,
   commit: stamp,
   cherry,
-  tests: check,
+  tests: clipboard,
   compact: squish,
   helpers,
   plan: clapper,
@@ -1282,8 +1466,8 @@ const DRAWINGS: Record<FxKind, Draw> = {
   merge: zipper,
   rebase: claw,
   pr: jack,
-  context: (rnd, title, subtitle, value) => gauge(rnd, title, subtitle, value, false),
-  redzone: (rnd, title, subtitle, value) => gauge(rnd, title, subtitle, value, true),
+  context: (rnd, title, subtitle) => suitcase(rnd, title, subtitle, false),
+  redzone: (rnd, title, subtitle) => suitcase(rnd, title, subtitle, true),
 }
 
 // The width and height an effect is drawn at, in pixels.

@@ -4,7 +4,6 @@ import type { Mounted, TestBody } from 'claude-code/testing'
 import { cherryPicked, committed, isReviewFix, mergesOf, prOpened, pushedBranch, ranAt, rebasedWith, testsPassed } from '../hooks/detect'
 import type { BashOutput } from '../hooks/detect'
 import { drawFx, FX_MS, glyphRow, SPARKS, textBox } from '../hooks/fx'
-import { RED, YELLOW } from '../hooks/zones'
 import type { FxKind } from '../types'
 
 const BAND = {
@@ -95,7 +94,7 @@ const fx = (args: string) => ({ command: 'fx', args, origin: { kind: 'composer' 
 
 const start = ($: Parameters<TestBody>[0]) => $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
 
-test('a push plays confetti inside its own row, gone once the effect ends', async ($, on) => {
+test('a push launches the rocket inside its own row, gone once the effect ends', async ($, on) => {
   const { clock } = engine(on, PUSHED)
   await start($)
   const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
@@ -368,7 +367,7 @@ test('under /fx place bottom, a review and its fixes play in the strip', async (
   for (const ui of [reply, band]) await ui.unmount()
 })
 
-test('a passing verify run shows the checkmark with its count', async ($, on) => {
+test('a passing verify run ticks the clipboard, with its count', async ($, on) => {
   engine(on, VERIFIED)
   await start($)
   await $.tool.call({ tool: 'Bash', command: 'npm run verify', tool_use_id: 't1' })
@@ -414,7 +413,7 @@ test('subagents started together play once in the Agent row, with their count', 
   await row.unmount()
 })
 
-test('the context gauge plays once on entering the yellow zone, again only after leaving it', async ($, on) => {
+test('the yellow zone plays once on entering it, again only after leaving it', async ($, on) => {
   const { clock, usage } = engine(on, { stdout: '', stderr: '', interrupted: false })
   await start($)
   const call = (id: string) => $.tool.call({ tool: 'Bash', command: 'ls', tool_use_id: id })
@@ -697,7 +696,7 @@ test('/fx off empties the queue: the effect on show stops, and nothing that wait
     await clock.advance(FX_MS.push + HOLD - 1)
     expect(await playingIn(band)).toContain('Pushed! main')
 
-    // The stamp and the confetti that waited behind the checkmark are gone.
+    // The stamp and the rocket that waited behind the clipboard are gone.
     await clock.advance(1 + GAP)
     for (const kind of ['commit', 'push'] as const) {
       expect(await playingIn(band)).not.toMatch(/SAVED|Pushed!/)
@@ -910,7 +909,7 @@ test('a placement another session stored applies from the next effect', async ($
 // A push of `branch`, as git reports it.
 const pushedTo = (branch: string) => ({ stdout: '', stderr: `${TO}\n   8577859..5e81772  ${branch} -> ${branch}\n`, interrupted: false })
 
-test('a push that crosses 75% plays the confetti whole, then the yellow zone', async ($, on) => {
+test('a push that crosses 75% plays the rocket whole, then the yellow zone', async ($, on) => {
   const { clock } = engine(on, PUSHED, 76)
   await start($)
   const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
@@ -941,7 +940,7 @@ test("the context check queues behind the call's own effect, however slow that i
   await row.unmount()
 })
 
-test('npm test && git commit && git push plays the checkmark, the stamp, then the confetti', async ($, on) => {
+test('npm test && git commit && git push plays the clipboard, the stamp, then the rocket', async ($, on) => {
   const { clock } = engine(on, { stdout: `${VERIFIED.stdout}\n${COMMITTED.stdout}`, stderr: PUSHED.stderr, interrupted: false })
   await start($)
   const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
@@ -1030,7 +1029,7 @@ test('a pull request opened springs the jack in its row, with its number', async
   await row.unmount()
 })
 
-test('git rebase && git push && gh pr create plays the claw, the confetti, then the jack', async ($, on) => {
+test('git rebase && git push && gh pr create plays the claw, the rocket, then the jack', async ($, on) => {
   const { clock } = engine(on, {
     stdout: `${REBASED.stdout}${OPENED.stdout}`,
     stderr: 'To github.com:someone/repo.git\n + 1a2b3c4...5e81772 topic -> topic (forced update)\n',
@@ -1072,7 +1071,7 @@ test('a commit and a cherry-pick in one command each stamp and pick with their o
   await row.unmount()
 })
 
-test('git merge; git cherry-pick && git push plays the zipper, the cherry, then the confetti', async ($, on) => {
+test('git merge; git cherry-pick && git push plays the zipper, the cherry, then the rocket', async ($, on) => {
   const { clock } = engine(on, {
     stdout: `${PICKED.stdout}\nMerge made by the 'ort' strategy.`,
     stderr: PUSHED.stderr,
@@ -1659,20 +1658,23 @@ function step(kind: string, v: number[]): M {
 
 const transform = (s = ''): M => [...s.matchAll(/(translate|scale|rotate)\(([^)]*)\)/g)].reduce((m, [, kind, v]) => mul(m, step(kind ?? '', nums(v))), ID)
 
-// An element's own transform where it lands, at its largest: an animated
-// translate at its last value, an animated scale at its peak on each axis.
-function own(el: El): M {
+// An element's own transform where it lands: an animated translate at its last
+// value, and an animated scale at its peak on each axis, or where it settles.
+function own(el: El, isPeak = true): M {
   const motion = el.children.find(child => child.tag === 'animateTransform')
   const values = (motion?.attrs.values ?? '').split(';').map(v => nums(v))
   if (motion?.attrs.type === 'translate') return step('translate', values.at(-1) ?? [])
+  if (motion?.attrs.type === 'scale' && !isPeak) return step('scale', values.at(-1) ?? [])
   if (motion?.attrs.type === 'scale') {
     return step('scale', [Math.max(...values.map(v => v[0] ?? 1)), Math.max(...values.map(v => v[1] ?? v[0] ?? 1))])
   }
 
   return transform(el.attrs.transform)
 }
-// From `top`'s frame (the view's, by default) down to `el`'s.
+// From `top`'s frame (the view's, by default) down to `el`'s, at its largest.
 const toView = (el: El, top?: El): M => (el === top || el.parent === undefined ? ID : mul(toView(el.parent, top), own(el)))
+// The same, once every scale has settled.
+const toRest = (el: El): M => (el.parent === undefined ? ID : mul(toRest(el.parent), own(el, false)))
 
 // A shape's corners in its own units, its stroke included; a text's from the
 // same estimate the drawing fits its words by.
@@ -1697,8 +1699,11 @@ function corners(el: El): [number, number][] {
     })
     return [-width / 2, width / 2].flatMap(x => [at('y') + top, at('y') + bottom].map(y => [x, y] as [number, number]))
   }
+  // A polygon's points, and a path drawn with M, L, Q, C and Z alone, whose curves stay inside their control points.
+  const points = el.tag === 'polygon' ? el.attrs.points : el.tag === 'path' && /^[MLQCZ\d\s.,-]+$/.test(el.attrs.d ?? '') ? el.attrs.d : ''
+  const xy = nums(points)
 
-  return []
+  return xy.flatMap((x, i) => (i % 2 === 0 ? box(x, xy[i + 1] ?? 0, x, xy[i + 1] ?? 0) : []))
 }
 
 // The part of the drawing box the svg shows.
@@ -1804,26 +1809,6 @@ test("the review's marks never overlap, even at their peak", () => {
   }
 })
 
-test("the gauge's bands change colour where the zones start", () => {
-  for (const [kind, percent] of [
-    ['context', 76],
-    ['redzone', 92],
-  ] as const) {
-    const root = parse(drawFx(kind, 1000, 'Zone!', '', percent))
-    const [x0 = 0, y0 = 0] = nums(/translate\(([^)]*)\)/.exec(named(root, 'needle')[0]?.attrs.transform ?? '')?.[1])
-    const at = (x = 0, y = 0) => Math.round(1000 * (1 - Math.atan2(y0 - y, x - x0) / Math.PI)) / 10
-    const edges = named(root, 'band').map(band => {
-      const [x1, y1, , , , , , x2, y2] = nums(band.attrs.d)
-      return [at(x1, y1), at(x2, y2)]
-    })
-    expect(edges).toEqual([
-      [0, YELLOW],
-      [YELLOW, RED],
-      [RED, 100],
-    ])
-  }
-})
-
 test('a puff of smoke shrinks away whole: no circle in it fades on its own', () => {
   const puffs = DRAWN.flatMap(([kind, title, subtitle, value]) => named(parse(drawFx(kind, 1000, title, subtitle, value)), 'puff'))
   expect(puffs.length).toBeGreaterThan(10)
@@ -1878,5 +1863,97 @@ test('the picked cherries, the zipper slider, the jack and the moved blocks land
     expect(shapes.length).toBeGreaterThan(1)
     const out = shapes.flatMap(shape => corners(shape).map(corner => apply(toView(shape), corner))).filter(point => outside(view, point))
     expect(out).toEqual([])
+  }
+})
+
+test('the rocket stands inside the view on its pad, and leaves through the top', () => {
+  const root = parse(drawFx('push', 1000, 'Pushed!', LONG_BRANCH))
+  const view = viewOf(root)
+  const [rocket] = named(root, 'rocket')
+  // The flame flickers below the pad as the rocket waits; only the rocket is measured.
+  const flame = named(root, 'flame').flatMap(all)
+  const shapes = all(rocket ?? root).filter(e => e !== rocket && corners(e).length > 0 && !flame.includes(e))
+  expect(shapes.length).toBeGreaterThan(4)
+  const lift = (rocket?.children.find(e => e.tag === 'animateTransform')?.attrs.values ?? '').split(';').map(v => nums(v))
+
+  // Every corner of the rocket with its own move at `move`.
+  const at = (move: number[]) =>
+    shapes.flatMap(shape =>
+      corners(shape).map(corner => apply(mul(mul(toView(rocket?.parent ?? root), step('translate', move)), toView(shape, rocket)), corner)),
+    )
+  expect(at(lift[0] ?? []).filter(point => outside(view, point))).toEqual([])
+  expect(at(lift.at(-1) ?? []).filter(([, y]) => y >= view.top)).toEqual([])
+
+  const pad = named(root, 'pad')
+    .flatMap(all)
+    .filter(e => e.tag === 'rect')
+  expect(pad.flatMap(rect => corners(rect).map(corner => apply(toView(rect), corner))).filter(point => outside(view, point))).toEqual([])
+})
+
+test("the clipboard's ticks land in its boxes one after another, then the star, all inside the view", () => {
+  for (const subtitle of ['123456 passed', '']) {
+    const root = parse(drawFx('tests', 1000, 'All green!', subtitle))
+    const view = viewOf(root)
+    const boxes = named(root, 'box')
+    const ticks = named(root, 'tick')
+    expect(boxes).toHaveLength(4)
+    expect(ticks).toHaveLength(4)
+
+    // Each tick starts in its own box; boxes and ticks share the board's frame.
+    const starts = ticks.map(tick => nums(tick.attrs.d).slice(0, 2))
+    const inBoxes = starts.map(([x = 0, y = 0], i) => {
+      const at = (key: string) => Number(boxes[i]?.attrs[key] ?? 0)
+      return x > at('x') && x < at('x') + at('width') && y > at('y') && y < at('y') + at('height')
+    })
+    expect(inBoxes).toEqual([true, true, true, true])
+
+    const begins = ticks.map(tick => seconds(tick.children[0]?.attrs.begin))
+    expect(begins).toEqual([...begins].sort((a, b) => a - b))
+    expect(new Set(begins).size).toBe(4)
+    const [sticker] = named(root, 'sticker')
+    const slap = all(sticker ?? root).find(e => e.tag === 'animateTransform')
+    expect(seconds(slap?.attrs.begin)).toBeGreaterThan(Math.max(...begins))
+
+    const [board] = named(root, 'clipboard')
+    const shapes = all(board ?? root).filter(e => corners(e).length > 0)
+    expect(shapes.some(e => e.tag === 'polygon')).toBe(true)
+    expect(shapes.flatMap(shape => corners(shape).map(corner => apply(toRest(shape), corner))).filter(point => outside(view, point))).toEqual([])
+  }
+})
+
+test('the suitcase lands inside the view, with three things packed in the yellow and five in the red', () => {
+  for (const [kind, packed] of [
+    ['context', 3],
+    ['redzone', 5],
+  ] as const) {
+    for (const percent of [-5, 76, 92, 140]) {
+      const root = parse(drawFx(kind, 1000, 'Zone!', `context ${percent}% full`, percent))
+      const view = viewOf(root)
+      expect(named(root, 'load')).toHaveLength(packed)
+
+      const [suitcase] = named(root, 'suitcase')
+      const shapes = all(suitcase ?? root).filter(e => corners(e).length > 0)
+      expect(shapes.length).toBeGreaterThan(8)
+      expect(shapes.flatMap(shape => corners(shape).map(corner => apply(toView(shape), corner))).filter(point => outside(view, point))).toEqual([])
+    }
+  }
+})
+
+test("the googly eye's iris stays inside its white wherever it looks", () => {
+  for (const findings of [0, 3, 12]) {
+    const root = parse(drawFx('review', 1000, 'Reviewed!', `${findings} findings`, findings))
+    const [eye] = named(root, 'eye')
+    const [iris] = named(root, 'iris')
+    const white = Number(eye?.children.find(e => e.tag === 'circle')?.attrs.r ?? 0)
+    const looks = (iris?.children.find(e => e.tag === 'animateTransform')?.attrs.values ?? '').split(';').map(v => nums(v))
+    expect(new Set(looks.map(([x = 0]) => Math.sign(x)))).toEqual(new Set([-1, 0, 1]))
+
+    const far = Math.max(...looks.map(([x = 0, y = 0]) => Math.hypot(x, y)))
+    const reach = Math.max(
+      ...all(iris ?? root)
+        .filter(e => e.tag === 'circle')
+        .map(c => Math.hypot(Number(c.attrs.cx ?? 0), Number(c.attrs.cy ?? 0)) + Number(c.attrs.r ?? 0) + Number(c.attrs['stroke-width'] ?? 0) / 2),
+    )
+    expect(far + reach).toBeLessThanOrEqual(white)
   }
 })

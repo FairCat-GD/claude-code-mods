@@ -43,21 +43,24 @@ at 0.10.1, in the desktop app and in a terminal, and at 0.11.0 in the desktop ap
 played in its row. A `/code-review` with findings, and its fixes, were checked at 0.10.2 in the
 desktop app: both played beside the findings card.
 
-- **The queue in the desktop** (0.12.0): a command that tests, commits and pushes plays all three
-  under its row, one after another, and `/fx all` still plays all ten in its row (twelve from 0.13.0). Checked in a
-  `--plugin-dir` terminal session's strip; the tests cover the rows.
-- **The cherry and the zipper in the desktop** (0.13.0): a cherry-pick and a merge each play their
-  drawing under their row, and `/fx all` plays all twelve. Checked in a `--plugin-dir` terminal
-  session's strip, and the frames by eye; the tests cover the rows.
-- **The claw and the jack in the desktop** (0.14.0): a rebase and a pull request opened each play
-  their drawing under their row, and `/fx all` plays all fourteen. The rebase was checked in a
-  `--plugin-dir` terminal session's strip, `/fx pr` there too, and the frames by eye; the tests
-  cover the rows.
-- **The sizes in the desktop** (0.15.0): `/fx size small`, `medium` and `large`, each with
-  `/fx commit`, draw the stamp at 416 × 304, 546 × 399 and 832 × 608 under its row. The tests
-  check the size each drawing asks for; what the app makes of it was not seen.
-- **`/fx off` and the moving row** (0.15.0) were checked in `--plugin-dir` terminal sessions'
-  strip; the desktop's own view of a muted session was not.
+- **Round 3 in the desktop** (0.12.0 to 0.16.0). The installed release stayed at 0.11.1 through
+  the round, by the owner's choice, so none of it has been seen in the desktop app. After
+  `claude plugin update cartoon-fx`, in a new desktop session with no dialog open over the
+  conversation:
+  - `/fx all` plays all fourteen in its row, one after another, each whole: the four redone at
+    0.16.0 (the rocket, the clipboard, the suitcase in the yellow and in the red, the googly
+    eye), and the cherry, the zipper, the claw and the jack;
+  - a command that tests, commits and pushes plays all three under its row, in that order
+    (0.12.0);
+  - a cherry-pick, a merge and a rebase each play their drawing under their row (0.13.0,
+    0.14.0);
+  - `/fx size small`, `medium` and `large`, each with `/fx commit`, draw the stamp at
+    416 × 304, 546 × 399 and 832 × 608 under its row (0.15.0);
+  - after `/fx off`, a commit plays nothing, and `/fx on` plays again (0.15.0).
+
+  Each was checked in `--plugin-dir` terminal sessions' strip, and every new drawing's frames by
+  eye on a contact sheet. The tests cover the rows and the sizes each drawing asks for; what the
+  app makes of them was not seen.
 - **A pull request opened** (0.14.0): never run, since it is an action on GitHub. Built from the
   declarations and the CLI's code (2.1.325): `gh pr create` prints the new URL alone on stdout,
   and the engine reports `pr: { number, action: 'created' }`. Covered by the hook and detection
@@ -92,7 +95,7 @@ desktop app: both played beside the findings card.
 - **The move to the strip** (0.10.1): an effect whose row is scrolled out of view plays in the
   strip after about a second. Covered by the fallback tests.
 - **The zones in a live session** (0.10.1): the yellow at 75% and the red at 90%, each once. Covered
-  by the two gauge tests.
+  by the two zone tests.
 - **A compaction and live subagents** (0.10.1): the squish in the strip, and several subagents as
   one "×N helpers!". Covered by their tests.
 - **`/fx place bottom` across sessions** (0.10.1): set in one session, it applies in another open

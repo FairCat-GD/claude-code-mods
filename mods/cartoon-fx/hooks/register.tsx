@@ -58,7 +58,7 @@ const short = (text: string) => (text.length > 34 ? `${text.slice(0, 33)}…` : 
 const wordsOf = (effect: Shown) => (effect.subtitle ? `${effect.title} ${effect.subtitle}` : effect.title)
 
 // The effect's drawing, built once per effect: rows and the strip re-render on
-// every scroll, and the confetti alone is some 50,000 characters. An effect
+// every scroll, and the push's rocket alone is some 49,000 characters. An effect
 // keeps the size it was played at, so one id never stands for two sizes.
 let lastDrawing: { id: number; source: string } | undefined
 const svgOf = (effect: Shown) => {

@@ -11,17 +11,17 @@ It never changes or delays what Claude does; it only watches and draws.
 | A commit is made | a rubber stamp | "SAVED" and the short hash, or "AMENDED" for an amend |
 | A commit is cherry-picked | a gloved hand plucks a pair of cherries from a branch | "Cherry picked!" and the new commit's short hash |
 | A branch is rebased | an arcade claw lifts the branch's blocks off an old base and sets them on top of the main tower | "Rebased!" and the branch onto its new base, such as "topic onto main" |
-| A push updates a branch | confetti | "Pushed!" and the branch |
+| A push updates a branch | a rocket blasts off its pad in a burst of confetti | "Pushed!" and the branch |
 | A pull request is opened | a jack-in-the-box springs open, and the jack wobbles on its spring | "PR opened!" and its number |
 | A branch is merged | a zipper closes two strands into one | "Merged!" and the branch |
-| A test or verify run passes | a checkmark badge | "All green!" and the number passed |
-| A code review finishes | a magnifying glass sweeps a page of code | "Reviewed!" and the number of findings, or "no findings, all clear" |
+| A test or verify run passes | a pencil ticks off a clipboard, and a gold star slaps on | "All green!" and the number passed |
+| A code review finishes | a magnifying glass with a googly eye sweeps a page of code | "Reviewed!" and the number of findings, or "no findings, all clear" |
 | Fixes from a review are applied | a bug is swatted | "Bugs squashed!" and how many were fixed |
 | A commit of review fixes is made | a bug is swatted, in place of the stamp | "Bugs squashed! review fixes" and the hash |
 | The conversation is compacted | a press squishes pages into a cube | "Squished!" and the tokens before → after |
 | Subagents start | a smoke bomb bursts and ninja helpers leap out, land and strike a pose | "Helper out!" and its task, or "×N helpers!" |
-| The context window reaches 75% | a gauge swings into the yellow | "Yellow zone!" and the percentage |
-| The context window reaches 90% | a gauge slams into the red | "Red zone!" and the percentage |
+| The context window reaches 75% | things are packed into a suitcase, and the lid slams on a bulge | "Yellow zone!" and the percentage |
+| The context window reaches 90% | a stuffed suitcase rattles and bursts open, a sock springing out | "Red zone!" and the percentage |
 
 Each stays on screen for about three to four seconds.
 
@@ -29,8 +29,8 @@ Each stays on screen for about three to four seconds.
   three can wait; a fourth is skipped, and so is one whose turn would come more than 12 seconds
   after it happened.
 - **One command plays everything it did, in the order it ran.** `npm test && git commit &&
-  git push` plays the checkmark, the stamp, then the confetti. A push that fills the context
-  window past 75% plays its confetti, then the gauge.
+  git push` plays the clipboard, the stamp, then the rocket. A push that fills the context
+  window past 75% plays its rocket, then the suitcase.
 - **Nothing plays for a failure:** a plan you turn down, a failed or rejected push, a dry run, a
   push with nothing to push, a test run that reports any failure, or fixes where none were fixed.
 - **The zones play once on the way in.** The yellow plays again only after the window drops below

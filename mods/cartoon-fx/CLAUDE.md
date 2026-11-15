@@ -1,10 +1,11 @@
 # cartoon-fx
 
 cartoon-fx plays a short cartoon animation when something worth marking happens in a session: an
-accepted plan, a commit, a push, a passing test run, a finished code review and its fixes, a
-compaction, subagents starting, and the context window reaching its yellow and red zones. The
-desktop app draws each one as SVG under the conversation row that set it off, or in the strip
-above the prompt; the terminal draws a row of coloured glyphs in that strip. `/fx` replays them.
+accepted plan, a commit, a cherry-pick, a rebase, a push, a pull request opened, a merge, a
+passing test run, a finished code review and its fixes, a compaction, subagents starting, and the
+context window reaching its yellow and red zones. The desktop app draws each one as SVG under the
+conversation row that set it off, or in the strip above the prompt; the terminal draws a row of
+coloured glyphs in that strip. `/fx` replays them.
 
 The root `CLAUDE.md` holds the rules and practices every mod follows; this file adds only what is
 this mod's own.

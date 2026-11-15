@@ -6,6 +6,23 @@ All notable changes to cartoon-fx are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-11-15
+
+Four of the animations are redrawn to be more fun. Each still plays for as long as before.
+
+### Changed
+
+- **A push launches a rocket.** It shakes on its pad, blasts off through a cloud of smoke and
+  shoots out of the top, leaving puffs behind it, as confetti bursts from the pad and "Pushed!"
+  pops with the branch.
+- **A passing test run ticks a clipboard.** A pencil ticks its boxes one after another, then a
+  gold star slaps on, and "All green!" pops with the count.
+- **The context window's zones pack a suitcase.** In the yellow, things drop onto an open
+  suitcase and the lid slams them in, a sleeve left sticking out. In the red, more go in, and the
+  stuffed case rattles and bursts open, a sock springing out and steam puffing.
+- **A code review's magnifying glass has a googly eye.** A giant eye in the glass looks the way
+  it moves down the page, then blinks.
+
 ## [0.15.0] — 2026-11-15
 
 ### Added

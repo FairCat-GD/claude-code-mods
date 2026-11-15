@@ -23,7 +23,7 @@ export type Placement = 'conversation' | 'bottom'
 export type Size = 'small' | 'medium' | 'large'
 
 // The effect on show: its identity (id), which one, which drawing of it (seed),
-// its words, the helper count, number of findings or context percentage it draws
+// its words, the helper count, number of findings or context percentage
 // (value), when it ends, the size it is drawn at, the terminal row's frame
 // (absent before the first), and the conversation row it plays in
 // (`tool:<id>`, `fx:(take N)` or `reply:<text>`), if any.

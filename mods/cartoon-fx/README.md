@@ -2,13 +2,13 @@
 
 Short cartoon animations for the moments worth marking in a Claude Code session:
 - a clapperboard for an accepted plan;
-- a stamp for a commit, a picked cherry for a cherry-pick, and confetti for a push;
+- a stamp for a commit, a picked cherry for a cherry-pick, and a rocket for a push;
 - a claw stacking blocks for a rebase, and a jack-in-the-box for a pull request opened;
 - a zipper closing two strands into one for a merge;
-- a checkmark for a passing test run;
-- a magnifying glass for a finished code review, and a swatted bug for its fixes;
+- a ticked clipboard for a passing test run;
+- a googly-eyed magnifying glass for a finished code review, and a swatted bug for its fixes;
 - a squish for a compaction, and ninja helpers for subagents;
-- a gauge as the context window reaches its yellow and red zones.
+- an overstuffed suitcase as the context window reaches its yellow and red zones.
 
 In the desktop app each one plays under the conversation row that set it off, or in the strip
 above the prompt. The terminal shows the words in that strip, with coloured glyphs flying out from them.
