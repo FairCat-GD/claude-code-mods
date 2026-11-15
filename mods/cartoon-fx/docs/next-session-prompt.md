@@ -45,13 +45,11 @@ Then do Session T2: a pull request opened, and a rebase finished. Release 0.14.0
   the queue should too.
 - **Review fixes wait for the owner's word.** After `/code-review`, report the findings and ask
   which to fix before any edit.
-- **Push status.** `origin/main` holds everything through Q1's review commit. Waiting locally:
-  - Q1's push-status handoff commit;
-  - repo Session 3c's `feat: npm run new-mod makes a mod from the template` and its review
-    commit, which are not this mod's;
-  - T1's commit and its review commit.
-
-  List `origin/main..HEAD` before any push, and name any commit that is not this mod's.
+- **Push status.** T1's commits were pushed on 2026-11-15 with the owner's approval, with Q1's
+  handoff commit and repo Session 3c's two. `origin/main` holds everything through T1's review
+  commit (`review(cartoon-fx): a commit no longer picks a cherry too, and 8 smaller`). Only T1's
+  push-status handoff commit waits locally. List `origin/main..HEAD` before any push, and name
+  any commit that is not this mod's; parallel repo sessions share this checkout.
 - **The owner installs once the round is done.** The installed release stays 0.11.1 while T2,
   C1 and A2 run (the owner's call, 2026-11-15): do not ask for `claude plugin update cartoon-fx`
   after each push. Every desktop check waits for that update and stays in `docs/BACKLOG.md`'s
