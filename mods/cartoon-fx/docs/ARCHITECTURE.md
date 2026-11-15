@@ -28,10 +28,10 @@ One effect is on show at a time. The others wait their turn in a queue.
 |---|---|---|
 | `hooks/register.tsx` | 727 | the hooks, the queue, playing and placement, muting and size |
 | `hooks/detect.ts` | 395 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
-| `hooks/fx.ts` | 1508 | the fourteen drawings, their SMIL helpers, fitting words, the three sizes, and the terminal's row |
+| `hooks/fx.ts` | 1510 | the fourteen drawings, their SMIL helpers, fitting words, the three sizes, and the terminal's row |
 | `hooks/zones.ts` | 7 | the yellow and red zones and their resets |
 | `types/index.d.ts` | 47 | `FxKind`, `Placement`, `Size`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 1959 | 86 tests |
+| `tests/cartoon-fx.test.tsx` | 1977 | 87 tests |
 
 ## The invariants
 
@@ -248,11 +248,11 @@ One effect is on show at a time. The others wait their turn in a queue.
   | `commit` | a rubber stamp leaves SAVED or AMENDED and the hash | 2300 |
   | `cherry` | a gloved hand plucks a pair of cherries; the branch bends, snaps back and wobbles | 2600 |
   | `rebase` | an arcade claw lifts two purple blocks off a grey base and sets them on the blue tower, with a bump | 2900 |
-  | `push` | a rocket shakes on its pad, lifts off through its smoke at 0.45 s and speeds out of the top, leaving puffs behind; 30 pieces of confetti burst from the pad | 2600 |
+  | `push` | a rocket shakes on its pad, lifts off through its smoke at 0.45 s and speeds out of the top, leaving puffs behind; 30 pieces of confetti burst from the pad, each falling for at most 2 s | 2600 |
   | `pr` | a crank turns, a jack-in-the-box's lid flops open, and a party-hatted jack springs out and wobbles | 2600 |
   | `merge` | a zipper slider runs along two strands, blue and purple, closing them into one; it bounces as it lands | 2700 |
   | `tests` | a pencil ticks a tilted clipboard's four boxes, one after another, then a gold star slaps on | 2400 |
-  | `review` | a magnifying glass zigzags down a page, a giant googly eye in it looking the way it goes, then blinking; a red "!" after each flagged line (up to 4) as the glass reaches it, or a green check | 2800 |
+  | `review` | a magnifying glass zigzags down a page, a giant googly eye in it looking the way it goes, then blinking; a red "!" after each flagged line (up to 4) as the glass reaches it, or a green check, drawn over the glass | 2800 |
   | `fixes` | a bug walks in and is swatted | 2700 |
   | `compact` | a press squishes pages into a cube | 2600 |
   | `helpers` | a smoke bomb drops and bursts; up to five pixel ninjas leap out in front of the smoke, land and hold a victory pose | 2600 |
@@ -407,7 +407,7 @@ It uses no network, process or file access.
 
 The repository's six layers (the root `docs/ARCHITECTURE.md`, *Testing strategy*) apply. For this
 mod:
-- **`claude plugin test`** runs the 86 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 87 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`), so a queue test moves it a turn at a time (`slot`: length + hold +
     gap) and reads which effect each row or the strip draws.
@@ -435,7 +435,7 @@ mod:
     Their output and the engine's reports are fictional, shaped on what each tool prints and
     what the engine was measured to report: git's and node's as measured on this machine (node
     26.7.0), the other new runners' from their documented output, since none is installed here.
-  - Eleven read `drawFx`'s output back as structure, for every kind with the longest words the
+  - Twelve read `drawFx`'s output back as structure, for every kind with the longest words the
     mod gives it and the extremes of its value. A small parser in the test file finds the named
     pieces and composes their transforms. It takes an animated translate at its last value, and
     an animated scale at its peak, or where it settles. It reads the corners of rects, circles,
@@ -448,13 +448,16 @@ mod:
     - the marks never touch;
     - no puff circle fades on its own;
     - the helpers are drawn after the smoke and fade no sooner than the label;
-    - the rocket stands inside the view on its pad, and its last move takes it wholly above the
-      view (the flame, which flickers below the pad, is left out);
+    - every drawing ends within its length: no piece that does not repeat animates past
+      `FX_MS`;
+    - the rocket stands inside the view with its fins on its pad, and its last move takes it
+      wholly above the view (the flame, which flickers below the pad, is left out);
     - the clipboard's four ticks each start in their box, one after another, before the star,
       and the board comes to rest inside the view;
     - the suitcase lands inside the view, with three things packed in the yellow and five in
-      the red, at every percentage;
-    - the googly eye's iris looks both ways and stays inside its white at every offset.
+      the red;
+    - the googly eye's iris looks both ways and stays inside its white at every offset, and
+      the marks are drawn over the glass, whose eye would hide them as they pop.
 - **What the kit cannot see:**
   - what an `<Svg>` actually paints, or whether the app runs its SMIL: the structural tests
     check the geometry the code writes, with text widths estimated, and the frames are checked
@@ -623,7 +626,7 @@ In `docs/BACKLOG.md` under *Deferred*:
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 86 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 87 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |

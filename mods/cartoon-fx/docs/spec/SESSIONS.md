@@ -941,3 +941,24 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
   - `hooks/fx.ts` 1508 lines (+184), `tests/cartoon-fx.test.tsx` 1959 (+77), `hooks/zones.ts` 7
     (−1); 19 tracked files, unchanged.
   - The checks ran on CLI 2.1.325, node 26.7.0.
+- **Review (`/code-review high`), 6 findings: 6 fixed, 0 skipped.** The owner said to fix all.
+  - **The review's marks show over the glass.** The eye's opaque white had replaced the
+    translucent glass, and each "!" pops as the glass reaches its line, so it popped hidden under
+    the eye. The marks, and the clean review's check, are now drawn after the lens.
+  - **The push ends within its length.** The confetti, now bursting at lift-off, faded at about
+    2.85 s against the push's 2.6. Each piece now falls for at most 2 s. A new test checks every
+    drawing: no piece that does not repeat animates past its `FX_MS`. The push was the only one
+    past it.
+  - **The rocket's fins rest on its pad,** which its test's name claimed and now checks.
+  - **Smaller fixes:**
+    - the lid's hinge is placed from `CASE_TOP`;
+    - the star's comment says 2.4 times;
+    - the suitcase test draws each zone once, since the percentage draws nothing;
+    - `CHANGELOG.md` links 0.16.0 to the session commit.
+  - **Frames:** the contact sheet was rebuilt with the fixes, and the owner looked again: "All
+    good".
+  - **Falsified,** each failing its own test alone (86 pass, 1 fail): the confetti's old length;
+    the marks drawn under the glass; the rocket 36 units over its pad. The hinge has no check of
+    its own.
+  - **Numbers after the review:** 87 tests (+1); `validate` 13 / 5 / 4; `tsc` and imports clean;
+    `hooks/fx.ts` 1510 lines, `tests/cartoon-fx.test.tsx` 1977.

@@ -326,7 +326,8 @@ function confettiPiece(rnd: () => number, color: string, x: number, y: number, s
   const side = (rnd() * 2 - 1) * 540
   const drag = 2.6 + rnd() * 1.4
   const gravity = 430
-  const dur = 1.7 + rnd() * 0.6
+  // It falls for at most two seconds, so a burst at lift-off still ends with the push.
+  const dur = 1.5 + rnd() * 0.5
   const begin = start + rnd() * 0.1
   const sway = 6 + rnd() * 10
   const swayRate = 4 + rnd() * 4
@@ -513,7 +514,7 @@ function clipboard(rnd: () => number, title: string, subtitle: string): string {
       animate('stroke-dashoffset', [10, 0], { dur: 0.12, begin: TICKED[i] ?? 0 }) +
       `</path>`,
   ).join('')
-  // The star slaps on from twice its size.
+  // The star slaps on from 2.4 times its size.
   const sticker =
     `<g class="sticker" transform="translate(${CX + 44} ${BOARD_TOP + 16}) rotate(-14)"><g transform="scale(0)">` +
     animateTransform('scale', ['2.4', '0.88', '1.06', '1'], { dur: 0.3, begin: STAR_AT, keyTimes: [0, 0.5, 0.8, 1] }) +
@@ -872,7 +873,8 @@ function review(rnd: () => number, title: string, subtitle: string, findings: nu
     sparkle(CX - 80 + i * 40 + rnd() * 10, top - 10 + rnd() * 16, 5 + rnd() * 4, i % 2 ? '#4D96FF' : '#FFD23F', 1.3 + rnd() * 0.3),
   ).join('')
 
-  return thePage + marks + theLens + twinkles + label(title, subtitle, { y: 145, fill: '#6FB6FF', begin: 1.3, dur: 1.4, size: 26, rotate: -4 })
+  // The marks are drawn over the glass, whose eye would hide them as they pop.
+  return thePage + theLens + marks + twinkles + label(title, subtitle, { y: 145, fill: '#6FB6FF', begin: 1.3, dur: 1.4, size: 26, rotate: -4 })
 }
 
 // ---- fixes: a bug walks in and gets swatted -------------------------------
@@ -1022,7 +1024,7 @@ function clapper(rnd: () => number, title: string, subtitle: string): string {
 const CASE_TOP = 80
 const CASE_BOTTOM = 124
 // The lid's hinge, at the case's back edge.
-const HINGE = `${CX - 60} 82`
+const HINGE = `${CX - 60} ${CASE_TOP + 2}`
 // The red one's lid bursts open a crack at these times, a sock springing out.
 const BURSTS = [1.3, 1.75]
 

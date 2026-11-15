@@ -1881,13 +1881,18 @@ test('the rocket stands inside the view on its pad, and leaves through the top',
     shapes.flatMap(shape =>
       corners(shape).map(corner => apply(mul(mul(toView(rocket?.parent ?? root), step('translate', move)), toView(shape, rocket)), corner)),
     )
-  expect(at(lift[0] ?? []).filter(point => outside(view, point))).toEqual([])
+  const start = at(lift[0] ?? [])
+  expect(start.filter(point => outside(view, point))).toEqual([])
   expect(at(lift.at(-1) ?? []).filter(([, y]) => y >= view.top)).toEqual([])
 
+  // Its fins rest on the pad's top, strokes and all.
   const pad = named(root, 'pad')
     .flatMap(all)
     .filter(e => e.tag === 'rect')
-  expect(pad.flatMap(rect => corners(rect).map(corner => apply(toView(rect), corner))).filter(point => outside(view, point))).toEqual([])
+  const padCorners = pad.flatMap(rect => corners(rect).map(corner => apply(toView(rect), corner)))
+  expect(padCorners.filter(point => outside(view, point))).toEqual([])
+  const [bottom, padTop] = [Math.max(...start.map(([, y]) => y)), Math.min(...padCorners.map(([, y]) => y))]
+  expect(Math.abs(bottom - padTop)).toBeLessThanOrEqual(4)
 })
 
 test("the clipboard's ticks land in its boxes one after another, then the star, all inside the view", () => {
@@ -1926,22 +1931,24 @@ test('the suitcase lands inside the view, with three things packed in the yellow
     ['context', 3],
     ['redzone', 5],
   ] as const) {
-    for (const percent of [-5, 76, 92, 140]) {
-      const root = parse(drawFx(kind, 1000, 'Zone!', `context ${percent}% full`, percent))
-      const view = viewOf(root)
-      expect(named(root, 'load')).toHaveLength(packed)
+    const root = parse(drawFx(kind, 1000, 'Zone!', 'context 92% full', 92))
+    const view = viewOf(root)
+    expect(named(root, 'load')).toHaveLength(packed)
 
-      const [suitcase] = named(root, 'suitcase')
-      const shapes = all(suitcase ?? root).filter(e => corners(e).length > 0)
-      expect(shapes.length).toBeGreaterThan(8)
-      expect(shapes.flatMap(shape => corners(shape).map(corner => apply(toView(shape), corner))).filter(point => outside(view, point))).toEqual([])
-    }
+    const [suitcase] = named(root, 'suitcase')
+    const shapes = all(suitcase ?? root).filter(e => corners(e).length > 0)
+    expect(shapes.length).toBeGreaterThan(8)
+    expect(shapes.flatMap(shape => corners(shape).map(corner => apply(toView(shape), corner))).filter(point => outside(view, point))).toEqual([])
   }
 })
 
-test("the googly eye's iris stays inside its white wherever it looks", () => {
+test("the googly eye's iris stays inside its white wherever it looks, and the marks show over the glass", () => {
   for (const findings of [0, 3, 12]) {
     const root = parse(drawFx('review', 1000, 'Reviewed!', `${findings} findings`, findings))
+    const order = all(root)
+    const [lens] = named(root, 'lens')
+    const behind = Math.max(...all(lens ?? root).map(e => order.indexOf(e)))
+    expect(named(root, 'mark').filter(mark => order.indexOf(mark) < behind)).toEqual([])
     const [eye] = named(root, 'eye')
     const [iris] = named(root, 'iris')
     const white = Number(eye?.children.find(e => e.tag === 'circle')?.attrs.r ?? 0)
@@ -1956,4 +1963,15 @@ test("the googly eye's iris stays inside its white wherever it looks", () => {
     )
     expect(far + reach).toBeLessThanOrEqual(white)
   }
+})
+
+test('every drawing ends within its length: no piece animates past FX_MS', () => {
+  const late = DRAWN.flatMap(([kind, title, subtitle, value]) =>
+    all(parse(drawFx(kind, 1000, title, subtitle, value)))
+      .filter(e => e.tag.startsWith('animate') && e.attrs.repeatCount === undefined)
+      .map(e => seconds(e.attrs.begin) + seconds(e.attrs.dur))
+      .filter(end => end * 1000 > FX_MS[kind] + 1e-6)
+      .map(end => `${kind} ${end.toFixed(2)} s`),
+  )
+  expect(late).toEqual([])
 })

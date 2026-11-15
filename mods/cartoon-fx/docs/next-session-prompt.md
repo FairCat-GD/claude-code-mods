@@ -26,7 +26,7 @@ ask what it leaves open, and plan the round in this mod's `docs/spec/`, a Read l
   effects (declined at round 3's intake), and whether `docs/ARCHITECTURE.md` moves to the
   workflow's Decided/Built outline, which is the owner's call at an intake.
 - **The CLI on PATH is 2.1.325,** and so is the desktop's engine.
-- **Baseline** (`docs/ARCHITECTURE.md`, v0.16.0, CLI 2.1.325): 86 tests; `validate` 13 hooks, 5
+- **Baseline** (`docs/ARCHITECTURE.md`, v0.16.0, CLI 2.1.325): 87 tests; `validate` 13 hooks, 5
   gating (each with a `.catch`), 4 state keys, and no warning but the allowed `CLAUDE.md` one; `tsc`
   and the import scan clean.
 
