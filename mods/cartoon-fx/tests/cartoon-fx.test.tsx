@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { Mounted, TestBody } from 'claude-code/testing'
 
-import { cherryPicked, committed, isReviewFix, mergesOf, pushedBranch, ranAt, testsPassed } from '../hooks/detect'
+import { cherryPicked, committed, isReviewFix, mergesOf, prOpened, pushedBranch, ranAt, rebasedWith, testsPassed } from '../hooks/detect'
 import type { BashOutput } from '../hooks/detect'
 import { drawFx, FX_MS, textBox } from '../hooks/fx'
 import { RED, YELLOW } from '../hooks/zones'
@@ -493,16 +493,18 @@ test('/fx all plays every animation in its own output row, one after another', a
   await start($)
 
   const ran = await $.command.run(fx('all'))
-  expect(ran.text).toBe('playing plan, commit, cherry, push, merge, tests, review, fixes, compact, helpers, context, redzone (take 1)')
+  expect(ran.text).toBe('playing plan, commit, cherry, rebase, push, pr, merge, tests, review, fixes, compact, helpers, context, redzone (take 1)')
   const row = await $.ui.mount(fxOutput('out1', ran.text ?? ''))
   const alt = async () => (await row.find({ type: 'Svg' }))?.props.alt
 
-  // Twelve samples, past the three real moments that may wait: a replay is exempt.
+  // Fourteen samples, past the three real moments that may wait: a replay is exempt.
   const played: [FxKind, string][] = [
     ['plan', "Action! let's build!"],
     ['commit', 'SAVED 5e81772'],
     ['cherry', 'Cherry picked! 1a2b3c4'],
+    ['rebase', 'Rebased! topic onto main'],
     ['push', 'Pushed! main'],
+    ['pr', 'PR opened! #42'],
     ['merge', 'Merged! feature/login'],
     ['tests', 'All green! 42 passed'],
     ['review', 'Reviewed! 3 findings'],
@@ -546,7 +548,7 @@ test('/fx names what it has when asked for something else', async ($, on) => {
 
   const ran = await $.command.run(fx('fireworks'))
   expect(ran.text).toBe(
-    'cartoon-fx has no "fireworks". Try: plan, commit, cherry, push, merge, tests, review, fixes, compact, helpers, context, redzone or all.',
+    'cartoon-fx has no "fireworks". Try: plan, commit, cherry, rebase, push, pr, merge, tests, review, fixes, compact, helpers, context, redzone or all.',
   )
 })
 
@@ -731,6 +733,16 @@ const mergedBranch = (ref: string) => ({
   interrupted: false,
   gitOperation: { branch: { ref, action: 'merged' } },
 })
+// A finished rebase as git prints it to a pipe, its progress included, and the engine's report.
+const REBASED = {
+  stdout: 'Rebasing (1/2)\rRebasing (2/2)\rSuccessfully rebased and updated refs/heads/topic.\n',
+  stderr: '',
+  interrupted: false,
+  gitOperation: { branch: { ref: 'main', action: 'rebased' } },
+}
+// What `gh pr create` prints to a pipe: the new pull request's URL.
+const PR_42 = 'https://github.com/someone/repo/pull/42'
+const OPENED = { stdout: `${PR_42}\n`, stderr: '', interrupted: false, gitOperation: { pr: { number: 42, url: PR_42, action: 'created' } } }
 
 test('a cherry-pick picks a cherry in its row, with the hash, and stamps nothing', async ($, on) => {
   engine(on, PICKED)
@@ -759,6 +771,48 @@ test('a merged pull request zips with its number', async ($, on) => {
   const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
 
   expect((await row.find({ type: 'Svg' }))?.props.alt).toBe('Merged! #42')
+  await row.unmount()
+})
+
+test('a finished rebase moves the blocks in its row: the branch, onto its new base', async ($, on) => {
+  engine(on, REBASED)
+  await start($)
+  await $.tool.call({ tool: 'Bash', command: 'git rebase main', tool_use_id: 't1' })
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+
+  expect((await row.find({ type: 'Svg' }))?.props.alt).toBe('Rebased! topic onto main')
+  await row.unmount()
+})
+
+test('a pull request opened springs the jack in its row, with its number', async ($, on) => {
+  engine(on, OPENED)
+  await start($)
+  await $.tool.call({ tool: 'Bash', command: 'gh pr create --fill', tool_use_id: 't1' })
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+
+  expect((await row.find({ type: 'Svg' }))?.props.alt).toBe('PR opened! #42')
+  await row.unmount()
+})
+
+test('git rebase && git push && gh pr create plays the claw, the confetti, then the jack', async ($, on) => {
+  const { clock } = engine(on, {
+    stdout: `${REBASED.stdout}${OPENED.stdout}`,
+    stderr: 'To github.com:someone/repo.git\n + 1a2b3c4...5e81772 topic -> topic (forced update)\n',
+    interrupted: false,
+    gitOperation: { branch: REBASED.gitOperation.branch, push: { branch: 'topic' }, pr: OPENED.gitOperation.pr },
+  })
+  await start($)
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+  const alt = async () => (await row.find({ type: 'Svg' }))?.props.alt
+
+  await $.tool.call({ tool: 'Bash', command: 'git rebase main && git push --force-with-lease && gh pr create --fill', tool_use_id: 't1' })
+  expect(await alt()).toBe('Rebased! topic onto main')
+  await clock.advance(slot('rebase'))
+  expect(await alt()).toBe('Pushed! topic')
+  await clock.advance(slot('push'))
+  expect(await alt()).toBe('PR opened! #42')
+  await clock.advance(slot('pr'))
+  expect(await alt()).toBeUndefined()
   await row.unmount()
 })
 
@@ -1129,6 +1183,52 @@ test('a merge plays the branch its part names, and only when git says that part 
   expect(mergesOf('git merge topic', out("Merge made by the 'ort' strategy."))).toEqual([])
 })
 
+test("a rebase plays the branch git updated, onto the base its part names, on the engine's report", () => {
+  const rebased = (ref = 'main', stdout = REBASED.stdout) => ({ ...out(stdout), gitOperation: { branch: { ref, action: 'rebased' } } })
+  expect(rebasedWith('git rebase main', rebased())).toBe('topic onto main')
+  expect(rebasedWith('git rebase -i --autosquash main', rebased())).toBe('topic onto main')
+  expect(rebasedWith('git -C app rebase origin/main', rebased('origin/main'))).toBe('topic onto origin/main')
+  // The engine's ref is the next word split at spaces; the part's base is the one git took.
+  expect(rebasedWith('git rebase -X theirs main', rebased('theirs'))).toBe('topic onto main')
+  expect(rebasedWith('git rebase --exec "npm test" main', rebased('"npm'))).toBe('topic onto main')
+  expect(rebasedWith('git rebase main; git status', rebased('main;'))).toBe('topic onto main')
+  expect(rebasedWith('git rebase --onto main old-base topic', rebased())).toBe('topic onto main')
+  expect(rebasedWith('git rebase --onto=release/2 old-base', rebased('old-base'))).toBe('topic onto release/2')
+  // Either half alone where the other has no name, or no words.
+  const detached = 'Rebasing (1/1)\rSuccessfully rebased and updated detached HEAD.\n'
+  expect(rebasedWith('git rebase -i HEAD~3', rebased('HEAD~3'))).toBe('topic')
+  expect(rebasedWith('git rebase main', rebased('main', detached))).toBe('onto main')
+  expect(rebasedWith('git rebase HEAD~3', rebased('HEAD~3', detached))).toBe('')
+  expect(rebasedWith('git rebase main', rebased('main', 'Successfully rebased and updated refs/heads/fix.v2.\n'))).toBe('fix.v2 onto main')
+
+  // Nothing without the engine's report, in the background, or with no rebase part.
+  expect(rebasedWith('git rebase main', out(REBASED.stdout))).toBeUndefined()
+  expect(rebasedWith('git rebase main', { ...rebased(), backgroundTaskId: 'b1' })).toBeUndefined()
+  expect(rebasedWith('git commit -m "Before git rebase main"', rebased())).toBeUndefined()
+  expect(rebasedWith('git merge topic', mergedBranch('topic'))).toBeUndefined()
+})
+
+test("a pull request opened plays the number gh printed for it, on the engine's report", () => {
+  const created = (stdout: string, number = 42) => ({ ...out(stdout), gitOperation: { pr: { number, action: 'created' } } })
+  const url = (n: number) => `https://github.com/someone/repo/pull/${n}`
+  expect(prOpened('gh pr create --fill', created(`${url(42)}\n`))).toBe('#42')
+  expect(prOpened('GH_PROMPT_DISABLED=1 gh pr create --title "Add x" --body "Closes #7"', created(`${url(42)}\n`))).toBe('#42')
+  expect(prOpened('git push -u origin topic && gh pr create --fill', created(`${url(42)}\n`))).toBe('#42')
+  // The engine takes the last URL in the output; the create's own line comes first.
+  expect(prOpened('gh pr create --fill && gh pr view 7', created(`${url(42)}\ntitle:\tOlder one\nurl:\t${url(7)}\n`, 7))).toBe('#42')
+  // With no URL line of its own, the engine's number.
+  expect(prOpened('gh pr create --fill', created('Created pull request someone/repo#42\n'))).toBe('#42')
+
+  // gh's refusal behind "; echo done", a dry run, the background, a merge, a message: none.
+  const refused = `a pull request for branch "topic" into branch "main" already exists:\n${url(12)}\ndone`
+  expect(prOpened('gh pr create --fill; echo done', created(refused, 12))).toBeUndefined()
+  expect(prOpened('gh pr create --fill --dry-run', created(`Would have created a Pull Request with:\nbody:\tsee ${url(7)}\n`, 7))).toBeUndefined()
+  expect(prOpened('gh pr create --fill', { ...created(`${url(42)}\n`), backgroundTaskId: 'b1' })).toBeUndefined()
+  expect(prOpened('gh pr merge 42', { ...out(''), gitOperation: { pr: { number: 42, action: 'merged' } } })).toBeUndefined()
+  expect(prOpened('git commit -m "Next: gh pr create"', created(`${url(42)}\n`))).toBeUndefined()
+  expect(prOpened('gh pr create --fill', out(`${url(42)}\n`))).toBeUndefined()
+})
+
 test('a collapsed strip on the terminal drops every effect, even one with a row', async ($, on) => {
   const { clock } = engine(on, PUSHED)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
@@ -1181,7 +1281,16 @@ test('a session start empties the queue, and a timer set before it starts nothin
 })
 
 test('each moment is placed at the first part of the command that did it', () => {
-  const none = { push: undefined, commit: undefined, tests: undefined, cherry: undefined, merge: undefined, pr: undefined }
+  const none = {
+    push: undefined,
+    commit: undefined,
+    tests: undefined,
+    cherry: undefined,
+    rebase: undefined,
+    merge: undefined,
+    pr: undefined,
+    opened: undefined,
+  }
   expect(ranAt('npm test && git commit -m x && git push')).toEqual({ tests: 0, commit: 1, push: 2 })
   expect(ranAt('git commit -m x && git push && npm run verify | tail')).toEqual({ commit: 0, push: 1, tests: 2 })
   expect(ranAt('npm test && git commit -m x && npm test')).toEqual({ ...none, tests: 0, commit: 1 })
@@ -1192,6 +1301,8 @@ test('each moment is placed at the first part of the command that did it', () =>
   expect(ranAt('gp && npm test')).toEqual({ ...none, tests: 1 }) // an alias: only the engine knows
   expect(ranAt('git fetch && git merge origin/main && git cherry-pick 1a2b3c4 && gh pr merge 42')).toEqual({ ...none, merge: 1, cherry: 2, pr: 3 })
   expect(ranAt('git merge-base main topic; git log --grep=cherry-pick')).toEqual(none)
+  expect(ranAt('git rebase main && git push -f && gh pr create --fill')).toEqual({ ...none, rebase: 0, push: 1, opened: 2 })
+  expect(ranAt('git commit -m "then git rebase main and gh pr create"')).toEqual({ ...none, commit: 0 })
 })
 
 test('more runners count, each by what it prints for a pass', () => {
@@ -1369,6 +1480,11 @@ const DRAWN: [FxKind, string, string, number][] = [
   ['merge', 'Merged!', LONG_BRANCH, 0],
   ['merge', 'Merged!', '#123456789', 0],
   ['merge', 'Merged!', '', 0],
+  ['rebase', 'Rebased!', 'topic onto main', 0],
+  ['rebase', 'Rebased!', `${LONG_BRANCH} onto main`, 0],
+  ['rebase', 'Rebased!', '', 0],
+  ['pr', 'PR opened!', '#42', 0],
+  ['pr', 'PR opened!', '#123456789', 0],
   ['tests', 'All green!', '123456 passed', 0],
   ['tests', 'All green!', '', 0],
   ...[0, 1, 4, 12].map((n): [FxKind, string, string, number] => ['review', 'Reviewed!', n === 0 ? 'no findings, all clear' : `${n} findings`, n]),
@@ -1506,10 +1622,12 @@ test('the helpers land inside the view, in front of the smoke, and stay until th
   }
 })
 
-test('the picked cherries and the zipper slider land inside the view', () => {
+test('the picked cherries, the zipper slider, the jack and the moved blocks land inside the view', () => {
   for (const [kind, title, subtitle, cls] of [
     ['cherry', 'Cherry picked!', '5e81772', 'cherries'],
     ['merge', 'Merged!', 'feature/login', 'slider'],
+    ['pr', 'PR opened!', '#42', 'jack'],
+    ['rebase', 'Rebased!', 'topic onto main', 'blocks'],
   ] as const) {
     const root = parse(drawFx(kind, 1000, title, subtitle))
     const view = viewOf(root)

@@ -1,7 +1,7 @@
 {
   "name": "cartoon-fx",
-  "version": "0.13.0",
-  "description": "Cartoon animations in the conversation for accepted plans, commits, cherry-picks, pushes, merges, passing tests, finished code reviews, review fixes, compaction, subagents and a context window entering the yellow and red zones.",
+  "version": "0.14.0",
+  "description": "Cartoon animations in the conversation for accepted plans, commits, cherry-picks, rebases, pushes, pull requests opened, merges, passing tests, finished code reviews, review fixes, compaction, subagents and a context window entering the yellow and red zones.",
   "author": { "name": "FairCat-GD" },
   "license": "MIT",
   "types": "./types/index.d.ts"

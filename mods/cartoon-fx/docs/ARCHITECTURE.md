@@ -1,13 +1,13 @@
 # cartoon-fx — architecture, as built
 
-This is cartoon-fx as it stands at 0.13.0, written from its code. Every session that changes the
+This is cartoon-fx as it stands at 0.14.0, written from its code. Every session that changes the
 mod keeps it true.
 
 ## Overview
 
 cartoon-fx is one hooks module (`hooks/register.tsx`), with three helpers beside it:
-- `hooks/detect.ts` reads what a finished Bash call did: a push, a commit, a cherry-pick, a merge,
-  a passing test run;
+- `hooks/detect.ts` reads what a finished Bash call did: a push, a commit, a cherry-pick, a
+  rebase, a merge, a pull request opened, a passing test run;
 - `hooks/fx.ts` draws each effect as an animated SVG string;
 - `hooks/zones.ts` holds the context window's zones, which the hooks play by and the gauge
   draws.
@@ -26,12 +26,12 @@ One effect is on show at a time. The others wait their turn in a queue.
 
 | File | Lines | Holds |
 |---|---|---|
-| `hooks/register.tsx` | 654 | the hooks, the queue, playing and placement |
-| `hooks/detect.ts` | 332 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
-| `hooks/fx.ts` | 1123 | the twelve drawings, their SMIL helpers, and fitting words |
+| `hooks/register.tsx` | 665 | the hooks, the queue, playing and placement |
+| `hooks/detect.ts` | 393 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
+| `hooks/fx.ts` | 1295 | the fourteen drawings, their SMIL helpers, and fitting words |
 | `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
-| `types/index.d.ts` | 27 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 1522 | 70 tests |
+| `types/index.d.ts` | 41 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
+| `tests/cartoon-fx.test.tsx` | 1640 | 75 tests |
 
 ## The invariants
 
@@ -62,7 +62,7 @@ One effect is on show at a time. The others wait their turn in a queue.
 |---|---|---|---|
 | `session.start` | | a new or reloaded session | Clears `shown` (a reload drops the timers that would end it), takes up the stored placement, and registers `/fx` (`immediate`). |
 | `tool.call` (every tool) | ✓ | `ReportFindings`, and every finished call | `review` or `fixes` from a code review's report, in the row just before its card; then the context check. Registered first, so it is outermost (below). |
-| `tool.call` `{ tool: 'Bash' }` | ✓ | a finished Bash call | each of `tests`, `commit` (a review-fix commit as `fixes`), `cherry`, `push` and `merge` it did, in the order the command ran them. |
+| `tool.call` `{ tool: 'Bash' }` | ✓ | a finished Bash call | each of `tests`, `commit` (a review-fix commit as `fixes`), `cherry`, `rebase`, `push`, `pr` and `merge` it did, in the order the command ran them. |
 | `tool.call` `{ tool: 'ExitPlanMode' }` | ✓ | a plan the person accepted | `plan`, unless a teammate's plan still waits on its lead (`awaitingLeaderApproval`). |
 | `turn.complete` | | a finished turn | The context check. |
 | `session.compact` | ✓ | a compaction, not a precompute or a subagent's | `compact`, with tokens before and after. |
@@ -89,10 +89,15 @@ One effect is on show at a time. The others wait their turn in a queue.
     `merge-base` and the like) and git printed `Fast-forward` or `Merge made by`. `ref` is the
     first word after `merge` that does not start with `-`, so `git merge -m "Merge x" x` reports
     `"Merge`;
-  - reports `branch.action: 'rebased'` on `Successfully rebased`, its `ref` the first such word
-    after `rebase`: the upstream, not the branch rebased;
-  - reports a `pr` for `gh pr <verb>` (`merge` is `merged`, or `auto-merge-enabled` with
-    `--auto`), its number from a pull request's URL or "pull request …#N" in the output. `gh pr
+  - reports `branch: { ref, action: 'rebased' }` when the command has `git rebase` and git
+    printed `Successfully rebased`. `ref` is the first such word after `rebase`: the upstream,
+    not the branch rebased, and with no such word there is no report, so `git rebase --continue`
+    reports none. `git pull --rebase` reports none either. The report holds one `branch`, and the
+    rebase is read after the merge, so a command that rebases and merges reports the rebase;
+  - reports a `pr` for `gh pr <verb>` anywhere in the command, the first of `create`, `edit`,
+    `merge`, … that it finds (`merge` is `merged`, or `auto-merge-enabled` with `--auto`), and for
+    `glab mr <verb>`. Its number is from the last pull request URL in the output, else "pull
+    request …#N". `gh pr create` prints the new URL alone on its line, to a pipe as to a terminal. `gh pr
     merge` prints that line only to a terminal, and the Bash tool's output is not one, so a pull
     request Claude merges reports no `pr`;
   - reports a push only without `-n`/`--dry-run`, from the first ref line shaped `sha..sha` or
@@ -139,6 +144,19 @@ One effect is on show at a time. The others wait their turn in a queue.
   - where a `git pull` beside it leaves fewer `Fast-forward` or `Merge made by` lines than the
     pulls and merges in the command, since the engine reads the pull's line as the merge's.
   A `pr` of action `merged` plays with `#N`. A rebase plays no merge.
+- **A rebase** needs the engine's `branch` of action `rebased` and a part whose subcommand is
+  `rebase` (the engine's pattern also matches a quoted message). Its words are the branch from
+  git's `Successfully rebased and updated refs/heads/<branch>.` line, read anywhere, since git
+  prints its `Rebasing (n/m)` progress before it with `\r` (git 2.50.1, to a pipe), then `onto`
+  and the base from the part (`rebaseBase`): `--onto`'s value, else the first word past the
+  options and the values of `-s`, `-X`, `-x` and their long forms. A base with no ref's shape
+  (`HEAD~3`) is left out, and so is the branch on a detached HEAD: "topic onto main", "onto
+  main", "topic" or no words.
+- **A pull request opened** needs the engine's `pr` of action `created` and a part that starts,
+  after `LEAD`, with `gh pr create`, without `--dry-run`. It plays `#N` with the number of the
+  first line that is a pull request URL alone, the create's own, else the engine's. Output that
+  says one `already exists` plays nothing: gh's refusal prints the open one's URL on a line of
+  its own, which a `; echo done` would leave unmarked as an error.
 - **A review-fix commit** is one whose subject starts `review`, or starts `fix` and names a review.
   It plays `fixes` in place of the stamp.
 - **A passing test run** is a part that starts with one of `RUNNERS`
@@ -171,10 +189,12 @@ One effect is on show at a time. The others wait their turn in a queue.
   - The count shown is the largest count or tally, or none with only a mark.
 - **Calls in the background** (`backgroundTaskId`) count as none of these.
 - **One command may do several,** and each plays. `ranAt` gives the index of the first part that
-  pushed, committed, ran tests, cherry-picked, merged (`git merge`) or merged a pull request
-  (`gh pr merge`), and the Bash hook plays them in that order. `partsOf` keeps
+  pushed, committed, ran tests, cherry-picked, rebased, merged (`git merge`), merged a pull
+  request (`gh pr merge`) or opened one (`gh pr create`), and the Bash hook plays them in that
+  order. `partsOf` keeps
   the last command's parts, so one call splits its command once for all four readers. One the engine reported with no part of its own (an alias such as `gp`) comes after,
-  in the order tests, commit, cherry-pick, push, merge, pull request.
+  in the order tests, commit, cherry-pick, rebase, push, pull request opened, merge, pull request
+  merged.
 
 ## The drawings (`hooks/fx.ts`)
 
@@ -199,18 +219,21 @@ One effect is on show at a time. The others wait their turn in a queue.
   drift out and shrink to nothing. None fades, so no edge shows through a fill on any
   background.
 - **Names for the tests.** The pieces the structural tests read carry a `class`: `label`,
-  `lens`, `mark`, `band`, `needle`, `puff`, `helper`, `cherries` and `slider`. Nothing else reads
+  `lens`, `mark`, `band`, `needle`, `puff`, `helper`, `cherries`, `slider`, `jack`, `blocks` and
+  `claw`. Nothing else reads
   them.
 - **One drawing per kind.** `drawFx` takes its drawing from `DRAWINGS`, a record over `FxKind`,
   so a kind with no drawing does not type-check.
-- **The twelve effects and their lengths** (`FX_MS`):
+- **The fourteen effects and their lengths** (`FX_MS`):
 
   | Kind | Drawing | ms |
   |---|---|---|
   | `plan` | a clapperboard snaps shut | 2600 |
   | `commit` | a rubber stamp leaves SAVED or AMENDED and the hash | 2300 |
   | `cherry` | a gloved hand plucks a pair of cherries; the branch bends, snaps back and wobbles | 2600 |
+  | `rebase` | an arcade claw lifts two purple blocks off a grey base and sets them on the blue tower, with a bump | 2900 |
   | `push` | confetti, 46 pieces, with the branch | 2600 |
+  | `pr` | a crank turns, a jack-in-the-box's lid flops open, and a party-hatted jack springs out and wobbles | 2600 |
   | `merge` | a zipper slider runs along two strands, blue and purple, closing them into one; it bounces as it lands | 2700 |
   | `tests` | a checkmark badge with the count | 2400 |
   | `review` | a magnifying glass zigzags down a page; a red "!" after each flagged line (up to 4) as the glass reaches it, or a green check | 2800 |
@@ -342,21 +365,22 @@ It uses no network, process or file access.
 
 The repository's six layers (the root `docs/ARCHITECTURE.md`, *Testing strategy*) apply. For this
 mod:
-- **`claude plugin test`** runs the 70 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 75 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`), so a queue test moves it a turn at a time (`slot`: length + hold +
     gap) and reads which effect each row or the strip draws.
   - Rows are mounted on the `desktop` surface, and the terminal tests on `terminal`.
   - Fourteen cover the queue: a push then the gauge, and the gauge behind a push whose start is held
     on the clock (which only the hooks' registration order keeps in line); a test, commit and
-    push in that order, and a merge, cherry-pick and push in theirs; the cap and the limit; two effects in one millisecond; the move to the
+    push in that order, a merge, cherry-pick and push in theirs, and a rebase, push and pull
+    request opened in theirs; the cap and the limit; two effects in one millisecond; the move to the
     strip keeping its place, and a second effect in a row that is gone; a real moment during
     `/fx all`; a collapsed strip, on the desktop and on the terminal; a session start emptying
     the queue past a gap timer set before it, and forgetting a collapsed strip. Two `/fx` tests
-    step through all twelve samples and a takeover.
-  - Eleven tests cover the detection rules as plain functions, `ranAt` among them, and five hook
-    tests the rejected push behind `; echo done`, a cherry-pick, a commit and a cherry-pick in one
-    command, a merged branch and a merged pull request. Their output and the engine's reports are fictional, shaped on
+    step through all fourteen samples and a takeover.
+  - Thirteen tests cover the detection rules as plain functions, `ranAt` among them, and seven
+    hook tests the rejected push behind `; echo done`, a cherry-pick, a commit and a cherry-pick in
+    one command, a merged branch, a merged pull request, a rebase and a pull request opened. Their output and the engine's reports are fictional, shaped on
     what each tool prints and what the engine was measured to report: git's and node's as measured on this machine (node 26.7.0), the other new
     runners' from their documented output, since none is installed here.
   - Eight read `drawFx`'s output back as structure, for every kind with the longest words the
@@ -365,7 +389,8 @@ mod:
     an animated scale at its peak. They check:
     - each drawing stays under the `<Svg>` cap of 131,072 characters;
     - every label's peak box, the lens along its path, every helper where it lands, and the
-      picked cherries and the zipper's slider where they land lie inside the view;
+      picked cherries, the zipper's slider, the jack and the moved blocks where they land lie
+      inside the view;
     - the marks never touch;
     - the bands' edges equal the zones;
     - no puff circle fades on its own;
@@ -393,13 +418,16 @@ mod:
   At 0.13.0, in `--plugin-dir` terminal sessions (CLI 2.1.325) in a scratch repository, a
   cherry-pick played "Cherry picked! <sha>" and `git merge --no-ff side` played "Merged! side" in
   the strip, and the owner checked both drawings' frames before the commit.
+  At 0.14.0, in `--plugin-dir` terminal sessions (CLI 2.1.325), `git rebase main` in a scratch
+  repository played "Rebased! topic onto main" in the strip, and `/fx pr` played "PR opened!
+  #42"; the owner checked both drawings' frames before the commit. No pull request was opened.
   What nobody has checked by hand is in `docs/BACKLOG.md`.
 
 ## Packaging
 
 - **The release.** The owner installs the release from this repository's marketplace as
   `cartoon-fx@claude-code-mods`, at user scope. The installed copy is the mod's tracked files at
-  the pushed commit, every one of them (19 at 0.12.0), byte for byte. That includes `CLAUDE.md`,
+  the pushed commit, every one of them (19 at 0.14.0), byte for byte. That includes `CLAUDE.md`,
   `docs/` and the tests. It lives in
   `~/.claude/plugins/cache/claude-code-mods/cartoon-fx/<version>/`, and changes only when
   `claude plugin update cartoon-fx` finds a new version.
@@ -464,6 +492,14 @@ mod:
 - **A merge's words come from its own part,** not the engine's `ref`, which is the next word
   split at spaces alone: the message's first word in `git merge -m "…" topic`, or `topic;` in
   `git merge topic; git status`. The engine's report stays the trigger (decision 6).
+- **A rebase and a pull request opened play only on the engine's report** (decision 6), and
+  each needs its own part, as the cherry-pick does: the engine's patterns also match words in a
+  quoted message.
+- **A rebase's words come from git's line and the part,** not the engine's `ref`: the branch
+  rebased, then `onto` the base, settled with the owner at T2's start. The engine's `ref` is the
+  upstream split at spaces alone (`main;`, or `theirs` in `git rebase -X theirs main`).
+- **A pull request's number is the create's own line.** The engine takes the last pull request
+  URL anywhere in the output, so a `gh pr view` after the create would name another.
 - **An ambiguous merge plays nothing.** Where a pull beside it may have printed the only
   `Fast-forward`, a merge that moved nothing would play; skipping it costs a real merge beside
   a pull that moved nothing, the rarer case.
@@ -489,14 +525,17 @@ In `docs/BACKLOG.md` under *Deferred*:
 - a cast where the declarations don't name the shape: `awaitingLeaderApproval`;
 - a cherry-pick of several commits by one part shows the first hash, and one where git's lines
   don't pair with the parts shows the first line's;
-- a merge beside a pull that moved nothing plays nothing.
+- a merge beside a pull that moved nothing plays nothing;
+- a rebase finished by `git rebase --continue`, and `git pull --rebase`, play nothing (the
+  engine reports neither), and a command that rebases and merges plays the rebase alone;
+- a `glab mr create` the engine reports plays nothing (no `gh pr create` part).
 
-## Baseline (v0.13.0)
+## Baseline (v0.14.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 70 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 75 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |

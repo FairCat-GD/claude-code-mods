@@ -30,6 +30,8 @@ export const FX_MS: Record<FxKind, number> = {
   review: 2800,
   cherry: 2600,
   merge: 2700,
+  rebase: 2900,
+  pr: 2600,
 }
 
 export const COLORS = ['#FF5E5B', '#FFD23F', '#3BCEAC', '#4D96FF', '#B76EF0', '#FF9F1C', '#FF70A6', '#7BE04A']
@@ -1092,6 +1094,174 @@ function zipper(rnd: () => number, title: string, subtitle: string): string {
   )
 }
 
+// ---- pr: a jack-in-the-box springs out -------------------------------------
+
+// A metal rod, outlined so it reads on a dark background too.
+const rod = (x1: number, y1: number, x2: number, y2: number) =>
+  [
+    [INK, 5.5],
+    ['#9AA0AE', 2.5],
+  ]
+    .map(([color, width]) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" stroke-linecap="round"/>`)
+    .join('')
+
+// The box's mouth, where the lid hinges and the spring rises from.
+const BOX_X = 184
+const BOX_TOP = 74
+const BOX_FLOOR = 122
+// Where the jack's head lands, and how far below it starts, hidden in the box.
+const HEAD_Y = 46
+const HEAD_R = 16
+const RISE = { dur: 0.55, begin: 0.62, keyTimes: [0, 0.35, 0.6, 0.8, 1] }
+const RISEN = [60, -6, 5, -2, 0]
+
+function jack(rnd: () => number, title: string, subtitle: string): string {
+  // The spring zigzags from the head's chin to the box floor, flat there while hidden.
+  const spring = (drop: number) => {
+    const top = HEAD_Y + HEAD_R + drop
+    const at = (k: number) => n(top + ((BOX_FLOOR - top) * k) / 8)
+    const zigs = [1, 2, 3, 4, 5, 6, 7].map(k => `L${k % 2 ? CX - 10 : CX + 10},${at(k)}`).join(' ')
+    return `M${CX},${n(top)} ${zigs} L${CX},${BOX_FLOOR}`
+  }
+  const coil =
+    `<path d="${spring(RISEN[0] ?? 0)}" fill="none" stroke="#9AA0AE" stroke-width="3.5" stroke-linejoin="round">` +
+    `${animate('d', RISEN.map(spring), RISE)}</path>`
+  const face =
+    `<circle r="${HEAD_R}" fill="#FFD23F" stroke="${INK}" stroke-width="3"/>` +
+    `<circle cx="-9" cy="4" r="3" fill="#FF70A6"/><circle cx="9" cy="4" r="3" fill="#FF70A6"/>` +
+    `<ellipse cx="-5" cy="-3" rx="2" ry="3" fill="#2B1A12"/><ellipse cx="5" cy="-3" rx="2" ry="3" fill="#2B1A12"/>` +
+    `<path d="M-6,4 Q0,11 6,4" fill="none" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>` +
+    `<path d="M-9,-13 L0,-32 L9,-13Z" fill="#B76EF0" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>` +
+    `<circle cy="-32" r="3.5" fill="#FF70A6" stroke="${INK}" stroke-width="2"/>`
+  const head =
+    `<g class="jack" transform="translate(0 ${RISEN[0]})">` +
+    animateTransform(
+      'translate',
+      RISEN.map(dy => `0 ${dy}`),
+      RISE,
+    ) +
+    `<g transform="translate(${CX} ${HEAD_Y})">${face}</g></g>`
+  // Once up, the jack wobbles on its spring.
+  const pivot = `${CX} ${BOX_TOP}`
+  const wobble = animateTransform(
+    'rotate',
+    [0, 10, -8, 5, 0].map(a => `${a} ${pivot}`),
+    { dur: 0.9, begin: 1.2 },
+  )
+  const theJack = `<g>${wobble}${coil}${head}</g>`
+
+  const star = 'M0,-12 L2.9,-4 L11.4,-3.7 L4.8,1.5 L7.1,9.7 L0,5 L-7.1,9.7 L-4.8,1.5 L-11.4,-3.7 L-2.9,-4Z'
+  const crankY = 99
+  const crank =
+    rod(BOX_X + 72, crankY, BOX_X + 82, crankY) +
+    `<g transform="translate(${BOX_X + 82} ${crankY})"><g>${animateTransform('rotate', ['0', '720'], { dur: 0.55 })}` +
+    `${rod(0, 0, 0, -11)}<circle cy="-11" r="3.5" fill="#4D96FF" stroke="${INK}" stroke-width="2"/></g></g>`
+  // The lid flies over and flops open against the box's left side.
+  const lid =
+    `<g transform="translate(${BOX_X - 2} ${BOX_TOP})"><g>` +
+    animateTransform('rotate', ['0', '-200', '-165', '-185', '-180'], { dur: 0.55, begin: 0.6, keyTimes: [0, 0.45, 0.7, 0.85, 1] }) +
+    `<rect x="0" y="-8" width="76" height="8" rx="2" fill="#4D96FF" stroke="${INK}" stroke-width="3"/></g></g>`
+  // The box shakes as the crank turns, just before the lid flies open.
+  const box =
+    `<g>${animateTransform('translate', ['0 0', '-2 0', '2 0', '-2 0', '2 0', '0 0'], { dur: 0.25, begin: 0.35 })}` +
+    `<rect x="${BOX_X}" y="${BOX_TOP}" width="72" height="${BOX_FLOOR + 2 - BOX_TOP}" rx="3" fill="#FF5E5B" stroke="${INK}" stroke-width="3"/>` +
+    `<path transform="translate(${CX} ${crankY})" d="${star}" fill="#FFD23F" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` +
+    `${crank}${lid}</g>`
+
+  const twinkles = ['#FF70A6', '#7BE04A', '#FFD23F', '#3BCEAC']
+  const sparkles = [
+    [150, 34],
+    [292, 38],
+    [304, 100],
+    [136, 100],
+  ]
+    .map(([x = 0, y = 0], i) => sparkle(x, y, 6 + rnd() * 5, twinkles[i % twinkles.length] ?? INK, 0.95 + i * 0.08))
+    .join('')
+
+  return (
+    fadeGroup(theJack + box, 0, 2.5, 0.85) +
+    rays(rnd, { cx: CX, cy: BOX_TOP - 4, count: 8, from: [42, 50], to: [58, 70], flat: 0.55, begin: RISE.begin }) +
+    sparkles +
+    label(title, subtitle, { y: 150, fill: '#FF9F1C', begin: 1, dur: 1.5, size: 28, rotate: -6 })
+  )
+}
+
+// ---- rebase: a claw moves the branch's blocks onto the tower ---------------
+
+const BLOCK_W = 40
+const BLOCK_H = 20
+const GROUND_Y = 119
+const OLD_X = 140
+const TOWER_X = 232
+// Where the claw carries the blocks: up clear of the tower, across, and down onto it.
+const LIFT = -48
+const LAND: [number, number] = [TOWER_X - OLD_X, -2 * BLOCK_H]
+
+function claw(rnd: () => number, title: string, subtitle: string): string {
+  const block = (x: number, top: number, fill: string, isCommit = true) =>
+    `<rect x="${x}" y="${top}" width="${BLOCK_W}" height="${BLOCK_H}" rx="3" fill="${fill}" stroke="${INK}" stroke-width="3"/>` +
+    (isCommit ? `<circle cx="${x + BLOCK_W / 2}" cy="${top + BLOCK_H / 2}" r="4" fill="#FFFFFF" stroke="${INK}" stroke-width="2"/>` : '')
+  const level = (k: number) => GROUND_Y - 1 - BLOCK_H * (k + 1)
+  const ground = rod(118, GROUND_Y, 322, GROUND_Y)
+  const base = block(OLD_X, level(0), '#C9CCD6', false)
+  const tower = [0, 1, 2].map(k => block(TOWER_X, level(k), '#4D96FF')).join('')
+
+  // Grabbed, lifted, carried across, set down with a bump.
+  const [landX, landY] = LAND
+  const carried = ['0 0', '0 0', `0 ${LIFT}`, `${landX} ${LIFT}`, `${landX} ${landY}`, `${landX} ${landY + 3}`, `${landX} ${landY}`, `${landX} ${landY}`]
+  const blocks =
+    `<g class="blocks">` +
+    animateTransform('translate', carried, {
+      dur: 1.8,
+      keyTimes: [0, 0.33, 0.47, 0.67, 0.75, 0.78, 0.81, 1],
+      splines: '0 0 1 1;0.4 0 0.6 1;0.4 0 0.6 1;0.5 0 1 1;0.2 0 0.5 1;0.3 0 0.7 1;0 0 1 1',
+    }) +
+    `${block(OLD_X, level(1), '#B76EF0')}${block(OLD_X, level(2), '#B76EF0')}</g>`
+
+  // The claw drops from above, grips, carries, lets go and rises out of frame.
+  const gripY = level(2) - 6
+  const reach = ['0 -80', '0 0', '0 0', `0 ${LIFT}`, `${landX} ${LIFT}`, `${landX} ${landY}`, `${landX} ${landY}`, `${landX} -120`]
+  const arm = (side: 1 | -1) => {
+    const d = `M${side * 8},0 L${side * 23},6 L${side * 23},24 L${side * 18},29`
+    const open = `${side * 22} ${side * 8} 0`
+    const shut = `0 ${side * 8} 0`
+    return (
+      `<g transform="rotate(${open})">` +
+      animateTransform('rotate', [open, open, shut, shut, open, open], { dur: 1.8, keyTimes: [0, 0.27, 0.33, 0.78, 0.82, 1] }) +
+      `<path d="${d}" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>` +
+      `<path d="${d}" fill="none" stroke="#9AA0AE" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></g>`
+    )
+  }
+  const theClaw =
+    `<g transform="translate(${OLD_X + BLOCK_W / 2} ${gripY})"><g class="claw" transform="translate(0 -80)">` +
+    animateTransform('translate', reach, {
+      dur: 1.8,
+      keyTimes: [0, 0.25, 0.33, 0.47, 0.67, 0.75, 0.82, 1],
+      splines: '0.3 0 0.5 1;0 0 1 1;0.4 0 0.6 1;0.4 0 0.6 1;0.5 0 1 1;0 0 1 1;0.5 0 0.8 1',
+    }) +
+    `${rod(0, -300, 0, -10)}${arm(-1)}${arm(1)}` +
+    `<rect x="-12" y="-12" width="24" height="13" rx="3" fill="#FFD23F" stroke="${INK}" stroke-width="3"/></g></g>`
+
+  const landed = 1.35
+  const seam = level(2)
+  const twinkles = ['#FF70A6', '#7BE04A', '#FFD23F']
+  const sparkles = [
+    [300, 26],
+    [206, 18],
+    [316, 70],
+  ]
+    .map(([x = 0, y = 0], i) => sparkle(x, y, 6 + rnd() * 5, twinkles[i % twinkles.length] ?? INK, landed + 0.1 + i * 0.08))
+    .join('')
+
+  return (
+    fadeGroup(ground + base + tower + blocks + theClaw, 0, 2.85, 0.85) +
+    // Six rays, none upright, start clear of the stack.
+    rays(rnd, { cx: TOWER_X + BLOCK_W / 2, cy: seam, count: 6, from: [40, 46], to: [54, 66], flat: 0.35, begin: landed }) +
+    sparkles +
+    label(title, subtitle, { y: 150, fill: '#B76EF0', begin: 1.45, dur: 1.4, size: 30, rotate: -6 })
+  )
+}
+
 // ---- the one entry point ---------------------------------------------------
 
 type Draw = (rnd: () => number, title: string, subtitle: string, value: number) => string
@@ -1109,6 +1279,8 @@ const DRAWINGS: Record<FxKind, Draw> = {
   fixes: swat,
   review,
   merge: zipper,
+  rebase: claw,
+  pr: jack,
   context: (rnd, title, subtitle, value) => gauge(rnd, title, subtitle, value, false),
   redzone: (rnd, title, subtitle, value) => gauge(rnd, title, subtitle, value, true),
 }

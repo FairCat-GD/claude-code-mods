@@ -10,7 +10,9 @@ It never changes or delays what Claude does; it only watches and draws.
 | You accept a plan | a clapperboard snaps shut | "Action! let's build!" |
 | A commit is made | a rubber stamp | "SAVED" and the short hash, or "AMENDED" for an amend |
 | A commit is cherry-picked | a gloved hand plucks a pair of cherries from a branch | "Cherry picked!" and the new commit's short hash |
+| A branch is rebased | an arcade claw lifts the branch's blocks off an old base and sets them on top of the main tower | "Rebased!" and the branch onto its new base, such as "topic onto main" |
 | A push updates a branch | confetti | "Pushed!" and the branch |
+| A pull request is opened | a jack-in-the-box springs open, and the jack wobbles on its spring | "PR opened!" and its number |
 | A branch is merged | a zipper closes two strands into one | "Merged!" and the branch |
 | A test or verify run passes | a checkmark badge | "All green!" and the number passed |
 | A code review finishes | a magnifying glass sweeps a page of code | "Reviewed!" and the number of findings, or "no findings, all clear" |
@@ -46,6 +48,14 @@ Each stays on screen for about three to four seconds.
   merge plays only when both say they moved. A pull request merged with
   `gh pr merge` would play "Merged!" and its number, but `gh` says nothing when Claude runs it,
   so today it plays nothing.
+- **A rebase** plays when Claude Code reports one: `git rebase <branch>` that git says succeeded.
+  It names the branch git updated and the base it now sits on: "topic onto main", "onto main"
+  on a detached HEAD, or just the branch for a base such as `HEAD~3`. A branch already up to
+  date plays nothing. A rebase finished with `git rebase --continue`, and `git pull --rebase`,
+  play nothing, since Claude Code reports neither. A command that rebases and merges plays the
+  rebase alone.
+- **A pull request opened** with `gh pr create` plays with the number of the pull request it
+  printed. A dry run, or a pull request that already exists, plays nothing.
 - **A test run** counts when the command, or a part of it after `&&`, `;` or `|` outside quotes,
   starts with one of the common test or verify commands: `npm test`, `npm run verify`, `pytest`,
   `cargo test`, `go test`, `vitest`, `jest`, `playwright test`, `make test`, `node --test`,
@@ -60,7 +70,7 @@ Each stays on screen for about three to four seconds.
 | Command | Does |
 |---|---|
 | `/fx` or `/fx all` | Plays every animation in turn, each after the one before has finished. |
-| `/fx <name>` | Plays one: `plan`, `commit`, `cherry`, `push`, `merge`, `tests`, `review`, `fixes`, `compact`, `helpers`, `context` or `redzone`. A name it doesn't have gets this list. |
+| `/fx <name>` | Plays one: `plan`, `commit`, `cherry`, `rebase`, `push`, `pr`, `merge`, `tests`, `review`, `fixes`, `compact`, `helpers`, `context` or `redzone`. A name it doesn't have gets this list. |
 | `/fx place bottom` | Plays every effect in the strip above the prompt, from now on. |
 | `/fx place conversation` | Plays effects under the row that set them off again, which is the default. `/fx place middle` does the same. |
 
@@ -77,7 +87,7 @@ Each stays on screen for about three to four seconds.
 
 - **In the conversation (the default).** In the desktop app, each effect plays under the
   conversation row of what set it off. That is the tool call that pushed, committed,
-  cherry-picked, merged or ran the tests, the plan you accepted, the Agent call that started the
+  cherry-picked, rebased, merged, opened a pull request or ran the tests, the plan you accepted, the Agent call that started the
   helpers, or `/fx`'s own answer.
   - When the app folds several calls into one group row, it plays under the group.
   - The app draws a code review's report as its own card, which can't show an animation. So

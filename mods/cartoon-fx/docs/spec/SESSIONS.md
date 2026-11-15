@@ -615,6 +615,78 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
   yes for that step, in the repository they name.
 - **Only creation plays.** `pr.action` has nine other values; none of them plays this round.
 
+**Done (2026-11-15, 0.14.0).**
+- **Decided with the owner at the start** (from four drafts rendered inline in plan mode):
+  - **Pull request opened: the jack-in-the-box** (the recommended draft, over a mailbox flag). A
+    crank turns, the lid flies open and a party-hatted jack springs out and wobbles.
+  - **Rebase finished: the claw and the blocks** (the owner's pick, over train cars re-hitched).
+    An arcade claw lifts the branch's purple blocks off a grey base onto the blue tower.
+  - **The rebase's words: "topic onto main":** the branch from git's success line, the base from
+    the rebase part, either alone where the other has no name.
+  - **The kinds: `pr` and `rebase`;** titles "PR opened!" and "Rebased!".
+- **Read from the CLI's code** (2.1.325, the classifier behind `gitOperation`):
+  - a rebase needs `git (<-c|-C> v | --opt=v)* rebase` in the command and `Successfully rebased`
+    in the output; its `ref` is the first word after `rebase` split at spaces that does not start
+    with `-`, and with none there is no report, so `git rebase --continue` reports nothing, nor
+    does `git pull --rebase`. The report holds one `branch`, and the rebase is read after the
+    merge.
+  - a pull request's action is the first of `gh pr create|edit|merge|…` anywhere in the command;
+    its number is the last pull request URL anywhere in the output. `glab mr create` reports too.
+- **Measured** (git 2.50.1, through a pipe, in a scratch repository): a rebase prints
+  `Rebasing (1/2)\rRebasing (2/2)\rSuccessfully rebased and updated refs/heads/topic.`, or
+  `… detached HEAD.`; an up-to-date branch prints `Current branch topic is up to date.` and no
+  success line.
+- **Shipped:**
+  - **In `hooks/detect.ts`:** `rebasedWith` (the engine's report and a rebase part; the branch
+    from git's line read anywhere; the base from `rebaseBase`, `--onto` first, sharing `nameIn`
+    with the merge); `prOpened` (the report, a part that starts with `gh pr create` after
+    `LEAD`, no `--dry-run`, no `already exists`; the number of the first URL line alone, else
+    the engine's); `ranAt` places `rebase` and `opened`.
+  - **In `hooks/register.tsx`:** the Bash hook plays both, in order; `SAMPLES` has `rebase`
+    after `cherry` and `pr` after `push`, so `/fx all` plays fourteen.
+  - **In `hooks/fx.ts`:** `claw` (2900 ms) and `jack` (2600 ms), with a shared outlined `rod`.
+    The jack needs no clip: its spring's `d` animates in step with the head, flat on the box
+    floor while hidden.
+- **Amendments:**
+  - **The PR's number comes from the create's own line, and an `already exists` plays nothing.**
+    "The same care" T1's handoff asked for, made concrete from the classifier, which takes the
+    last URL in the whole output. The session's own finding.
+  - **Three fixes from the frames, before the owner looked:** the crank, the claw's cable and the
+    floor were ink alone and vanished on dark, so they are outlined rods; the lid flops open to
+    the left rather than sticking up; the landing rays are six, none upright, so none crosses
+    the blocks.
+- **Frames:** A1's contact sheet. A Node script in the session's scratch folder imported a copy
+  of `hooks/fx.ts`, and the page, served on 127.0.0.1 and opened in the browser pane, paused each
+  case at ten times on dark and light: `#42`, `#123456789`, no words, and the long branch onto
+  main. Nothing of it is committed.
+- **Checked by hand:**
+  - The owner looked at both drawings' frames before the commit: "All good".
+  - In `--plugin-dir` terminal sessions (CLI 2.1.325) started from the Terminal panel, `git
+    rebase main` in a scratch repository with a fictional identity played "Rebased! topic onto
+    main" in the strip (a first run played it between reads), and `/fx pr` played "PR opened!
+    #42". The engine's own row read "Rebased onto main". No pull request was opened.
+  - The desktop check waits for the owner's update at the round's end (`docs/BACKLOG.md`).
+- **Falsified,** each by copying the file aside, breaking it and copying it back (74 pass, 1 fail,
+  unless noted):
+  - no rebase part; the engine's `ref` as the base; no `--onto`: the rebase detection test;
+  - the success line anchored at a line's start: both rebase hook tests and its detection test
+    (72 / 3);
+  - the engine's number; no `already exists` guard; no dry-run guard: the PR detection test;
+  - the create rule unanchored: the PR detection test and the `ranAt` test (73 / 2);
+  - `ranAt` with no `rebase`: the order test and the `ranAt` test (73 / 2); with no `opened`:
+    the `ranAt` test;
+  - the rebase moment, or the PR's, never played: its hook test and the order test (73 / 2);
+  - the rebase placed by the PR's part: the order test;
+  - the jack landing at `HEAD_Y` 6, and the blocks landing 200 to the right: the landing test.
+- **Numbers:**
+  - 75 tests (+5: three hook tests, two of detection);
+  - `validate` 13 hooks, 5 gating, each with a `.catch`, and 4 state keys, unchanged;
+  - `tsc` and imports clean;
+  - the claw draws 10,846 characters and the jack 12,794; the confetti is still the largest;
+  - `hooks/detect.ts` 393 lines (+61), `hooks/register.tsx` 665 (+11), `hooks/fx.ts` 1295
+    (+172); 19 tracked files, unchanged.
+  - The checks ran on CLI 2.1.325, node 26.7.0.
+
 ---
 
 ## C1: Off and on, a size, and the terminal's row

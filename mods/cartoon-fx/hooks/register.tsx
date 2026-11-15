@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { BoxProps, BuiltinToolInputs, ElementConstructor, EngineInterface, Register, RenderElement, RenderSurface, SvgProps, Timer } from 'claude-code'
 
 import type { FxKind, Placement, Shown } from '../types'
-import { cherryPicked, committed, isReviewFix, mergesOf, pushedBranch, ranAt, testsPassed, tokens } from './detect'
+import { cherryPicked, committed, isReviewFix, mergesOf, prOpened, pushedBranch, ranAt, rebasedWith, testsPassed, tokens } from './detect'
 import { COLORS, drawFx, FX_MS, random } from './fx'
 import { RED, RED_RESET, RESET, YELLOW } from './zones'
 
@@ -36,7 +36,9 @@ const SAMPLES: [FxKind, string, string, number][] = [
   ['plan', 'Action!', "let's build!", 0],
   ['commit', 'SAVED', '5e81772', 0],
   ['cherry', 'Cherry picked!', '1a2b3c4', 0],
+  ['rebase', 'Rebased!', 'topic onto main', 0],
   ['push', 'Pushed!', 'main', 0],
+  ['pr', 'PR opened!', '#42', 0],
   ['merge', 'Merged!', 'feature/login', 0],
   ['tests', 'All green!', '42 passed', 0],
   ['review', 'Reviewed!', '3 findings', 3],
@@ -378,7 +380,7 @@ export const register: Register = on => {
     await $.command.register({
       name: 'fx',
       description:
-        'Replay a cartoon-fx animation (plan, commit, cherry, push, merge, tests, review, fixes, compact, helpers, context, redzone, all) or move them (place conversation, place bottom)',
+        'Replay a cartoon-fx animation (plan, commit, cherry, rebase, push, pr, merge, tests, review, fixes, compact, helpers, context, redzone, all) or move them (place conversation, place bottom)',
       argumentHint: '[name|all|place conversation|place bottom]',
       immediate: true,
     })
@@ -409,13 +411,16 @@ export const register: Register = on => {
       return ran
     }
 
-    // One command may test, commit, cherry-pick, push and merge: each plays, in the order it ran them.
+    // One command may test, commit, cherry-pick, rebase, push, open a pull request and merge:
+    // each plays, in the order it ran them.
     const row = rowOf(e)
     const at = ranAt(e.command)
     const branch = pushedBranch(e.command, ran.result)
     const commit = committed(e.command, ran.result)
     const passed = testsPassed(e.command, ran.result)
     const picked = cherryPicked(e.command, ran.result)
+    const rebased = rebasedWith(e.command, ran.result)
+    const opened = prOpened(e.command, ran.result)
     const moments: { at: number | undefined; play: () => Promise<void> }[] = []
     if (passed !== undefined) {
       moments.push({ at: at.tests, play: () => play($, 'tests', 'All green!', passed, 0, row) })
@@ -433,8 +438,14 @@ export const register: Register = on => {
     if (picked !== undefined) {
       moments.push({ at: at.cherry, play: () => play($, 'cherry', 'Cherry picked!', picked, 0, row) })
     }
+    if (rebased !== undefined) {
+      moments.push({ at: at.rebase, play: () => play($, 'rebase', 'Rebased!', rebased, 0, row) })
+    }
     if (branch !== undefined) {
       moments.push({ at: at.push, play: () => play($, 'push', 'Pushed!', branch, 0, row) })
+    }
+    if (opened !== undefined) {
+      moments.push({ at: at.opened, play: () => play($, 'pr', 'PR opened!', opened, 0, row) })
     }
     for (const { by, words } of mergesOf(e.command, ran.result)) {
       moments.push({ at: at[by], play: () => play($, 'merge', 'Merged!', words, 0, row) })

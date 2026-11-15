@@ -1,5 +1,19 @@
 // The moments the mod plays an effect for.
-export type FxKind = 'push' | 'commit' | 'tests' | 'compact' | 'helpers' | 'context' | 'redzone' | 'plan' | 'fixes' | 'review' | 'cherry' | 'merge'
+export type FxKind =
+  | 'push'
+  | 'commit'
+  | 'tests'
+  | 'compact'
+  | 'helpers'
+  | 'context'
+  | 'redzone'
+  | 'plan'
+  | 'fixes'
+  | 'review'
+  | 'cherry'
+  | 'merge'
+  | 'rebase'
+  | 'pr'
 
 // Where effects play: in the conversation, under the row of what set them off
 // (the strip above the prompt box for one with no row), or always in that strip.

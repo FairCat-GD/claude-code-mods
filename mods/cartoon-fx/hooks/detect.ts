@@ -1,5 +1,5 @@
-// Reads what a finished Bash call did: a push, a commit, a cherry-pick, a merge,
-// a passing test run.
+// Reads what a finished Bash call did: a push, a commit, a cherry-pick, a rebase,
+// a merge, a pull request opened, a passing test run.
 
 // What a finished Bash call hands back, as far as these checks need it.
 export type BashOutput = {
@@ -164,10 +164,12 @@ const PASSED_MARK = new RegExp(
 const printed = (out: BashOutput) => `${out.stdout}\n${out.stderr}`
 
 const GH_PR_MERGE = /(?<![\w.-])gh\s+pr\s+merge\b/
+// A part that runs `gh pr create`, so a message that names it is none.
+const GH_PR_CREATE = new RegExp(String.raw`^\s*${LEAD}gh\s+pr\s+create\b`)
 
 // Where each moment ran: the index of the first part that did it, or undefined
 // where none did (an alias the engine reported).
-export function ranAt(command: string): Record<'push' | 'commit' | 'tests' | 'cherry' | 'merge' | 'pr', number | undefined> {
+export function ranAt(command: string): Record<'push' | 'commit' | 'tests' | 'cherry' | 'rebase' | 'merge' | 'pr' | 'opened', number | undefined> {
   const found = partsOf(command)
   const first = (does: (part: string) => boolean) => {
     const at = found.findIndex(does)
@@ -179,8 +181,10 @@ export function ranAt(command: string): Record<'push' | 'commit' | 'tests' | 'ch
     commit: first(part => subOf(part) === 'commit'),
     tests: first(part => TEST_RUN.test(part)),
     cherry: first(part => subOf(part) === 'cherry-pick'),
+    rebase: first(part => subOf(part) === 'rebase'),
     merge: first(part => subOf(part) === 'merge'),
     pr: first(part => GH_PR_MERGE.test(part)),
+    opened: first(part => GH_PR_CREATE.test(part)),
   }
 }
 
@@ -260,25 +264,82 @@ export function cherryPicked(command: string, out: BashOutput): string | undefin
   return (madeBy(command, out, 'cherry-pick')?.[1] ?? made.sha).slice(0, 7)
 }
 
-// A name git takes as a branch, for the engine's own reading where no part names one.
+// A name git takes as a branch, so `HEAD~3` gives no words.
 const REF = /^[^\s"'`~^:?*[\\;&|()<>]+$/
 
-// Options of `git merge` that take the next word as their value.
+// Options of `git merge` and `git rebase` that take the next word as their value.
 const MERGE_VALUED = new Set(['-m', '-F', '-s', '-X', '--file', '--strategy', '--strategy-option', '--into-name'])
+const REBASE_VALUED = new Set(['-s', '-X', '-x', '--strategy', '--strategy-option', '--exec'])
 // A shell word, quotes and all; it ends at a space or a shell operator.
 const SHELL_WORD = /(?:"[^"]*"|'[^']*'|[^\s"'();&|<>])+/g
 
-// The first branch a merge part names, unquoted, past its options and their values.
-function mergedName(part: string): string | undefined {
+// The words after a part's git subcommand.
+function argsOf(part: string): string[] {
   const git = GIT.exec(part)
-  const words = git === null ? [] : (part.slice(git.index + git[0].length).match(SHELL_WORD) ?? [])
+  return git === null ? [] : (part.slice(git.index + git[0].length).match(SHELL_WORD) ?? [])
+}
+
+const unquote = (word: string) => word.replace(/["']/g, '')
+
+// The first name a part's subcommand takes, unquoted, past its options and the values of `valued`.
+function nameIn(words: string[], valued: ReadonlySet<string>): string | undefined {
   for (let i = 0; i < words.length; i++) {
     const word = words[i] ?? ''
-    if (MERGE_VALUED.has(word)) i++
-    else if (!word.startsWith('-')) return word.replace(/["']/g, '')
+    if (valued.has(word)) i++
+    else if (!word.startsWith('-')) return unquote(word)
   }
 
   return undefined
+}
+
+const mergedName = (part: string) => nameIn(argsOf(part), MERGE_VALUED)
+
+// The base a rebase part puts its commits on: `--onto`'s value, else its upstream.
+function rebaseBase(part: string): string | undefined {
+  const words = argsOf(part)
+  const at = words.findIndex(word => word === '--onto' || word.startsWith('--onto='))
+  const onto = at < 0 ? undefined : words[at] === '--onto' ? words[at + 1] : words[at]?.slice('--onto='.length)
+
+  return onto === undefined ? nameIn(words, REBASE_VALUED) : unquote(onto)
+}
+
+// git's line for a finished rebase, after its `Rebasing (n/m)\r` progress: the branch
+// it updated, or none for a detached HEAD.
+const REBASED = /Successfully rebased and updated (?:refs\/heads\/(\S+?)|detached HEAD)\.(?=\s|$)/
+
+// What a finished rebase says: "topic onto main", either half alone, or no words;
+// undefined without the engine's report or a rebase part. The engine's `ref` is the
+// next word split at spaces, so the base comes from the part.
+export function rebasedWith(command: string, out: BashOutput): string | undefined {
+  const part = partsOf(command).find(each => subOf(each) === 'rebase')
+  if (out.backgroundTaskId !== undefined || out.gitOperation?.branch?.action !== 'rebased' || part === undefined) {
+    return undefined
+  }
+  const branch = REBASED.exec(printed(out))?.[1]
+  const base = rebaseBase(part)
+  const onto = base !== undefined && REF.test(base) ? `onto ${base}` : undefined
+
+  return [branch, onto].filter(words => words !== undefined).join(' ')
+}
+
+// What `gh pr create` prints: the new pull request's URL, alone on its line.
+const PR_URL = /^\s*https?:\/\/\S+\/pull\/(\d+)\s*$/m
+
+// The number of a pull request just opened ("#42"), or undefined. The engine takes the
+// last pull request URL in the whole output; the create's own line comes first.
+export function prOpened(command: string, out: BashOutput): string | undefined {
+  const { pr } = out.gitOperation ?? {}
+  const part = partsOf(command).find(each => GH_PR_CREATE.test(each))
+  if (out.backgroundTaskId !== undefined || pr?.action !== 'created' || part === undefined || DRY_RUN.test(part)) {
+    return undefined
+  }
+  const text = printed(out)
+  // gh's refusal, behind `; echo done`, puts the open one's URL on a line of its own.
+  if (/\balready exists:/.test(text)) {
+    return undefined
+  }
+
+  return `#${PR_URL.exec(text)?.[1] ?? pr.number}`
 }
 
 // What git prints for each merge or pull that moved a branch.

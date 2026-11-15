@@ -6,6 +6,18 @@ All notable changes to cartoon-fx are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-11-15
+
+### Added
+
+- **A rebase stacks the blocks.** An arcade claw lifts the branch's purple blocks off an old base
+  and sets them on top of the blue tower, with a bump, and "Rebased!" pops with the branch and
+  its new base: "topic onto main". A rebase used to play nothing.
+- **A pull request opened springs a jack-in-the-box.** The crank turns, the lid flies open and a
+  party-hatted jack springs out and wobbles; "PR opened!" pops with its number (`#42`). A dry
+  run, or a pull request that already exists, plays nothing.
+- **`/fx rebase` and `/fx pr`** replay them, and `/fx all` now plays fourteen.
+
 ## [0.13.0] — 2026-11-15
 
 ### Added

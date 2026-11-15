@@ -20,6 +20,13 @@ up, it moves out of this file.
 - **A merge beside a pull that moved nothing.** The engine takes a pull's `Fast-forward` for the
   merge's, so a merge plays only when every pull and merge in the command printed one. A
   `git pull && git merge topic` whose pull was up to date plays no merge.
+- **A rebase the engine does not report.** It reports a rebase only with a word after
+  `git rebase` and `Successfully rebased` in the output (read from its build at T2, CLI 2.1.325),
+  so a rebase finished by `git rebase --continue`, and `git pull --rebase`, play nothing. Its
+  report holds one `branch`, the rebase read after the merge, so a command that rebases and
+  merges plays the rebase alone. Several rebases in one command show the first success line.
+- **A GitLab merge request opened.** The engine reports `glab mr create` as a `pr` created too;
+  the mod plays only a `gh pr create` part.
 - **A cast where the declarations name no shape:** `awaitingLeaderApproval` on `ExitPlanMode`'s
   result. A declarations change would not show in `tsc`. Read from the as-built code, in repo
   Session 3; left out at the round 2 intake, which took the `ReportFindings` cast.
@@ -42,6 +49,14 @@ desktop app: both played beside the findings card.
 - **The cherry and the zipper in the desktop** (0.13.0): a cherry-pick and a merge each play their
   drawing under their row, and `/fx all` plays all twelve. Checked in a `--plugin-dir` terminal
   session's strip, and the frames by eye; the tests cover the rows.
+- **The claw and the jack in the desktop** (0.14.0): a rebase and a pull request opened each play
+  their drawing under their row, and `/fx all` plays all fourteen. The rebase was checked in a
+  `--plugin-dir` terminal session's strip, `/fx pr` there too, and the frames by eye; the tests
+  cover the rows.
+- **A pull request opened** (0.14.0): never run, since it is an action on GitHub. Built from the
+  declarations and the CLI's code (2.1.325): `gh pr create` prints the new URL alone on stdout,
+  and the engine reports `pr: { number, action: 'created' }`. Covered by the hook and detection
+  tests against fixture output.
 - **A merged pull request** (0.13.0): `gh pr merge` prints nothing to the Bash tool, so the
   engine reports no `pr` and nothing plays. Read from the CLI's code (2.1.325) and `gh`'s source;
   never run, since it is an action on GitHub. Should a later engine report it, "Merged! #N" is
