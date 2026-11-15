@@ -29,10 +29,11 @@ close of round 3. The version is confirmed with the owner (decision 8; 0.16.0 pr
   whether a `/fx off` there is still in force.
 - **Review fixes wait for the owner's word.** After `/code-review`, report the findings and ask
   which to fix before any edit.
-- **Push status.** T2's commits were pushed on 2026-11-15 with the owner's approval:
-  `origin/main` holds everything through T2's review commit. C1's commits are local until the
-  owner approves a push. List `origin/main..HEAD` before any push, and name any commit that is
-  not this mod's; parallel repo sessions share this checkout.
+- **Push status.** C1's commits were pushed on 2026-11-15 with the owner's approval:
+  `origin/main` holds everything through C1's review commit (`review(cartoon-fx): a failed
+  frame keeps the queue, and 8 smaller`). This line's own docs commit waits for the next
+  approved push. List `origin/main..HEAD` before any push, and name any commit that is not this
+  mod's; parallel repo sessions share this checkout.
 - **The owner installs once the round is done.** The installed release stays 0.11.1 until then
   (the owner's call, 2026-11-15): do not ask for `claude plugin update cartoon-fx` after each
   push. Every desktop check waits for that update and stays in `docs/BACKLOG.md`'s *Not yet
