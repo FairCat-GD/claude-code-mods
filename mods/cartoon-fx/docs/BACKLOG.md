@@ -13,10 +13,13 @@ up, it moves out of this file.
   `gitOperation` first, and a push from git's own `To` report first, since the engine also
   reads a fetch's ref line as a push; printed lines also cover what the engine leaves out, such
   as a tag push or `git --no-pager`. Every test run is judged by its runner's wording. A change to either wording breaks it quietly: nothing plays. Narrowed at 0.11.1.
-- **A commit and a cherry-pick in one command.** The engine reports one commit for the whole
-  command, of kind `cherry-picked` whenever it has `git cherry-pick`, with the first
-  `[<branch> <sha>]` line's hash. So `git commit … && git cherry-pick …` plays the cherry with
-  the commit's hash, and no stamp. Measured at T1 (CLI 2.1.325).
+- **Hashes the engine cannot pair.** The engine reports one commit per command, from git's first
+  `[<branch> <sha>]` line (measured at T1, CLI 2.1.325). The mod pairs git's lines with the
+  commit and cherry-pick parts when there is one line each; otherwise each plays the first
+  line's hash, so `git cherry-pick a b` shows `a`'s.
+- **A merge beside a pull that moved nothing.** The engine takes a pull's `Fast-forward` for the
+  merge's, so a merge plays only when every pull and merge in the command printed one. A
+  `git pull && git merge topic` whose pull was up to date plays no merge.
 - **A cast where the declarations name no shape:** `awaitingLeaderApproval` on `ExitPlanMode`'s
   result. A declarations change would not show in `tsc`. Read from the as-built code, in repo
   Session 3; left out at the round 2 intake, which took the `ReportFindings` cast.

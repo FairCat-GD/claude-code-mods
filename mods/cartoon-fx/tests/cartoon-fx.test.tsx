@@ -762,6 +762,26 @@ test('a merged pull request zips with its number', async ($, on) => {
   await row.unmount()
 })
 
+test('a commit and a cherry-pick in one command each stamp and pick with their own hash', async ($, on) => {
+  const { clock } = engine(on, {
+    stdout: '[main 5e81772] Empty step\n[main 9f8e7d6] Add c',
+    stderr: '',
+    interrupted: false,
+    gitOperation: { commit: { sha: '5e81772ab', kind: 'cherry-picked' } },
+  })
+  await start($)
+  const row = await $.ui.mount({ ...callRow('t1'), surface: 'desktop' })
+  const alt = async () => (await row.find({ type: 'Svg' }))?.props.alt
+
+  await $.tool.call({ tool: 'Bash', command: 'git commit --allow-empty -m "Empty step" && git cherry-pick 1a2b3c4', tool_use_id: 't1' })
+  expect(await alt()).toBe('SAVED 5e81772')
+  await clock.advance(slot('commit'))
+  expect(await alt()).toBe('Cherry picked! 9f8e7d6')
+  await clock.advance(slot('cherry'))
+  expect(await alt()).toBeUndefined()
+  await row.unmount()
+})
+
 test('git merge; git cherry-pick && git push plays the zipper, the cherry, then the confetti', async ($, on) => {
   const { clock } = engine(on, {
     stdout: `${PICKED.stdout}\nMerge made by the 'ort' strategy.`,
@@ -1055,26 +1075,58 @@ test('a commit on a detached HEAD counts, and a cherry-pick is no commit', () =>
   ).toBeUndefined()
 })
 
-test("a cherry-pick and a merge count on the engine's report alone", () => {
-  const op = (gitOperation: BashOutput['gitOperation'], backgroundTaskId?: string) => ({
-    ...out('[main 5e81772] x'),
+test("a cherry-pick needs the engine's report and its own part, and takes the line that part printed", () => {
+  const picked = { commit: { sha: '5e81772ab', kind: 'cherry-picked' } }
+  const op = (stdout: string, gitOperation: BashOutput['gitOperation'] = picked, backgroundTaskId?: string) => ({
+    ...out(stdout),
     gitOperation,
     ...(backgroundTaskId ? { backgroundTaskId } : {}),
   })
-  expect(cherryPicked(op({ commit: { sha: '5e81772ab', kind: 'cherry-picked' } }))).toBe('5e81772')
-  expect(cherryPicked(op({ commit: { sha: '5e81772ab', kind: 'committed' } }))).toBeUndefined()
-  expect(cherryPicked(out('[main 5e81772] x'))).toBeUndefined() // git's own line is not enough
-  expect(cherryPicked(op({ commit: { sha: '5e81772ab', kind: 'cherry-picked' } }, 'b1'))).toBeUndefined()
+  expect(cherryPicked('git cherry-pick 1a2b3c4', op('[main 5e81772] x'))).toBe('5e81772')
+  expect(cherryPicked('git cherry-pick 1a2b3c4', op('[main 5e81772] x', { commit: { sha: '5e81772ab', kind: 'committed' } }))).toBeUndefined()
+  expect(cherryPicked('git cherry-pick 1a2b3c4', out('[main 5e81772] x'))).toBeUndefined() // git's own line is not enough
+  expect(cherryPicked('git cherry-pick 1a2b3c4', op('[main 5e81772] x', picked, 'b1'))).toBeUndefined()
 
-  expect(mergesOf(op({ branch: { ref: 'feature/login', action: 'merged' } }))).toEqual({ branch: 'feature/login' })
-  // The engine reads the message's first word as the branch in `git merge -m "Merge x" x`.
-  expect(mergesOf(op({ branch: { ref: '"Merge', action: 'merged' } }))).toEqual({ branch: '' })
-  expect(mergesOf(op({ branch: { ref: 'main', action: 'rebased' } }))).toEqual({})
-  expect(mergesOf(op({ pr: { number: 42, action: 'merged' } }))).toEqual({ pr: '#42' })
-  expect(mergesOf(op({ pr: { number: 42, action: 'auto-merge-enabled' } }))).toEqual({})
-  expect(mergesOf(op({ branch: { ref: 'topic', action: 'merged' }, pr: { number: 7, action: 'merged' } }))).toEqual({ branch: 'topic', pr: '#7' })
-  expect(mergesOf(op({ branch: { ref: 'topic', action: 'merged' } }, 'b1'))).toEqual({})
-  expect(mergesOf(out("Merge made by the 'ort' strategy."))).toEqual({})
+  // The engine calls this commit cherry-picked for the words in its message.
+  const noted = 'git commit -m "Note: git cherry-pick fails here"'
+  expect(cherryPicked(noted, op('[main 5e81772] Note'))).toBeUndefined()
+  expect(committed(noted, op('[main 5e81772] Note'))).toEqual({ sha: '5e81772', isAmend: false, subject: 'Note' })
+
+  // Each part's own line, in either order; the engine reports only the first.
+  const both = op('[main 5e81772] Empty step\n[main 9f8e7d6] Add c')
+  expect(committed('git commit --allow-empty -m "Empty step" && git cherry-pick 1a2b3c4', both)?.sha).toBe('5e81772')
+  expect(cherryPicked('git commit --allow-empty -m "Empty step" && git cherry-pick 1a2b3c4', both)).toBe('9f8e7d6')
+  expect(committed('git cherry-pick 1a2b3c4 && git commit --allow-empty -m "Empty step"', both)?.sha).toBe('9f8e7d6')
+  expect(cherryPicked('git cherry-pick 1a2b3c4 && git commit --allow-empty -m "Empty step"', both)).toBe('5e81772')
+  // Two commits picked by one part: the engine's, the first.
+  expect(cherryPicked('git cherry-pick 1a2b3c4 4d5e6f7', both)).toBe('5e81772')
+})
+
+test('a merge plays the branch its part names, and only when git says that part merged', () => {
+  const merged = (ref: string, stdout = "Merge made by the 'ort' strategy.") => ({ ...out(stdout), gitOperation: { branch: { ref, action: 'merged' } } })
+  expect(mergesOf('git merge --no-ff feature/login', merged('feature/login'))).toEqual([{ by: 'merge', words: 'feature/login' }])
+  // The engine's ref is the next word as the shell would not split it; the part's name is the branch.
+  expect(mergesOf('git merge --no-ff -m "Merge topic in" topic', merged('"Merge'))).toEqual([{ by: 'merge', words: 'topic' }])
+  expect(mergesOf('git merge -s ours -X patience topic', merged('ours'))).toEqual([{ by: 'merge', words: 'topic' }])
+  expect(mergesOf('git merge topic; git status', merged('topic;'))).toEqual([{ by: 'merge', words: 'topic' }])
+  expect(mergesOf('(git merge topic)', merged('topic)'))).toEqual([{ by: 'merge', words: 'topic' }])
+  expect(mergesOf('git merge "topic"', merged('"topic"'))).toEqual([{ by: 'merge', words: 'topic' }])
+  expect(mergesOf('git merge HEAD~1', merged('HEAD~1'))).toEqual([{ by: 'merge', words: '' }])
+
+  // A pull's Fast-forward is not the merge's: each part that moves a branch says so.
+  const pulled = 'Updating 1a2b3c4..5e81772\nFast-forward\n a.txt | 1 +\nAlready up to date.'
+  expect(mergesOf('git pull && git merge feature', merged('feature', pulled))).toEqual([])
+  expect(mergesOf('git pull && git merge feature', merged('feature', `${pulled}\nMerge made by the 'ort' strategy.`))).toEqual([
+    { by: 'merge', words: 'feature' },
+  ])
+  // A squash leaves the merge to a later commit.
+  expect(mergesOf('git merge --squash feature', merged('feature', 'Updating 1a2b3c4..5e81772\nFast-forward\nSquash commit -- not updating HEAD'))).toEqual([])
+
+  expect(mergesOf('git rebase main', { ...out('Successfully rebased'), gitOperation: { branch: { ref: 'main', action: 'rebased' } } })).toEqual([])
+  expect(mergesOf('gh pr merge 42', { ...out(''), gitOperation: { pr: { number: 42, action: 'merged' } } })).toEqual([{ by: 'pr', words: '#42' }])
+  expect(mergesOf('gh pr merge 42 --auto', { ...out(''), gitOperation: { pr: { number: 42, action: 'auto-merge-enabled' } } })).toEqual([])
+  expect(mergesOf('git merge topic', { ...merged('topic'), backgroundTaskId: 'b1' })).toEqual([])
+  expect(mergesOf('git merge topic', out("Merge made by the 'ort' strategy."))).toEqual([])
 })
 
 test('a collapsed strip on the terminal drops every effect, even one with a row', async ($, on) => {

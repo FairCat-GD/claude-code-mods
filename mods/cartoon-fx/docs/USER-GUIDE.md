@@ -42,8 +42,8 @@ Each stays on screen for about three to four seconds.
   nothing.
 - **A cherry-pick and a merge** play when Claude Code itself reports one. A merge plays for
   `git merge` when git says it merged, by fast-forward or with a merge commit; `git pull` plays
-  no merge. When a merge's message comes before its branch (`git merge -m "…" topic`), the
-  branch's name is not known, and "Merged!" plays alone. A pull request merged with
+  no merge, and `git merge --squash` waits for its commit, which stamps. Beside a `git pull`, a
+  merge plays only when both say they moved. A pull request merged with
   `gh pr merge` would play "Merged!" and its number, but `gh` says nothing when Claude runs it,
   so today it plays nothing.
 - **A test run** counts when the command, or a part of it after `&&`, `;` or `|` outside quotes,
@@ -76,8 +76,9 @@ Each stays on screen for about three to four seconds.
 ## Where effects play
 
 - **In the conversation (the default).** In the desktop app, each effect plays under the
-  conversation row of what set it off. That is the tool call that pushed, committed, cherry-picked,
-  merged or ran the tests, the plan you accepted, the Agent call that started the helpers, or `/fx`'s own answer.
+  conversation row of what set it off. That is the tool call that pushed, committed,
+  cherry-picked, merged or ran the tests, the plan you accepted, the Agent call that started the
+  helpers, or `/fx`'s own answer.
   - When the app folds several calls into one group row, it plays under the group.
   - The app draws a code review's report as its own card, which can't show an animation. So
     "Reviewed!" and "Bugs squashed!" play just above the card: under Claude's reply or the tool

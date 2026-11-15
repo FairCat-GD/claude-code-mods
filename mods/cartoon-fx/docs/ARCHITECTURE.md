@@ -26,12 +26,12 @@ One effect is on show at a time. The others wait their turn in a queue.
 
 | File | Lines | Holds |
 |---|---|---|
-| `hooks/register.tsx` | 660 | the hooks, the queue, playing and placement |
-| `hooks/detect.ts` | 284 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
-| `hooks/fx.ts` | 1113 | the twelve drawings, their SMIL helpers, and fitting words |
+| `hooks/register.tsx` | 654 | the hooks, the queue, playing and placement |
+| `hooks/detect.ts` | 332 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
+| `hooks/fx.ts` | 1123 | the twelve drawings, their SMIL helpers, and fitting words |
 | `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
 | `types/index.d.ts` | 27 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 1470 | 68 tests |
+| `tests/cartoon-fx.test.tsx` | 1522 | 70 tests |
 
 ## The invariants
 
@@ -119,15 +119,26 @@ One effect is on show at a time. The others wait their turn in a queue.
   plays, unless git said "Everything up-to-date". So a log's `HEAD -> main`, a rename's
   `a -> b` or a pull's fetched line never plays.
 - **A commit** plays the engine's `gitOperation.commit` of kind `committed` or `amended`, with the
-  subject from git's printed line. A `cherry-picked` one is a cherry-pick, not a commit. Otherwise it needs a
-  commit part with no `--dry-run`, and git's `[<branch>|detached HEAD] (…)? <sha>] subject` line;
-  it is an amend when that part has `--amend`.
-- **A cherry-pick** plays the engine's `gitOperation.commit` of kind `cherry-picked`, with its
-  short hash. Git's printed `[<branch> <sha>]` line is a commit's too, so without the engine's
-  report a cherry-pick plays nothing.
-- **A merge** plays the engine's `branch` of action `merged`, with its `ref`, or with no words
-  where the ref has no branch's shape (quotes, spaces or any of `~^:?*[\`); and its `pr` of
-  action `merged`, with `#N`. A `git pull` reports no merge, nor does a rebase.
+  subject from git's printed line. Otherwise, a `cherry-picked` report or none, it needs a commit
+  part with no `--dry-run`, and git's `[<branch>|detached HEAD] (…)? <sha>] subject` line; it is
+  an amend when that part has `--amend`.
+- **Whose printed line is whose.** The engine reports one commit per command, from the first
+  such line. Where git printed one line for each commit and cherry-pick part, `madeBy` pairs
+  them in order, so `git commit … && git cherry-pick …` stamps the first hash and picks the
+  second; otherwise each takes the first line.
+- **A cherry-pick** needs the engine's commit of kind `cherry-picked` and a part whose subcommand
+  is `cherry-pick`. The engine sets that kind whenever `git cherry-pick` appears in the command,
+  a commit message included, so the part decides; git's printed line alone is a commit's too.
+  It plays the short hash of its own line.
+- **A merge** needs the engine's `branch` of action `merged`, and plays the branch its `merge`
+  part names (`mergedName`: the first word past the options and the values of `-m`, `-F`, `-s`,
+  `-X` and their long forms, unquoted, ending at a shell operator), or no words where that is no
+  branch's name (`HEAD~1`). The engine's own `ref` is used only where no part names one. It
+  plays nothing:
+  - for `git merge --squash`, which merges nothing until its commit;
+  - where a `git pull` beside it leaves fewer `Fast-forward` or `Merge made by` lines than the
+    pulls and merges in the command, since the engine reads the pull's line as the merge's.
+  A `pr` of action `merged` plays with `#N`. A rebase plays no merge.
 - **A review-fix commit** is one whose subject starts `review`, or starts `fix` and names a review.
   It plays `fixes` in place of the stamp.
 - **A passing test run** is a part that starts with one of `RUNNERS`
@@ -330,7 +341,7 @@ It uses no network, process or file access.
 ## Testing strategy — the layers, and what each cannot see
 
 The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
-- **`claude plugin test`** runs the 68 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 70 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`), so a queue test moves it a turn at a time (`slot`: length + hold +
     gap) and reads which effect each row or the strip draws.
@@ -342,9 +353,9 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
     `/fx all`; a collapsed strip, on the desktop and on the terminal; a session start emptying
     the queue past a gap timer set before it, and forgetting a collapsed strip. Two `/fx` tests
     step through all twelve samples and a takeover.
-  - Ten tests cover the detection rules as plain functions, `ranAt` among them, and four hook
-    tests the rejected push behind `; echo done`, a cherry-pick, a merged branch and a merged
-    pull request. Their output and the engine's reports are fictional, shaped on
+  - Eleven tests cover the detection rules as plain functions, `ranAt` among them, and five hook
+    tests the rejected push behind `; echo done`, a cherry-pick, a commit and a cherry-pick in one
+    command, a merged branch and a merged pull request. Their output and the engine's reports are fictional, shaped on
     what each tool prints and what the engine was measured to report: git's and node's as measured on this machine (node 26.7.0), the other new
     runners' from their documented output, since none is installed here.
   - Eight read `drawFx`'s output back as structure, for every kind with the longest words the
@@ -449,8 +460,12 @@ The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
 - **A merged pull request is wired, though it plays nothing today.** The engine reads its number
   from what `gh pr merge` prints, which `gh` prints only to a terminal. It plays as soon as the
   engine reports one, settled with the owner at T1's start.
-- **A merge whose ref has no branch's shape plays "Merged!" alone,** rather than the message's
-  first word the engine reports for `git merge -m "…" topic`.
+- **A merge's words come from its own part,** not the engine's `ref`, which is the next word
+  split at spaces alone: the message's first word in `git merge -m "…" topic`, or `topic;` in
+  `git merge topic; git status`. The engine's report stays the trigger (decision 6).
+- **An ambiguous merge plays nothing.** Where a pull beside it may have printed the only
+  `Fast-forward`, a merge that moved nothing would play; skipping it costs a real merge beside
+  a pull that moved nothing, the rarer case.
 - **A tag push plays "Pushed!" with the tag's name.** The owner's call at D1's start: the engine
   reports no push for a `[new tag]` ref, so it plays from git's printed line.
 
@@ -471,16 +486,16 @@ In `docs/BACKLOG.md` under *Deferred*:
 - detection by reading printed output, which a change to git's or a runner's wording would break:
   every test run, and a push or commit the engine does not report;
 - a cast where the declarations don't name the shape: `awaitingLeaderApproval`;
-- one command that commits and cherry-picks: the engine reports a single commit, of kind
-  `cherry-picked`, with the first commit's hash, so the commit plays nothing and the cherry shows
-  the other commit's hash.
+- a cherry-pick of several commits by one part shows the first hash, and one where git's lines
+  don't pair with the parts shows the first line's;
+- a merge beside a pull that moved nothing plays nothing.
 
 ## Baseline (v0.13.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 68 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 70 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |

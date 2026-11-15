@@ -415,8 +415,7 @@ export const register: Register = on => {
     const branch = pushedBranch(e.command, ran.result)
     const commit = committed(e.command, ran.result)
     const passed = testsPassed(e.command, ran.result)
-    const picked = cherryPicked(ran.result)
-    const merged = mergesOf(ran.result)
+    const picked = cherryPicked(e.command, ran.result)
     const moments: { at: number | undefined; play: () => Promise<void> }[] = []
     if (passed !== undefined) {
       moments.push({ at: at.tests, play: () => play($, 'tests', 'All green!', passed, 0, row) })
@@ -437,13 +436,8 @@ export const register: Register = on => {
     if (branch !== undefined) {
       moments.push({ at: at.push, play: () => play($, 'push', 'Pushed!', branch, 0, row) })
     }
-    if (merged.branch !== undefined) {
-      const words = merged.branch
-      moments.push({ at: at.merge, play: () => play($, 'merge', 'Merged!', words, 0, row) })
-    }
-    if (merged.pr !== undefined) {
-      const words = merged.pr
-      moments.push({ at: at.pr, play: () => play($, 'merge', 'Merged!', words, 0, row) })
+    for (const { by, words } of mergesOf(e.command, ran.result)) {
+      moments.push({ at: at[by], play: () => play($, 'merge', 'Merged!', words, 0, row) })
     }
     // One the engine reported with no part of its own (an alias) comes after, as listed.
     const order = (moment: { at: number | undefined }) => moment.at ?? Number.MAX_SAFE_INTEGER

@@ -553,6 +553,40 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
   - `hooks/register.tsx` 660 lines (+15), `hooks/detect.ts` 284 (+35), `hooks/fx.ts` 1113
     (+144); 19 tracked files, unchanged.
   - The checks ran on CLI 2.1.325, node 26.7.0.
+- **Review (`/code-review high`), 9 findings: 9 fixed, 0 skipped.** The owner said to fix all.
+  - **A commit no longer picks a cherry too.** The engine calls a commit cherry-picked whenever
+    `git cherry-pick` is anywhere in the command, a commit message included, while `committed`
+    still stamps it from git's line. So one commit played the stamp and the cherry. A cherry
+    now also needs a `cherry-pick` part.
+  - **A commit and a cherry-pick in one command each show their own hash.** `madeBy` pairs git's
+    `[<branch> <sha>]` lines with the commit and cherry-pick parts, in order, when there is one
+    line each. The done-note's known-debt line had said the commit played nothing, which was
+    wrong: it stamped, and the cherry showed the commit's hash.
+  - **A merge's words come from its part** (`mergedName`), not the engine's `ref`. The engine
+    splits at spaces alone, so `git merge topic; git status` showed `topic;`, `(git merge
+    topic)` showed `topic)`, and a quoted branch lost its name.
+  - **A merge beside a pull needs a line of its own.** A pull's `Fast-forward` made an
+    up-to-date merge play, so a merge now plays only when there are as many `Fast-forward` and
+    `Merge made by` lines as pulls and merges.
+  - **`git merge --squash` plays nothing,** since nothing is merged until its commit.
+  - **Smaller fixes:**
+    - the cherries' lift is a list of numbers, formatted for the cherries and the hand;
+    - `mergesOf` returns each merge with the part that did it, and the Bash hook plays them in
+      one loop;
+    - `CHANGELOG.md` links 0.13.0 to the session commit.
+  - **Falsified,** each failing its own test (69 pass, 1 fail, unless noted):
+    - a cherry with no `cherry-pick` part;
+    - the first line for every part: the paired hook test and the cherry detection test (68 / 2);
+    - the engine's `ref` in place of the part's name;
+    - the pull's lines ignored;
+    - the squash allowed;
+    - words that run past shell operators;
+    - no options that take a value.
+  - **Numbers after the review:**
+    - 70 tests (+2);
+    - `validate` 13 / 5 / 4;
+    - `tsc` and imports clean;
+    - `hooks/detect.ts` 332 lines, `hooks/register.tsx` 654, `hooks/fx.ts` 1123.
 
 ---
 

@@ -217,13 +217,27 @@ function refPushed(text: string) {
   return undefined
 }
 
+// git's line for each commit it made: `[<branch>|detached HEAD] (…)? <sha>] subject`.
+const MADE = /^\[(?:[^\]\s]+|detached HEAD)(?: \([^)]*\))? ([0-9a-f]{7,40})\] ?(.*)$/gm
+
+// The line `sub`'s part printed, where each commit and cherry-pick part printed one;
+// else the first line, which is the one the engine reports.
+function madeBy(command: string, out: BashOutput, sub: 'commit' | 'cherry-pick') {
+  const lines = [...out.stdout.matchAll(MADE)]
+  const makers = partsOf(command)
+    .map(subOf)
+    .filter(made => made === 'commit' || made === 'cherry-pick')
+
+  return lines.length === makers.length ? lines[makers.indexOf(sub)] : lines[0]
+}
+
 // The commit just made (short hash, whether an amend, its subject as git printed
 // it), or undefined when none was. A cherry-pick is not one.
 export function committed(command: string, out: BashOutput): { sha: string; isAmend: boolean; subject: string } | undefined {
   if (out.backgroundTaskId !== undefined) {
     return undefined
   }
-  const line = /^\[(?:[^\]\s]+|detached HEAD)(?: \([^)]*\))? ([0-9a-f]{7,40})\] ?(.*)$/m.exec(out.stdout)
+  const line = madeBy(command, out, 'commit')
   const subject = line?.[2] ?? ''
   const made = out.gitOperation?.commit
   if (made !== undefined && made.kind !== 'cherry-picked') {
@@ -235,28 +249,62 @@ export function committed(command: string, out: BashOutput): { sha: string; isAm
   return part === undefined || DRY_RUN.test(part) || sha === undefined ? undefined : { sha: sha.slice(0, 7), isAmend: /\s--amend\b/.test(part), subject }
 }
 
-// The short hash of the commit a cherry-pick made, as the engine reported it.
-export function cherryPicked(out: BashOutput): string | undefined {
+// The short hash of the commit a cherry-pick made. The engine calls any commit
+// cherry-picked once `git cherry-pick` is anywhere in the command, a message included.
+export function cherryPicked(command: string, out: BashOutput): string | undefined {
   const made = out.gitOperation?.commit
-  return out.backgroundTaskId === undefined && made?.kind === 'cherry-picked' ? made.sha.slice(0, 7) : undefined
+  if (out.backgroundTaskId !== undefined || made?.kind !== 'cherry-picked' || !partsOf(command).some(part => subOf(part) === 'cherry-pick')) {
+    return undefined
+  }
+
+  return (madeBy(command, out, 'cherry-pick')?.[1] ?? made.sha).slice(0, 7)
 }
 
-// A name git takes as a branch: the engine reads the word after `merge`, which
-// is the message's first word in `git merge -m "Merge x" x`.
-const REF = /^[^\s"'`~^:?*[\\]+$/
+// A name git takes as a branch, for the engine's own reading where no part names one.
+const REF = /^[^\s"'`~^:?*[\\;&|()<>]+$/
 
-// What the engine reported merged: the branch (or "" when its name is no ref's),
-// then the pull request's number.
-export function mergesOf(out: BashOutput): { branch?: string; pr?: string } {
+// Options of `git merge` that take the next word as their value.
+const MERGE_VALUED = new Set(['-m', '-F', '-s', '-X', '--file', '--strategy', '--strategy-option', '--into-name'])
+// A shell word, quotes and all; it ends at a space or a shell operator.
+const SHELL_WORD = /(?:"[^"]*"|'[^']*'|[^\s"'();&|<>])+/g
+
+// The first branch a merge part names, unquoted, past its options and their values.
+function mergedName(part: string): string | undefined {
+  const git = GIT.exec(part)
+  const words = git === null ? [] : (part.slice(git.index + git[0].length).match(SHELL_WORD) ?? [])
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i] ?? ''
+    if (MERGE_VALUED.has(word)) i++
+    else if (!word.startsWith('-')) return word.replace(/["']/g, '')
+  }
+
+  return undefined
+}
+
+// What git prints for each merge or pull that moved a branch.
+const MOVED = /\bFast-forward\b|\bMerge made by\b/g
+
+// What merged, and which part of the command did it: a branch (with no words when
+// its name is no ref's), then a pull request with its number.
+export function mergesOf(command: string, out: BashOutput): { by: 'merge' | 'pr'; words: string }[] {
   const { branch, pr } = out.gitOperation ?? {}
   if (out.backgroundTaskId !== undefined) {
-    return {}
+    return []
+  }
+  const found: { by: 'merge' | 'pr'; words: string }[] = []
+  // The engine takes a pull's `Fast-forward` for the merge's too; a squash commits nothing.
+  const moving = partsOf(command).filter(part => subOf(part) === 'merge' || subOf(part) === 'pull')
+  const part = moving.find(each => subOf(each) === 'merge')
+  const moved = printed(out).match(MOVED)?.length ?? 0
+  if (branch?.action === 'merged' && moved >= moving.length && !(part !== undefined && /\s--squash\b/.test(part))) {
+    const name = part === undefined ? branch.ref : mergedName(part)
+    found.push({ by: 'merge', words: name !== undefined && REF.test(name) ? name : '' })
+  }
+  if (pr?.action === 'merged') {
+    found.push({ by: 'pr', words: `#${pr.number}` })
   }
 
-  return {
-    ...(branch?.action === 'merged' ? { branch: REF.test(branch.ref) ? branch.ref : '' } : {}),
-    ...(pr?.action === 'merged' ? { pr: `#${pr.number}` } : {}),
-  }
+  return found
 }
 
 // "42 passed" (or "" without a count) for a test run whose output says it passed,

@@ -14,8 +14,8 @@ All notable changes to cartoon-fx are documented here. The format follows
   branch springs back, and "Cherry picked!" pops with the new commit's short hash. A cherry-pick
   used to play nothing.
 - **A merge zips two strands into one.** A zipper slider closes a blue and a purple strand into
-  one line, and "Merged!" pops with the branch's name. A merged pull request plays it with its
-  number (`#42`), whenever Claude Code reports one.
+  one line, and "Merged!" pops with the branch's name. A squash merge waits for its commit. A
+  merged pull request plays it with its number (`#42`), whenever Claude Code reports one.
 - **`/fx cherry` and `/fx merge`** replay them, and `/fx all` now plays twelve.
 
 ## [0.12.0] — 2026-11-15
@@ -138,6 +138,7 @@ and are not recorded. The entry below lists what it does at this version.
   `/fx place conversation` (or `/fx place middle`) puts them back under their rows. The choice is
   remembered across sessions.
 
+[0.13.0]: https://github.com/FairCat-GD/claude-code-mods/commit/69450c07fd5fafa1655160f1fac5aae995cfea47
 [0.12.0]: https://github.com/FairCat-GD/claude-code-mods/commit/0bd5d6ee32213ddf9d0916208b02e6dd1cb46547
 [0.11.1]: https://github.com/FairCat-GD/claude-code-mods/commit/b3621a1d2af7e4b3fcc26d6bcf7fecb773f3af3b
 [0.11.0]: https://github.com/FairCat-GD/claude-code-mods/commit/58c85f94813e1d8d755f020a83535378f7a86a25

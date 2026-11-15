@@ -955,7 +955,16 @@ function cherry(rnd: () => number, title: string, subtitle: string): string {
   // Comes in, grabs, pulls the branch down, snaps the stems, lifts the pair away.
   const hand = { dur: 1.3, keyTimes: [0, 0.32, 0.42, 0.58, 0.62, 0.73, 0.83, 1] }
   const handSplines = '0.2 0.8 0.4 1;0 0 1 1;0.5 0 0.5 1;0 0 1 1;0.2 0.8 0.4 1;0.4 0 0.6 1;0 0 1 1'
-  const lifted = [`0 0`, `0 0`, `0 0`, `0 ${PULL}`, `0 ${PULL}`, `40 -6`, `40 -14`, `40 -14`]
+  const lift: [number, number][] = [
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [0, PULL],
+    [0, PULL],
+    [40, -6],
+    [40, -14],
+    [40, -14],
+  ]
   // The branch bends with the pull, then springs back past straight and settles.
   const bend = { dur: 1.3, keyTimes: [0, 0.32, 0.42, 0.58, 0.62, 0.66, 0.73, 0.8, 1] }
   const sags = [34, 34, 34, 72, 72, 4, 44, 28, 34]
@@ -978,7 +987,11 @@ function cherry(rnd: () => number, title: string, subtitle: string): string {
     `<circle cx="${x}" cy="${y}" r="13" fill="#E5484D" stroke="${INK}" stroke-width="3"/>` +
     `<ellipse cx="${x - 5}" cy="${y - 5}" rx="3.5" ry="2.5" fill="#FFFFFF"/>`
   const cherries =
-    `<g class="cherries">${animateTransform('translate', lifted, { ...hand, splines: handSplines })}` +
+    `<g class="cherries">${animateTransform(
+      'translate',
+      lift.map(([dx, dy]) => `${dx} ${dy}`),
+      { ...hand, splines: handSplines },
+    )}` +
     stem(`M${STEM_X},${STEM_Y} Q214,52 204,80`) +
     stem(`M${STEM_X},${STEM_Y} Q228,56 237,84`) +
     leaf(STEM_X + 1, STEM_Y + 1, -35, 0.75) +
@@ -997,10 +1010,7 @@ function cherry(rnd: () => number, title: string, subtitle: string): string {
     `<rect x="30" y="-13" width="12" height="26" rx="4" fill="#FFFFFF"/></g>`
   const pinchY = STEM_Y + 9
   // The hand moves with the cherries, but comes in from off the right.
-  const handAt = lifted.map((v, i) => {
-    const [dx = 0, dy = 0] = v.split(' ').map(Number)
-    return i === 0 ? `380 ${pinchY}` : `${STEM_X + dx} ${pinchY + dy}`
-  })
+  const handAt = lift.map(([dx, dy], i) => (i === 0 ? `380 ${pinchY}` : `${STEM_X + dx} ${pinchY + dy}`))
   const theHand = `<g transform="translate(380 ${pinchY})">${animateTransform('translate', handAt, { ...hand, splines: handSplines })}${glove}</g>`
 
   const snap = 0.8

@@ -31,6 +31,12 @@ Then do Session T2: a pull request opened, and a rebase finished. Release 0.14.0
   - **The Bash hook's moments** are a list placed by `ranAt`; T2 adds `pr created` and
     `rebased`, each with a part rule (`gh pr create`, `git rebase`), as T1 added `cherry`,
     `merge` and `pr`.
+  - **T1's review found the engine's report is per command, not per part.** It sets a kind from
+    words anywhere in the command, reads the next word split at spaces alone, and takes the
+    first matching line of the whole output. T1's moments therefore need their own part, take
+    their words from it (`mergedName`), and check that the output has a line for each part
+    (`madeBy`, the merge's `Fast-forward` count). A rebase's `ref` and a pull request's number
+    deserve the same care.
   - `drawFx` reads `DRAWINGS`, a `Record<FxKind, Draw>`, so a new kind with no drawing fails
     `tsc`.
 - **The every-tool `tool.call` hook is registered first,** and must stay first: it is the
@@ -41,9 +47,9 @@ Then do Session T2: a pull request opened, and a rebase finished. Release 0.14.0
   which to fix before any edit.
 - **Push status.** `origin/main` holds everything through Q1's review commit. Waiting locally:
   - Q1's push-status handoff commit;
-  - repo Session 3c's `feat: npm run new-mod makes a mod from the template`, which is not this
-    mod's;
-  - T1's commits.
+  - repo Session 3c's `feat: npm run new-mod makes a mod from the template` and its review
+    commit, which are not this mod's;
+  - T1's commit and its review commit.
 
   List `origin/main..HEAD` before any push, and name any commit that is not this mod's.
 - **The owner installs once the round is done.** The installed release stays 0.11.1 while T2,
@@ -54,7 +60,7 @@ Then do Session T2: a pull request opened, and a rebase finished. Release 0.14.0
 - **The owner's stored placement is `conversation`.**
 - **The CLI on PATH is 2.1.325,** and so is the desktop's engine.
 - **Baseline** (`docs/ARCHITECTURE.md`, v0.13.0, CLI 2.1.325):
-  - 68 tests;
+  - 70 tests;
   - `validate`: 13 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
     allowed `CLAUDE.md` one;
   - `tsc` and the import scan clean.
