@@ -9,12 +9,13 @@ ask what it leaves open, and plan the round in this mod's `docs/spec/`, a Read l
 
 - **cartoon-fx 0.16.0 is released.** Round 3 (fun, a queue, new moments and controls: A1, D1, Q1,
   T1, T2, C1 and A2) is closed. Its spec files are deleted; the last done-note is in
-  `docs/spec/SESSIONS.md` as of the review commit before the close (sha filled in by the close).
+  `docs/spec/SESSIONS.md` as of the review commit before the close
+  (`f94b2be853c7a35f2b30160fa259faf2570b80cf`), read with
+  `git show f94b2be:mods/cartoon-fx/docs/spec/SESSIONS.md`.
 - **The repo's round 1 close comes next.** The owner held it until this round closed; the root
   `docs/next-session-prompt.md` describes it. It is a repo-level session of its own.
-- **Push status.** `origin/main` holds everything through C1's review commit
-  (`review(cartoon-fx): a failed frame keeps the queue, and 8 smaller`). Waiting for the next
-  approved push: C1's handoff commit, A2's release commit, its review commit and the close. List
+- **Push status.** Pushed on 2026-11-15 with the owner's approval: `origin/main` holds
+  everything through this close (`docs(cartoon-fx): close round 3`). Nothing waits locally. List
   `origin/main..HEAD` before any push, and name any commit that is not this mod's; parallel repo
   sessions share this checkout.
 - **The round's desktop check waits for the owner.** The installed release stayed at 0.11.1
