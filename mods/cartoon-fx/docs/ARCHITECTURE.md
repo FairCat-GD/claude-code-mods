@@ -27,11 +27,11 @@ One effect is on show at a time. The others wait their turn in a queue.
 | File | Lines | Holds |
 |---|---|---|
 | `hooks/register.tsx` | 665 | the hooks, the queue, playing and placement |
-| `hooks/detect.ts` | 393 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
+| `hooks/detect.ts` | 395 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
 | `hooks/fx.ts` | 1295 | the fourteen drawings, their SMIL helpers, and fitting words |
 | `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
 | `types/index.d.ts` | 41 | `FxKind`, `Placement`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 1640 | 75 tests |
+| `tests/cartoon-fx.test.tsx` | 1646 | 75 tests |
 
 ## The invariants
 
@@ -149,14 +149,15 @@ One effect is on show at a time. The others wait their turn in a queue.
   git's `Successfully rebased and updated refs/heads/<branch>.` line, read anywhere, since git
   prints its `Rebasing (n/m)` progress before it with `\r` (git 2.50.1, to a pipe), then `onto`
   and the base from the part (`rebaseBase`): `--onto`'s value, else the first word past the
-  options and the values of `-s`, `-X`, `-x` and their long forms. A base with no ref's shape
+  options and the values of `-s`, `-X`, `-x`, `-C`, `--whitespace`, `--empty` and the long forms. A base with no ref's shape
   (`HEAD~3`) is left out, and so is the branch on a detached HEAD: "topic onto main", "onto
   main", "topic" or no words.
 - **A pull request opened** needs the engine's `pr` of action `created` and a part that starts,
-  after `LEAD`, with `gh pr create`, without `--dry-run`. It plays `#N` with the number of the
-  first line that is a pull request URL alone, the create's own, else the engine's. Output that
-  says one `already exists` plays nothing: gh's refusal prints the open one's URL on a line of
-  its own, which a `; echo done` would leave unmarked as an error.
+  after `LEAD`, with `gh pr create` (`gh` by name or path), with no `--dry-run` outside its quoted
+  words. It plays `#N` with the number of the first line that is a pull request URL alone, the
+  create's own, else the engine's. gh's refusal, "a pull request for branch … already exists:",
+  plays nothing: it prints the open one's URL on a line of its own, which a `; echo done` would
+  leave unmarked as an error.
 - **A review-fix commit** is one whose subject starts `review`, or starts `fix` and names a review.
   It plays `fixes` in place of the stamp.
 - **A passing test run** is a part that starts with one of `RUNNERS`
@@ -370,7 +371,7 @@ mod:
     is pinned (`mock.clock`), so a queue test moves it a turn at a time (`slot`: length + hold +
     gap) and reads which effect each row or the strip draws.
   - Rows are mounted on the `desktop` surface, and the terminal tests on `terminal`.
-  - Fourteen cover the queue: a push then the gauge, and the gauge behind a push whose start is held
+  - Fifteen cover the queue: a push then the gauge, and the gauge behind a push whose start is held
     on the clock (which only the hooks' registration order keeps in line); a test, commit and
     push in that order, a merge, cherry-pick and push in theirs, and a rebase, push and pull
     request opened in theirs; the cap and the limit; two effects in one millisecond; the move to the

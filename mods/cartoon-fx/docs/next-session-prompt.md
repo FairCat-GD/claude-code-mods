@@ -41,10 +41,10 @@ Then do Session C1: `/fx off` and `on`, `/fx size`, and the terminal's row anima
   the queue, or redraws the terminal's row, should too.
 - **Review fixes wait for the owner's word.** After `/code-review`, report the findings and ask
   which to fix before any edit.
-- **Push status.** Nothing of T2 is pushed. `origin/main` holds everything through T1's handoff
-  commit (`docs(cartoon-fx): T1's handoff says 0.13.0 is pushed`) and the repo's commits after
-  it. T2's commit and its review commit wait locally. List `origin/main..HEAD` before any push,
-  and name any commit that is not this mod's; parallel repo sessions share this checkout.
+- **Push status.** T2's commits were pushed on 2026-11-15 with the owner's approval:
+  `origin/main` holds everything through T2's review commit (`review(cartoon-fx): a dry run is
+  read outside quoted words, and 6 smaller`). List `origin/main..HEAD` before any push, and name
+  any commit that is not this mod's; parallel repo sessions share this checkout.
 - **The owner installs once the round is done.** The installed release stays 0.11.1 while C1 and
   A2 run (the owner's call, 2026-11-15): do not ask for `claude plugin update cartoon-fx` after
   each push. Every desktop check waits for that update and stays in `docs/BACKLOG.md`'s *Not yet

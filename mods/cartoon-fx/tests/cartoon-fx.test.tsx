@@ -1177,7 +1177,7 @@ test('a merge plays the branch its part names, and only when git says that part 
   expect(mergesOf('git merge --squash feature', merged('feature', 'Updating 1a2b3c4..5e81772\nFast-forward\nSquash commit -- not updating HEAD'))).toEqual([])
 
   expect(mergesOf('git rebase main', { ...out('Successfully rebased'), gitOperation: { branch: { ref: 'main', action: 'rebased' } } })).toEqual([])
-  expect(mergesOf('gh pr merge 42', { ...out(''), gitOperation: { pr: { number: 42, action: 'merged' } } })).toEqual([{ by: 'pr', words: '#42' }])
+  expect(mergesOf('gh pr merge 42', { ...out(''), gitOperation: { pr: { number: 42, action: 'merged' } } })).toEqual([{ by: 'prMerged', words: '#42' }])
   expect(mergesOf('gh pr merge 42 --auto', { ...out(''), gitOperation: { pr: { number: 42, action: 'auto-merge-enabled' } } })).toEqual([])
   expect(mergesOf('git merge topic', { ...merged('topic'), backgroundTaskId: 'b1' })).toEqual([])
   expect(mergesOf('git merge topic', out("Merge made by the 'ort' strategy."))).toEqual([])
@@ -1194,6 +1194,8 @@ test("a rebase plays the branch git updated, onto the base its part names, on th
   expect(rebasedWith('git rebase main; git status', rebased('main;'))).toBe('topic onto main')
   expect(rebasedWith('git rebase --onto main old-base topic', rebased())).toBe('topic onto main')
   expect(rebasedWith('git rebase --onto=release/2 old-base', rebased('old-base'))).toBe('topic onto release/2')
+  expect(rebasedWith('git rebase --whitespace fix main', rebased('fix'))).toBe('topic onto main')
+  expect(rebasedWith('git rebase -C 4 --empty drop main', rebased('4'))).toBe('topic onto main')
   // Either half alone where the other has no name, or no words.
   const detached = 'Rebasing (1/1)\rSuccessfully rebased and updated detached HEAD.\n'
   expect(rebasedWith('git rebase -i HEAD~3', rebased('HEAD~3'))).toBe('topic')
@@ -1214,6 +1216,10 @@ test("a pull request opened plays the number gh printed for it, on the engine's 
   expect(prOpened('gh pr create --fill', created(`${url(42)}\n`))).toBe('#42')
   expect(prOpened('GH_PROMPT_DISABLED=1 gh pr create --title "Add x" --body "Closes #7"', created(`${url(42)}\n`))).toBe('#42')
   expect(prOpened('git push -u origin topic && gh pr create --fill', created(`${url(42)}\n`))).toBe('#42')
+  expect(prOpened('/opt/homebrew/bin/gh pr create --fill', created(`${url(42)}\n`))).toBe('#42')
+  // Quoted words are no flags, and another part's "already exists" is not gh's refusal.
+  expect(prOpened('gh pr create --title "Sync" --body "Try it with --dry-run first"', created(`${url(42)}\n`))).toBe('#42')
+  expect(prOpened('./setup.sh; gh pr create --fill', created(`config already exists: kept\n${url(42)}\n`))).toBe('#42')
   // The engine takes the last URL in the output; the create's own line comes first.
   expect(prOpened('gh pr create --fill && gh pr view 7', created(`${url(42)}\ntitle:\tOlder one\nurl:\t${url(7)}\n`, 7))).toBe('#42')
   // With no URL line of its own, the engine's number.
@@ -1288,7 +1294,7 @@ test('each moment is placed at the first part of the command that did it', () =>
     cherry: undefined,
     rebase: undefined,
     merge: undefined,
-    pr: undefined,
+    prMerged: undefined,
     opened: undefined,
   }
   expect(ranAt('npm test && git commit -m x && git push')).toEqual({ tests: 0, commit: 1, push: 2 })
@@ -1299,7 +1305,7 @@ test('each moment is placed at the first part of the command that did it', () =>
   expect(ranAt("git commit -F - <<'EOF'\nfix: npm test\nEOF\ngit push")).toEqual({ ...none, commit: 0, push: 1 })
   expect(ranAt("bash -c 'git commit -m x && npm test'")).toEqual({ ...none, commit: 0, tests: 2 })
   expect(ranAt('gp && npm test')).toEqual({ ...none, tests: 1 }) // an alias: only the engine knows
-  expect(ranAt('git fetch && git merge origin/main && git cherry-pick 1a2b3c4 && gh pr merge 42')).toEqual({ ...none, merge: 1, cherry: 2, pr: 3 })
+  expect(ranAt('git fetch && git merge origin/main && git cherry-pick 1a2b3c4 && gh pr merge 42')).toEqual({ ...none, merge: 1, cherry: 2, prMerged: 3 })
   expect(ranAt('git merge-base main topic; git log --grep=cherry-pick')).toEqual(none)
   expect(ranAt('git rebase main && git push -f && gh pr create --fill')).toEqual({ ...none, rebase: 0, push: 1, opened: 2 })
   expect(ranAt('git commit -m "then git rebase main and gh pr create"')).toEqual({ ...none, commit: 0 })

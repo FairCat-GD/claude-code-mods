@@ -150,6 +150,7 @@ and are not recorded. The entry below lists what it does at this version.
   `/fx place conversation` (or `/fx place middle`) puts them back under their rows. The choice is
   remembered across sessions.
 
+[0.14.0]: https://github.com/FairCat-GD/claude-code-mods/commit/f039da562bcf014a9ebd20f921d47b84b917fb52
 [0.13.0]: https://github.com/FairCat-GD/claude-code-mods/commit/69450c07fd5fafa1655160f1fac5aae995cfea47
 [0.12.0]: https://github.com/FairCat-GD/claude-code-mods/commit/0bd5d6ee32213ddf9d0916208b02e6dd1cb46547
 [0.11.1]: https://github.com/FairCat-GD/claude-code-mods/commit/b3621a1d2af7e4b3fcc26d6bcf7fecb773f3af3b

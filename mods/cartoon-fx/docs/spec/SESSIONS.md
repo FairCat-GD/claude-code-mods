@@ -686,6 +686,23 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
   - `hooks/detect.ts` 393 lines (+61), `hooks/register.tsx` 665 (+11), `hooks/fx.ts` 1295
     (+172); 19 tracked files, unchanged.
   - The checks ran on CLI 2.1.325, node 26.7.0.
+- **Review (`/code-review high`), 7 findings: 7 fixed, 0 skipped.** The owner said to fix all.
+  - **A pull request's `--dry-run` is read outside its quoted words,** so a title or body that
+    mentions it no longer silences a real one.
+  - **`gh` by its path opens one too** (`/opt/homebrew/bin/gh pr create`), as the engine's own
+    pattern reads it.
+  - **A rebase's base skips the values of `-C`, `--whitespace` and `--empty`,** which git also
+    takes as the next word: `git rebase --whitespace fix main` read "onto fix".
+  - **Only gh's own refusal** ("a pull request for branch … already exists:") silences a pull
+    request, not that phrase from another part of the command.
+  - **Smaller fixes:**
+    - `ranAt`'s merged pull request is `prMerged`, beside `opened`, and `mergesOf` names it so;
+    - `docs/ARCHITECTURE.md` counts fifteen queue tests;
+    - `CHANGELOG.md` links 0.14.0 to the session commit.
+  - **Falsified,** each failing its own test alone (74 pass, 1 fail): the dry-run check over
+    quoted words; `gh` by name only; the rebase's valued options as before; any "already exists".
+  - **Numbers after the review:** 75 tests, unchanged; `validate` 13 / 5 / 4; `tsc` and imports
+    clean; `hooks/detect.ts` 395 lines.
 
 ---
 
