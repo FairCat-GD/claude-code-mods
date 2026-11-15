@@ -55,4 +55,4 @@ these are the parts only a person can see.
 - **Committing Claude Code's API declarations.** They are regenerated for every build, and they
   are not this repository's to publish.
 - **Running mods live from the repository in everyday sessions.** The owner runs installed
-  releases (decision 11), so unfinished work never reaches their sessions.
+  releases (`docs/ARCHITECTURE.md`, *Packaging*), so unfinished work never reaches their sessions.
