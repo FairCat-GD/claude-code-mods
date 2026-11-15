@@ -80,7 +80,8 @@ Sessions at different levels, or on different mods, can run at once in this one 
   changes.
 - **A session starts on a clean tree of its own paths.** Another session's uncommitted work
   elsewhere does not stop it. A new mod's intake is the one that starts with uncommitted files of
-  its own: the ones `new-mod` made.
+  its own: the ones `new-mod` made. Until it commits them, its marketplace entry and README row
+  are its own too, so another session leaves them alone.
 - **Another session's uncommitted work can turn the full gate red** for that session's folder, so
   a session runs `npm run verify -- <its mod>` for its own commit. The full `npm run verify` runs
   before any push, once the other session has committed.

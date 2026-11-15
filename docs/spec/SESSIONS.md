@@ -1365,3 +1365,29 @@ layout*, *What a mod is*), §6 (invariants 2–4); `CLAUDE.md`; `templates/mod-t
   the clone or here.
 - **Falsified:** nothing; no check was added.
 - **Numbers:** none moved. `npm run verify` 14 stages; tooling tests 166; template 1 (±0).
+- **Review (`/code-review high`), 9 findings: 9 fixed and 0 skipped.** The owner chose to fix all.
+  - **The close's entry gate could never pass.** It asked `grep -rn 'docs/spec/SPEC.md'` outside
+    the folder to find nothing, while five lines name it on purpose. The handoff now lists the
+    meant hits.
+  - **A made mod's shared lines blocked other sessions.** Its marketplace entry and README row
+    stay uncommitted until the intake commits, and a repo session counts both files as its own.
+    `CLAUDE.md`'s entry gate and the user guide now make them the intake's until then.
+  - **This done-note said every command the new docs name was run.** The install, the update and
+    `--plugin-dir` were not run in this session: their lines rest on Session 3's measurements
+    (CLI 2.1.310) and cartoon-fx's update from 0.10.1 to 0.10.2.
+  - **Invariant 8 said `new-mod` warns that the name is for good;** it does not. The made
+    handoff and the user guide do, and the invariant now says so.
+  - **`ARCHITECTURE.md` called `claude-code-tools` and `claude-code-mcp` modules** in *What a mod
+    is*, against its own import-scan section. It now says they add to `claude-code` and are never
+    imported.
+  - **`CLAUDE.md` said every level's `ARCHITECTURE.md` keeps Decided apart from Built;**
+    cartoon-fx's predates that outline, and it now says so.
+  - **The handoff barred every repo-level session until the close.** The owner held the close
+    alone, so a small fix they ask for can still run; a new repo-level round waits.
+  - **The decision log's header said it logs changes after round 1's close,** while it holds the
+    round's amendments. It now logs changes since round 1's intake.
+  - **Rule 1 pointed a new mod at a baseline it lacks** until its Session 1; the root's row for
+    `mod-template` now holds for it meanwhile.
+  - **Falsified:** nothing; no check was added.
+  - **Numbers after the review** (CLI 2.1.325): `npm run verify` 14 stages, all PASS; tooling tests
+    166; template 1 (±0 each).

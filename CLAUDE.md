@@ -16,7 +16,8 @@ Machine identifiers keep their spelling, because installs and stored data live u
 **Read the level's `docs/ARCHITECTURE.md`: its overview, invariants and baseline, and the
 sections your block names, before changing code.** It describes how the level is built, and keeps
 what is **Decided**, which changes only with the owner, apart from what is **Built**, which every
-session keeps true (*The documents* in `docs/DEVELOPMENT-WORKFLOW.md`). `docs/USER-GUIDE.md`
+session keeps true (*The documents* in `docs/DEVELOPMENT-WORKFLOW.md`); cartoon-fx's predates
+that outline and is as built throughout. `docs/USER-GUIDE.md`
 describes behaviour from the user's side: the owner's use of the repository at the root, a mod's
 behaviour in its folder. `docs/MOD-KICKOFF.md` guides a new mod's intake.
 
@@ -84,6 +85,8 @@ clean when its own paths and the shared files above have no uncommitted changes.
 own paths are its mod's folder; a repo session's are everything outside `mods/`. Changes anywhere
 else belong to another session: never stage, edit or revert them. A new mod's intake is the one
 session that starts with its own paths uncommitted: what `npm run new-mod` made, which it commits.
+Until it does, that mod's marketplace entry and README row are the intake's, and another session
+neither stages them nor counts them against its clean tree.
 
 **Rules:**
 
@@ -91,7 +94,8 @@ session that starts with its own paths uncommitted: what `npm run new-mod` made,
    - A mod session runs `npm run verify -- <mod>`.
    - A commit that changes only docs runs the docs-only command instead (*Commands*).
    - The full `npm run verify` runs before any push.
-   - Expected results are in the level's `ARCHITECTURE.md` baseline table.
+   - Expected results are in the level's `ARCHITECTURE.md` baseline table. Until a new mod's
+     Session 1 fills in its own, the root's row for `mod-template` holds for it.
 2. Falsify each new check once before trusting it: break the assertion, watch it fail at its own
    step, restore it. Checks that already existed are not falsified again.
 3. A mod's user-visible changes get a line in its `CHANGELOG.md`.

@@ -4,21 +4,25 @@ and Session 4's block with its done-note, then this file, and close round 1. No 
 
 **Not before cartoon-fx's round 3 is done.** The owner holds the close until cartoon-fx's T2, C1
 and A2 are finished, with A2's review committed: check `mods/cartoon-fx/docs/next-session-prompt.md`
-says no round is in progress there. Until then no repo-level session runs; a new mod's intake can,
-since it works at the mod level.
+says no round is in progress there. Until then a small repo-level fix the owner asks for can
+still run, and so can a new mod's intake, at its own level; a new repo-level round waits for the
+close, since `docs/spec/` still holds round 1.
 
 ## State you need that is not in the specs
 
 - **Round 1 is the repository setup.** Sessions 1–3, 3a, 3b, 3c and 4 are done, each with its
   review. Only the close remains.
-- **Push status.** `origin/main` holds everything through cartoon-fx's
-  `review(cartoon-fx): a commit no longer picks a cherry too, and 8 smaller`. Waiting locally at
-  Session 4's end: cartoon-fx's `ca97ca2` (its session's), then Session 4's commits. List
-  `origin/main..HEAD` before any push, and name any commit that is not this session's.
+- **Push status.** Pushed on 2026-11-15 with the owner's approval: `origin/main` holds
+  everything through Session 4's review commit
+  (`review: the close's grep gate can pass, and 8 smaller`), cartoon-fx's `ca97ca2` included.
+  Nothing waits locally. List `origin/main..HEAD` before any push, and name any commit that is
+  not this session's.
 - **What the close does,** in one `docs: close round 1` commit:
-  1. the entry gate: the tree clean, cartoon-fx's round 3 closed, and no `docs/spec/SPEC.md`
-     pointer left outside `docs/spec/` (`grep -rn 'docs/spec/SPEC.md'`, outside that folder and
-     `docs/DEVELOPMENT-WORKFLOW.md`);
+  1. the entry gate: the tree clean, cartoon-fx's round 3 closed, and no line outside
+     `docs/spec/` that sends a reader into the root's spec to read it
+     (`grep -rn 'docs/spec/SPEC.md'`). These hits are meant and stay: `docs/ARCHITECTURE.md`'s
+     decision log and `docs/BACKLOG.md`'s *Going public*, which name it in history;
+     `docs/MOD-KICKOFF.md`, whose paths are a mod's own; and this file's own steps;
   2. `claude --version`; if it moved since 2.1.325, run `npm run types` and the full
      `npm run verify`, and correct `docs/ARCHITECTURE.md`'s baseline line if a count moved;
   3. delete `docs/spec/SPEC.md`, `docs/spec/SESSIONS.md` and `docs/spec/REVIEW-2026-11-14.md`;

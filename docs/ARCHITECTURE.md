@@ -1,8 +1,8 @@
 # claude-code-mods — architecture
 
 How the repository is built. **Decided** is the owner's: what an intake answered or the owner
-settled with a session. It changes only with the owner, and each change after round 1's close is
-logged in the *Decision log*. **Built** is what exists and how, with the decisions a session made
+settled with a session. It changes only with the owner, and each change since round 1's intake
+is logged in the *Decision log*. **Built** is what exists and how, with the decisions a session made
 on its own within its scope, each with its why; every session keeps it true. Until something is
 built, its Built part says "Not yet: Session <id>", or "Not yet: backlog, <item>" once the round
 that planned it closes without it. In the invariants, each rule and its why are decided and
@@ -178,7 +178,8 @@ here describes a mod's internals.
    process access, and the tooling's tests run the CLI with a scratch home. The gate itself does
    not (*Known debt*).
 8. **Machine identifiers keep their spelling** (*The repository's data*). *Why:* installs and
-   stored data live under them. *Enforced by* the rule; `new-mod` says so when it names a mod.
+   stored data live under them. *Enforced by* the rule; the made mod's handoff and
+   `docs/USER-GUIDE.md` say so before its intake commits the name.
 
 ## What a mod is
 
@@ -195,8 +196,9 @@ here describes a mod's internals.
 - **What every mod follows** is in `CLAUDE.md`, under that heading.
 
 **Built.** The template's module is `hooks/register.ts`, and cartoon-fx's is `register.tsx`. The
-laid `tsconfig.json` types `hooks/`, `types/` and `tests/` against the modules `claude-code`,
-`claude-code-tools` and `claude-code-mcp`, for `es2023` with JSX through `h`.
+laid `tsconfig.json` types `hooks/`, `types/` and `tests/` for `es2023`, with JSX through `h`. Its
+types are `claude-code`, the module a mod imports, and `claude-code-tools` and `claude-code-mcp`,
+which add to it and are never imported.
 
 ## The repository's data
 
