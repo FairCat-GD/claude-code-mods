@@ -23,6 +23,10 @@ up, it moves out of this file.
 - **A cast where the declarations name no shape:** `awaitingLeaderApproval` on `ExitPlanMode`'s
   result. A declarations change would not show in `tsc`. Read from the as-built code, in repo
   Session 3; left out at the round 2 intake, which took the `ReportFindings` cast.
+- **`docs/ARCHITECTURE.md` in the workflow's outline.** It was written as built, before the outline
+  kept what is Decided apart from what is Built, with a decision log; a new mod's starts in that
+  outline. Whether this one moves to it is the owner's call at a cartoon-fx intake. Named by repo
+  Session 4.
 
 ## Not yet checked by hand
 

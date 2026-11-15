@@ -340,7 +340,8 @@ It uses no network, process or file access.
 
 ## Testing strategy — the layers, and what each cannot see
 
-The repository's six layers (root `docs/spec/SPEC.md` §7) apply. For this mod:
+The repository's six layers (the root `docs/ARCHITECTURE.md`, *Testing strategy*) apply. For this
+mod:
 - **`claude plugin test`** runs the 70 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`), so a queue test moves it a turn at a time (`slot`: length + hold +

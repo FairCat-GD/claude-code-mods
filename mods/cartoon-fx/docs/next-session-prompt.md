@@ -13,11 +13,10 @@ Then do Session T2: a pull request opened, and a rebase finished. Release 0.14.0
 
 - **Round 3 is fun, a queue, new moments and controls:** A1, D1, Q1 and T1 are done; T2, C1 and
   A2 remain.
-- **The repo level runs beside this round,** from the root's `docs/spec/REVIEW-2026-11-14.md`.
-  Its Sessions 3a and 3b are done, and 3c committed `feat: npm run new-mod makes a mod from the
-  template`. Whether 3c is closed, and Session 4 (the repo's documentation pass, closing its
-  round 1), are tracked in the root `docs/spec/SESSIONS.md` and `docs/next-session-prompt.md`.
-  Carry this line in every later cartoon-fx handoff until both are done.
+- **The repo's round 1 closes after this round.** Its sessions are done, Session 4 included, and
+  the owner holds its `docs: close round 1` until cartoon-fx's T2, C1 and A2 are done. A2's
+  handoff tells the owner the repo's close comes next, as the root `docs/next-session-prompt.md`
+  describes. Carry this line in every later cartoon-fx handoff until then.
 - **T1 shipped 0.13.0** (its done-note in `SESSIONS.md`): `cherry` and `merge`, read from the
   engine's report alone. Its measurement answers T2's stop rule:
   - **The rebase is reported:** `branch: { ref, action: 'rebased' }`, on `Successfully rebased`.
@@ -78,9 +77,9 @@ Then do Session T2: a pull request opened, and a rebase finished. Release 0.14.0
     and opened in the browser pane.
   - **A desktop check** needs the owner to type `/fx`, with no dialog open over the conversation:
     pause, and let them run it.
-- **Repo Session 4** repoints this mod's `CLAUDE.md` (the SPEC §8 pointer) and
-  `docs/ARCHITECTURE.md` (*Testing strategy*) away from the root `docs/spec/SPEC.md`, in a
-  `docs(cartoon-fx):` commit of its own. Leave those lines to it. Follow the root
+- **Repo Session 4 repointed this mod's `CLAUDE.md` and `docs/ARCHITECTURE.md`** (*Testing
+  strategy*) at the root's `CLAUDE.md` and `docs/ARCHITECTURE.md`, in its own `docs(cartoon-fx):`
+  commit, and added the outline item to `docs/BACKLOG.md`. Follow the root
   `docs/DEVELOPMENT-WORKFLOW.md` as it stands.
 
 ## Watch for

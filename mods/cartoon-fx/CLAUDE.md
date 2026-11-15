@@ -6,8 +6,8 @@ compaction, subagents starting, and the context window reaching its yellow and r
 desktop app draws each one as SVG under the conversation row that set it off, or in the strip
 above the prompt; the terminal draws a row of coloured glyphs in that strip. `/fx` replays them.
 
-The root `CLAUDE.md` holds the rules every mod follows, and the root's `docs/spec/SPEC.md` §8 the
-practices. This file adds only what is this mod's own.
+The root `CLAUDE.md` holds the rules and practices every mod follows; this file adds only what is
+this mod's own.
 
 **Read `docs/ARCHITECTURE.md` before changing code.** It is the mod as built: its hooks, detection,
 drawings, placement, values, invariants, deliberate decisions, known debt and baseline.
