@@ -3,7 +3,7 @@ import type { BoxProps, BuiltinToolInputs, ElementConstructor, EngineInterface, 
 
 import type { FxKind, Placement, Shown, Size } from '../types'
 import { cherryPicked, committed, isReviewFix, mergesOf, prOpened, pushedBranch, ranAt, rebasedWith, testsPassed, tokens } from './detect'
-import { drawFx, FX_MS, glyphRow, pixelsOf } from './fx'
+import { DEFAULT_SIZE, drawFx, FX_MS, glyphRow, pixelsOf } from './fx'
 import type { Spark } from './fx'
 import { RED, RED_RESET, RESET, YELLOW } from './zones'
 
@@ -129,8 +129,9 @@ const bound = (kept: Set<string> | Map<string, unknown>, cap: number) => {
 // it. Each effect must be drawn itself: a row that drew the one before may be gone.
 let drawnId: number | undefined
 
-// The strip above the prompt as it last drew: whether the person collapsed it.
-let strip: { isCollapsed: boolean; surface?: RenderSurface } = { isCollapsed: false }
+// The strip above the prompt as it last drew: whether the person collapsed it,
+// and whether a survey had it.
+let strip: { isCollapsed: boolean; hasSurvey: boolean; surface?: RenderSurface } = { isCollapsed: false, hasSurvey: false }
 
 // Each reply row's text and its place in the order rows first drew, so an
 // older reply with the same words never takes the effect.
@@ -159,11 +160,11 @@ async function syncPlacement($: EngineInterface) {
 // `/fx off` as stored, in this session or another; anything but `true` is on.
 const isMuted = async ($: EngineInterface) => (await $.store.get('isMuted')) === true
 
-// The size `/fx size` last stored, in this session or another; `medium` if none is.
+// The size `/fx size` last stored, in this session or another; the default if none is.
 async function sizeOf($: EngineInterface): Promise<Size> {
   const kept = await $.store.get('size')
 
-  return kept === 'small' || kept === 'medium' || kept === 'large' ? kept : 'medium'
+  return kept === 'small' || kept === 'medium' || kept === 'large' ? kept : DEFAULT_SIZE
 }
 
 // `/fx size <wanted>`: stores a size, or with none names the one in use.
@@ -182,6 +183,9 @@ async function resize($: EngineInterface, wanted: string) {
 
 // An effect waiting its turn. `/fx`'s samples (`isReplay`) wait past the cap and the limit.
 type Waiting = Omit<Shown, 'seed' | 'until' | 'frame'> & { queuedAt: number; isReplay: boolean }
+
+// What `enter` takes: an effect before it has an id and a place in line.
+type Entry = Omit<Waiting, 'id' | 'queuedAt'>
 
 // The queue, in module memory: it lives and dies with the timers that move it.
 // `isBusy` holds from an effect's start through the gap after it. `era` counts
@@ -225,33 +229,23 @@ const shownAs = (effect: Waiting | Shown, seed: number, until: number, row: stri
 // Plays an effect now, or queues it behind the one on show, unless `/fx off`
 // muted them. Never waits on the queue.
 async function play($: EngineInterface, kind: FxKind, title: string, subtitle = '', value = 0, row?: string) {
-  if (await isMuted($)) {
+  const [muted, , size] = await Promise.all([isMuted($), syncPlacement($), sizeOf($)])
+  if (muted) {
     return
   }
-  await syncPlacement($)
-  await enter($, await $.clock.now(), kind, title, subtitle, value, await sizeOf($), row, false)
+  await enter($, await $.clock.now(), { kind, title, subtitle, value, size, isReplay: false, ...(row === undefined ? {} : { row }) })
 }
 
 // `play`'s second half, for a placement taken up and a time and size read already.
-async function enter(
-  $: EngineInterface,
-  now: number,
-  kind: FxKind,
-  title: string,
-  subtitle: string,
-  value: number,
-  size: Size,
-  row: string | undefined,
-  isReplay: boolean,
-) {
-  const effect: Waiting = { id: ++effects, kind, title, subtitle, value, size, queuedAt: now, isReplay, ...(row === undefined ? {} : { row }) }
+async function enter($: EngineInterface, now: number, entry: Entry) {
+  const effect: Waiting = { ...entry, id: ++effects, queuedAt: now }
   if (!isBusy) {
     isBusy = true
     await start($, effect, now).catch(error => {
       reset()
       throw error
     })
-  } else if (isReplay) {
+  } else if (effect.isReplay) {
     line.push(effect)
   } else if (line.filter(waiting => !waiting.isReplay).length < MAX_WAITING) {
     // A real moment goes ahead of `/fx`'s samples.
@@ -290,13 +284,18 @@ async function show($: EngineInterface, effect: Shown, lasts: number) {
   }
 }
 
-// Steps the terminal's row of effect `id` a frame, while it is on show.
+// Steps the terminal's row of effect `id` a frame, while it is on show and the
+// strip shows it. A frame that fails ends the frames alone, never the queue.
 async function nextFrame($: EngineInterface, id: number) {
   if (onShow?.id !== id) {
     return
   }
-  onShow.frame = later($, FRAME_MS, () => nextFrame($, id))
-  await update($, shown, s => (s?.id === id ? { ...s, frame: (s.frame ?? 0) + 1 } : s))
+  const frame = later($, FRAME_MS, () => nextFrame($, id))
+  onShow.frame = frame
+  if (strip.isCollapsed || strip.hasSurvey) {
+    return
+  }
+  await update($, shown, s => (s?.id === id ? { ...s, frame: (s.frame ?? 0) + 1 } : s)).catch(() => frame.cancel())
 }
 
 // Ends effect `id` if it is still on show, and starts the next after the gap.
@@ -375,9 +374,10 @@ async function reviewReported($: EngineInterface, findings: Findings, row?: stri
   await play($, 'review', 'Reviewed!', found, count, row)
 }
 
+// Muted, the zones stand still, so one crossed meanwhile plays at the first check after `/fx on`.
 async function watchContext($: EngineInterface, row?: string) {
   const { percent } = (await $.session.usage()).context
-  if (percent === undefined) {
+  if (percent === undefined || (await isMuted($))) {
     return
   }
   if (percent >= RED) {
@@ -420,7 +420,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     reset()
     drawnId = undefined
-    strip = { isCollapsed: false, ...(e.surface === null ? {} : { surface: e.surface }) }
+    strip = { isCollapsed: false, hasSurvey: false, ...(e.surface === null ? {} : { surface: e.surface }) }
     await update($, shown, () => null)
     await syncPlacement($)
     await $.command.register({
@@ -601,11 +601,10 @@ export const register: Register = on => {
     // They take their turns in the queue. A new run takes over from an earlier
     // one's samples still waiting.
     line = line.filter(waiting => !waiting.isReplay)
-    await syncPlacement($)
-    const size = await sizeOf($)
+    const [, size] = await Promise.all([syncPlacement($), sizeOf($)])
     const now = await $.clock.now()
     for (const [kind, title, subtitle, value] of samples) {
-      await enter($, now, kind, title, subtitle, value, size, fxRow(tag), true)
+      await enter($, now, { kind, title, subtitle, value, size, row: fxRow(tag), isReplay: true })
     }
 
     return { text }
@@ -682,7 +681,7 @@ export const register: Register = on => {
   // elsewhere for effects with no row of their own (a compaction), or when
   // `/fx place bottom` put them all there. Collapsed, it shows nothing.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    strip = { isCollapsed: e.props.isCollapsed, surface: e.surface }
+    strip = { isCollapsed: e.props.isCollapsed, hasSurvey: e.props.hasSurvey, surface: e.surface }
     const effect = await running($)
     if (effect === null || e.props.hasSurvey || e.props.isCollapsed) {
       return next(e)

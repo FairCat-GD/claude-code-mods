@@ -13,6 +13,7 @@ const VIEW_X = 90
 const VIEW_WIDTH = 260
 // Drawn this many times larger at each size; a surface narrower than that shrinks it to fit.
 export const SCALES: Record<Size, number> = { small: 1.6, medium: 2.1, large: 3.2 }
+export const DEFAULT_SIZE: Size = 'medium'
 const CX = WIDTH / 2
 const CY = 118
 
@@ -1288,7 +1289,7 @@ const DRAWINGS: Record<FxKind, Draw> = {
 // The width and height an effect is drawn at, in pixels.
 export const pixelsOf = (size: Size) => [Math.round(VIEW_WIDTH * SCALES[size]), Math.round(HEIGHT * SCALES[size])] as const
 
-export function drawFx(kind: FxKind, seed: number, title: string, subtitle = '', value = 0, size: Size = 'medium'): string {
+export function drawFx(kind: FxKind, seed: number, title: string, subtitle = '', value = 0, size = DEFAULT_SIZE): string {
   const body = DRAWINGS[kind](random(seed), title, subtitle, value)
   const [width, height] = pixelsOf(size)
 

@@ -73,7 +73,7 @@ Each stays on screen for about three to four seconds.
 | `/fx <name>` | Plays one: `plan`, `commit`, `cherry`, `rebase`, `push`, `pr`, `merge`, `tests`, `review`, `fixes`, `compact`, `helpers`, `context` or `redzone`. A name it doesn't have gets this list. |
 | `/fx place bottom` | Plays every effect in the strip above the prompt, from now on. |
 | `/fx place conversation` | Plays effects under the row that set them off again, which is the default. `/fx place middle` does the same. |
-| `/fx off` | Turns every effect off, in every open session from its next one, and in later sessions. The one playing stops, and what waits behind it is dropped. `/fx` still plays its replays. |
+| `/fx off` | Turns every effect off, in every open session from its next one, and in later sessions. The one playing stops, and what waits behind it is dropped. `/fx` still plays its replays. A context zone reached while they are off plays once they are on again. |
 | `/fx on` | Turns them on again, which is the default. |
 | `/fx size small`, `medium` or `large` | Sets how large the desktop app draws effects: 416 × 304, 546 × 399 (the default) or 832 × 608, from the next one, in every open session and later ones. `/fx size` alone says which is in use. The terminal's row has one size. |
 

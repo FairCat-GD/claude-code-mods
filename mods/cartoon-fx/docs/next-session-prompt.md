@@ -21,6 +21,7 @@ close of round 3. The version is confirmed with the owner (decision 8; 0.16.0 pr
   `isMuted`), `/fx size small|medium|large` (store key `size`; `medium`, 546 × 399, is the
   default, so the owner's sessions shrink), and the terminal's row, whose sparks fly outward a
   frame every 250 ms. The structural checks hold at every size: only `width` and `height` change.
+- **C1's review** (9 findings, all fixed) is in its done-note; the changelog links 0.15.0.
 - **A redone drawing's frames at the three sizes:** the contact sheet draws at whatever size the
   page sets; the owner sees the drawings at `medium` from 0.15.0 unless they choose otherwise.
 - **`/fx all` in a `--plugin-dir` session plays in that copy's store** (`cartoon-fx@inline`),
@@ -39,7 +40,7 @@ close of round 3. The version is confirmed with the owner (decision 8; 0.16.0 pr
 - **The owner's stored placement is `conversation`.**
 - **The CLI on PATH is 2.1.325,** and so is the desktop's engine.
 - **Baseline** (`docs/ARCHITECTURE.md`, v0.15.0, CLI 2.1.325):
-  - 80 tests;
+  - 83 tests;
   - `validate`: 13 hooks, 5 gating (each with a `.catch`), 4 state keys, and no warning but the
     allowed `CLAUDE.md` one;
   - `tsc` and the import scan clean.

@@ -772,8 +772,9 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
     the replay on show stops with the rest.
 - **Checked by hand,** in `--plugin-dir` terminal sessions (CLI 2.1.325) started from the
   Terminal panel, one per slash command, in a scratch repository with a fictional identity:
-  - `/fx off` answered "animations are off. /fx still plays them."; two commits then played
-    nothing, read every 2 s across each;
+  - `/fx off` answered "animations are off. /fx still plays them."; a commit then played
+    nothing, read every 2 s across it (a first muted run was read once, some 8 s in, which
+    proves nothing; the review's redo is below);
   - `/fx on`, then a commit played "SAVED <sha>" in the strip, its sparks moving between reads a
     second apart (a first run fell between 2 s reads);
   - `/fx all` played with each row's sparks stepping outward between reads a third of a second
@@ -803,6 +804,34 @@ the detection tests (`tests/cartoon-fx.test.tsx:650-722`); `docs/BACKLOG.md`, *D
   - `hooks/register.tsx` 728 lines (+63), `hooks/fx.ts` 1323 (+28), `types/index.d.ts` 47 (+6);
     19 tracked files, unchanged.
   - The checks ran on CLI 2.1.325, node 26.7.0.
+- **Review (`/code-review high`), 9 findings: 9 fixed, 0 skipped.** The owner said to fix all.
+  - **A frame that fails no longer empties the queue.** Its write's own `.catch` cancels the
+    next tick; before, `later`'s reset dropped every effect waiting behind it. The kit cannot
+    refuse a write, but `update` gives up after 64 misses, which a test hook answers.
+  - **The done-note's muted check was overstated,** corrected above, and redone: after
+    `/fx off`, a commit read every second across it played nothing; `/fx on` then left the
+    copy's store unmuted.
+  - **The new tests mount on both surfaces** (root `CLAUDE.md`: a UI test loops over
+    `['terminal', 'desktop']`), with `/fx place bottom` stored so both draw in the strip.
+  - **Muted, the zones stand still,** so one crossed meanwhile plays at the first check after
+    `/fx on`. The check reads the usage first, then the mute, so it still reads the call it
+    sits beside.
+  - **Smaller fixes:**
+    - `play` reads the mute, the placement and the size at once, and `/fx` its two;
+    - a collapsed strip, or one under a survey (`hasSurvey`, now noted), writes no frames;
+    - `enter` takes one `Entry` in place of nine parameters;
+    - `DEFAULT_SIZE` is the one home of `medium`;
+    - `CHANGELOG.md` links 0.15.0 to the session commit.
+  - **Falsified,** each failing its own test (82 pass, 1 fail, unless noted): the zones moving
+    while muted; frames written while hidden, under a survey, or with the survey not noted;
+    a frame fault resetting the queue, or leaving the frames running; `play` ignoring the mute;
+    `/fx off` without the reset; the surface not noted at session start; no frames, or frames
+    on the desktop too (81 / 2, each also failing the hidden-strip test); the default `large`
+    (81 / 2). A first fault test missed frames left running after the fault (they retried the
+    same frame); it now checks no frame is tried again.
+  - **Numbers after the review:** 83 tests (+3: the muted zones, the hidden strip, the frame
+    fault; nine of the ten for the controls loop over both surfaces); `validate` 13 / 5 / 4;
+    `tsc` and imports clean; `hooks/register.tsx` 727 lines, `hooks/fx.ts` 1324.
 
 ---
 

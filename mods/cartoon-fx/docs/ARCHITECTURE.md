@@ -27,12 +27,12 @@ One effect is on show at a time. The others wait their turn in a queue.
 
 | File | Lines | Holds |
 |---|---|---|
-| `hooks/register.tsx` | 728 | the hooks, the queue, playing and placement, muting and size |
+| `hooks/register.tsx` | 727 | the hooks, the queue, playing and placement, muting and size |
 | `hooks/detect.ts` | 395 | the Bash readers, `ranAt`, `isReviewFix`, `tokens` |
-| `hooks/fx.ts` | 1323 | the fourteen drawings, their SMIL helpers, fitting words, the three sizes, and the terminal's row |
+| `hooks/fx.ts` | 1324 | the fourteen drawings, their SMIL helpers, fitting words, the three sizes, and the terminal's row |
 | `hooks/zones.ts` | 8 | the yellow and red zones and their resets |
 | `types/index.d.ts` | 47 | `FxKind`, `Placement`, `Size`, `Shown`, and the `$.state` contract |
-| `tests/cartoon-fx.test.tsx` | 1764 | 80 tests |
+| `tests/cartoon-fx.test.tsx` | 1882 | 83 tests |
 
 ## The invariants
 
@@ -256,10 +256,11 @@ One effect is on show at a time. The others wait their turn in a queue.
 
 ## Playing and placement
 
-- **`play`** reads `isMuted` from the store and plays nothing while it is `true`. Otherwise it
-  takes up the stored placement, reads the stored size, and gives the effect its `id`, a
-  counter, which is its identity: the drawing cache, the end and the move to the strip all key by
-  it. With nothing on show, it starts the effect; otherwise the effect waits in the queue.
+- **`play`** reads `isMuted`, the placement and the size from the store at once, and plays
+  nothing while `isMuted` is `true`. Otherwise it takes up the placement and gives the effect
+  its `id`, a counter, which is its identity: the drawing cache, the end and the move to the
+  strip all key by it. With nothing on show, it starts the effect; otherwise the effect waits in
+  the queue.
 - **Starting** sets `shown`: `{ id, kind, seed, title, subtitle, value, until, size, frame?,
   row? }`, with `seed` the clock's now, which only picks the drawing. The effect keeps the size it
   was played at, and the move to the strip keeps it too.
@@ -334,6 +335,12 @@ One effect is on show at a time. The others wait their turn in a queue.
     effect is still on show. On the terminal only the strip reads `shown` (every row hook returns
     before reading it there), so a frame redraws the strip alone: 11 to 15 per effect. The timer
     lives in `onShow` beside the end, so a new effect cancels it.
+  - **A hidden strip writes no frames.** While the strip is collapsed or a survey has it (both
+    noted on every strip draw), a tick re-arms and writes nothing; the row goes on from the
+    frame it stood at once the strip shows again.
+  - **A frame that fails ends the frames alone.** `update` gives up after 64 missed writes; the
+    frame's own `.catch` then cancels the next tick, so `later`'s reset never empties the queue
+    for a cosmetic step.
 - **`/fx`** replays from `SAMPLES`, fixed words and values, in the order of `/fx all`. They take
   their turns in the queue, entered with one placement read and one clock read for the run. All of them play in that run's output row, found by its `(take N)`
   tag. The engine puts the plugin's name before the output
@@ -389,7 +396,7 @@ It uses no network, process or file access.
 
 The repository's six layers (the root `docs/ARCHITECTURE.md`, *Testing strategy*) apply. For this
 mod:
-- **`claude plugin test`** runs the 80 tests in `tests/cartoon-fx.test.tsx`.
+- **`claude plugin test`** runs the 83 tests in `tests/cartoon-fx.test.tsx`.
   - A stand-in engine answers Bash calls, the store, the usage reading and every render. The clock
     is pinned (`mock.clock`), so a queue test moves it a turn at a time (`slot`: length + hold +
     gap) and reads which effect each row or the strip draws.
@@ -402,11 +409,15 @@ mod:
     `/fx all`; a collapsed strip, on the desktop and on the terminal; a session start emptying
     the queue past a gap timer set before it, and forgetting a collapsed strip. Two `/fx` tests
     step through all fourteen samples and a takeover.
-  - Seven cover the controls and the terminal's row: `/fx off` muting all but replays, and
-    `/fx on`; `/fx off` emptying the queue; a size kept by `/fx size` or another session; a
-    missing or unknown stored value playing at medium; the default size; the row stepping a frame
-    every 250 ms, identical in two strips at one frame and ending on time; and `glyphRow`'s
-    sparks stepping outward.
+  - Ten cover the controls and the terminal's row, each of the nine that mount a strip on
+    both surfaces, with `/fx place bottom` stored so both draw there: `/fx off` muting all but
+    replays, and `/fx on`; `/fx off` emptying the queue; the zones standing still while muted;
+    a size kept by `/fx size` or another session; a missing or unknown stored value playing at
+    medium; the default size; the row stepping a frame every 250 ms, identical in two strips
+    at one frame and ending on time, with no frames on the desktop; no frame written while the
+    strip is collapsed or under a survey; a frame the host never takes (a test hook answering
+    every write of it as a miss) stopping the frames but not the queue; and `glyphRow`'s sparks
+    stepping outward.
   - Thirteen tests cover the detection rules as plain functions, `ranAt` among them, and seven
     hook tests the rejected push behind `; echo done`, a cherry-pick, a commit and a cherry-pick in
     one command, a merged branch, a merged pull request, a rebase and a pull request opened. Their output and the engine's reports are fictional, shaped on
@@ -486,6 +497,9 @@ mod:
   id; two effects started in one millisecond share a seed, never an id.
 - **Placement, muting and size are read from the store on every play.** `/fx place`, `/fx off`
   and `/fx size` in one session apply in every other open session from its next effect.
+- **Muted, the context zones stand still.** The context check reads `isMuted` and changes no
+  flag while it is `true`, so a zone crossed while muted plays at the first check after
+  `/fx on`, rather than being spent unseen.
 - **The size travels with the effect,** in `shown`, rather than in a `$.state` key of its own:
   no new machine identifier, and one id is never drawn at two sizes, so the drawing cache needs
   no other key.
@@ -575,7 +589,7 @@ In `docs/BACKLOG.md` under *Deferred*:
 | Check | Expected |
 |---|---|
 | `npm run verify -- cartoon-fx` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for cartoon-fx |
-| `claude plugin test mods/cartoon-fx` | 80 pass, in one file |
+| `claude plugin test mods/cartoon-fx` | 83 pass, in one file |
 | `validate`: hooks / gating / state keys | 13 / 5 (each with a `.catch`) / 4 |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |

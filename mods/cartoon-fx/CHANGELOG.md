@@ -12,7 +12,8 @@ All notable changes to cartoon-fx are documented here. The format follows
 
 - **`/fx off` and `/fx on`** turn every animation off and on again, in every open session from
   its next one, and in every session after. Turning them off also stops the one playing and
-  drops what waits behind it. `/fx` itself still plays them while they are off.
+  drops what waits behind it. `/fx` itself still plays them while they are off, and a context
+  zone reached meanwhile plays once they are on again.
 - **`/fx size small`, `medium` or `large`** sets how large the desktop app draws them: 416 × 304,
   546 × 399 or 832 × 608. It applies from the next animation, in every open session, and is
   remembered. `/fx size` alone says which size is in use.
@@ -23,7 +24,8 @@ All notable changes to cartoon-fx are documented here. The format follows
   of their old size, so one no longer pushes the conversation down by most of a screen.
   `/fx size large` brings back the old size.
 - **The terminal's row sparkles.** The glyphs on each side of the words fly outward a step at a
-  time, four times a second, and a few twinkle, instead of standing still.
+  time, four times a second, and a few twinkle, instead of standing still. They hold still
+  while the strip is collapsed.
 
 ## [0.14.0] — 2026-11-15
 
@@ -169,6 +171,7 @@ and are not recorded. The entry below lists what it does at this version.
   `/fx place conversation` (or `/fx place middle`) puts them back under their rows. The choice is
   remembered across sessions.
 
+[0.15.0]: https://github.com/FairCat-GD/claude-code-mods/commit/7b9affebc7ce8af16aea1a1139c95f760b682655
 [0.14.0]: https://github.com/FairCat-GD/claude-code-mods/commit/f039da562bcf014a9ebd20f921d47b84b917fb52
 [0.13.0]: https://github.com/FairCat-GD/claude-code-mods/commit/69450c07fd5fafa1655160f1fac5aae995cfea47
 [0.12.0]: https://github.com/FairCat-GD/claude-code-mods/commit/0bd5d6ee32213ddf9d0916208b02e6dd1cb46547
