@@ -184,13 +184,14 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 | `turn.step` (streaming) | Yields every chunk through untouched; from the input, the model and effort; from the result, the usage | 2, 4 |
 | `turn.complete` | Ends the row (*The run model*) | 4 |
 | `tool.call` | The activity line, the last actions, files touched, tools in flight, the role's tool evidence | 4, 8, 10, 11 |
-| `session.measure` | The Lead's context and the plan limits | 5, 12 |
+| `session.measure` | The Lead's context and the plan limits | 2, 5, 12 |
 | `classic.SessionStart` | On `clear`, `resume` or `fork`, cancels the clock and redraws from the reset state | 4 |
 | `tool.check`, `classic.PermissionRequest` | Spike candidates for Needs you; after Session 3, only the one chosen stays | 2, 10 |
 
 - `turn.step` is the costliest: it sits on every model request of the session. It is kept
   because it is the only source of per-request tokens, model and effort. Its body is
   `return yield* next(e)` around reads that cannot throw into the stream.
+- Session 1 hooks every event marked 2 as a pass-through, so Session 2 only reads.
 - A hook added for the spike that no later session needs is removed in Session 3.
 
 **Built.** Not yet: Session 1.
@@ -246,9 +247,12 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   needs-you and quiet, and ends in finished, failed or stopped.
 - **How events join to rows:**
   - a spawn opens its row under its `tool_use_id`, and re-keys it to the agent id when the
-    spawn's result gives one; a turn or tool event that arrives first for that agent id waits
-    for the re-key rather than opening a row;
-  - an event from a loop no row knows (the engine's own forks: compaction, memory) is ignored;
+    spawn's result gives one;
+  - a turn or tool event for an agent id no row has yet is kept in `runs` as a pending entry
+    under that id, drawn nowhere; the re-key merges it into the row. No hook waits for the
+    other;
+  - a pending entry no spawn claims by its loop's `turn.complete` is dropped: that loop is one
+    of the engine's own forks (compaction, memory), which the panel does not show;
   - a resumed agent (`resume.agentId`) returns to its row;
   - a teammate's row goes back to working on its next turn;
   - a workflow's agents are ordinary rows;
@@ -331,7 +335,8 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   contrast against the light background is under 3:1 (N-06).
 
 **Built.** Not yet: Session 2 (a fixture sprite for the spike), Session 6 (the converter, the
-compositor, the SVG writer, `classic`), Session 7 (the other sets, every state's animation).
+compositor, the SVG writer, `classic`), Session 7 (the other sets), Session 7a (every state's
+animation).
 
 ## The panel
 

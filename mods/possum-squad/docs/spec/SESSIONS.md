@@ -9,8 +9,9 @@ deletes this file, `SPEC.md`, `PDD.md` and `research/`, and anything left open m
 `docs/BACKLOG.md`.
 
 In every Read line, `SPEC` decisions are by number, `PDD` places by part and ID, and
-`ARCHITECTURE` sections by name. Standing gates from Session 1 on, in every session that touches
-what they guard: N-01, N-07 and I-01 to I-06, each with its test.
+`ARCHITECTURE` sections by name. Standing gates, each from the session that adds its test, then
+in every session that touches what it guards: N-01, I-01, I-02 and I-05 from Session 1; I-03
+and I-04 from Session 3; I-06 from Session 4. N-07 and I-08 are review rules in every session.
 
 | Session | Scope | Decisions | Version |
 |---|---|---|---|
@@ -20,12 +21,13 @@ what they guard: N-01, N-07 and I-01 to I-06, each with its test.
 | 4 | Runs: subagents as live rows with tokens, context and endings; reload and clear | 12, 13, 14 | **0.4.0** |
 | 5 | The Lead, header totals, sections, Finished, the one-second clock; the terminal complete | 17, 18 | **0.5.0** |
 | 6 | Sprites: `art/` seeded, the converter, compositor and SVG writer; `classic` in every state's still pose and the work loop; motion off | 5, 9, 15, 17 | **0.6.0** |
-| 7 | Sets and gallery: `theme`, the other three sets, every state's animation, `/possums roles` | 5, 15 | **0.7.0** |
-| 8 | Roles: the reference ported, the corpus, arrival and dressing | 2, 20 | **0.8.0** |
-| 9 | Role picker and memory, states wired to runs, auto-open | 6, 19 | **0.9.0** |
-| 10 | Attention: Needs you, gone quiet, toasts | 16 | **0.10.0** |
-| 11 | Peek and the collapsed view; the `widget` seat | 18 | **0.11.0** |
-| 12 | Plan limits, the cost estimate, nested helpers | 1, 22 | **0.12.0** |
+| 7 | Sets and gallery: `theme`, the other three sets, `/possums roles` | 5, 15 | **0.7.0** |
+| 7a | Every state's animation | 15 | **0.8.0** |
+| 8 | Roles: the reference ported, the corpus, arrival and dressing | 2, 20 | **0.9.0** |
+| 9 | Role picker and memory, states wired to runs, auto-open | 6, 19 | **0.10.0** |
+| 10 | Attention: Needs you, gone quiet, toasts | 16 | **0.11.0** |
+| 11 | Peek and the collapsed view; the `widget` seat | 18 | **0.12.0** |
+| 12 | Plan limits, the cost estimate, nested helpers | 1, 22 | **0.13.0** |
 | 13 | Docs, changelog, manual runs; `ARCHITECTURE.md` read cold; close the round | all | **1.0.0**, tagged `possum-squad-v1.0.0` |
 
 ---
@@ -108,6 +110,9 @@ Part 7 *Motion & feedback*, Part 8 *Technical risks*, Part 12 H2, H4; `ARCHITECT
   the last seen field names with their value types, never a value; `tool.check`'s decision and
   `turn.complete`'s reason, which are the engine's words.
 - **Usage:** `$.session.usage()`'s rate-limit kinds and percents, and `session.measure`'s.
+- **Manifest settings:** one throwaway `userConfig` field in `plugin.json`, to see whether the
+  desktop app's plugin manager offers to edit it (decision 6 stands either way; the answer
+  closes the PDD's Assumed row). Session 3 removes it.
 - **Docs.**
   - `CHANGELOG.md`: 0.2.0, saying the pane shows test drawings for now.
   - `ARCHITECTURE.md`: *Context*'s Built part with what the terminal showed; the desktop's
@@ -151,8 +156,8 @@ and `$.store`*, *The panel*, *The command and settings*, *Sprites and sets* (the
   - whether the gallery's 136 sprites animate or are still.
   Each answer goes into `ARCHITECTURE.md`'s Decided part, with a *Decision log* line, and amends
   the later blocks it reaches.
-- **The spike view goes:** the fixture sprites, the shape view, and every spike hook no later
-  session needs.
+- **The spike view goes:** the fixture sprites, the shape view, the throwaway `userConfig`
+  field, and every spike hook no later session needs.
 - **`/possums open`, `set`, `settings`** (*The command and settings*), and `prefs` in the store
   through one write function whose payload type holds only setting values and flags (I-03).
 - **The row on both surfaces** (*The panel*): `hooks/view/` builds the four-line row with its
@@ -216,8 +221,9 @@ hooks*, *Values: `$.state` and `$.store`*, *The run model*, *The panel*.
   - after two model requests the row's fresh tokens equal the stubbed sum, cache reads apart
     (F-02);
   - the four endings, including an empty answer and a refusal (F-11);
-  - a turn event that arrives before the spawn's result joins the right row; an unknown loop
-    opens none;
+  - a turn event that arrives before the spawn's result is kept pending and merges into the
+    right row at the re-key; a pending entry no spawn claims is dropped at its loop's
+    `turn.complete` and never drawn;
   - a resumed agent returns to its row; a second spawn with a finished run's description is
     "round 2";
   - after a clear-type session start the list is empty (F-23); across a reload, if the kit can
@@ -282,7 +288,9 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
 
 - **Before anything:** the repo-level round that teaches the gate `tools/` is committed. If it
   is not, this session swaps with Session 8, logged as an amendment in both blocks.
-- **`art/`,** seeded from `research/art/` by copying, unchanged.
+- **`art/`,** seeded from `research/art/`: the PNGs copied unchanged; `manifest.json` and
+  `palette.json` copied, then formatted with `npx biome format --write`, their content
+  unchanged.
 - **The converter** in `tools/`: reads `art/`, writes `hooks/sprites/data.ts` (palette indices
   and layers for every set, recipes, costume names), Biome-clean; run by the session, its output
   committed.
@@ -302,12 +310,17 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
 - `npm run verify -- possum-squad`, with these tests:
   - every role and state of `classic` is under 16,000 characters (N-02);
   - with `motion` off no `Svg` source holds an animation element (F-21);
-  - every palette colour on a sprite edge meets 3:1 on both themes or has the outline (N-06);
+  - sprites stay readable on the light theme by the approach decided at Session 3: with the
+    outline, every palette colour on a sprite edge meets 3:1 on both themes or has it; with
+    another approach, the test Session 3 names (N-06);
   - `data.ts` holds every layer `manifest.json` names (the converter's own checks are what the
     repo-level round decides).
 
 **Watch for:**
 - **`research/` is input:** copy from it, never edit it.
+- **The kit's JSON is not Biome's shape** (one-space indents, one value per line): copied as it
+  is, `art/manifest.json` and `art/palette.json` fail `format`. Format the copies; the frozen
+  originals under `docs/` are not read by Biome.
 - **The generated file must come out Biome-clean,** or `format` fails on a file no one wrote by
   hand.
 - **One `Svg` source holds at most 131,072 characters,** and every sprite needs `alt`.
@@ -317,15 +330,14 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
 ## 7: Sets and gallery
 
 **Read:** `SPEC.md` §2 decisions 5, 15; `PDD.md` Part 6 *Roles and outfits*, *The other sets*,
-*Sprites*, Part 7 *Motion & feedback*, Part 5 F-08, F-26, F-27, N-04, N-05; `ARCHITECTURE.md`
-*Sprites and sets*, *The panel* (the gallery), *The command and settings*, *Testing strategy*.
+*Sprites*, Part 5 F-26, F-27, N-02, N-05; `ARCHITECTURE.md` *Sprites and sets*, *The panel* (the
+gallery), *The command and settings*, *Testing strategy*.
 
 - **The other three sets** in `data.ts`; `/possums set theme` redraws at once; a role a set lacks
   falls back to `classic`; costume names per set.
-- **Every state's animation** as its recipe: arrival and the dressing hop, the work loop, the
-  sign, the doze, the cheer then sleep, playing dead, the startle.
 - **`/possums roles`:** the gallery of 17 roles in 8 states, with role and costume names, on both
-  surfaces (text on the terminal), animated or still as decided at Session 3.
+  surfaces (text on the terminal), in Session 6's still poses; Session 7a animates it if
+  Session 3 decided so.
 - **Docs.**
   - `CHANGELOG.md`: 0.7.0.
   - `ARCHITECTURE.md`: Built for *Sprites and sets*, *The panel* (the gallery), *The command and
@@ -338,9 +350,35 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
     sprite and no role name; a fictional two-role set falls back to `classic` for the other 15
     (F-27);
   - every role and state of every set is under 16,000 characters (N-02);
-  - the gallery holds 17 roles and 8 states on both surfaces (F-26);
-  - with three agents working, at most one invalidation per mock second (N-04).
+  - the gallery holds 17 roles and 8 states on both surfaces (F-26).
 - N-05 timed by hand: building the tree for 20 rows, recorded in the done-note.
+
+---
+
+## 7a: State animations
+
+Split from Session 7 at the intake's review: the sets, the gallery and every state's animation
+were too much for one chat.
+
+**Read:** `SPEC.md` §2 decision 15; `PDD.md` Part 7 *Motion & feedback*, Part 5 F-08, F-21,
+N-02, N-04, T-01; `research/sprites/` (each recipe's reference); `ARCHITECTURE.md` *Sprites and
+sets*, *The panel*, *Testing strategy*.
+
+- **Every state's animation** as its recipe, on every set: arrival and the dressing hop, the
+  work loop, the sign, the doze, the cheer then sleep, playing dead, the startle; each with its
+  still form for `motion` `off`.
+- **The gallery animates** if Session 3 decided so.
+- **Docs.**
+  - `CHANGELOG.md`: 0.8.0.
+  - `ARCHITECTURE.md`: Built for *Sprites and sets*.
+- **Confirms:** *Sprites and sets* (the recipes, SMIL in steps of T-01).
+
+**Gates:**
+- `npm run verify -- possum-squad`, with these tests:
+  - for each state, the sprite holds that state's frames, and with `motion` off no animation
+    element (F-08's art, F-21);
+  - every animated sprite of every set is under 16,000 characters (N-02);
+  - with three agents working, at most one invalidation per mock second (N-04).
 - After the push, the owner reviews each set in the gallery on the desktop app (H6); a set not
   ready is cut whole (decision 5); what goes to polish is listed in `docs/BACKLOG.md`.
 
@@ -364,7 +402,7 @@ examples*, Part 5 F-05, F-06, I-07, T-03, T-04; `research/roles/`; `ARCHITECTURE
   Helper at T-04 from the one-second clock, not a timer of its own; a row arrives plain and
   dresses with one hop when its role settles.
 - **Docs.**
-  - `CHANGELOG.md`: 0.8.0.
+  - `CHANGELOG.md`: 0.9.0.
   - `ARCHITECTURE.md`: Built for *Roles*; I-07's *Enforced by*.
   - `USER-GUIDE.md`: how roles are chosen.
 - **Confirms:** *Roles* (the rule order, settled once).
@@ -395,7 +433,7 @@ and `$.store`* (`role:<agent type>`), *Roles*, *The run model*, *The panel*, *At
 - **States wired to runs:** each run's state draws its recipe.
 - **Auto-open** per `prefs.autoOpen`; a pane the person closed stays closed for the session.
 - **Docs.**
-  - `CHANGELOG.md`: 0.9.0.
+  - `CHANGELOG.md`: 0.10.0.
   - `ARCHITECTURE.md`: Built for *Roles* (the picker), *Attention* (auto-open), *Values*.
   - `USER-GUIDE.md`: changing a role; when the pane opens.
   - `CLAUDE.md`: the store key `role:<agent type>`.
@@ -424,7 +462,7 @@ hooks*, *The run model*, *The panel*.
 - **Gone quiet** after T-05 with no tool call in flight.
 - **Toasts** while the pane is closed.
 - **Docs.**
-  - `CHANGELOG.md`: 0.10.0.
+  - `CHANGELOG.md`: 0.11.0.
   - `ARCHITECTURE.md`: Built for *Attention*.
   - `USER-GUIDE.md`: Needs you, quiet, toasts.
 - **Confirms:** *Attention* (Needs you's signal, as decided at Session 3).
@@ -450,7 +488,7 @@ panel* (Peek, the collapsed view, seats), *The run model*, *Values: `$.state` an
 - **The collapsed view:** the header button (`prefs.collapsed`), the Lead with joeys and a
   numeral, the needs-you mark; drawn in the `widget` seat too.
 - **Docs.**
-  - `CHANGELOG.md`: 0.11.0.
+  - `CHANGELOG.md`: 0.12.0.
   - `ARCHITECTURE.md`: Built for *The panel*.
   - `USER-GUIDE.md`: Peek and the collapsed view.
 - **Ask at the start of 11:** whether the owner has redrawn the joey; a new PNG goes into `art/`
@@ -477,7 +515,7 @@ run model* (nesting, numbers), *The panel* (the header), *Values: `$.state` and 
 - **Nested helpers:** a spawn whose `parentAgentId` names a known run is drawn under it, and its
   totals roll up.
 - **Docs.**
-  - `CHANGELOG.md`: 0.12.0.
+  - `CHANGELOG.md`: 0.13.0.
   - `ARCHITECTURE.md`: Built for *The run model*, *The panel*.
   - `USER-GUIDE.md`: limits, the estimate, nesting.
 - **Confirms:** *The run model* (nesting and roll-up).

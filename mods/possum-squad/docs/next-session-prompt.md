@@ -11,9 +11,12 @@ Release 0.1.0.
 
 ## State you need that is not in the specs
 
-- **Round 1 is the agents panel:** Session 0 (the intake) is done; Sessions 1–13 remain.
-- **Nothing of this mod is pushed.** The intake's commit is local; `origin/main` holds
-  everything through the repository's round 1 close.
+- **Round 1 is the agents panel:** Session 0 (the intake) is done; Sessions 1–13 and 7a remain
+  (7a was split from 7 at the intake's review).
+- **Push status:** pushed on 2026-11-17 with the owner's approval: `origin/main` holds
+  everything through the intake's review commit
+  (`review(possum-squad): the art's JSON fails the gate as copied, and 8 smaller`). Nothing
+  waits locally. No release of this mod is installed yet; 0.1.0 is Session 1's.
 - **What the intake left that Session 1 builds on:**
   - `mods/possum-squad/` is the template renamed at 0.1.0: `hooks/register.ts` with `/hello`, its
     one test, and the made workflow files, now filled in. The marketplace entry and the README
@@ -21,13 +24,20 @@ Release 0.1.0.
   - The declarations are laid from CLI 2.1.326; the intake read 2.1.325's and 2.1.326's, and
     every engine fact in `SPEC.md` decision 12 held in both.
 - **Decisions written down nowhere else:**
-  - The owner took the words for the mod's animal off the hygiene term list at this intake, so
-    the name and the docs pass hygiene; the rescan found nothing else.
+  - Hygiene ran a full scan at this intake and passed on the mod's name and every file.
   - The PNG layers in `docs/spec/research/art/` hold pixel data only (no text chunks), checked
     at intake, since hygiene cannot read binaries.
 - **The repo-level round for `tools/`** (`SPEC.md` decision 9) is the owner's to open, in its
-  own chat, before Session 6. It must let the import scan pass Node imports under a mod's
-  `tools/`, keep `hooks/` and `tests/` from importing it, and say how the converter is checked.
+  own chat, before Session 6; no repo-level file records it, since this level cannot write
+  there. Its request, ready to give that intake:
+
+  > The gate must take a mod's `tools/` folder: Node scripts run by hand, never loaded by the
+  > engine. The import scan should allow `node:` imports there and refuse any import of
+  > `tools/` from `hooks/` or `tests/`; `tools/` should be type-checked against Node's types;
+  > and the round should say how a tool's own behaviour is tested. possum-squad's sprite
+  > converter is the first user.
+
+  If it is not committed when Session 6 opens, Session 8 runs first, logged as an amendment.
 - **Baseline:** the made mod's, the template's row in the root `docs/ARCHITECTURE.md`: 1 test,
   2 hooks, 0 gating, `$.command.register`. Session 1 writes the mod's own table.
 

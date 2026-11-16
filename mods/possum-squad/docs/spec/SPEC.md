@@ -29,8 +29,9 @@ re-litigated by an implementing session; a change is added beside the decision a
 <YYYY-MM-DD> by the owner** note. An answer about how the mod is built is in `ARCHITECTURE.md`,
 not here.
 
-1. **Round 1 is the PDD's version 1, plus nested helpers (F-24), minus step reports,** in 13
-   sessions (`SESSIONS.md`), releasing 0.1.0 to 1.0.0.
+1. **Round 1 is the PDD's version 1, plus nested helpers (F-24), minus step reports,** in 14
+   sessions (`SESSIONS.md`: 1–13 and 7a, split from 7 at the intake's review), releasing 0.1.0
+   to 1.0.0.
 2. **No step reports in v1.** The `step` tool (F-17), the nudge (F-18) and the `plan` tool (F-19)
    go to `docs/BACKLOG.md` as one later round. Their names (`step`, `plan`, the setting
    `stepReports`, the state key `planned`) stay reserved, and so does role rule 1 ("stated"),
@@ -40,7 +41,7 @@ not here.
 4. **English only.** F-25 and the `language` setting are dropped; the strings live in one
    English table. Ukrainian is under *Decided against* in `docs/BACKLOG.md`.
 5. **All four sets ship in v1:** `classic`, `steampunk`, `horror`, `prehistoric`. If the art
-   review after Session 7 finds one not ready, the whole set is cut, never a single role.
+   review after Session 7a finds one not ready, the whole set is cut, never a single role.
 6. **Settings live in the store,** under `prefs`, changed with `/possums set`. The manifest
    declares no settings.
 7. **The mod names no other mod,** in its docs, its README or its code. Nothing credits one.
@@ -130,7 +131,7 @@ the prompt; anything stored from a session's content.
 | Part 5 *Constraints & assumptions*, Assumed rows | The spawn event carries type, model, effort and brief | Type, brief and the caller's model; resolved model in the result; effort from `turn.step` | Decision 12 |
 | Part 8 *Stack & architecture*, Drawing | One `Svg` string per sprite animated with SMIL | Needs `isInteractive` and `alt`; the `widget` seat draws the collapsed view | Decisions 12, 18 |
 | Part 6 *Names that never change*, state keys | `runs`, `lead`, `planned`, `view` | `planned` reserved; what `prefs` and `view` hold is set | Decisions 2, 19 |
-| Part 13 *Milestones* M0–M7 | Eight milestones, 0.0.1 first | 13 sessions, 0.1.0 to 1.0.0 | Decisions 1, 10, 21 |
+| Part 13 *Milestones* M0–M7 | Eight milestones, 0.0.1 first | 14 sessions, 0.1.0 to 1.0.0 | Decisions 1, 10, 21 |
 | Part 8 Art tool; Appendix C item 8 | The converter in the mod's `tools/` | Kept; the gate learns `tools/` in a repo-level round first | Decision 9 |
 | Appendix C item 10; the kit's README | Only the PDD enters; the art and corpus at M3 and M4 | The inputs frozen in `docs/spec/research/`; the corpus as a `.ts` fixture | Decisions 8, 20 |
 | Part 5 F-27; Appendix C item 12 | Proposed: all four sets ship | Decided | Decision 5 |
@@ -140,8 +141,9 @@ the prompt; anything stored from a session's content.
 
 ## 5. Traceability
 
-Standing from Session 1 on, each with its test, in every session that touches what it guards:
-N-01, N-07, and I-01 to I-06. I-08 is a review rule in every session.
+Standing gates, each from the session that adds its test, then in every session that touches
+what it guards: N-01, I-01, I-02 and I-05 from Session 1; I-03 and I-04 from Session 3; I-06 from
+Session 4. N-07 and I-08 are review rules in every session.
 
 | Requirement | Session |
 |---|---|
@@ -152,7 +154,7 @@ N-01, N-07, and I-01 to I-06. I-08 is a review rule in every session.
 | F-05 role rules and the corpus | 8 |
 | F-06 plain until settled; Helper at T-04 | 8 |
 | F-07 role picker, memory for custom types | 9 |
-| F-08 every state's pose or animation | 7 (the art), 9 (wired to runs) |
+| F-08 every state's pose or animation | 6 (still poses), 7a (animations), 9 (wired to runs) |
 | F-09 the Lead | 5 |
 | F-10 auto-open | 9 |
 | F-11 endings | 4 |
@@ -163,7 +165,7 @@ N-01, N-07, and I-01 to I-06. I-08 is a review rule in every session.
 | F-16 collapsed view; the `widget` seat | 11 |
 | F-17, F-18, F-19 | Out of v1 (decision 2) |
 | F-20 plan-limit percent, cost estimate | 12 |
-| F-21 motion off | 6 |
+| F-21 motion off | 6, 7a |
 | F-22 terminal text rows | 3 (the row), 5 (complete) |
 | F-23 survives reload, resets on clear | 4 |
 | F-24 nested helpers | 12 |
@@ -171,20 +173,22 @@ N-01, N-07, and I-01 to I-06. I-08 is a review rule in every session.
 | F-26 the gallery | 7 |
 | F-27 sets and `theme` | 6 (the set format, `classic`), 7 (the other three, switching) |
 | N-01 zero tokens | 1, standing |
-| N-02 sprite size | 6, 7 |
+| N-02 sprite size | 6, 7, 7a |
 | N-03 no idle timers | 5, standing after |
-| N-04 no redraws for animation | 7 |
+| N-04 no redraws for animation | 7a |
 | N-05 tree time for 20 rows | 7 (timed by hand) |
 | N-06 contrast on both themes | 6 (the approach chosen at 3) |
-| N-07 hook time | 1, standing |
+| N-07 hook time | Every session (review rule) |
 | N-08 supported versions | 13 |
-| I-01 to I-06 | 1, standing |
+| I-01, I-02, I-05 | 1, standing |
+| I-03, I-04 | 3, standing |
+| I-06 | 4, standing |
 | I-07 the outfit never changes | 8 |
 | I-08 nothing from another mod or character | Every session (review rule) |
 | H1 role accuracy | The owner's week of use after Session 8's release |
 | H2 a pane animates a dozen sprites | 2 |
 | H4 a permission wait is visible | 2 |
-| H6 outfits distinct at panel size | The art review after Session 7 |
+| H6 outfits distinct at panel size | The art review after Session 7a |
 
 ## 6. Definition of done for v1
 
