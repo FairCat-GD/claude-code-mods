@@ -24,6 +24,10 @@ up, it moves out of this file.
 Checks that need a person at the machine. Each has an automated check covering most of it;
 these are the parts only a person can see.
 
+- **`/possums` in the desktop app.** The pane, its empty line and the toggle were checked in the
+  terminal only (0.1.0); the desktop app runs the installed release, so this waits for a push
+  and an install, and the owner's desktop run before Session 3 covers it.
+
 ## Directions
 
 - **Sets made by other people.** A set is already a folder of layers and one manifest entry; a

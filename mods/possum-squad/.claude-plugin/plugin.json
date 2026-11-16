@@ -3,5 +3,6 @@
   "version": "0.1.0",
   "description": "A side panel that shows every agent as a tiny animated opossum dressed for its job",
   "author": { "name": "FairCat-GD" },
-  "license": "MIT"
+  "license": "MIT",
+  "types": "./types/index.d.ts"
 }

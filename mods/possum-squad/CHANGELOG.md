@@ -6,8 +6,15 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
-## [0.1.0] — 2026-11-16
+## [0.1.0] — 2026-11-17
+
+The first release: the pane and its command, with nothing in it yet. Agents start showing up in
+later versions.
 
 ### Added
 
-- **`/hello` says the mod is loaded.** Typing it shows one line, so you can see the mod runs.
+- **`/possums` shows or hides the Possum Squad pane.** It works mid-turn too, and prints
+  nothing in the conversation. For now the pane says only that no agents have shown up yet.
+- **The mod watches without changing anything.** It sees agents start, turns run and tools get
+  called, and passes every one of them on exactly as it came; watching adds nothing to what
+  Claude is sent.

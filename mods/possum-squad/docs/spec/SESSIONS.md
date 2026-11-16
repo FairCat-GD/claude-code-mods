@@ -90,6 +90,72 @@ hooks*, *Values: `$.state` and `$.store`*, *The panel*, *The command and setting
   known: measure it.
 - **No `$.state` write inside `ui.render`.** The engine refuses it.
 
+**Done (2026-11-17, 0.1.0).**
+- **Decided with the user:**
+  - at plan time, `$.ui.panes` joins *Reach*'s allow-list, so `/possums` asks the engine
+    whether the pane is open rather than keeping a flag in `view` (*Decision log*);
+  - the parts under **Confirms**, as built: *The hooks* (the failure rule: a guarded read and a
+    passing `.catch`; `turn.step`'s body `return passOn(e, yield* next(e))`), *Values* (`view`),
+    *The panel* (the pane, the toggle), *The command and settings* (`immediate`), *Reach*.
+- **The module.** `hooks/register.ts` became `hooks/register.tsx`, named in `hooks/hooks.json`;
+  `/hello`, `GREETING` and the template's test are gone. Beside it are `hooks/config.ts`
+  (`PANE_COLUMNS`, T-13), `hooks/strings.ts` and `hooks/view/empty.tsx` (`emptyPanel`, one
+  builder for both surfaces). `types/index.d.ts` declares `view` as `Shaped<View>`, and
+  `plugin.json` names it under `types`.
+- **`/possums`.** It is registered at `session.start` with `immediate`. On `command.run` it
+  reads `$.ui.panes()`, then closes the pane or opens it (title "Possum Squad", 46 columns),
+  and answers `{}`. A rejected call answers one plain line.
+- **The pane.** The `ui.render` hook for `Pane` / `possum-squad` draws the empty panel's line
+  and touches no state.
+- **The close.** The `ui.close` hook records a close by the person (not refused) in
+  `view.isClosedByPerson`, through `update`, inside a guard.
+- **Pass-through hooks.** `agent.spawn`, `turn.start`, `turn.complete`, `tool.call`,
+  `tool.check`, `session.measure` and `classic.PermissionRequest` are each
+  `passOn(e, await next(e))`, with no reader yet. `turn.step` is
+  `return passOn(e, yield* next(e))`. Every hook but `command.run` and `ui.render` has a
+  `.catch` that passes the event on.
+- **Tests.** `tests/panel.test.ts` (6) and `tests/pass-through.test.ts` (3), with fictional
+  events in `tests/fixtures/events.ts`. Each block gate has its test; the UI ones loop over
+  terminal and desktop.
+- **Docs.** The 0.1.0 entry in `CHANGELOG.md` was rewritten. Also written: the README, the user
+  guide, `ARCHITECTURE.md`'s Built parts, the *Enforced by* of I-01, I-02, I-05 and N-01, the
+  baseline and the decision log, and `CLAUDE.md`'s command and state-key lines.
+- **Amendments:**
+  - **`$.ui.panes` is called, beyond *Reach* as written.** The toggle needs to know whether the
+    pane is open; the user chose the engine's list over a flag in `view` at plan time.
+  - **The person's close is tested on the hook alone.** The kit's `$` cannot close a pane as
+    the person (only the engine sets `origin`), so that test runs the module's `ui.close` hook
+    with a `$` holding only state. The plugin's own close is tested through the kit, with an
+    inline plugin reading the stored value. The session's own finding.
+  - **`turn.step`'s malformed case keeps the engine's required fields.** The engine fails a step
+    with no `turnId`, `index` or `model` in its own chain, before any hook. The test raises a
+    step with only those fields and fields the mod does not know. The session's own finding.
+- **Measured** (CLI 2.1.326, the kit):
+  - a `next(e)` given a malformed argument is refused, and the hook is reported skipped; the
+    event goes on with the result from beneath;
+  - inside a hook, `next(e)` on `turn.step` carries `.result`, equal to what `yield*` returns;
+    the kit's own `$.turn.step` stream has no `.result`, so tests read the stream's end;
+  - an inline test plugin may not pass `$` to an imported helper (`read`), and cannot close over
+    the test file;
+  - `validate` lists 5 of the 12 hooks as gating.
+- **Checked by hand:** the user, in `claude --plugin-dir mods/possum-squad` (CLI 2.1.326):
+  - `/possums` opens the pane with the empty line, and a second `/possums` closes it;
+  - in a window under 110 columns, `/possums` opens it above the prompt, so an open from the
+    command counts as asked;
+  - the desktop app waits for a push and install.
+- **Falsified**, each failing at its own test:
+  - a `$.tool.register` at session start;
+  - the toggle that always opens;
+  - the pane drawing another line;
+  - `view` written on any origin (both close tests), and never written;
+  - `passOn` altering the result (all three pass-through tests);
+  - a hook answering its own result for an unknown shape;
+  - `turn.step` dropping its first chunk, and swapping two;
+  - a refused open answering nothing.
+- **Numbers:** 9 tests (+8), in 2 files. `validate`: 12 hooks (+10), 5 gating (+5), each with a
+  `.catch`; 1 state key (`view`, +1); calls `$.command.register`, `$.state.get`, `$.state.set`,
+  `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`.
+
 ---
 
 ## 2: Spike build

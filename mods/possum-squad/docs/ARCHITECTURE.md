@@ -32,9 +32,11 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built.** One hooks module, `hooks/register.ts`, named by `hooks/hooks.json`. It declares
-`/hello` on `session.start` and answers it on `command.run`: the template's starting point, which
-Session 1 replaces.
+**Built** (0.1.0). The skeleton: `hooks/register.tsx`, named by `hooks/hooks.json`, registers
+`/possums`, toggles and draws the pane, records a close by the person in `view`, and hooks every
+event Session 2's spike reads, passing each on unchanged. Of the pure modules only `hooks/view/`
+exists, with the empty panel, beside `hooks/strings.ts` and `hooks/config.ts`. `model/`,
+`roles/`, `sprites/`, `data/`, `art/` and `tools/` are not yet built.
 
 ## Context
 
@@ -71,8 +73,19 @@ Session 1 replaces.
   optional is present; the shape of an event it does not recognise; that a surface exists; that
   a pane is placed or shown.
 
-**Built.** Not yet: Session 1 (the hooks), Session 2 (the spike's measurements on the desktop
-app and the terminal).
+**Built.** What the engine's test kit did on CLI 2.1.326 (the spike's measurements on the
+desktop app and the terminal: not yet, Session 2):
+- **A malformed event.** The engine refuses a `next(e)` whose argument lacks a field it needs
+  (`turnId` on `turn.start`, `answer` on `turn.complete`); the hook is reported skipped and the
+  event goes on with what the hooks beneath give. A `turn.step` with no `turnId`, `index` or
+  `model` fails in the engine's own chain before any plugin's hook, and a step's result must
+  name the step it answers.
+- **A stream's result.** Inside a hook, `next(e)` on `turn.step` is a stream with `.result`, and
+  `yield* next(e)` returns the same result. The stream the kit's own `$.turn.step` hands a test
+  has no `.result`, so tests read the result from the stream's end.
+- **A pane's close.** Only the engine sets `ui.close`'s `origin`: a plugin's `$.ui.close` is
+  `plugin`, and the kit's `$` cannot close a pane as the person. The test of the person's close
+  runs the module's `ui.close` hook by itself, with a `$` holding only state.
 
 ## Stack and pins
 
@@ -84,7 +97,8 @@ dependency (PNG read with `node:zlib`); how the gate checks it is set by the rep
 that teaches it `tools/`. The tooling's own pins are the repository's.
 
 **Built.** Declarations read at intake: CLI 2.1.325, then 2.1.326 (it updated itself during
-`npm run types`). The desktop engine was not measured at intake.
+`npm run types`). 0.1.0 was built and checked on CLI 2.1.326. The desktop engine has not been
+measured.
 
 ## Layout and boundaries
 
@@ -120,9 +134,19 @@ that teaches it `tools/`. The tooling's own pins are the repository's.
   - nothing in `hooks/` or `tests/` imports from `tools/`, and `tools/` imports nothing from
     `hooks/`: it reads `art/` and writes `hooks/sprites/data.ts`.
 
-**Built.** *Enforced by* the gate's `imports` stage (the import scan) and `validate`
-(`claude plugin validate`) for the first boundary. The others: not yet; Session 1 decides
-whether a test or review enforces the one-file rule.
+**Built** (0.1.0). In place: `.claude-plugin/plugin.json` (naming `types/index.d.ts`),
+`hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-13 only), `hooks/strings.ts`,
+`hooks/view/empty.tsx`, `types/index.d.ts`, and `tests/` with `tests/fixtures/events.ts`.
+- *Enforced by* the gate's `imports` stage (the import scan) and `validate`
+  (`claude plugin validate`) for the first boundary.
+- The one-file rule is enforced by review: no test reads source files, and `validate`
+  already lists every `$` call the module makes, with the helper it goes through. The view and
+  the tables import only types from `claude-code`.
+- One view builder, `emptyPanel`, serves both surfaces: it takes `Box` and `Text`, which both
+  surfaces' element tables carry. The desktop and terminal builders split at Session 3, when
+  the row differs.
+- The tests import from `hooks/` (the module's `register`, `PANE` and `view`, the strings and
+  the config), so a test never repeats a value the module owns.
 
 ## The invariants
 
@@ -134,11 +158,12 @@ whether a test or review enforces the one-file rule.
    every tracked file of it, docs and tests included. *Enforced by* the hygiene stage, for what it
    can see.
 4. **I-01: the mod never changes, denies or answers an engine event,** except its own command.
-   *Why:* watching must change nothing Claude does. *Enforced by* not yet: Session 1 (a test per
-   hooked event: the result equals the stub's).
+   *Why:* watching must change nothing Claude does. *Enforced by* `tests/pass-through.test.ts`:
+   for each hooked event the result equals what the engine's stand-in gave, and `turn.step`'s
+   chunks arrive unchanged and in order.
 5. **I-02: the mod calls nothing outside the allow-list in *Reach*.** *Why:* "what can this do?"
-   must have a short, provable answer. *Enforced by* not yet: Session 1 (the baseline records
-   `validate`'s calls line; a change to it is the owner's, recorded in the done-note).
+   must have a short, provable answer. *Enforced by* the baseline, which records `validate`'s
+   calls line; a change to it is the owner's, recorded in the done-note.
 6. **I-03: no text from a brief, an answer, a file path or a tool argument is written to the
    store or to a log.** *Why:* that text is the owner's work, and the panel has no need to keep
    it. *Enforced by* not yet: Session 3 (every store write goes through one function whose
@@ -147,8 +172,10 @@ whether a test or review enforces the one-file rule.
    `Markdown`. *Why:* it may carry markup or links. *Enforced by* not yet: Session 3 (a test on
    the view builders); sprites are built from the mod's own data only.
 8. **I-05: a fault in the mod never blocks or alters a turn.** *Why:* the mod runs in every
-   session the owner starts. *Enforced by* not yet: Session 1 (each hook body wrapped; on error
-   the event passes on; a test with a malformed event).
+   session the owner starts. *Enforced by* `passOn` in `hooks/register.tsx`, which runs a hook's
+   reading inside a guard and returns what `next` gave; a `.catch` passing the event on, on every
+   hook but the command's and the pane's drawing; and a test raising each hooked event with a
+   shape the mod does not know.
 9. **I-06: a state is never shown by colour or sprite alone;** each row carries its state word.
    *Why:* accessibility, and the terminal has no sprites. *Enforced by* not yet: Session 4.
 10. **I-07: a run's outfit never changes once its role is settled,** except by the person's own
@@ -156,9 +183,9 @@ whether a test or review enforces the one-file rule.
 11. **I-08: no art or code from another mod, and no likeness of another party's mascot or of a
     film, game or cartoon character.** *Why:* the mod and its art are published under MIT.
     *Enforced by* review; every sprite originates from `art/`.
-12. **N-01: zero tokens added to any request.** *Why:* watching is free. *Enforced by* not yet:
-    Session 1 (session start registers only the command, no tool; `validate` lists no tool
-    registration).
+12. **N-01: zero tokens added to any request.** *Why:* watching is free. *Enforced by* a test
+    that session start registers `/possums` and no tool, and `validate`'s calls line, which
+    holds no `$.tool.register`.
 13. **N-07: the mod's own work per event stays under 5 ms, and it awaits nothing but `next`, state
     and store in event hooks.** *Why:* every event of every session passes through it. *Enforced
     by* review.
@@ -194,7 +221,25 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 - Session 1 hooks every event marked 2 as a pass-through, so Session 2 only reads.
 - A hook added for the spike that no later session needs is removed in Session 3.
 
-**Built.** Not yet: Session 1.
+**Built** (0.1.0). Twelve hooks, in `hooks/register.tsx`:
+- `session.start` registers `/possums` with `immediate`, then returns `next(e)`.
+- `command.run` `{ command: 'possums' }` and `ui.render` `{ component: 'Pane', requestId:
+  'possum-squad' }`: *The panel*, *The command and settings*.
+- `ui.close` `{ id: 'possum-squad' }` awaits `next(e)`; when `origin.kind` is `person` and the
+  close was not refused, it sets `view.isClosedByPerson` through `update`, inside a guard, so a
+  failed write loses only the flag. It returns what `next` gave.
+- The pass-throughs, `agent.spawn`, `turn.start`, `turn.complete`, `tool.call`, `tool.check`,
+  `session.measure` and `classic.PermissionRequest`, are each
+  `passOn(e, await next(e))`: `passOn` runs an optional reader inside `try` and returns the
+  result untouched. No hook passes a reader yet; Session 2 adds them.
+- `turn.step` is `return passOn(e, yield* next(e))`: every chunk goes through the delegation
+  untouched, and the reading happens once the stream has ended, so nothing can throw between
+  yields.
+- Every hook but `command.run` and `ui.render` carries `.catch((_$, e, next) => next(e))`
+  (`turn.step`'s a generator doing `return yield* next(e)`), gating or not, so the rule is one
+  line to check. `validate` lists five as gating: `ui.close`, `agent.spawn`, `tool.call`,
+  `tool.check`, `classic.PermissionRequest`. `command.run` reads no `next`, so it is not
+  gating; its body catches its own fault (*The command and settings*).
 
 ## Values: `$.state` and `$.store`
 
@@ -231,7 +276,16 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   Reserved for step reports, a later round: the tools `step` and `plan`, the setting
   `stepReports` (`off`, `tool`, `nudge`), the state key `planned`.
 
-**Built.** None yet.
+**Built** (0.1.0). `types/index.d.ts` declares `PluginState['possum-squad']` with `view` alone,
+as `Shaped<View>`, and exports `View`; `plugin.json` names the file under `types`, and
+`validate` holds the module's state keys to it.
+- `view` is `{ isClosedByPerson: boolean }` (default false), the atom in `hooks/register.tsx`
+  with the shape tag `view-1`. A reload of the mod's code that names another tag reads the
+  value as absent, so the tag changes whenever `View`'s fields do. Peek's run and the gallery's
+  flag join it in Sessions 11 and 7.
+- Only the `ui.close` hook writes it, through `update`; nothing reads it yet (auto-open,
+  Session 9).
+- `runs`, `lead` and `$.store` are not yet used.
 
 ## The run model
 
@@ -369,9 +423,20 @@ animation).
   one."
 - **Words** are plain and short, with no exclamation marks and no jokes in error text.
 
-**Built.** Not yet: Session 1 (the pane, the toggle, the empty panel), Session 3 (the row, both
-surfaces), Session 5 (sections, header, Lead, Finished, the clock, the terminal complete),
-Session 7 (the gallery), Session 11 (Peek, the collapsed view, the `widget` seat).
+**Built** (0.1.0): the pane, the toggle and the empty panel.
+- `/possums` opens `possum-squad` with `{ id, title: 'Possum Squad', columns: PANE_COLUMNS }`
+  (T-13, 46, in `hooks/config.ts`). It sets no `placement`, so the surface seats it: docked in
+  a fullscreen terminal from 110 columns, inline above the prompt otherwise.
+- The pane draws `emptyPanel` from `hooks/view/empty.tsx`: a column `Box` holding one dim
+  `Text` with the empty panel's line from `hooks/strings.ts`. It is the same on both surfaces;
+  the squad asleep comes with the sprites (Session 6). The drawing reads and writes no state.
+- An open from `/possums` is the person's, so the declarations place it at any width (144 and
+  110 columns hold only for an open the plugin makes unasked).
+- No redraw and no clock yet.
+
+Not yet: Session 3 (the row, both surfaces), Session 5 (sections, header, Lead, Finished, the
+clock, the terminal complete), Session 7 (the gallery), Session 11 (Peek, the collapsed view,
+the `widget` seat).
 
 ## Attention
 
@@ -397,19 +462,29 @@ Session 7 (the gallery), Session 11 (Peek, the collapsed view, the `widget` seat
   `/possums roles` opens the gallery. It is registered with `immediate`, so it runs mid-turn.
 - Settings are those of `prefs` (*Values*); a change applies at once and redraws the pane.
 
-**Built.** Not yet: Session 1 (`/possums`), Session 3 (`open`, `set`, `settings`), Session 7
-(`roles`).
+**Built** (0.1.0): `/possums` alone, registered at `session.start` with `immediate` and the
+description from `hooks/strings.ts`.
+- Its `command.run` hook asks `$.ui.panes()` whether `possum-squad` is open, then closes it with
+  `$.ui.close` or opens it with `$.ui.open`, and answers `{}`, which prints nothing.
+- Any words after it are ignored for now.
+- If `$.ui.panes`, the open or the close rejects (another plugin holds the id), it answers one
+  plain line instead.
+- It reads no `next`, so it is not gating and carries no `.catch`.
+
+Not yet: Session 3 (`open`, `set`, `settings`), Session 7 (`roles`).
 
 ## Reach
 
 **Decided.** No network, no process, no file access, no model call, no tool registration. The
 mods API calls allowed (I-02): `$.ui.resolve`, `$.ui.invalidate`, `$.ui.open`, `$.ui.close`,
-`$.ui.toast`, `$.command.register`, `$.state` through its helpers, `$.store.get`, `$.store.set`,
-`$.store.delete`, `$.clock.every`, `$.clock.now`, `$.session.usage`, `$.agent.list`. A change to
-this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
+`$.ui.panes`, `$.ui.toast`, `$.command.register`, `$.state` through its helpers, `$.store.get`,
+`$.store.set`, `$.store.delete`, `$.clock.every`, `$.clock.now`, `$.session.usage`,
+`$.agent.list`. A change to this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
 outside the engine; it is never part of the mod's running code.
 
-**Built.** Not yet: Session 1.
+**Built** (0.1.0). `validate` lists `$.command.register`, `$.state.get`, `$.state.set`,
+`$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`; the state calls come through `update`.
+No network, process or file access, no model call, no tool registration.
 
 ## Testing strategy — the layers, and what each cannot see
 
@@ -461,10 +536,23 @@ and, until round 1 closes, `docs/spec/research/` are in each installed copy.
 
 None yet.
 
-## Baseline
+## Baseline (v0.1.0)
 
-Filled in by Session 1, from its first green `verify`.
+| Check | Expected |
+|---|---|
+| `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
+| `claude plugin test mods/possum-squad` | 9 pass, in 2 files: panel 6, pass-through 3 |
+| `validate`: hooks / gating / state keys | 12 / 5 (each with a `.catch`) / 1 (`view`) |
+| `validate`: calls | `$.command.register`, `$.state.get`, `$.state.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
+| `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
+| `tsc` and the import scan | clean |
+
+Measured on CLI 2.1.326. A documentation or refactoring change should not move any of these; if
+one moves, that is the finding.
 
 ## Decision log
 
-None yet.
+- 2026-11-17, *Reach*: `$.ui.panes` joins the allow-list, the owner's choice at Session 1's
+  plan. `/possums` toggles the pane, and only the engine's own list of the plugin's panes says
+  whether it is open: it is right after a reload, and after a close no hook of the mod hears,
+  which a flag in `view` would miss.
