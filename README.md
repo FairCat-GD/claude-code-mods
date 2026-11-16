@@ -10,6 +10,7 @@ tooling holds every mod to the same rules.
 | Mod | What it does |
 |---|---|
 | [cartoon-fx](mods/cartoon-fx/) | Cartoon animations for accepted plans, commits, cherry-picks, rebases, pushes, pull requests opened, merges, passing tests, code reviews and their fixes, compaction, subagents, and a context window filling up; `/fx` replays them. |
+| [possum-squad](mods/possum-squad/) | A side panel that shows every agent as a tiny animated opossum dressed for its job. |
 
 ## Installing a mod
 

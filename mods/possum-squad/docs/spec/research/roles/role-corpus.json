@@ -1,0 +1,622 @@
+{
+ "note": "Labels are fixed outside the build. dev was used to tune the table; holdout was not looked at while tuning.",
+ "dev": [
+  {
+   "description": "Security review of auth",
+   "role": "guard"
+  },
+  {
+   "description": "Check for leaked secrets",
+   "role": "guard"
+  },
+  {
+   "description": "Audit dependency vulnerabilities",
+   "role": "guard"
+  },
+  {
+   "description": "Threat model payment flow",
+   "role": "guard"
+  },
+  {
+   "description": "Scan for hardcoded credentials",
+   "role": "guard"
+  },
+  {
+   "description": "Debug flaky login test",
+   "role": "bugcatcher"
+  },
+  {
+   "description": "Find root cause of crash",
+   "role": "bugcatcher"
+  },
+  {
+   "description": "Investigate failing CI job",
+   "role": "bugcatcher"
+  },
+  {
+   "description": "Why does export time out",
+   "role": "bugcatcher"
+  },
+  {
+   "description": "Reproduce the cart bug",
+   "role": "bugcatcher"
+  },
+  {
+   "description": "Diagnose memory leak",
+   "role": "bugcatcher"
+  },
+  {
+   "description": "Fix failing auth test",
+   "role": "bugcatcher"
+  },
+  {
+   "description": "Trace the 500 error",
+   "role": "bugcatcher"
+  },
+  {
+   "description": "Write unit tests for parser",
+   "role": "tester"
+  },
+  {
+   "description": "Run the test suite",
+   "role": "tester"
+  },
+  {
+   "description": "Add e2e tests for checkout",
+   "role": "tester"
+  },
+  {
+   "description": "Verify the migration works",
+   "role": "tester"
+  },
+  {
+   "description": "Check test coverage gaps",
+   "role": "tester"
+  },
+  {
+   "description": "QA the signup flow",
+   "role": "tester"
+  },
+  {
+   "description": "Validate API responses",
+   "role": "tester"
+  },
+  {
+   "description": "Review PR changes",
+   "role": "reviewer"
+  },
+  {
+   "description": "Code review of new module",
+   "role": "reviewer"
+  },
+  {
+   "description": "Critique the API design",
+   "role": "reviewer"
+  },
+  {
+   "description": "Give feedback on the diff",
+   "role": "reviewer"
+  },
+  {
+   "description": "Review the whole kit",
+   "role": "reviewer"
+  },
+  {
+   "description": "Assess error handling quality",
+   "role": "reviewer"
+  },
+  {
+   "description": "Refactor payment service",
+   "role": "janitor"
+  },
+  {
+   "description": "Rename user fields everywhere",
+   "role": "janitor"
+  },
+  {
+   "description": "Clean up dead code",
+   "role": "janitor"
+  },
+  {
+   "description": "Migrate to new router API",
+   "role": "janitor"
+  },
+  {
+   "description": "Fix lint errors",
+   "role": "janitor"
+  },
+  {
+   "description": "Upgrade dependencies",
+   "role": "janitor"
+  },
+  {
+   "description": "Format the codebase",
+   "role": "janitor"
+  },
+  {
+   "description": "Commit and push changes",
+   "role": "courier"
+  },
+  {
+   "description": "Open a pull request",
+   "role": "courier"
+  },
+  {
+   "description": "Prepare release 2.1",
+   "role": "courier"
+  },
+  {
+   "description": "Merge main into branch",
+   "role": "courier"
+  },
+  {
+   "description": "Create PR description",
+   "role": "courier"
+  },
+  {
+   "description": "Update the README",
+   "role": "writer"
+  },
+  {
+   "description": "Write API documentation",
+   "role": "writer"
+  },
+  {
+   "description": "Summarize the findings",
+   "role": "writer"
+  },
+  {
+   "description": "Draft release notes",
+   "role": "writer"
+  },
+  {
+   "description": "Write the changelog",
+   "role": "writer"
+  },
+  {
+   "description": "Document the test setup",
+   "role": "writer"
+  },
+  {
+   "description": "Take screenshots of the dashboard",
+   "role": "pilot"
+  },
+  {
+   "description": "Navigate the admin site",
+   "role": "pilot"
+  },
+  {
+   "description": "Fill the form in Chrome",
+   "role": "pilot"
+  },
+  {
+   "description": "Click through onboarding",
+   "role": "pilot"
+  },
+  {
+   "description": "Analyze error logs",
+   "role": "analyst"
+  },
+  {
+   "description": "Benchmark the query planner",
+   "role": "analyst"
+  },
+  {
+   "description": "Profile startup time",
+   "role": "analyst"
+  },
+  {
+   "description": "Measure bundle size",
+   "role": "analyst"
+  },
+  {
+   "description": "Crunch survey data",
+   "role": "analyst"
+  },
+  {
+   "description": "Design the launch graphics",
+   "role": "artist"
+  },
+  {
+   "description": "Restyle the settings page",
+   "role": "artist"
+  },
+  {
+   "description": "Create app icons",
+   "role": "artist"
+  },
+  {
+   "description": "Fix CSS layout on mobile",
+   "role": "artist"
+  },
+  {
+   "description": "Draw sprite sheet for enemies",
+   "role": "artist"
+  },
+  {
+   "description": "Plan the auth migration",
+   "role": "planner"
+  },
+  {
+   "description": "Design the API",
+   "role": "planner"
+  },
+  {
+   "description": "Break down the epic",
+   "role": "planner"
+  },
+  {
+   "description": "Propose caching approach",
+   "role": "planner"
+  },
+  {
+   "description": "Outline the rollout",
+   "role": "planner"
+  },
+  {
+   "description": "Write a spec for exports",
+   "role": "planner"
+  },
+  {
+   "description": "Research competitor launches",
+   "role": "researcher"
+  },
+  {
+   "description": "Compare state libraries",
+   "role": "researcher"
+  },
+  {
+   "description": "Look up Stripe webhook docs",
+   "role": "researcher"
+  },
+  {
+   "description": "Find out rate limits",
+   "role": "researcher"
+  },
+  {
+   "description": "Survey OCR options",
+   "role": "researcher"
+  },
+  {
+   "description": "Read the docs for Vite plugins",
+   "role": "researcher"
+  },
+  {
+   "description": "Deploy to staging",
+   "role": "operator"
+  },
+  {
+   "description": "Set up CI pipeline",
+   "role": "operator"
+  },
+  {
+   "description": "Install dev dependencies",
+   "role": "operator"
+  },
+  {
+   "description": "Configure Docker compose",
+   "role": "operator"
+  },
+  {
+   "description": "Run the build",
+   "role": "operator"
+  },
+  {
+   "description": "Find where reports are built",
+   "role": "scout"
+  },
+  {
+   "description": "Search for usages of getUser",
+   "role": "scout"
+  },
+  {
+   "description": "Locate the config loader",
+   "role": "scout"
+  },
+  {
+   "description": "Explore the repo structure",
+   "role": "scout"
+  },
+  {
+   "description": "List all API routes",
+   "role": "scout"
+  },
+  {
+   "description": "Identify entry points",
+   "role": "scout"
+  },
+  {
+   "description": "Build the landing page",
+   "role": "builder"
+  },
+  {
+   "description": "Implement CSV export",
+   "role": "builder"
+  },
+  {
+   "description": "Add dark mode toggle",
+   "role": "builder"
+  },
+  {
+   "description": "Create the user model",
+   "role": "builder"
+  },
+  {
+   "description": "Fix the date picker",
+   "role": "builder"
+  },
+  {
+   "description": "Update the pricing logic",
+   "role": "builder"
+  },
+  {
+   "description": "Wire up the webhook handler",
+   "role": "builder"
+  },
+  {
+   "description": "Check auth flow",
+   "type": "Explore",
+   "role": "scout"
+  },
+  {
+   "description": "Add export feature",
+   "type": "Plan",
+   "role": "planner"
+  },
+  {
+   "description": "Check the auth module",
+   "type": "code-reviewer",
+   "role": "reviewer"
+  },
+  {
+   "description": "Run everything",
+   "type": "test-runner",
+   "role": "tester"
+  },
+  {
+   "description": "Look at the API",
+   "type": "security-auditor",
+   "role": "guard"
+  },
+  {
+   "description": "Handle the exports page",
+   "type": "docs-writer",
+   "role": "writer"
+  },
+  {
+   "description": "Fix it",
+   "tools": [
+    "Read",
+    "Grep",
+    "Grep",
+    "Edit"
+   ],
+   "role": "builder"
+  },
+  {
+   "description": "Check the thing",
+   "tools": [
+    "Read",
+    "Grep",
+    "Read",
+    "Glob",
+    "Read",
+    "Grep"
+   ],
+   "role": "scout"
+  },
+  {
+   "description": "Handle step two",
+   "tools": [
+    "Read",
+    "WebSearch"
+   ],
+   "role": "researcher"
+  },
+  {
+   "description": "Do the usual",
+   "tools": [
+    "Bash:npm test"
+   ],
+   "role": "tester"
+  },
+  {
+   "description": "Take care of it",
+   "tools": [
+    "Read",
+    "Bash:git commit -m \"x\""
+   ],
+   "role": "courier"
+  },
+  {
+   "description": "Next part",
+   "tools": [
+    "mcp__claude-in-chrome__navigate"
+   ],
+   "role": "pilot"
+  },
+  {
+   "description": "Continue",
+   "tools": [],
+   "role": "helper"
+  },
+  {
+   "description": "Do task 3",
+   "tools": [
+    "Bash:ls -la",
+    "Read"
+   ],
+   "role": "helper"
+  }
+ ],
+ "holdout": [
+  {
+   "description": "Pen test the login endpoint",
+   "role": "guard"
+  },
+  {
+   "description": "Check for SQL injection",
+   "role": "guard"
+  },
+  {
+   "description": "Bisect the perf regression",
+   "role": "bugcatcher"
+  },
+  {
+   "description": "Figure out why tests hang",
+   "role": "bugcatcher"
+  },
+  {
+   "description": "Fix crash on empty input",
+   "role": "bugcatcher"
+  },
+  {
+   "description": "Write integration tests",
+   "role": "tester"
+  },
+  {
+   "description": "Test the refactored parser",
+   "role": "tester"
+  },
+  {
+   "description": "Verify fix on Safari",
+   "role": "tester"
+  },
+  {
+   "description": "Review the migration plan",
+   "role": "reviewer"
+  },
+  {
+   "description": "Evaluate the new architecture",
+   "role": "reviewer"
+  },
+  {
+   "description": "Simplify the reducer",
+   "role": "janitor"
+  },
+  {
+   "description": "Remove unused imports",
+   "role": "janitor"
+  },
+  {
+   "description": "Modernize build config",
+   "role": "janitor"
+  },
+  {
+   "description": "Tag and publish v3",
+   "role": "courier"
+  },
+  {
+   "description": "Rebase feature branch",
+   "role": "courier"
+  },
+  {
+   "description": "Explain the caching layer",
+   "role": "writer"
+  },
+  {
+   "description": "Write onboarding guide",
+   "role": "writer"
+  },
+  {
+   "description": "Add docstrings to utils",
+   "role": "writer"
+  },
+  {
+   "description": "Screenshot each settings tab",
+   "role": "pilot"
+  },
+  {
+   "description": "Browse the docs site for broken links",
+   "role": "pilot"
+  },
+  {
+   "description": "Count lines per package",
+   "role": "analyst"
+  },
+  {
+   "description": "Analyze test failures",
+   "role": "analyst"
+  },
+  {
+   "description": "Compute retention stats",
+   "role": "analyst"
+  },
+  {
+   "description": "Design onboarding screens",
+   "role": "artist"
+  },
+  {
+   "description": "Pick a color palette",
+   "role": "artist"
+  },
+  {
+   "description": "Animate the loading spinner",
+   "role": "artist"
+  },
+  {
+   "description": "Scope the search feature",
+   "role": "planner"
+  },
+  {
+   "description": "Design database schema",
+   "role": "planner"
+  },
+  {
+   "description": "Draft an implementation plan",
+   "role": "planner"
+  },
+  {
+   "description": "Research testing frameworks",
+   "role": "researcher"
+  },
+  {
+   "description": "Check best practices for retries",
+   "role": "researcher"
+  },
+  {
+   "description": "Compare hosting costs",
+   "role": "researcher"
+  },
+  {
+   "description": "Provision the database",
+   "role": "operator"
+  },
+  {
+   "description": "Start the dev server",
+   "role": "operator"
+  },
+  {
+   "description": "Find all TODO comments",
+   "role": "scout"
+  },
+  {
+   "description": "Map the data flow",
+   "role": "scout"
+  },
+  {
+   "description": "Understand how auth works",
+   "role": "scout"
+  },
+  {
+   "description": "Add pagination to the list",
+   "role": "builder"
+  },
+  {
+   "description": "Port the script to TypeScript",
+   "role": "builder"
+  },
+  {
+   "description": "Generate the API client",
+   "role": "builder"
+  },
+  {
+   "description": "Hook up analytics events",
+   "role": "builder"
+  },
+  {
+   "description": "Make the header sticky",
+   "role": "builder"
+  }
+ ]
+}
