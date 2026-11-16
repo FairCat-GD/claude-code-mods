@@ -155,6 +155,33 @@ hooks*, *Values: `$.state` and `$.store`*, *The panel*, *The command and setting
 - **Numbers:** 9 tests (+8), in 2 files. `validate`: 12 hooks (+10), 5 gating (+5), each with a
   `.catch`; 1 state key (`view`, +1); calls `$.command.register`, `$.state.get`, `$.state.set`,
   `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`.
+- **Review (`/code-review high`), 8 findings: 4 fixed and 4 skipped.**
+  - **`/possums` closed a pane the person could not see.** A pane open as a tab behind another
+    pane, or waiting undrawn, was closed by the toggle. Now only a pane that `isShown` closes;
+    an open pane not in view is opened again with `focus: true`, which the declarations say
+    raises it. `isPlaced` was dropped from the check, since an unplaced pane is never shown
+    (its falsification could not fail). The user chose the fix; whether the surfaces raise the
+    tab is unchecked by hand (`docs/BACKLOG.md`).
+  - **I-01's test left out `session.start`.** It now raises it with a fictional input and
+    expects the stand-in's result.
+  - **No test made the flag's write fail.** One now runs the `ui.close` hook with a state that
+    refuses every write, and expects the close's result unchanged.
+  - **`View`'s comment described auto-open,** which is not built. It now says what the flag
+    holds.
+  - **Skipped:** `/possums` with words after it still toggles, so `/possums open` can close the
+    pane. Changing it changes behaviour; the user left it to Session 3, which builds the words.
+  - **Skipped:** `turn.step`'s `.catch` might replay chunks already passed up. The declarations
+    say the handler continues the stream, the hook cannot fail on its own (its read is
+    guarded), and the kit cannot make it fail mid-stream.
+  - **Skipped:** `passOn`'s reader is passed by no hook. Session 2 adds the readers, and the
+    block asks for wrapped bodies from Session 1.
+  - **Skipped:** the person-close test captures the last `ui.close` hook `register` makes. The
+    kit offers no way to close a pane as the person; the capture is the narrowest stand-in.
+  - **Falsified:**
+    - closing any listed pane, and a raise without `focus` (the hidden-pane test);
+    - `session.start` returning its own result (the I-01 test);
+    - the flag's write unguarded (the failed-write test).
+  - **Numbers after the review:** 11 tests (+2): panel 8, pass-through 3. `validate` unchanged.
 
 ---
 

@@ -14,7 +14,9 @@ later versions.
 ### Added
 
 - **`/possums` shows or hides the Possum Squad pane.** It works mid-turn too, and prints
-  nothing in the conversation. For now the pane says only that no agents have shown up yet.
+  nothing in the conversation. When the pane is open but out of sight, behind another pane's
+  tab, `/possums` brings it forward instead of hiding it. For now the pane says only that no
+  agents have shown up yet.
 - **The mod watches without changing anything.** It sees agents start, turns run and tools get
   called, and passes every one of them on exactly as it came; watching adds nothing to what
   Claude is sent.

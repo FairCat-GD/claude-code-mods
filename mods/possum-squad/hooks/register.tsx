@@ -27,8 +27,10 @@ export const register: Register = on => {
 
   on('command.run', { command: 'possums' }, async $ => {
     try {
-      const isOpen = (await $.ui.panes()).some(pane => pane.id === PANE)
-      if (isOpen) await $.ui.close({ id: PANE })
+      const pane = (await $.ui.panes()).find(one => one.id === PANE)
+      if (pane?.isShown) await $.ui.close({ id: PANE })
+      // A pane behind another's tab or waiting undrawn is raised: the person asked to see it.
+      else if (pane !== undefined) await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS, focus: true })
       else await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS })
       return {}
     } catch {

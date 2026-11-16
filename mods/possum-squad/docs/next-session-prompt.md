@@ -14,10 +14,10 @@ Release 0.2.0. Ask the block's *Ask at the start* question before the plan.
 ## State you need that is not in the specs
 
 - **Round 1 is the agents panel:** Sessions 0 and 1 are done; Sessions 2–13 and 7a remain.
-- **Push status:** Session 1 is committed locally, not pushed (its review comes first).
-  `origin/main` holds everything through the intake's review commit
-  (`review(possum-squad): the art's JSON fails the gate as copied, and 8 smaller`). No release
-  of this mod is installed yet.
+- **Push status:** pushed on 2026-11-17 with the owner's approval: `origin/main` holds
+  everything through Session 1's review commit
+  (`review(possum-squad): /possums closed a hidden pane, and 3 smaller`). Nothing waits
+  locally. Whether the owner has installed 0.1.0 is not recorded; ask at the start.
 - **What Session 1 left that Session 2 builds on:**
   - `hooks/register.tsx` holds every hook. Each pass-through is `passOn(e, await next(e))`, and
     `turn.step` is `return passOn(e, yield* next(e))`. `passOn(e, result, read?)` runs `read`
@@ -47,6 +47,10 @@ Release 0.2.0. Ask the block's *Ask at the start* question before the plan.
     counts as asked.
   - Whether `/possums` opening the pane again should clear `view.isClosedByPerson` was not
     decided: today the flag stays set for the session. It matters at Session 9 (auto-open).
+  - `/possums` closes the pane only when it `isShown`; an open pane out of view is reopened
+    with `focus: true` to raise it (the review's main finding). The command still ignores the
+    words after it, so `/possums open` can close the pane: Session 3 builds the words and owns
+    that (the review's skipped finding).
   - The PNG layers in `docs/spec/research/art/` hold pixel data only (no text chunks), checked
     at intake, since hygiene cannot read binaries.
 - **The repo-level round for `tools/`** (`SPEC.md` decision 9) is still the owner's to open, in
@@ -60,7 +64,7 @@ Release 0.2.0. Ask the block's *Ask at the start* question before the plan.
   > converter is the first user.
 
   If it is not committed when Session 6 opens, Session 8 runs first, logged as an amendment.
-- **Baseline** (ARCHITECTURE's table, v0.1.0): 9 tests in 2 files; `validate` 12 hooks, 5 gating
+- **Baseline** (ARCHITECTURE's table, v0.1.0): 11 tests in 2 files; `validate` 12 hooks, 5 gating
   each with a `.catch`, 1 state key. Its calls are `$.command.register`, `$.state.get`,
   `$.state.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes` and `$.ui.resolve`. A call the spike
   adds outside *Reach* (`$.session.usage` is in it) is the owner's to allow.

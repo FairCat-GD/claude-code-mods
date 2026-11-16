@@ -6,8 +6,9 @@ nothing to what Claude is sent. For now the pane is empty; the agents arrive in 
 
 ## `/possums`
 
-Type `/possums` to show the Possum Squad pane; type it again to hide it. It works while Claude
-is in the middle of a turn, and prints nothing in the conversation. In a terminal the pane docks
+Type `/possums` to show the Possum Squad pane; type it again to hide it. If the pane is open but
+out of sight, behind another pane's tab, `/possums` brings it forward instead of hiding it. It
+works while Claude is in the middle of a turn, and prints nothing in the conversation. In a terminal the pane docks
 beside the conversation in fullscreen at 110 columns or more, and otherwise sits above the
 prompt.
 

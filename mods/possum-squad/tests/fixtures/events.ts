@@ -2,6 +2,9 @@
 const agentId = 'agent-fixture-1'
 const usage = { input_tokens: 120, output_tokens: 30, cache_read_input_tokens: 4000, cache_creation_input_tokens: 0, model: 'claude-haiku-5-5' }
 
+export const SESSION_START = { cwd: '/fixture/orchard', surface: 'terminal', isInteractive: true } as const
+export const STARTED = { cwd: '/fixture/orchard' }
+
 export const SPAWN = {
   tool_use_id: 'toolu_fixture_spawn',
   prompt: 'Count the shovels in the garden shed and list their colours.',

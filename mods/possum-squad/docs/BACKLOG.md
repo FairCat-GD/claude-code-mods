@@ -27,6 +27,9 @@ these are the parts only a person can see.
 - **`/possums` in the desktop app.** The pane, its empty line and the toggle were checked in the
   terminal only (0.1.0); the desktop app runs the installed release, so this waits for a push
   and an install, and the owner's desktop run before Session 3 covers it.
+- **`/possums` bringing a hidden pane forward.** With another plugin's pane open and Possum
+  Squad as the tab behind it, `/possums` reopens the pane with `focus`, which the declarations
+  say raises it; the tests stand in for the engine, so whether the surfaces do is unchecked.
 
 ## Directions
 

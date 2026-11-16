@@ -15,9 +15,11 @@ const MOUNT = {
   props: { title: STRINGS.title, isFocused: false, bodyColumns: PANE_COLUMNS, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} },
 } as const
 
+type Pane = { id: string; isShown: boolean; isPlaced: boolean }
+
 // The engine's stand-in: it keeps the open panes and records what the mod asked of it.
 function engine(on: On, refusal?: string) {
-  const seen = { commands: [] as CommandSpec[], tools: [] as string[], opens: [] as PaneOpenArgs[], panes: [] as string[] }
+  const seen = { commands: [] as CommandSpec[], tools: [] as string[], opens: [] as PaneOpenArgs[], panes: [] as Pane[] }
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('command.register', (_, e) => {
     seen.commands.push(e)
@@ -27,15 +29,16 @@ function engine(on: On, refusal?: string) {
     seen.tools.push(e.name)
     return { value: { tool: e.name } } as never
   })
-  on('ui.panes', () => ({ value: seen.panes.map(id => ({ id, title: STRINGS.title, isShown: true, isFocused: false, isPlaced: true })) }))
+  on('ui.panes', () => ({ value: seen.panes.map(pane => ({ ...pane, title: STRINGS.title, isFocused: false })) }))
   on('ui.open', (_, e) => {
     if (refusal !== undefined) return { deny: refusal }
     seen.opens.push(e)
-    seen.panes.push(e.id)
+    // An open of an open id raises it in place, as the person asked.
+    seen.panes = [...seen.panes.filter(pane => pane.id !== e.id), { id: e.id, isShown: true, isPlaced: true }]
     return { value: { isPlaced: true } }
   })
   on('ui.close', (_, e) => {
-    seen.panes = seen.panes.filter(id => id !== e.id)
+    seen.panes = seen.panes.filter(pane => pane.id !== e.id)
     return { value: undefined }
   })
   return seen
@@ -59,11 +62,27 @@ test('/possums opens the pane and prints nothing; a second /possums closes it', 
 
     expect((await $.command.run(POSSUMS)).text).toBeUndefined()
     expect(seen.opens).toEqual([{ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS }])
-    expect(seen.panes).toEqual([PANE])
+    expect(seen.panes.map(pane => pane.id)).toEqual([PANE])
 
     expect((await $.command.run(POSSUMS)).text).toBeUndefined()
     expect(seen.opens).toHaveLength(1)
     expect(seen.panes).toEqual([])
+  }
+})
+
+test('/possums raises the pane when it is open but not in view, and does not close it', async ($, on) => {
+  const seen = engine(on)
+  const hidden = [
+    { id: PANE, isShown: false, isPlaced: true },
+    { id: PANE, isShown: false, isPlaced: false },
+  ]
+  for (const pane of hidden) {
+    seen.panes = [pane]
+    seen.opens = []
+
+    expect((await $.command.run(POSSUMS)).text).toBeUndefined()
+    expect(seen.opens).toEqual([{ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS, focus: true }])
+    expect(seen.panes).toEqual([{ id: PANE, isShown: true, isPlaced: true }])
   }
 })
 
@@ -141,6 +160,18 @@ test('a close by the person is kept in the view, and the close goes on as the en
   const refused = await hook($, { id: PANE, origin: { kind: 'person' } }, async () => ({ deny: 'a hook keeps it open' }))
   expect(refused).toEqual({ deny: 'a hook keeps it open' })
   expect((await readView()).isClosedByPerson).toBe(false)
+})
+
+test('a close by the person whose flag cannot be written still goes on as the engine gave it', async () => {
+  const hook = closeHook()
+  const failing = {
+    state: {
+      get: async () => ({ value: undefined, version: 0 }),
+      set: async () => Promise.reject(new Error('the fixture state refuses every write')),
+    },
+  }
+  const result = await hook(failing, { id: PANE, origin: { kind: 'person' } }, async () => ({ value: undefined }))
+  expect(result).toEqual({ value: undefined })
 })
 
 test('an open the engine refuses answers in one line', async ($, on) => {

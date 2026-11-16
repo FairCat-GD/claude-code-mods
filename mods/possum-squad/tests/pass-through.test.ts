@@ -5,10 +5,12 @@ import {
   MEASURED,
   PERMISSION,
   PERMITTED,
+  SESSION_START,
   SPAWN,
   SPAWNED,
   STEP,
   STEP_CHUNKS,
+  STARTED,
   STEPPED,
   TOOL_CALL,
   TOOL_CALLED,
@@ -33,6 +35,8 @@ async function drain(stream: AsyncGenerator<unknown, unknown>) {
 
 // Each hook here stands for the engine beneath the mod, answering with the fixture's result.
 test('every hooked event gets back exactly what the engine gave', async ($, on) => {
+  on('command.register', (_, e) => ({ value: { command: e.name } }))
+  on('session.start', () => STARTED)
   on('agent.spawn', () => SPAWNED)
   on('turn.start', () => TURN_STARTED)
   on('turn.complete', () => TURN_COMPLETED)
@@ -41,6 +45,7 @@ test('every hooked event gets back exactly what the engine gave', async ($, on) 
   on('session.measure', () => MEASURED)
   on('classic.PermissionRequest', () => PERMITTED)
 
+  expect(await $.session.start(SESSION_START)).toEqual(STARTED)
   expect(await $.agent.spawn(SPAWN)).toEqual(SPAWNED)
   expect(await $.turn.start(TURN_START)).toEqual(TURN_STARTED)
   expect(await $.turn.complete(TURN_COMPLETE)).toEqual(TURN_COMPLETED)

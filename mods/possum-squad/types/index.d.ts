@@ -1,6 +1,6 @@
 // The session's flags for the pane.
 export type View = {
-  // The person closed the pane this session, so it is not opened unasked again.
+  // The person closed the pane this session, with its close mark or key.
   isClosedByPerson: boolean
 }
 

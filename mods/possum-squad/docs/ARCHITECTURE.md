@@ -464,8 +464,14 @@ the `widget` seat).
 
 **Built** (0.1.0): `/possums` alone, registered at `session.start` with `immediate` and the
 description from `hooks/strings.ts`.
-- Its `command.run` hook asks `$.ui.panes()` whether `possum-squad` is open, then closes it with
-  `$.ui.close` or opens it with `$.ui.open`, and answers `{}`, which prints nothing.
+- Its `command.run` hook finds `possum-squad` in `$.ui.panes()` and answers `{}`, which prints
+  nothing:
+  - a pane that `isShown` is closed with `$.ui.close`;
+  - a pane that is open but not in view (a tab behind another pane, or waiting undrawn) is
+    opened again with `focus: true`, which the declarations say raises it, so `/possums` never
+    hides what the person is asking to see;
+  - with no pane, it opens one.
+  An unplaced pane is never shown, so `isShown` alone decides.
 - Any words after it are ignored for now.
 - If `$.ui.panes`, the open or the close rejects (another plugin holds the id), it answers one
   plain line instead.
@@ -541,7 +547,7 @@ None yet.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
-| `claude plugin test mods/possum-squad` | 9 pass, in 2 files: panel 6, pass-through 3 |
+| `claude plugin test mods/possum-squad` | 11 pass, in 2 files: panel 8, pass-through 3 |
 | `validate`: hooks / gating / state keys | 12 / 5 (each with a `.catch`) / 1 (`view`) |
 | `validate`: calls | `$.command.register`, `$.state.get`, `$.state.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
