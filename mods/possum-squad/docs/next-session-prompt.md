@@ -17,10 +17,11 @@ Release 0.4.0.
 ## State you need that is not in the specs
 
 - **Round 1 is the agents panel:** Sessions 0–3 are done; Sessions 4–13 and 7a remain.
-- **Push status:** `origin/main` holds everything through Session 2's review commit. Session 3's
-  commits wait locally until the owner approves a push. List `origin/main..HEAD` before any
-  push, and name any commit that is not the session's. Ask whether 0.3.0 was pushed and
-  installed.
+- **Push status:** pushed on 2026-11-17 with the owner's approval: `origin/main` holds
+  everything through Session 3's review commit
+  (`review(possum-squad): an unmeasured changelog claim, and 9 smaller`). Nothing waits
+  locally. List `origin/main..HEAD` before any push, and name any commit that is not the
+  session's. Ask whether the owner has installed 0.3.0 (`claude plugin update possum-squad`).
 - **The engines:** the CLI is 2.1.326; the desktop app ran engine 2.1.325 for the 0.2.0 run. A
   done-note records the versions its checks ran on.
 - **The two measurements Session 4's block now opens with:**
@@ -56,6 +57,9 @@ Release 0.4.0.
     first session that draws from `prefs` also calls `$.ui.invalidate` after a `set`.
   - Tests that draw module builders use the test's own `ui.render` hook with
     `{ plugin: '*' }`: an inline test plugin closes over nothing of the file.
+  - Two things about the commands were not seen and wait in `docs/BACKLOG.md`: whether
+    `/possums`'s answers stay out of requests between turns, and `open` and the toggle by hand
+    (they print nothing). Both can be checked when 0.3.0 is installed.
 - **Decisions written down nowhere else:**
   - Whether `/possums` opening the pane again should clear `view.isClosedByPerson` is still
     undecided: today the flag stays set for the session. It matters at Session 9 (auto-open).
@@ -70,7 +74,7 @@ Release 0.4.0.
   > converter is the first user.
 
   If it is not committed when Session 6 opens, Session 8 runs first, logged as an amendment.
-- **Baseline** (ARCHITECTURE's table, v0.3.0): 33 tests in 5 files; `validate` 10 hooks, 3
+- **Baseline** (ARCHITECTURE's table, v0.3.0): 34 tests in 5 files; `validate` 10 hooks, 3
   gating each with a `.catch`, 1 state key.
   - Calls: `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`,
     `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`.

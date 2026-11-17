@@ -2,7 +2,7 @@ import type { CommandRunResult, EngineInterface, Register } from 'claude-code'
 import { atom, update } from 'claude-code'
 
 import { PANE_COLUMNS } from './config'
-import { mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES, SETTINGS, settingsText } from './settings'
+import { changeOf, mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES, SETTINGS, settingsText } from './settings'
 import { STRINGS } from './strings'
 import { emptyPanel } from './view/empty'
 
@@ -68,7 +68,9 @@ export const register: Register = on => {
       case 'settings':
         return listSettings($)
       case 'set':
-        return changeSetting($, words.change, STRINGS.isNow(words.name, words.value))
+        return changeSetting($, changeOf(words.name, words.value), STRINGS.isNow(words.name, words.value))
+      case 'noName':
+        return say(STRINGS.noName(SETTING_NAMES))
       case 'noSuchSetting':
         return say(STRINGS.noSuchSetting(SETTING_NAMES))
       case 'badValue':

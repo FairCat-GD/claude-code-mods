@@ -29,7 +29,7 @@ session. Later versions use that to leave it closed instead of opening it again 
 `/possums settings` lists every setting, its value, and the values it takes.
 `/possums set <name> <value>` changes one and answers with its new value. If the name or the
 value isn't one it knows, it answers with the names or the values it takes, and changes
-nothing. Names and values can be typed in any case.
+nothing; `/possums set` alone names the settings. Names and values can be typed in any case.
 
 | Setting | Values | Default | What it will do |
 |---|---|---|---|
@@ -42,9 +42,10 @@ The settings are kept between sessions and shared by every session you have open
 effect when the part of the pane it controls arrives; for now they are only kept. If two
 sessions change a setting at the same moment, one change may be lost: set it again.
 
-Answers in words show only to you. Typed between turns, they are not sent to Claude. Typed
-while Claude is working, Claude Code keeps the answer in the conversation, as it does for any
-pane's command.
+Answers in words are marked as yours alone. Claude Code keeps such an answer out of what
+Claude is sent for a command that waits its turn; whether it does for `/possums` typed between
+turns has not been checked yet. Typed while Claude is working, Claude Code keeps the answer in
+the conversation, as it does for any pane's command.
 
 ## Installing, updating, trying a build
 

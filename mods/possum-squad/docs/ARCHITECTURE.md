@@ -116,8 +116,10 @@ terminal and in the desktop app.
 - **`$.store` is not reactive:** reading it while drawing subscribes nothing, so a change to it
   redraws a pane only through `$.ui.invalidate`.
 - **A command's text answer goes in no request** when it carries `isTextDisplayOnly`, on the
-  queued lanes. An `immediate` command answered mid-turn keeps its text in requests: the
-  engine's rule.
+  queued lanes, as the declarations say; not checked by hand. An `immediate` command answered
+  mid-turn keeps its text in requests: the engine's rule.
+- **The engine prefixes a plugin's command answer** with the plugin's name, on the answer's
+  first line (`possum-squad: …`), seen in the terminal.
 
 What the terminal showed: CLI 2.1.326, `claude --plugin-dir mods/possum-squad`, run by the owner
 with a prompt starting three subagents and one starting a subagent that ran a shell command
@@ -296,7 +298,9 @@ How it is held:
 12. **N-01: zero tokens added to any request.** *Why:* watching is free. *Enforced by* a test
     that session start registers `/possums` and no tool, and `validate`'s calls line, which
     holds no `$.tool.register`. `/possums`'s answers in words carry `isTextDisplayOnly`, which a
-    test checks; mid-turn, the engine keeps such an answer in requests all the same.
+    test checks. The declarations say it is read on the queued lanes; whether a `/possums`
+    typed between turns is on one is not checked (`docs/BACKLOG.md`), and mid-turn the engine
+    keeps such an answer in requests all the same.
 13. **N-07: the mod's own work per event stays under 5 ms, and it awaits nothing but `next`, state
     and store in event hooks.** *Why:* every event of every session passes through it. *Enforced
     by* review.
@@ -592,7 +596,9 @@ panel until Session 4 gives it runs.
 - **Numbers** come from `hooks/view/format.ts`:
   - tokens: `640`, `9.5k`, `38k`, `1.2M`;
   - time: `0:42`, then `1:02:05` from an hour;
-  - the percent, rounded.
+  - the percent, rounded;
+  - a number that is missing or not finite reads `–`, and the desktop bar's fill is empty
+    rather than the bar that only spins.
 - **What the desktop row looks like has not been seen;** Session 4's hand check is the first.
 
 The spike's test view and its redraw clock were removed in 0.3.0. The clock's tick, armed from
@@ -649,11 +655,13 @@ a top-level function:
   An unplaced pane is never shown, so `isShown` alone decides. The answer is `{}`, which
   prints nothing.
 - **`open`** does the same, but leaves a shown pane as it is: it never closes.
-- **`settings`** reads `prefs` and answers one line per setting, `theme: classic (classic,
-  steampunk, horror, prehistoric)`, then how to change one.
+- **`settings`** reads `prefs` and answers a heading, so the engine's `possum-squad:` prefix
+  stands apart from the list. Then one line per setting, `theme: classic (classic, steampunk,
+  horror, prehistoric)`, then how to change one.
 - **`set <name> <value>`** matches the name and the value, ignoring case, and keeps their own
   spelling. A good pair is written through `writeStore` and answered "theme is now horror.".
-  - A name it does not know, or none, answers the setting names, never repeating the word.
+  - No name answers "Name a setting: …"; a name it does not know answers the setting names,
+    never repeating the word.
   - A value the setting does not take, or none, answers the setting's values.
   - Neither writes anything.
 - **Any other words**, `roles` included until Session 7, answer the usage line.
@@ -739,7 +747,7 @@ None yet.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
-| `claude plugin test mods/possum-squad` | 33 pass, in 5 files: command 11, panel 8, pass-through 4, prefs 4, row 6 |
+| `claude plugin test mods/possum-squad` | 34 pass, in 5 files: command 11, panel 8, pass-through 4, prefs 4, row 7 |
 | `validate`: hooks / gating / state keys | 10 / 3 (each with a `.catch`) / 1 (`view`) |
 | `validate`: calls | `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |

@@ -67,6 +67,8 @@ export const LONG_ROW: RowData = {
   id: 'row-long',
   state: 'working',
   description: 'Sort every flower pot in the greenhouse by size, colour, age and the plant it held last spring',
+  role: 'Analyst',
+  model: 'claude-sonnet-5-5-greenhouse-fixture-with-a-name-too-long-for-the-pane',
   tokens: 4_000,
   elapsedMs: 61_000,
 }

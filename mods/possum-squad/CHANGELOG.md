@@ -15,7 +15,8 @@ settings arrive. Agents start showing up in the next version.
 
 - **`/possums open`** shows the pane, or brings it forward when it is behind another pane's
   tab. Unlike `/possums`, it never hides it.
-- **`/possums settings`** lists the settings, each with its value and the values it takes.
+- **`/possums settings`** lists the settings under a heading, each with its value and the
+  values it takes.
 - **`/possums set <name> <value>`** changes one, and answers with its new value, or with the
   names or values it takes. The settings are:
   - `autoOpen` (`never`, `first`, `always`);
@@ -24,8 +25,11 @@ settings arrive. Agents start showing up in the next version.
   - `theme` (`classic`, `steampunk`, `horror`, `prehistoric`).
 
   They are kept between sessions, and each takes effect when the part of the pane it controls
-  arrives. Names and values can be typed in any case.
-- These answers show only to you: typed between turns, they are not sent to Claude.
+  arrives. Names and values can be typed in any case. `/possums set` alone names the
+  settings.
+- These answers are marked for you alone, which Claude Code honours for a command that waits
+  its turn. Whether it keeps them out of what Claude is sent when typed between turns has not
+  been checked yet.
 
 ### Removed
 
@@ -36,8 +40,9 @@ settings arrive. Agents start showing up in the next version.
 ### Fixed
 
 - **Words after `/possums` are no longer ignored,** so `/possums open` can't hide the pane.
-- **Tools can be moved to the background again,** and a tool's live output shows again, while
-  the mod is installed. Earlier versions turned both off by watching every tool call.
+- **Tools can be moved to the background again** while the mod is installed, and a tool served
+  by another program shows its output as it arrives. Earlier versions turned both off by
+  watching every tool call.
 
 ## [0.2.0] — 2026-11-17
 

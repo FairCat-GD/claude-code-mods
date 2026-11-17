@@ -11,7 +11,7 @@ const SHOWN = [{ id: PANE, isShown: true, isPlaced: true }]
 
 // What `/possums settings` should answer for these values.
 const listing = (values: Record<SettingName, string>) =>
-  [...SETTING_NAMES.map(name => STRINGS.setting(name, values[name], SETTINGS[name].values)), STRINGS.howToChange].join('\n')
+  [STRINGS.settingsHeading, ...SETTING_NAMES.map(name => STRINGS.setting(name, values[name], SETTINGS[name].values)), STRINGS.howToChange].join('\n')
 const DEFAULTS = { autoOpen: 'first', cost: 'off', motion: 'auto', theme: 'classic' }
 
 test('/possums open opens the pane, raises a hidden one, and never closes it', async ($, on) => {
@@ -55,12 +55,13 @@ test('/possums set changes a setting, its name and value in any case, and answer
   expect(kept.held.get('prefs')).toEqual({ theme: 'horror', autoOpen: 'always' })
 })
 
-test('/possums set with a name it does not know answers the names, and stores nothing', async ($, on) => {
+test('/possums set with no name, or one it does not know, answers the names, and stores nothing', async ($, on) => {
   engine(on)
   const kept = store(on)
-  for (const args of ['set colour red', 'set', 'set collapsed true', 'set language uk']) {
+  for (const args of ['set colour red', 'set collapsed true', 'set language uk']) {
     expect((await $.command.run(possums(args))).text).toBe(STRINGS.noSuchSetting(SETTING_NAMES))
   }
+  expect((await $.command.run(possums('set  '))).text).toBe(STRINGS.noName(SETTING_NAMES))
   expect(kept.writes).toEqual([])
 })
 

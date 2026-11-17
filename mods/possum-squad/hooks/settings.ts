@@ -12,7 +12,7 @@ export type SettingName = keyof typeof SETTINGS
 export type SettingValue<N extends SettingName = SettingName> = (typeof SETTINGS)[N]['values'][number]
 export const SETTING_NAMES = Object.keys(SETTINGS) as SettingName[]
 
-// `prefs`: the settings, and the panel's two preferences its buttons change.
+// `prefs`: the settings, and two flags for how the panel is laid out.
 export type Prefs = { [N in SettingName]: SettingValue<N> } & { collapsed: boolean; finishedOpen: boolean }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -42,7 +42,8 @@ export type Words =
   | { kind: 'toggle' }
   | { kind: 'open' }
   | { kind: 'settings' }
-  | { kind: 'set'; name: SettingName; value: SettingValue; change: Partial<Prefs> }
+  | { kind: 'set'; name: SettingName; value: SettingValue }
+  | { kind: 'noName' }
   | { kind: 'noSuchSetting' }
   | { kind: 'badValue'; name: SettingName }
   | { kind: 'unknown' }
@@ -54,11 +55,12 @@ export function parseWords(args: string): Words {
   const [word, name, ...value] = args.trim().split(/\s+/).filter(Boolean)
   if (word === undefined) return { kind: 'toggle' }
   if (same(word, 'set')) {
-    const setting = SETTING_NAMES.find(known => same(name ?? '', known))
+    if (name === undefined) return { kind: 'noName' }
+    const setting = SETTING_NAMES.find(known => same(name, known))
     if (setting === undefined) return { kind: 'noSuchSetting' }
     const chosen = (SETTINGS[setting].values as readonly SettingValue[]).find(known => same(value.join(' '), known))
     if (chosen === undefined) return { kind: 'badValue', name: setting }
-    return { kind: 'set', name: setting, value: chosen, change: { [setting]: chosen } as Partial<Prefs> }
+    return { kind: 'set', name: setting, value: chosen }
   }
   if (name !== undefined) return { kind: 'unknown' }
   if (same(word, 'open')) return { kind: 'open' }
@@ -68,4 +70,7 @@ export function parseWords(args: string): Words {
 
 // `/possums settings`: every setting with its value and the values it takes.
 export const settingsText = (prefs: Prefs) =>
-  [...SETTING_NAMES.map(name => STRINGS.setting(name, prefs[name], SETTINGS[name].values)), STRINGS.howToChange].join('\n')
+  [STRINGS.settingsHeading, ...SETTING_NAMES.map(name => STRINGS.setting(name, prefs[name], SETTINGS[name].values)), STRINGS.howToChange].join('\n')
+
+// The change one setting makes to `prefs`.
+export const changeOf = (name: SettingName, value: SettingValue) => ({ [name]: value }) as Partial<Prefs>

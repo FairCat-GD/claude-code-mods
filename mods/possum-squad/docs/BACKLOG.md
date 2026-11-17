@@ -27,6 +27,10 @@ these are the parts only a person can see.
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.
+- **Whether `/possums`'s answers stay out of requests.** They carry `isTextDisplayOnly`, which
+  the declarations say is read "on the queued lanes"; whether an `immediate` command typed
+  between turns is on one was not checked. To check: type `/possums settings` between turns,
+  then ask Claude what the last command printed.
 - **The row in the desktop app.** `desktopRow` and the app's `Progress` were seen only in the
   kit's tree; the first look is Session 4's, once rows are drawn.
 - **`/possums` bringing a hidden pane forward.** With another plugin's pane open and Possum

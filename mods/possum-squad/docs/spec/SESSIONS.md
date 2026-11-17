@@ -502,11 +502,12 @@ and `$.store`*, *The panel*, *The command and settings*, *Sprites and sets* (the
   - `/possums settings` listed the four settings with their defaults and values;
   - `set theme horror` answered "theme is now horror.";
   - `set colour red` answered the setting names, and `set theme neon` the theme's values;
-  - the engine shows each answer under the plugin's name;
-  - `open`, given twice, and the toggle printed nothing, and the pane ended shown with the
-    empty panel.
+  - the engine puts `possum-squad:` before each answer's first line;
+  - the pane ended docked and shown with the empty panel.
 
-  The desktop waits for the push (`docs/BACKLOG.md`).
+  The user also typed `/possums open` twice and `/possums` twice. Those print nothing and left
+  no row in the transcript, so whether `open` kept the pane shown and the toggle closed it was
+  not seen; only the final shown pane was. The desktop waits for the push (`docs/BACKLOG.md`).
 - **Falsified,** each failing at its own test:
   - `open` closing a shown pane;
   - `mergePrefs` dropping what was stored;
@@ -525,6 +526,36 @@ and `$.store`*, *The panel*, *The command and settings*, *Sprites and sets* (the
   - `validate` 10 hooks (−2), 3 gating (−2), each with a `.catch`, and 1 state key;
   - calls: −`$.clock.every`, −`$.session.usage`, −`$.ui.invalidate`; +`$.store.get`,
     +`$.store.set`, both on *Reach*'s allow-list.
+- **Review (`/code-review high`), 10 findings: 10 fixed and 0 skipped.** The user chose to fix
+  all ten.
+  - **The changelog said answers typed between turns are not sent to Claude,** which nothing
+    measured: the declarations read `isTextDisplayOnly` only on the queued lanes. The changelog,
+    the user guide and N-01's note now say what is known. The check by hand is in
+    `docs/BACKLOG.md`.
+  - **This done-note recorded `open` and the toggle as checked by hand,** though the terminal
+    showed neither; the hand-check bullet now says what was seen.
+  - **The settings list's first line ran into the engine's `possum-squad:` prefix** and
+    wrapped. It now starts with a heading, "Possum Squad settings:".
+  - **The number formats printed `NaN`** for a value that is not finite. `tokens`, `elapsed`
+    and `percent` read it as `–`, the bar draws empty, and the desktop bar's fill (`fill`) is
+    empty rather than the one that only spins.
+  - **The changelog said a tool's live output was fixed;** the declarations name only a served
+    call's. Reworded.
+  - **`/possums set` alone answered "There is no such setting".** It now answers "Name a
+    setting: …".
+  - **The one-line test did not check the details line.** `LONG_ROW` now has a long model, and
+    both surfaces' details line is checked.
+  - **The parsed `set` carried a derived `change`.** `changeOf` in `hooks/settings.ts` builds
+    it at the call.
+  - **A comment named buttons that do not exist yet.** It now says what the flags are.
+  - **The row tests cast `$.ui.mount` to a local type.** They take the kit's `Engine` now.
+  - **Falsified,** each failing at its own test:
+    - `tokens` unguarded and `fill` unguarded (the non-finite test);
+    - the details line uncut, on each surface (the one-line test);
+    - a bare `set` answered as no such setting;
+    - the heading dropped (the settings and store tests).
+  - **Numbers after the review:** 34 tests (+1), in 5 files: command 11, panel 8, pass-through
+    4, prefs 4, row 7. `validate` is unchanged.
 
 ---
 

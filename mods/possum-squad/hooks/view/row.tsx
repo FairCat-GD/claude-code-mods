@@ -3,7 +3,7 @@ import type { Color, ElementConstructor, ProgressProps, RenderElement } from 'cl
 import type { StateId } from '../../types/index'
 import { STRINGS } from '../strings'
 import type { Shared } from './empty'
-import { bar, elapsed, percent, tokens } from './format'
+import { bar, elapsed, fill, percent, tokens } from './format'
 
 // One run as its row shows it. The description, model, effort and activity are agent text, drawn only as plain Text (I-04).
 export type RowData = {
@@ -85,7 +85,7 @@ export function desktopRow(table: DesktopTable, row: RowData, sprite?: RenderEle
         </Text>
         <Progress
           label={STRINGS.row.context}
-          value={(row.contextPercent ?? 0) / 100}
+          value={fill(row.contextPercent)}
           valueText={join([percent(row.contextPercent), tokens(row.tokens), elapsed(row.elapsedMs)])}
         />
       </Box>
