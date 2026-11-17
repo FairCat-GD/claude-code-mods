@@ -325,6 +325,39 @@ Part 7 *Motion & feedback*, Part 8 *Technical risks*, Part 12 H2, H4; `ARCHITECT
   - `validate` 12 hooks, 5 gating, each with a `.catch`, and 1 state key: all unchanged;
   - calls +`$.clock.every`, +`$.session.usage`, +`$.ui.invalidate`, all on *Reach*'s
     allow-list.
+- **Review (`/code-review high`), 8 findings: 8 fixed and 0 skipped.** The user chose to fix
+  all eight.
+  - **A tool argument named like an engine field showed its nested key names.** The fields to
+    open were matched by name on every event, so a `tool.call` argument called `context` or
+    `usage` drew the names inside it. Now each event lists the fields its engine defines, and
+    `tool.call` opens none.
+  - **The clock was never seen working in an engine.** The tick calls `$` from a finished
+    `/possums` dispatch; the kit allows it, and the terminal's redraw count was cut off. Recorded
+    as unverified in *The panel* and the handoff, first on the desktop run's checklist.
+  - **The tick was unguarded.** A redraw that throws now waits for the next tick.
+  - **A close that failed beneath left the clock running.** The `ui.close` hook's `.catch`
+    now cancels it too.
+  - **Three behaviours had no test:**
+    - a drawing that fails draws the empty panel;
+    - a close by the person stops the clock;
+    - a raise starts it.
+
+    Each has one now. The first two run the module's hooks with a `$` of their own, through
+    `hooksOf` in `tests/engine.ts`, which the panel tests' close-hook capture now uses too.
+  - **The note said "Field names and types only"** while the view shows plan limits and the
+    engine's words. It now names what else shows (and avoids a word a fixture holds as a
+    value).
+  - **The render resolved the table twice;** it now reads `Svg` from the one table.
+  - **`sprite()` wrote the `Svg` element twice** to switch one prop; it is one element now.
+  - **Falsified,** each failing at its own test:
+    - `tool.call` opening `context` and `usage` (the tool-argument test);
+    - the tick unguarded (the tick test);
+    - the `.catch` not cancelling (the failed-close test);
+    - the body not cancelling (the person-close test and the redraw test);
+    - a raise not arming (the raise test and the person-close test);
+    - no fallback drawing (the fallback test).
+  - **Numbers after the review:** 23 tests (+6), in 3 files: panel 8, pass-through 3, spike
+    12. `validate` is unchanged.
 
 ---
 

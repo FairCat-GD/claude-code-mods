@@ -55,7 +55,11 @@ export const register: Register = on => {
     try {
       clock ??= $.clock.every(1000, () => {
         ticks++
-        $.ui.invalidate('ui.render')
+        try {
+          $.ui.invalidate('ui.render')
+        } catch {
+          // a tick that cannot redraw waits for the next
+        }
       })
     } catch {
       // the pane stays open; it is only not redrawn
@@ -67,7 +71,7 @@ export const register: Register = on => {
     const table = $.ui.resolve(e)
     try {
       // The terminal's table may still answer `Svg`, drawing nothing; only the declared surfaces get sprites.
-      const Svg = e.surface === 'terminal' ? undefined : $.ui.resolve(e).Svg
+      const Svg = e.surface === 'terminal' || !('Svg' in table) ? undefined : table.Svg
       const asked = await $.session.usage().then(limitsOf, () => undefined)
       return spikePanel(table, Svg, { entries: entriesOf(log), asked, measured: log.measured, ticks })
     } catch {
@@ -85,7 +89,11 @@ export const register: Register = on => {
       // the close stands; only the clock or the flag is lost
     }
     return closed
-  }).catch((_$, e, next) => next(e))
+  }).catch((_$, e, next) => {
+    // a close that failed beneath still stops the clock: a pane left open only goes unredrawn
+    disarm()
+    return next(e)
+  })
 
   on('agent.spawn', async (_$, e, next) => passOn(e, await next(e), hear('agent.spawn'))).catch((_$, e, next) => next(e))
   on('turn.start', async (_$, e, next) => passOn(e, await next(e), hear('turn.start'))).catch((_$, e, next) => next(e))

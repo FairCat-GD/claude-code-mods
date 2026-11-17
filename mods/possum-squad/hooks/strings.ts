@@ -6,7 +6,7 @@ export const STRINGS = {
   cannotToggle: 'The Possum Squad pane could not be shown or hidden here.',
   spike: {
     heading: 'Test view',
-    note: 'This version shows test drawings and what the mod hears, for building the next one. Field names and types only.',
+    note: "This version shows test drawings and what the mod hears, for building the next one. Events show only their field names and types, a check's decision and a turn's reason.",
     framed: (count: number) => `${count} animated, each in its own frame`,
     image: 'One drawn as an image',
     queried: 'Asking the page: darker on a light theme, still with reduced motion. In a frame, then as an image',

@@ -18,7 +18,8 @@ can be built on what they show; it takes them out again.
   light theme and with reduced motion; a terminal says they show in the desktop app. Under
   them are your plan-limit percents, and a list of the events the mod has heard: how many of
   each, in what order, and their field names and types. It never shows what an agent was asked,
-  answered or worked on. While it is open, the pane redraws once a second.
+  answered or worked on, nor the names inside a tool's arguments. While it is open, the pane
+  redraws once a second.
 - **A test setting,** "Test setting (does nothing)", among the plugin's settings. It changes
   nothing: it checks whether a plugin's settings can be changed there, and goes in the next
   version. Changing it reloads the mod, which starts the test view's event list over.

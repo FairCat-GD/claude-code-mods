@@ -3,9 +3,9 @@ import type { On } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
 
 import { PANE_COLUMNS } from '../hooks/config'
-import { PANE, register, view } from '../hooks/register'
+import { PANE, view } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
-import { engine, MOUNT, POSSUMS, SURFACES } from './engine'
+import { engine, hooksOf, MOUNT, POSSUMS, SURFACES } from './engine'
 
 test('a session declares /possums to run mid-turn, and registers no tool', async ($, on) => {
   const seen = engine(on)
@@ -84,14 +84,9 @@ type CloseHook = (
 ) => Promise<unknown>
 
 function closeHook(): CloseHook {
-  let hook: CloseHook | undefined
-  const capture = (event: string, ...rest: unknown[]) => {
-    if (event === 'ui.close') hook = rest[rest.length - 1] as CloseHook
-    return { catch: () => undefined }
-  }
-  register(capture as never, {} as never)
+  const hook = hooksOf().hooks.get('ui.close')
   if (hook === undefined) throw new Error('the mod hooks no ui.close')
-  return hook
+  return hook as unknown as CloseHook
 }
 
 // A `$` holding only state, as the engine keeps it: a value and its version per key.

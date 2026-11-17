@@ -25,12 +25,9 @@ const windows = (limits: readonly Limit[]) =>
 
 function sprites({ Box, Text }: Shared, Svg: Sprite): RenderElement {
   if (Svg === undefined) return <Text dimColor>{STRINGS.spike.desktopOnly}</Text>
-  const sprite = (key: string, source: string, isInteractive: boolean) =>
-    isInteractive ? (
-      <Svg key={key} source={source} alt={STRINGS.spike.alt} width={SPRITE_PX} height={SPRITE_PX} isInteractive />
-    ) : (
-      <Svg key={key} source={source} alt={STRINGS.spike.alt} width={SPRITE_PX} height={SPRITE_PX} />
-    )
+  const sprite = (key: string, source: string, isInteractive: boolean) => (
+    <Svg key={key} source={source} alt={STRINGS.spike.alt} width={SPRITE_PX} height={SPRITE_PX} {...(isInteractive ? { isInteractive } : {})} />
+  )
   return (
     <Box flexDirection="column">
       <Text>{STRINGS.spike.framed(FRAMED)}</Text>

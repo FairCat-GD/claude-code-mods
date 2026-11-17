@@ -174,8 +174,9 @@ not been measured.
 - the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-13 only),
   `hooks/strings.ts` and `hooks/view/empty.tsx`;
 - the contract, `types/index.d.ts`;
-- the tests, in `tests/`: the engine's stand-in and the shared test values in
-  `tests/engine.ts`, and `tests/fixtures/events.ts`.
+- the tests, in `tests/`: the engine's stand-in, the shared test values and `hooksOf`, which
+  hands a test the module's hooks from one registration, in `tests/engine.ts`; and
+  `tests/fixtures/events.ts`.
 
 The spike build adds three files, which Session 3 removes:
 - `hooks/spike.ts`, pure: the event log and the shape of a value;
@@ -291,10 +292,14 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     `next` returned;
   - the last input's and result's field names with their types.
 
-  Nested keys show one level down only for fields the engine defines (`usage`, `context`,
-  `cost`, `rateLimits`, `resume`, `toolUses`, `decision`, `effort`) and for a tool's arguments
-  (`input`, `tool_input`), whose own nested keys are never shown. The `session.measure` reader
-  also keeps the last rate-limit kinds and percents.
+  Nested keys show one level down only for the fields each event's engine defines, listed per
+  event: `resume` on `agent.spawn`; `usage` and `toolUses` on `turn.step`; `usage` on
+  `turn.complete`; `context`, `cost` and `rateLimits` on `session.measure`; `decision` and
+  `effort` on the permission request. A tool's arguments show their names: `tool.call`'s
+  fields, typed only, and `tool.check`'s `input` and the request's `tool_input` opened one
+  level, whose own nested keys are never shown. So a tool argument named like an engine
+  field elsewhere stays closed. The `session.measure` reader also keeps the last rate-limit
+  kinds and percents.
 - Every hook but `command.run` and `ui.render` carries `.catch((_$, e, next) => next(e))`
   (`turn.step`'s a generator doing `return yield* next(e)`), gating or not, so the rule is one
   line to check. `validate` lists five as gating: `ui.close`, `agent.spawn`, `tool.call`,
@@ -515,9 +520,12 @@ The spike build (0.2.0) draws a test view instead, from `hooks/view/spike.tsx`, 
 
 The redraw clock:
 - `/possums` arms one `$.clock.every(1000)` timer when it opens or raises the pane;
-- each tick counts and calls `$.ui.invalidate('ui.render')`, the pane's only redraw;
-- any close of the pane cancels it, and a reload stops it until `/possums` opens the pane
-  again.
+- each tick counts and calls `$.ui.invalidate('ui.render')`, the pane's only redraw, in a
+  guard, so a tick that cannot redraw waits for the next;
+- any close of the pane cancels it, a close that fails beneath included (the `ui.close` hook's
+  `.catch` cancels it too), and a reload stops it until `/possums` opens the pane again;
+- the tick calls `$` from a `/possums` dispatch that has ended, which the kit allows. Whether
+  the engines do was not seen: the terminal's redraw count was cut off.
 
 A drawing that fails draws the empty panel.
 
@@ -639,7 +647,7 @@ None yet.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
-| `claude plugin test mods/possum-squad` | 17 pass, in 3 files: panel 8, pass-through 3, spike 6 |
+| `claude plugin test mods/possum-squad` | 23 pass, in 3 files: panel 8, pass-through 3, spike 12 |
 | `validate`: hooks / gating / state keys | 12 / 5 (each with a `.catch`) / 1 (`view`) |
 | `validate`: calls | `$.clock.every`, `$.command.register`, `$.session.usage`, `$.state.get`, `$.state.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |

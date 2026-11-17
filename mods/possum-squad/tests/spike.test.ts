@@ -2,9 +2,10 @@ import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
 import { BOBBING, QUERIED, SPRITE_PX } from '../hooks/sprites/fixture'
+import { PANE } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
 import { FRAMED } from '../hooks/view/spike'
-import { engine, MOUNT, POSSUMS, SURFACES } from './engine'
+import { engine, hooksOf, MOUNT, POSSUMS, SURFACES } from './engine'
 import {
   MEASURE,
   MEASURED,
@@ -225,4 +226,141 @@ test('a usage call that fails still draws the pane, and says so', async ($, on) 
     expect(texts).toContain(STRINGS.empty)
     await pane.unmount()
   }
+})
+
+test("a tool's own argument shows by name, never with the names inside it", async ($, on) => {
+  answerUsage(on)
+  on('tool.call', () => TOOL_CALLED)
+  // Named like fields the engine opens elsewhere; inside are names only the person would know.
+  const call = { tool: 'mcp__fixture__note', context: { orchardLedger: 1 }, usage: { pantryShelf: 2 }, tool_use_id: 'toolu_fixture_note' }
+  await $.tool.call(call as never)
+  for (const surface of SURFACES) {
+    const pane = await $.ui.mount({ ...MOUNT, surface })
+    const texts = await textsOn(pane)
+    expect(texts).toContain(STRINGS.spike.input('tool string, context object, usage object, tool_use_id string'))
+    const drawn = JSON.stringify(await pane.drawn())
+    expect(drawn).not.toContain('orchardLedger')
+    expect(drawn).not.toContain('pantryShelf')
+    await pane.unmount()
+  }
+})
+
+test('a raise of a pane out of view starts the clock too', async ($, on) => {
+  const clock = mock.clock(on)
+  const seen = engine(on)
+  answerUsage(on)
+  let redraws = 0
+  on('ui.invalidate', (_, e, next) => {
+    redraws++
+    return next(e)
+  })
+  seen.panes = [{ id: PANE, isShown: false, isPlaced: true }]
+  await $.command.run(POSSUMS)
+  await clock.advance(2000)
+  expect(redraws).toBe(2)
+})
+
+test('a close that fails beneath still stops the clock', async ($, on) => {
+  const clock = mock.clock(on)
+  answerUsage(on)
+  let isOpen = false
+  let redraws = 0
+  on('ui.panes', () => ({ value: isOpen ? [{ id: PANE, title: STRINGS.title, isShown: true, isPlaced: true, isFocused: false }] : [] }))
+  on('ui.open', () => {
+    isOpen = true
+    return { value: { isPlaced: true } }
+  })
+  on('ui.close', () => {
+    throw new Error('the fixture fails every close')
+  })
+  on('ui.invalidate', (_, e, next) => {
+    redraws++
+    return next(e)
+  })
+  await $.command.run(POSSUMS)
+  await clock.advance(1000)
+  expect(redraws).toBe(1)
+
+  expect((await $.command.run(POSSUMS)).text).toBe(STRINGS.cannotToggle)
+  await clock.advance(3000)
+  expect(redraws).toBe(1)
+})
+
+// What the command, the close and the drawing reach, counting the clock's timers.
+function stub(shown: boolean) {
+  const timers = { armed: 0, cancelled: 0 }
+  const $ = {
+    ui: {
+      panes: async () => [{ id: PANE, isShown: shown, isPlaced: true }],
+      open: async () => ({ isPlaced: true }),
+      invalidate: () => undefined,
+    },
+    clock: {
+      every: () => {
+        timers.armed++
+        return { cancel: () => timers.cancelled++ }
+      },
+    },
+    state: { get: async () => ({ value: undefined, version: 0 }), set: async () => ({ isSet: true, version: 1 }) },
+  }
+  return { $, timers }
+}
+
+// The kit's `$` cannot close a pane as the person, so the module's own hooks run here.
+test('a close by the person stops the clock the command started', async () => {
+  const { hooks } = hooksOf()
+  const run = hooks.get('command.run') as unknown as ($: unknown, e: unknown) => Promise<unknown>
+  const close = hooks.get('ui.close') as unknown as ($: unknown, e: unknown, next: () => Promise<unknown>) => Promise<unknown>
+  const { $, timers } = stub(false)
+
+  await run($, POSSUMS)
+  expect(timers).toEqual({ armed: 1, cancelled: 0 })
+  await run($, POSSUMS)
+  expect(timers).toEqual({ armed: 1, cancelled: 0 })
+  await close($, { id: PANE, origin: { kind: 'person' } }, async () => ({ value: undefined }))
+  expect(timers).toEqual({ armed: 1, cancelled: 1 })
+  await run($, POSSUMS)
+  expect(timers).toEqual({ armed: 2, cancelled: 1 })
+})
+
+test('a drawing that fails draws the empty panel', async () => {
+  const { hooks } = hooksOf()
+  const render = hooks.get('ui.render') as unknown as ($: unknown, e: unknown) => Promise<unknown>
+  const element = (type: string) => (props: object) => ({ type, props })
+  const $ = {
+    ui: { resolve: () => ({ Box: element('Box'), Text: element('Text') }) },
+    session: {
+      usage: () => {
+        throw new Error('the fixture fails the usage call outright')
+      },
+    },
+  }
+  const drawn = JSON.stringify(await render($, { surface: 'terminal' }))
+  expect(drawn).toContain(STRINGS.empty)
+  expect(drawn).not.toContain(STRINGS.spike.heading)
+})
+
+test('a tick whose redraw throws keeps the clock going', async () => {
+  const { hooks } = hooksOf()
+  const run = hooks.get('command.run') as unknown as ($: unknown, e: unknown) => Promise<unknown>
+  const { $ } = stub(false)
+  let tick: (() => void) | undefined
+  const failing = {
+    ...$,
+    ui: {
+      ...$.ui,
+      invalidate: () => {
+        throw new Error('the fixture refuses every redraw')
+      },
+    },
+    clock: {
+      every: (_ms: number, fn: () => void) => {
+        tick = fn
+        return { cancel: () => undefined }
+      },
+    },
+  }
+  await run(failing, POSSUMS)
+  expect(() => tick?.()).not.toThrow()
+  expect(() => tick?.()).not.toThrow()
 })

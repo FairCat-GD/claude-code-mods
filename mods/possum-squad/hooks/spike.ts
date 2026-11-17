@@ -33,8 +33,18 @@ const WORDS: Partial<Record<HookedEvent, { from: 'input' | 'result'; field: stri
 }
 const OTHER = 'other'
 
-// Fields the engine defines, opened one level; a tool's arguments keep their names, never what is inside.
-const OPENED = new Set(['usage', 'context', 'cost', 'rateLimits', 'resume', 'toolUses', 'decision', 'effort', 'input', 'tool_input'])
+// Fields the engine defines on each event, opened one level. Only there: a tool's own argument of
+// the same name keeps its inside unseen. `input` and `tool_input` are the arguments, shown by name.
+const OPENED: Record<HookedEvent, readonly string[]> = {
+  'agent.spawn': ['resume'],
+  'turn.start': [],
+  'turn.step': ['usage', 'toolUses'],
+  'turn.complete': ['usage'],
+  'tool.call': [],
+  'tool.check': ['input'],
+  'classic.PermissionRequest': ['tool_input', 'decision', 'effort'],
+  'session.measure': ['context', 'cost', 'rateLimits'],
+}
 const SUBAGENT_FIELDS = ['agentId', 'agent_id', 'parentAgentId']
 
 const typeOf = (value: unknown) => (value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value)
@@ -53,10 +63,10 @@ const opened = (value: unknown) => {
   return typeOf(value) === 'object' ? keysOf(value) : typeOf(value)
 }
 
-export function shapeOf(value: unknown): string {
+export function shapeOf(value: unknown, open: readonly string[] = []): string {
   if (typeOf(value) !== 'object') return typeOf(value)
   return Object.entries(value as Record<string, unknown>)
-    .map(([name, field]) => `${name} ${OPENED.has(name) ? opened(field) : typeOf(field)}`)
+    .map(([name, field]) => `${name} ${open.includes(name) ? opened(field) : typeOf(field)}`)
     .join(', ')
 }
 
@@ -94,8 +104,8 @@ export function note(log: SpikeLog, event: HookedEvent, input: unknown, result: 
     count: (was?.count ?? 0) + 1,
     first: was?.first ?? at,
     last: at,
-    input: shapeOf(input),
-    result: shapeOf(result),
+    input: shapeOf(input, OPENED[event]),
+    result: shapeOf(result, OPENED[event]),
   })
   if (event === 'session.measure') log.measured = limitsOf(input) ?? []
 }

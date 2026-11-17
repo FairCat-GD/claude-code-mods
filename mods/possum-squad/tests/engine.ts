@@ -1,7 +1,7 @@
 import type { CommandSpec, On, PaneOpenArgs } from 'claude-code'
 
 import { PANE_COLUMNS } from '../hooks/config'
-import { PANE } from '../hooks/register'
+import { PANE, register } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
 
 // What the tests raise and mount.
@@ -41,4 +41,19 @@ export function engine(on: On, refusal?: string) {
     return { value: undefined }
   })
   return seen
+}
+
+type Hook = (...args: never[]) => unknown
+
+// The module's hooks and their `.catch` handlers from one registration, by event, so a test can run
+// one with a `$` of its own where the kit's cannot reach.
+export function hooksOf() {
+  const hooks = new Map<string, Hook>()
+  const catches = new Map<string, Hook>()
+  const capture = (event: string, ...rest: unknown[]) => {
+    hooks.set(event, rest[rest.length - 1] as Hook)
+    return { catch: (handler: Hook) => catches.set(event, handler) }
+  }
+  register(capture as never, {} as never)
+  return { hooks, catches }
 }

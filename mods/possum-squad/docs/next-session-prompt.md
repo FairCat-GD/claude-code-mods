@@ -15,9 +15,10 @@ the desktop run.
 ## State you need that is not in the specs
 
 - **Round 1 is the agents panel:** Sessions 0–2 are done; Sessions 3–13 and 7a remain.
-- **Push status:** `origin/main` holds everything through Session 1's review commit. Session 2's
-  commits wait for the owner's approval to push; if this file is read before they are pushed,
-  the desktop run has not happened, so ask.
+- **Push status:** pushed on 2026-11-17 with the owner's approval: `origin/main` holds
+  everything through Session 2's review commit
+  (`review(possum-squad): tool arguments showed inner names, and 7 smaller`). Nothing waits
+  locally. Ask whether the owner has installed 0.2.0 and done the desktop run.
 - **0.1.0 is installed** (the owner's answer at Session 2). After the push, the owner installs
   0.2.0 with `claude plugin update possum-squad` and starts a new desktop session.
 - **The desktop run, before Session 3's plan** (the owner agreed to it):
@@ -33,9 +34,13 @@ the desktop run.
      whether it can be changed there. Change it only last: it reloads the mod and empties the
      log.
 - **What to record from it** (into Session 3's done-note, then Session 3's Decided parts):
+  - **the clock, first:** whether the "Redrawn by the clock" count rises once a second. It was
+    never seen in an engine: the tick calls `$` from a finished `/possums` dispatch, which the
+    kit allows. If it stays at 0, the redraw question below has no answer, and Session 5's
+    clock needs another way to call `$`;
   - **SMIL in a pane:** whether the twenty framed sprites bob, whether the app stays smooth
-    and responsive, whether the image form bobs, and whether the once-a-second redraw (the
-    "Redrawn by the clock" count) restarts or stutters a bob;
+    and responsive, whether the image form bobs, and whether the once-a-second redraw
+    restarts or stutters a bob;
   - **light theme and reduced motion:** whether `QUERIED` darkens under the app's light theme
     and stands still with the system's reduced motion, framed and as an image;
   - **the permission wait:** the entries for `tool.check ask · subagent` and
@@ -72,7 +77,7 @@ the desktop run.
   > converter is the first user.
 
   If it is not committed when Session 6 opens, Session 8 runs first, logged as an amendment.
-- **Baseline** (ARCHITECTURE's table, v0.2.0): 17 tests in 3 files; `validate` 12 hooks, 5
+- **Baseline** (ARCHITECTURE's table, v0.2.0): 23 tests in 3 files; `validate` 12 hooks, 5
   gating each with a `.catch`, 1 state key. Calls: `$.clock.every`, `$.command.register`,
   `$.session.usage`, `$.state.get`, `$.state.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`,
   `$.ui.panes`, `$.ui.resolve`. Removing the spike drops the first three or keeps those the
@@ -82,7 +87,8 @@ the desktop run.
 
 - **The spike answers are the owner's.** Record what the desktop showed, then ask; never pick
   an answer because the code is easier.
-- **`tests/engine.ts` stays:** the stand-in and the shared test values are not spike code.
+- **`tests/engine.ts` stays:** the stand-in, the shared test values and `hooksOf` are not
+  spike code.
   `tests/spike.test.ts`, `hooks/spike.ts`, `hooks/sprites/fixture.ts` and
   `hooks/view/spike.tsx` go.
 - **Removing `userConfig` leaves any value the owner set in their settings.** Say so in the
