@@ -1,111 +1,107 @@
-import type { Register, Timer } from 'claude-code'
+import type { CommandRunResult, EngineInterface, Register } from 'claude-code'
 import { atom, update } from 'claude-code'
 
 import { PANE_COLUMNS } from './config'
-import { entriesOf, type HookedEvent, limitsOf, newLog, note } from './spike'
+import { mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES, SETTINGS, settingsText } from './settings'
 import { STRINGS } from './strings'
 import { emptyPanel } from './view/empty'
-import { spikePanel } from './view/spike'
 
 export const PANE = 'possum-squad'
 // Bump the shape when View's fields change: an older value then reads as absent.
 export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, { isClosedByPerson: false }, { shape: 'view-1' })
 
-// What a hook gets from below goes back up as it came; reading it can never throw into the event.
-function passOn<E, R>(e: E, result: R, read?: (e: E, result: R) => void): R {
+// The person's answer, kept out of every request the engine lets it be.
+const say = (text: string): CommandRunResult => ({ text, isTextDisplayOnly: true })
+
+// The one door to the store (I-03): a write holds only setting values and panel flags. `prefs` is read
+// just before it is written, since another session may have changed it meanwhile.
+async function writeStore($: Pick<EngineInterface, 'store'>, write: { key: 'prefs'; change: Partial<Prefs> }) {
+  await $.store.set(write.key, mergePrefs(await $.store.get(write.key), write.change))
+}
+
+// A pane behind another's tab or waiting undrawn is raised; a shown one is closed only by the toggle.
+async function showPane($: Pick<EngineInterface, 'ui'>, mayClose: boolean): Promise<CommandRunResult> {
   try {
-    read?.(e, result)
+    const pane = (await $.ui.panes()).find(one => one.id === PANE)
+    if (pane?.isShown) {
+      if (mayClose) await $.ui.close({ id: PANE })
+      return {}
+    }
+    const raise = pane === undefined ? {} : ({ focus: true } as const)
+    await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS, ...raise })
+    return {}
   } catch {
-    // a fault in reading costs the panel its data, never the event its result
+    return say(STRINGS.cannotToggle)
   }
-  return result
+}
+
+async function listSettings($: Pick<EngineInterface, 'store'>): Promise<CommandRunResult> {
+  try {
+    return say(settingsText(readPrefs(await $.store.get('prefs'))))
+  } catch {
+    return say(STRINGS.cannotStore)
+  }
+}
+
+async function changeSetting($: Pick<EngineInterface, 'store'>, change: Partial<Prefs>, answer: string): Promise<CommandRunResult> {
+  try {
+    await writeStore($, { key: 'prefs', change })
+    return say(answer)
+  } catch {
+    return say(STRINGS.cannotStore)
+  }
 }
 
 export const register: Register = on => {
-  // The spike's tallies stay in this copy's memory, so reading an event never waits on a write.
-  const log = newLog()
-  const hear = (event: HookedEvent) => (e: unknown, result: unknown) => note(log, event, e, result)
-
-  // One clock while the pane is open; its tick is the pane's only redraw.
-  let clock: Timer | undefined
-  let ticks = 0
-  const disarm = () => {
-    clock?.cancel()
-    clock = undefined
-  }
-
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'possums', description: STRINGS.commandDescription, immediate: true })
+    await $.command.register({ name: 'possums', description: STRINGS.commandDescription, argumentHint: STRINGS.commandHint, immediate: true })
     return next(e)
   }).catch((_$, e, next) => next(e))
 
-  on('command.run', { command: 'possums' }, async $ => {
-    try {
-      const pane = (await $.ui.panes()).find(one => one.id === PANE)
-      if (pane?.isShown) {
-        await $.ui.close({ id: PANE })
-        return {}
-      }
-      // A pane behind another's tab or waiting undrawn is raised: the person asked to see it.
-      const raise = pane === undefined ? {} : ({ focus: true } as const)
-      await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS, ...raise })
-    } catch {
-      return { text: STRINGS.cannotToggle }
+  on('command.run', { command: 'possums' }, async ($, e) => {
+    const words = parseWords(e.args)
+    switch (words.kind) {
+      case 'toggle':
+        return showPane($, true)
+      case 'open':
+        return showPane($, false)
+      case 'settings':
+        return listSettings($)
+      case 'set':
+        return changeSetting($, words.change, STRINGS.isNow(words.name, words.value))
+      case 'noSuchSetting':
+        return say(STRINGS.noSuchSetting(SETTING_NAMES))
+      case 'badValue':
+        return say(STRINGS.badValue(words.name, SETTINGS[words.name].values))
+      default:
+        return say(STRINGS.usage)
     }
-    try {
-      clock ??= $.clock.every(1000, () => {
-        ticks++
-        try {
-          $.ui.invalidate('ui.render')
-        } catch {
-          // a tick that cannot redraw waits for the next
-        }
-      })
-    } catch {
-      // the pane stays open; it is only not redrawn
-    }
-    return {}
   })
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const table = $.ui.resolve(e)
-    try {
-      // The terminal's table may still answer `Svg`, drawing nothing; only the declared surfaces get sprites.
-      const Svg = e.surface === 'terminal' || !('Svg' in table) ? undefined : table.Svg
-      const asked = await $.session.usage().then(limitsOf, () => undefined)
-      return spikePanel(table, Svg, { entries: entriesOf(log), asked, measured: log.measured, ticks })
-    } catch {
-      return emptyPanel(table)
-    }
-  })
+  on('ui.render', { component: 'Pane', requestId: PANE }, ($, e) => emptyPanel($.ui.resolve(e)))
 
   on('ui.close', { id: PANE }, async ($, e, next) => {
     const closed = await next(e)
-    if (closed.deny !== undefined) return closed
+    if (closed.deny !== undefined || e.origin.kind !== 'person') return closed
     try {
-      disarm()
-      if (e.origin.kind === 'person') await update($, view, flags => ({ ...flags, isClosedByPerson: true }))
+      await update($, view, flags => ({ ...flags, isClosedByPerson: true }))
     } catch {
-      // the close stands; only the clock or the flag is lost
+      // the close stands; only the flag is lost
     }
     return closed
-  }).catch((_$, e, next) => {
-    // a close that failed beneath still stops the clock: a pane left open only goes unredrawn
-    disarm()
-    return next(e)
-  })
+  }).catch((_$, e, next) => next(e))
 
-  on('agent.spawn', async (_$, e, next) => passOn(e, await next(e), hear('agent.spawn'))).catch((_$, e, next) => next(e))
-  on('turn.start', async (_$, e, next) => passOn(e, await next(e), hear('turn.start'))).catch((_$, e, next) => next(e))
-  on('turn.complete', async (_$, e, next) => passOn(e, await next(e), hear('turn.complete'))).catch((_$, e, next) => next(e))
-  on('tool.call', async (_$, e, next) => passOn(e, await next(e), hear('tool.call'))).catch((_$, e, next) => next(e))
-  on('tool.check', async (_$, e, next) => passOn(e, await next(e), hear('tool.check'))).catch((_$, e, next) => next(e))
-  on('session.measure', async (_$, e, next) => passOn(e, await next(e), hear('session.measure'))).catch((_$, e, next) => next(e))
-  on('classic.PermissionRequest', async (_$, e, next) => passOn(e, await next(e), hear('classic.PermissionRequest'))).catch((_$, e, next) => next(e))
+  // Hooked for later versions to read; each passes on exactly what the engine gave. `tool.call` and
+  // `tool.run` stay unhooked: a hook there turns off a tool's move to the background, even as a pass-through.
+  on('agent.spawn', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
+  on('turn.start', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
+  on('turn.complete', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
+  on('session.measure', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
+  on('classic.PermissionRequest', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
 
-  // The stream goes through untouched; only its result is read, once it has ended.
+  // The stream goes through untouched.
   on('turn.step', async function* (_$, e, next) {
-    return passOn(e, yield* next(e), hear('turn.step'))
+    return yield* next(e)
   }).catch(async function* (_$, e, next) {
     return yield* next(e)
   })

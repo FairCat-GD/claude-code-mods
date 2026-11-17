@@ -18,13 +18,13 @@ behaviour from the user's side.
 These keep their spelling, because installs and stored data live under them:
 - the mod's name, `possum-squad`: its folder, its `plugin.json` `name` and its install id,
   `possum-squad@claude-code-mods`;
-- its slash command, `/possums` (built), with the words `open`, `set`, `settings`, `roles` (to
-  come); its pane id, `possum-squad`;
+- its slash command, `/possums`, with the words `open`, `set`, `settings` (built) and `roles`
+  (to come); its pane id, `possum-squad`;
 - its settings and their values, its set ids, role ids and state ids (`docs/ARCHITECTURE.md`,
   *Values*);
 - its `$.state` keys, `runs`, `lead`, `view`, declared in `types/index.d.ts` as each is built
   (`view` so far, under the shape tag `view-1`, which changes with its fields);
-  its `$.store` keys, `prefs` and `role:<agent type>`;
+  its `$.store` keys, `prefs` (built) and `role:<agent type>`;
 - reserved for a later round: the tools `step` and `plan`, the setting `stepReports`, the state
   key `planned`.
 
@@ -51,6 +51,11 @@ first line copies it.
 - **The installed release runs in every session the owner starts,** these included. A hook that
   changes an event, or throws into `turn.step`'s stream, breaks the owner's work, not just the
   panel. Disabling the plugin is the kill switch, and it is the owner's to do.
+- **Hooking `tool.call` or `tool.run` changes how tools run,** even as a pass-through: it turns
+  off a tool's move to the background and its live output. Hook neither without the owner's
+  OK; a test fails if either comes back.
+- **A test plugin closes over nothing of its test file.** To draw the module's builders in a
+  test, use the test's own `ui.render` hook, matched with `{ plugin: '*' }`.
 - **The engine loads no JSON.** The role corpus is a `.ts` fixture; the art reaches the hooks only
   through the generated `hooks/sprites/data.ts`.
 - **`docs/spec/research/` is input** for round 1: copy from it, never edit it. Its corpus labels

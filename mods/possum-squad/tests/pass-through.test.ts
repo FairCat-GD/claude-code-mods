@@ -1,5 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
+import { hooksOf } from './engine'
 import {
   MEASURE,
   MEASURED,
@@ -12,10 +13,6 @@ import {
   STEP_CHUNKS,
   STARTED,
   STEPPED,
-  TOOL_CALL,
-  TOOL_CALLED,
-  TOOL_CHECK,
-  TOOL_CHECKED,
   TURN_COMPLETE,
   TURN_COMPLETED,
   TURN_START,
@@ -40,8 +37,6 @@ test('every hooked event gets back exactly what the engine gave', async ($, on) 
   on('agent.spawn', () => SPAWNED)
   on('turn.start', () => TURN_STARTED)
   on('turn.complete', () => TURN_COMPLETED)
-  on('tool.call', () => TOOL_CALLED)
-  on('tool.check', () => TOOL_CHECKED)
   on('session.measure', () => MEASURED)
   on('classic.PermissionRequest', () => PERMITTED)
 
@@ -49,8 +44,6 @@ test('every hooked event gets back exactly what the engine gave', async ($, on) 
   expect(await $.agent.spawn(SPAWN)).toEqual(SPAWNED)
   expect(await $.turn.start(TURN_START)).toEqual(TURN_STARTED)
   expect(await $.turn.complete(TURN_COMPLETE)).toEqual(TURN_COMPLETED)
-  expect(await $.tool.call(TOOL_CALL)).toEqual(TOOL_CALLED)
-  expect(await $.tool.check(TOOL_CHECK)).toEqual(TOOL_CHECKED)
   expect(await $.session.measure(MEASURE)).toEqual(MEASURED)
   expect(await $.classic.PermissionRequest(PERMISSION)).toEqual(PERMITTED)
 })
@@ -59,8 +52,6 @@ test('an event of a shape the mod does not know passes on with what the engine g
   on('agent.spawn', () => SPAWNED)
   on('turn.start', () => TURN_STARTED)
   on('turn.complete', () => TURN_COMPLETED)
-  on('tool.call', () => TOOL_CALLED)
-  on('tool.check', () => TOOL_CHECKED)
   on('session.measure', () => MEASURED)
   on('classic.PermissionRequest', () => PERMITTED)
   on('turn.step', async function* () {
@@ -72,8 +63,6 @@ test('an event of a shape the mod does not know passes on with what the engine g
   expect(await $.agent.spawn(malformed)).toEqual(SPAWNED)
   expect(await $.turn.start(malformed)).toEqual(TURN_STARTED)
   expect(await $.turn.complete(malformed)).toEqual(TURN_COMPLETED)
-  expect(await $.tool.call(malformed)).toEqual(TOOL_CALLED)
-  expect(await $.tool.check(malformed)).toEqual(TOOL_CHECKED)
   expect(await $.session.measure(malformed)).toEqual(MEASURED)
   expect(await $.classic.PermissionRequest(malformed)).toEqual(PERMITTED)
   // The engine refuses a step with no turnId, index or model before any hook, so only the rest is strange.
@@ -91,4 +80,11 @@ test("a model request's stream reaches the caller unchanged and in order, then i
 
   expect(chunks).toEqual(STEP_CHUNKS)
   expect(result).toEqual(STEPPED)
+})
+
+// A hook on either, even one passing every call on, turns off a tool's move to the background and its live output.
+test('watching leaves every tool call alone: the mod hooks neither tool.call nor tool.run', () => {
+  const { hooks } = hooksOf()
+  expect(hooks.has('tool.call')).toBe(false)
+  expect(hooks.has('tool.run')).toBe(false)
 })

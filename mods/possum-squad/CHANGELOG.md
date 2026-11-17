@@ -6,6 +6,39 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-11-17
+
+The test build is over: the pane is back to saying no agents have shown up yet, and its
+settings arrive. Agents start showing up in the next version.
+
+### Added
+
+- **`/possums open`** shows the pane, or brings it forward when it is behind another pane's
+  tab. Unlike `/possums`, it never hides it.
+- **`/possums settings`** lists the settings, each with its value and the values it takes.
+- **`/possums set <name> <value>`** changes one, and answers with its new value, or with the
+  names or values it takes. The settings are:
+  - `autoOpen` (`never`, `first`, `always`);
+  - `cost` (`off`, `estimate`);
+  - `motion` (`auto`, `off`);
+  - `theme` (`classic`, `steampunk`, `horror`, `prehistoric`).
+
+  They are kept between sessions, and each takes effect when the part of the pane it controls
+  arrives. Names and values can be typed in any case.
+- These answers show only to you: typed between turns, they are not sent to Claude.
+
+### Removed
+
+- **The test view:** the test drawings, the plan limits and the list of events the mod heard.
+- **The test setting** "Test setting (does nothing)". If you changed it, the value stays in
+  your Claude Code settings, where nothing reads it; you can remove it there.
+
+### Fixed
+
+- **Words after `/possums` are no longer ignored,** so `/possums open` can't hide the pane.
+- **Tools can be moved to the background again,** and a tool's live output shows again, while
+  the mod is installed. Earlier versions turned both off by watching every tool call.
+
 ## [0.2.0] — 2026-11-17
 
 A test build. For now the pane shows test drawings and what the mod hears, so the next version

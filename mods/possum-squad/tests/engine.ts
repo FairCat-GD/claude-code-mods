@@ -7,6 +7,7 @@ import { STRINGS } from '../hooks/strings'
 // What the tests raise and mount.
 export const SURFACES = ['terminal', 'desktop'] as const
 export const POSSUMS = { command: 'possums', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } } as const
+export const possums = (args: string) => ({ ...POSSUMS, args })
 export const MOUNT = {
   plugin: 'possum-squad',
   component: 'Pane',
@@ -41,6 +42,23 @@ export function engine(on: On, refusal?: string) {
     return { value: undefined }
   })
   return seen
+}
+
+const copy = (value: unknown) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)))
+
+// The mod's store as the engine keeps it, JSON in and out. A test changes `held` between commands as
+// another session would, and reads every write the mod made from `writes`.
+export function store(on: On, entries: Record<string, unknown> = {}, refuse?: 'get' | 'set') {
+  const held = new Map(Object.entries(entries).map(([key, value]) => [key, copy(value)]))
+  const writes: { key: string; value: unknown }[] = []
+  on('store.get', (_, e) => (refuse === 'get' ? { deny: 'the fixture store refuses reads' } : { value: copy(held.get(e.key)) }))
+  on('store.set', (_, e) => {
+    if (refuse === 'set') return { deny: 'the fixture store refuses writes' }
+    writes.push({ key: e.key, value: copy(e.value) })
+    held.set(e.key, copy(e.value))
+    return { value: undefined }
+  })
+  return { held, writes }
 }
 
 type Hook = (...args: never[]) => unknown

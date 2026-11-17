@@ -1,30 +1,38 @@
+import type { StateId } from '../types/index'
+
+// "a, b and c", or "a, b or c".
+const list = (items: readonly string[], joiner: 'and' | 'or') =>
+  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} ${joiner} ${items[items.length - 1]}`
+
 // Every string the mod shows, in one English table.
 export const STRINGS = {
   title: 'Possum Squad',
   commandDescription: 'Show or hide the Possum Squad pane',
+  commandHint: '[open | settings | set <name> <value>]',
   empty: 'No agents yet. They show up here when Claude starts one.',
   cannotToggle: 'The Possum Squad pane could not be shown or hidden here.',
-  spike: {
-    heading: 'Test view',
-    note: "This version shows test drawings and what the mod hears, for building the next one. Events show only their field names and types, a check's decision and a turn's reason.",
-    framed: (count: number) => `${count} animated, each in its own frame`,
-    image: 'One drawn as an image',
-    queried: 'Asking the page: darker on a light theme, still with reduced motion. In a frame, then as an image',
-    desktopOnly: 'The test drawings show in the desktop app.',
-    alt: 'A grey test critter',
-    limits: 'Plan limits',
-    asked: (windows: string) => `Asked for: ${windows}`,
-    measured: (windows: string) => `Last measured: ${windows}`,
-    noWindows: 'none reported',
-    notMeasured: 'not measured yet',
-    unavailable: 'unavailable',
-    heard: 'What the mod heard',
-    order: 'Numbered in the order each result came back.',
-    nothingHeard: 'Nothing yet.',
-    main: 'main',
-    subagent: 'subagent',
-    input: (shape: string) => `in: ${shape}`,
-    result: (shape: string) => `out: ${shape}`,
-    ticks: (count: number) => `Redrawn by the clock ${count} times`,
+  usage: 'Use /possums, /possums open, /possums settings or /possums set <name> <value>.',
+  setting: (name: string, value: string, values: readonly string[]) => `${name}: ${value} (${values.join(', ')})`,
+  howToChange: 'Change one with /possums set <name> <value>.',
+  isNow: (name: string, value: string) => `${name} is now ${value}.`,
+  noSuchSetting: (names: readonly string[]) => `There is no such setting. The settings are ${list(names, 'and')}.`,
+  badValue: (name: string, values: readonly string[]) => `${name} can be ${list(values, 'or')}.`,
+  cannotStore: 'The settings could not be read or saved here.',
+  states: {
+    starting: 'starting',
+    working: 'working',
+    'needs-you': 'needs you',
+    quiet: 'quiet',
+    finished: 'finished',
+    failed: 'failed',
+    stopped: 'stopped',
+  } satisfies Record<StateId, string>,
+  row: {
+    mark: '●',
+    separator: ' · ',
+    noActivity: 'No tool calls yet',
+    context: 'Context',
+    contextShort: 'ctx',
+    unknownPercent: '–',
   },
 } as const

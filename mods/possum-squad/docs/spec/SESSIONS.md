@@ -408,21 +408,154 @@ and `$.store`*, *The panel*, *The command and settings*, *Sprites and sets* (the
 - **`prefs` is read and written whole,** across every session the owner has open: read it just
   before writing, never from a copy kept since start.
 
+**Done (2026-11-17, 0.3.0).**
+- **Decided with the user:**
+  - **The desktop run of 0.2.0,** done by the user at the session's start, from the session's
+    steps. Its results are in *Context* and under **Measured** below.
+  - **The four spike questions,** each answered as recommended:
+    - SMIL goes ahead: a sprite that animates is framed, a still one an image;
+    - on the light theme, each sprite's own media query draws the outline where an edge colour
+      is under 3:1, and none on the dark theme;
+    - `motion` `auto` follows the system's reduced motion through the framed sprite's own
+      media query;
+    - F-12 stays, beginning on `classic.PermissionRequest` by `agent_id`, so the `tool.check`
+      hook goes;
+    - the gallery animates, framed.
+  - **A finding the session raised from the declarations:** a `tool.call` or `tool.run` hook
+    turns off a tool's move to the background and its live output, even as a pass-through.
+    The user chose to drop the `tool.call` hook in 0.3.0, and to have Session 4 measure the
+    classic tool-use hooks and bring the source back to them.
+  - **Confirms,** both confirmed with the plan's approval, unchanged:
+    - *Values*: `prefs`, its defaults and forward-only reading;
+    - *The command and settings*.
+- **The spike removed:**
+  - its files: `hooks/spike.ts`, `hooks/sprites/fixture.ts`, `hooks/view/spike.tsx` and
+    `tests/spike.test.ts`;
+  - from the code: the clock, the usage call, the `userConfig` field, `STRINGS.spike`, and the
+    `tool.check` and `tool.call` hooks.
+  - The remaining event hooks are plain `next(e)` pass-throughs; `passOn` returns with Session
+    4's readers.
+- **The command.** `parseWords` (`hooks/settings.ts`) reads the words, and top-level
+  functions in `register.tsx` answer them:
+  - `showPane` serves the toggle and `open`, which never closes;
+  - `listSettings` answers `settings`;
+  - `changeSetting` answers `set`;
+  - unknown words get the usage line.
+
+  Every answer in words carries `isTextDisplayOnly`. The registration carries an argument
+  hint.
+- **`prefs`.** `hooks/settings.ts` holds the settings table, `readPrefs` (forward-only) and
+  `mergePrefs`. `writeStore`, the one store writer (I-03), reads just before it writes.
+- **The row.** `hooks/view/row.tsx` has `RowData`, `terminalRow` and `desktopRow`;
+  `hooks/view/format.ts` the numbers and the block bar. `StateId` is in `types/index.d.ts`.
+  Nothing in the product draws a row yet.
+- **Docs:**
+  - `ARCHITECTURE.md`'s Decided parts, each with a *Decision log* line: *Context*, *The hooks*,
+    *Sprites and sets*, *The panel* (the gallery) and *Attention*;
+  - its Built parts for the same sections and *Values*, *The command and settings*, *Reach*,
+    *Packaging*, *Stack and pins* and *Layout*, with I-01, I-03, I-04, I-05 and N-01's
+    *Enforced by* and the baseline;
+  - `CHANGELOG.md` 0.3.0, the README, the user guide and the mod's `CLAUDE.md`;
+  - `docs/BACKLOG.md`'s *Not yet checked by hand*.
+- **Amendments:**
+  - **Later blocks, for the decisions** (amended at plan time, with the user):
+    - Session 4 measures a tool call's source and a subagent's end first, and draws with this
+      session's row builders;
+    - Session 6 gets the light-theme and reduced-motion styles and their gates;
+    - Sessions 7 and 7a get the gallery, animated and framed;
+    - Session 10 gets Needs you on the request.
+  - **The desktop bar carries the numbers.** The plan put the tokens and time in a `Text` beside
+    the app's `Progress`. The kit showed the engine draws a `Progress` as its label and figure
+    above a full-width fill, which would squeeze a neighbour, so they ride in its value text.
+    The session's own finding.
+  - **The row test draws through the test's own hook.** The plan's test plugin cannot see the
+    test file: the kit runs an inline plugin's `register` with nothing of the file in scope.
+    The session's own finding.
+  - **The I-04 test also requires the description and activity whole, in a `Text` of their
+    own,** since a `Progress` label becomes `Text` and would otherwise pass. The session's own
+    finding.
+  - **`hooks/settings.ts` is a file the Decided layout does not name;** the reason is in
+    *Layout*'s Built part. Planned with the user.
+- **Measured:**
+  - The desktop, engine 2.1.325, 0.2.0 installed, by the user:
+    - the clock's count rose once a second;
+    - twenty framed sprites bobbed with the app smooth, and the image form bobbed too; a
+      redraw neither restarted nor stuttered a bob;
+    - `prefers-color-scheme: light` followed the app's theme, framed and as an image;
+      `prefers-reduced-motion` stopped only the framed one;
+    - two asked Bash calls from subagents each raised `tool.check` `ask`, then
+      `classic.PermissionRequest`, both back while the prompt waited;
+    - no subagent `turn.complete` was listed;
+    - `turn.step`'s usage had no `ephemeral_*` fields;
+    - the plugin manager listed and changed the `userConfig` field;
+    - the field names are in *Context*.
+  - The declarations and the kit, CLI 2.1.326:
+    - the `tool.call`/`tool.run` hook cost;
+    - `tool.run`'s timing;
+    - `$.store` not being reactive;
+    - `isTextDisplayOnly` holding only on the queued lanes;
+    - `Progress` drawn as `Box` and `Text`;
+    - an inline test plugin closing over nothing;
+    - the import scan accepting a type import from `types/index.d.ts`.
+- **Checked by hand:** in the terminal, CLI 2.1.326, `claude --plugin-dir mods/possum-squad`,
+  typed by the user and read from the Terminal panel:
+  - `/possums settings` listed the four settings with their defaults and values;
+  - `set theme horror` answered "theme is now horror.";
+  - `set colour red` answered the setting names, and `set theme neon` the theme's values;
+  - the engine shows each answer under the plugin's name;
+  - `open`, given twice, and the toggle printed nothing, and the pane ended shown with the
+    empty panel.
+
+  The desktop waits for the push (`docs/BACKLOG.md`).
+- **Falsified,** each failing at its own test:
+  - `open` closing a shown pane;
+  - `mergePrefs` dropping what was stored;
+  - an unknown value read as stored;
+  - the spawn hook storing a description (the I-03 test);
+  - the description as the bar's label (the I-04 test);
+  - a state word left out (the I-06 test);
+  - the display-only flag dropped;
+  - a `tool.call` hook added back;
+  - a setting missing from the list;
+  - a copy kept since the first write (the read-before-write test). It passed until the test
+    seeded the store, then failed;
+  - a bad value stored.
+- **Numbers:**
+  - 33 tests (+10), in 5 files: command 11, panel 8, pass-through 4, prefs 4, row 6 (spike −12);
+  - `validate` 10 hooks (−2), 3 gating (−2), each with a `.catch`, and 1 state key;
+  - calls: −`$.clock.every`, −`$.session.usage`, −`$.ui.invalidate`; +`$.store.get`,
+    +`$.store.set`, both on *Reach*'s allow-list.
+
 ---
 
 ## 4: Runs
 
 **Read:** `SPEC.md` §2 decisions 12, 13, 14; `PDD.md` Part 4 *Worked examples*, *States & edge
 cases*, Part 5 F-01, F-02, F-11, F-23, I-06, Part 6 *Domain model*, *Data lifecycle*, Part 5
-*Tunables* (T-06, T-07, T-11); `ARCHITECTURE.md` *The invariants* (I-01, I-03, I-05, I-06), *The
-hooks*, *Values: `$.state` and `$.store`*, *The run model*, *The panel*.
+*Tunables* (T-06, T-07, T-11); `ARCHITECTURE.md` *Context* (what the desktop showed), *The
+invariants* (I-01, I-03, I-05, I-06), *The hooks*, *Values: `$.state` and `$.store`*, *The run
+model*, *The panel*.
 
+- **Two measurements first** (amended at Session 3, with the owner):
+  - **A tool call's source.** A `tool.call` or `tool.run` hook turns off a tool's move to the
+    background and its live output, even as a pass-through, so 0.3.0 hooks neither. Measure, in
+    the kit and by hand, whether the classic `PreToolUse` and `PostToolUse` hooks avoid that
+    and carry what a row needs (`tool_use_id`, `agent_id`, the tool and its input). Then bring
+    the choice to the owner before building on it. Needs you's end signal (Session 10) comes
+    with it.
+  - **A subagent's end.** The desktop (2.1.325) listed no `turn.complete` from a subagent,
+    though two had answered. Measure what marks a subagent's end in both builds before the
+    endings are built on `turn.complete`. If it is another event (`classic.SubagentStop`,
+    say), bring it to the owner: it changes *The hooks* and *The run model*.
 - **`hooks/model/`,** pure: event records in, runs out, per *The run model*: open, re-key,
   ignore unknown loops, resume, teammates, round 2, endings, fresh and cache tokens, context
   percent from `hooks/data/`'s dated window table (T-11).
-- **`register.tsx`** turns `agent.spawn`, `turn.start`, `turn.step`, `turn.complete` and
-  `tool.call` into records and writes `runs` through `update`; `types/index.d.ts` declares
-  `runs`.
+- **`register.tsx`** turns `agent.spawn`, `turn.start`, `turn.step`, `turn.complete` and a tool
+  call's start and end (by the source the owner picks) into records, and writes `runs` through
+  `update`; `types/index.d.ts` declares `runs` (its runs carry `StateId`, already declared
+  there). A reading guard returns: each pass-through is a plain `next(e)` in 0.3.0.
+- **Rows draw** with Session 3's `terminalRow` and `desktopRow` (`hooks/view/row.tsx`), from
+  `RowData`.
 - **Rows in the pane** under one Running list (sections come in Session 5), with the activity
   line from the last tool call.
 - **Reload and clear:** runs survive a reload; `classic.SessionStart` with `clear`, `resume` or
@@ -517,9 +650,15 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
   and layers for every set, recipes, costume names), Biome-clean; run by the session, its output
   committed.
 - **The compositor, the SVG writer and the cache** in `hooks/sprites/`; `classic` drawn in
-  every state's still pose and in the work loop; `motion` `off` writes no animation element; the
-  light-theme approach decided at Session 3.
-- **Rows draw their sprite** on surfaces where `Svg` resolves (decision 17).
+  every state's still pose and in the work loop; `motion` `off` writes no animation element.
+  As decided at Session 3 (*Sprites and sets*; amended at Session 3, with the owner):
+  - each sprite carries a `prefers-color-scheme: light` style that draws the one-pixel outline
+    for its edge colours under 3:1 against the light background;
+  - with `motion` `auto`, an animated sprite also carries a `prefers-reduced-motion: reduce`
+    style that hides the animation and shows its still pose;
+  - an animated sprite is drawn framed (`isInteractive`), a still one as an image.
+- **Rows draw their sprite** on surfaces where `Svg` resolves (decision 17), in
+  `desktopRow`'s leading slot, which holds the state's mark until then.
 - **Docs.**
   - `CHANGELOG.md`: 0.6.0.
   - `ARCHITECTURE.md`: Built for *Sprites and sets*, *Layout and boundaries* (`art/`, `tools/`),
@@ -532,9 +671,11 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
 - `npm run verify -- possum-squad`, with these tests:
   - every role and state of `classic` is under 16,000 characters (N-02);
   - with `motion` off no `Svg` source holds an animation element (F-21);
-  - sprites stay readable on the light theme by the approach decided at Session 3: with the
-    outline, every palette colour on a sprite edge meets 3:1 on both themes or has it; with
-    another approach, the test Session 3 names (N-06);
+  - sprites stay readable on the light theme (N-06): every edge colour under 3:1 against the
+    light background is outlined inside the light-theme style, and no outline is drawn outside
+    it (amended at Session 3, with the owner);
+  - an animated sprite holds the reduced-motion style with its still pose and is framed, and a
+    still one is neither (F-21; amended at Session 3, with the owner);
   - `data.ts` holds every layer `manifest.json` names (the converter's own checks are what the
     repo-level round decides).
 
@@ -558,8 +699,8 @@ gallery), *The command and settings*, *Testing strategy*.
 - **The other three sets** in `data.ts`; `/possums set theme` redraws at once; a role a set lacks
   falls back to `classic`; costume names per set.
 - **`/possums roles`:** the gallery of 17 roles in 8 states, with role and costume names, on both
-  surfaces (text on the terminal), in Session 6's still poses; Session 7a animates it if
-  Session 3 decided so.
+  surfaces (text on the terminal), in Session 6's still poses; Session 7a animates it, framed,
+  as decided at Session 3 (amended at Session 3, with the owner).
 - **Docs.**
   - `CHANGELOG.md`: 0.7.0.
   - `ARCHITECTURE.md`: Built for *Sprites and sets*, *The panel* (the gallery), *The command and
@@ -589,7 +730,9 @@ sets*, *The panel*, *Testing strategy*.
 - **Every state's animation** as its recipe, on every set: arrival and the dressing hop, the
   work loop, the sign, the doze, the cheer then sleep, playing dead, the startle; each with its
   still form for `motion` `off`.
-- **The gallery animates** if Session 3 decided so.
+- **The gallery animates, framed,** as decided at Session 3 (amended at Session 3, with the
+  owner). Only twenty frames were measured at once: the owner's look after the push says
+  whether 136 stay smooth, and if not, the choice returns to the owner.
 - **Docs.**
   - `CHANGELOG.md`: 0.8.0.
   - `ARCHITECTURE.md`: Built for *Sprites and sets*.
@@ -605,8 +748,9 @@ sets*, *The panel*, *Testing strategy*.
   ready is cut whole (decision 5); what goes to polish is listed in `docs/BACKLOG.md`.
 
 **Watch for:**
-- **One-shot recipes** (finished, stopped) settle on their own; Session 2 measured whether a
-  redraw restarts them.
+- **One-shot recipes** (finished, stopped) settle on their own. The desktop run showed a
+  once-a-second redraw neither restarting nor stuttering a running bob; a one-shot that has
+  settled is still checked by hand.
 
 ---
 
@@ -680,7 +824,11 @@ and `$.store`* (`role:<agent type>`), *Roles*, *The run model*, *The panel*, *At
 F-14, F-15, T-05, T-10, Part 7 *Voice, tone & microcopy*; `ARCHITECTURE.md` *Attention*, *The
 hooks*, *The run model*, *The panel*.
 
-- **Needs you** on the signal decided at Session 3, or F-12 left out (as recorded then).
+- **Needs you** (amended at Session 3, with the owner: F-12 stays):
+  - it begins on `classic.PermissionRequest`, for the run its `agent_id` names; a request
+    without one is the main session's and moves no row;
+  - it ends when that agent's asked call moves on, by the signal Session 4's choice of a tool
+    call's source allows.
 - **Gone quiet** after T-05 with no tool call in flight.
 - **Toasts** while the pane is closed.
 - **Docs.**
@@ -691,7 +839,8 @@ hooks*, *The run model*, *The panel*.
 
 **Gates:**
 - `npm run verify -- possum-squad`, with these tests:
-  - a waiting call moves its row to Needs you and back when answered (F-12, if kept);
+  - a waiting call moves its row to Needs you and back when answered, allowed or refused
+    (F-12);
   - with a mock clock, quiet after T-05, never while a call is in flight (F-15);
   - with the pane closed, one toast per case (F-14).
 - After the push, the owner raises a permission prompt inside a subagent.

@@ -31,12 +31,6 @@ export const TURN_COMPLETE = {
 } as const
 export const TURN_COMPLETED = { text: 'Seven shovels: four red, three green.', usage }
 
-export const TOOL_CALL = { tool: 'Bash', command: 'ls shed', tool_use_id: 'toolu_fixture_ls', agentId } as const
-export const TOOL_CALLED = { result: { stdout: 'rack.txt', stderr: '', interrupted: false } }
-
-export const TOOL_CHECK = { tool: 'Bash', input: { command: 'ls shed' }, tool_use_id: 'toolu_fixture_bash', agentId } as const
-export const TOOL_CHECKED = { decision: 'ask', reason: 'a fixture rule asks' } as const
-
 export const MEASURE = {
   context: { tokens: 18000, window: 200000, percent: 9 },
   rateLimits: [{ kind: 'five_hour', percentUsed: 12, resetsAt: '2030-01-01T05:00:00Z' }],
@@ -62,12 +56,3 @@ export const STEPPED = {
   stopReason: 'end_turn',
   usage,
 } as const
-
-export const USAGE = {
-  startedAt: 1_900_000_000_000,
-  context: { tokens: 18000, window: 200000, percent: 9 },
-  rateLimits: [
-    { kind: 'five_hour', percentUsed: 41.5, resetsAt: '2030-01-01T05:00:00Z' },
-    { kind: 'seven_day', percentUsed: 7 },
-  ],
-}

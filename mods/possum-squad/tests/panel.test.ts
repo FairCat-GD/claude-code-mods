@@ -12,7 +12,7 @@ test('a session declares /possums to run mid-turn, and registers no tool', async
   for (const surface of SURFACES) {
     seen.commands = []
     await $.session.start({ cwd: '/', surface, isInteractive: true })
-    expect(seen.commands).toEqual([{ name: 'possums', description: STRINGS.commandDescription, immediate: true }])
+    expect(seen.commands).toEqual([{ name: 'possums', description: STRINGS.commandDescription, argumentHint: STRINGS.commandHint, immediate: true }])
     expect(seen.tools).toEqual([])
   }
 })

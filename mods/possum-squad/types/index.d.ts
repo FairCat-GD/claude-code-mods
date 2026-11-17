@@ -4,6 +4,9 @@ export type View = {
   isClosedByPerson: boolean
 }
 
+// A run's state, by its id; `planned` is reserved.
+export type StateId = 'starting' | 'working' | 'needs-you' | 'quiet' | 'finished' | 'failed' | 'stopped'
+
 declare module 'claude-code' {
   interface PluginState {
     'possum-squad': { view: Shaped<View> }
