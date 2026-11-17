@@ -62,3 +62,12 @@ export const STEPPED = {
   stopReason: 'end_turn',
   usage,
 } as const
+
+export const USAGE = {
+  startedAt: 1_900_000_000_000,
+  context: { tokens: 18000, window: 200000, percent: 9 },
+  rateLimits: [
+    { kind: 'five_hour', percentUsed: 41.5, resetsAt: '2030-01-01T05:00:00Z' },
+    { kind: 'seven_day', percentUsed: 7 },
+  ],
+}

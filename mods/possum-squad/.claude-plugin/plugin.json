@@ -1,8 +1,16 @@
 {
   "name": "possum-squad",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A side panel that shows every agent as a tiny animated opossum dressed for its job",
   "author": { "name": "FairCat-GD" },
   "license": "MIT",
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "testSetting": {
+      "type": "boolean",
+      "title": "Test setting (does nothing)",
+      "description": "Checks whether a plugin's settings can be changed here. It changes nothing, and goes in the next version.",
+      "default": false
+    }
+  }
 }

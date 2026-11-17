@@ -32,11 +32,14 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.1.0). The skeleton: `hooks/register.tsx`, named by `hooks/hooks.json`, registers
-`/possums`, toggles and draws the pane, records a close by the person in `view`, and hooks every
-event Session 2's spike reads, passing each on unchanged. Of the pure modules only `hooks/view/`
-exists, with the empty panel, beside `hooks/strings.ts` and `hooks/config.ts`. `model/`,
-`roles/`, `sprites/`, `data/`, `art/` and `tools/` are not yet built.
+**Built** (0.2.0). The skeleton and a spike build: `hooks/register.tsx`, named by
+`hooks/hooks.json`, registers `/possums`, toggles and draws the pane, records a close by the
+person in `view`, and hooks every event the spike reads, passing each on unchanged. For now the
+pane draws a test view: fixture sprites, plan limits, and the shape of every event it heard.
+Of the pure modules, `hooks/view/` holds the empty panel and the test view, and
+`hooks/sprites/` holds only the fixture. They sit beside `hooks/spike.ts`, `hooks/strings.ts`
+and `hooks/config.ts`. `model/`, `roles/`, `data/`, `art/` and `tools/` are not yet built.
+Session 3 removes the spike.
 
 ## Context
 
@@ -73,8 +76,8 @@ exists, with the empty panel, beside `hooks/strings.ts` and `hooks/config.ts`. `
   optional is present; the shape of an event it does not recognise; that a surface exists; that
   a pane is placed or shown.
 
-**Built.** What the engine's test kit did on CLI 2.1.326 (the spike's measurements on the
-desktop app and the terminal: not yet, Session 2):
+**Built.** What the engine's test kit did on CLI 2.1.326, then what the spike build showed in a
+terminal. The desktop app's results come at Session 3's start.
 - **A malformed event.** The engine refuses a `next(e)` whose argument lacks a field it needs
   (`turnId` on `turn.start`, `answer` on `turn.complete`); the hook is reported skipped and the
   event goes on with what the hooks beneath give. A `turn.step` with no `turnId`, `index` or
@@ -86,6 +89,38 @@ desktop app and the terminal: not yet, Session 2):
 - **A pane's close.** Only the engine sets `ui.close`'s `origin`: a plugin's `$.ui.close` is
   `plugin`, and the kit's `$` cannot close a pane as the person. The test of the person's close
   runs the module's `ui.close` hook by itself, with a `$` holding only state.
+- **A tool call asks inside itself.** A `tool.call` whose check answers `ask` raises its own
+  `tool.check`, then `classic.PermissionRequest`, before its own result comes back. From a
+  subagent, the request carries `agent_id`.
+- **The kit's terminal table answers `Svg`,** with an element that draws an empty `Box`, though
+  the declarations give the terminal none. Whether a surface draws sprites is read from
+  `e.surface`, never from the table.
+- **`$` goes only to top-level functions.** The engine refuses to load a module that passes `$`
+  to a function declared inside `register`.
+
+What the terminal showed: CLI 2.1.326, `claude --plugin-dir mods/possum-squad`, run by the owner
+with a prompt starting three subagents and one starting a subagent that ran a shell command
+needing permission.
+- **`agent.spawn`'s fields:**
+  - its input has `tool_use_id`, `prompt`, `description`, `subagentType`, `provider`,
+    `parentModel`, `permissionMode`, `background` and `fork`, with `model`, `name` and `cwd`
+    present as `undefined`, and no `parentAgentId` from the main session;
+  - its result has `model` and `agentId`;
+  - a spawn's result came back before the spawned agent's first `turn.start`, with the
+    agents running in the background.
+- **`turn.start` and `turn.step`** carry `agentId` from a subagent and none from the main
+  session. `turn.step`'s `usage` also carries `ephemeral_5m_input_tokens` and
+  `ephemeral_1h_input_tokens`.
+- **Plan limits arrive on a subscription.** `$.session.usage()` and `session.measure` gave the
+  same `five_hour` and `seven_day` percents.
+- **A `userConfig` field shows in the terminal's `/config`.** Changing it reloads the mod: what
+  the module keeps in memory starts over, and a `$.clock.every` timer stops while the pane
+  stays open.
+- **A pane taller than its seat is cut off.** Inline above the prompt it showed about fifteen
+  rows. Docked at full height it showed the first half of the list, and scrolling with the mouse
+  over it moved nothing. So the entries for `turn.complete`, `tool.call`, `tool.check` and
+  `session.measure`, and the redraw count, were not read. The owner saw the
+  `classic.PermissionRequest` entry while the permission prompt waited.
 
 ## Stack and pins
 
@@ -97,8 +132,8 @@ dependency (PNG read with `node:zlib`); how the gate checks it is set by the rep
 that teaches it `tools/`. The tooling's own pins are the repository's.
 
 **Built.** Declarations read at intake: CLI 2.1.325, then 2.1.326 (it updated itself during
-`npm run types`). 0.1.0 was built and checked on CLI 2.1.326. The desktop engine has not been
-measured.
+`npm run types`). 0.1.0 and 0.2.0 were built and checked on CLI 2.1.326. The desktop engine has
+not been measured.
 
 ## Layout and boundaries
 
@@ -134,9 +169,20 @@ measured.
   - nothing in `hooks/` or `tests/` imports from `tools/`, and `tools/` imports nothing from
     `hooks/`: it reads `art/` and writes `hooks/sprites/data.ts`.
 
-**Built** (0.1.0). In place: `.claude-plugin/plugin.json` (naming `types/index.d.ts`),
-`hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-13 only), `hooks/strings.ts`,
-`hooks/view/empty.tsx`, `types/index.d.ts`, and `tests/` with `tests/fixtures/events.ts`.
+**Built** (0.2.0). In place:
+- the manifest, `.claude-plugin/plugin.json`, naming `types/index.d.ts`;
+- the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-13 only),
+  `hooks/strings.ts` and `hooks/view/empty.tsx`;
+- the contract, `types/index.d.ts`;
+- the tests, in `tests/`: the engine's stand-in and the shared test values in
+  `tests/engine.ts`, and `tests/fixtures/events.ts`.
+
+The spike build adds three files, which Session 3 removes:
+- `hooks/spike.ts`, pure: the event log and the shape of a value;
+- `hooks/sprites/fixture.ts`: the test sprite's SVG strings;
+- `hooks/view/spike.tsx`: the test view.
+
+Its tests are in `tests/spike.test.ts`.
 - *Enforced by* the gate's `imports` stage (the import scan) and `validate`
   (`claude plugin validate`) for the first boundary.
 - The one-file rule is enforced by review: no test reads source files, and `validate`
@@ -230,11 +276,25 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   failed write loses only the flag. It returns what `next` gave.
 - The pass-throughs, `agent.spawn`, `turn.start`, `turn.complete`, `tool.call`, `tool.check`,
   `session.measure` and `classic.PermissionRequest`, are each
-  `passOn(e, await next(e))`: `passOn` runs an optional reader inside `try` and returns the
-  result untouched. No hook passes a reader yet; Session 2 adds them.
-- `turn.step` is `return passOn(e, yield* next(e))`: every chunk goes through the delegation
-  untouched, and the reading happens once the stream has ended, so nothing can throw between
-  yields.
+  `passOn(e, await next(e), hear('<event>'))`: `passOn` runs the reader inside `try` and returns
+  the result untouched. The spike's reader, `hear`, notes the event in the spike's log
+  (`hooks/spike.ts`). It is synchronous and awaits nothing, so an event waits on no write.
+- `turn.step` is `return passOn(e, yield* next(e), hear('turn.step'))`: every chunk goes
+  through the delegation untouched, and the reading happens once the stream has ended, so
+  nothing can throw between yields.
+- The log keys each event by its name, the engine's word (`tool.check`'s decision when it is
+  `allow`, `ask` or `deny`; `turn.complete`'s reason when it is `answer`, `aborted`, `error` or
+  `refusal`; `other` otherwise), and main or subagent (`agentId`, `agent_id` or `parentAgentId`
+  present). Each key keeps:
+  - a count;
+  - the first and last arrival number, from one counter across all events, counted when
+    `next` returned;
+  - the last input's and result's field names with their types.
+
+  Nested keys show one level down only for fields the engine defines (`usage`, `context`,
+  `cost`, `rateLimits`, `resume`, `toolUses`, `decision`, `effort`) and for a tool's arguments
+  (`input`, `tool_input`), whose own nested keys are never shown. The `session.measure` reader
+  also keeps the last rate-limit kinds and percents.
 - Every hook but `command.run` and `ui.render` carries `.catch((_$, e, next) => next(e))`
   (`turn.step`'s a generator doing `return yield* next(e)`), gating or not, so the rule is one
   line to check. `validate` lists five as gating: `ui.close`, `agent.spawn`, `tool.call`,
@@ -286,6 +346,9 @@ as `Shaped<View>`, and exports `View`; `plugin.json` names the file under `types
 - Only the `ui.close` hook writes it, through `update`; nothing reads it yet (auto-open,
   Session 9).
 - `runs`, `lead` and `$.store` are not yet used.
+- The spike's log, its redraw clock and the clock's tick count are not state. They live in
+  `register`'s closure for as long as that copy of the module is loaded, so readers stay
+  synchronous and only the clock redraws the pane. A reload starts them over.
 
 ## The run model
 
@@ -388,9 +451,15 @@ as `Shaped<View>`, and exports `View`; `plugin.json` names the file under `types
   is written here. Until then, sprites carry a one-pixel dark outline where a palette colour's
   contrast against the light background is under 3:1 (N-06).
 
-**Built.** Not yet: Session 2 (a fixture sprite for the spike), Session 6 (the converter, the
-compositor, the SVG writer, `classic`), Session 7 (the other sets), Session 7a (every state's
-animation).
+**Built** (0.2.0): the spike's fixture alone, in `hooks/sprites/fixture.ts`. It is a
+hand-written 32 by 32 critter of plain rectangles, drawn at 64 px, in two forms:
+- `BOBBING`: a two-frame SMIL bob (`calcMode="discrete"`, 200 ms a frame);
+- `QUERIED`: the same, with a `<style>` that darkens the fur under
+  `prefers-color-scheme: light` and, under `prefers-reduced-motion: reduce`, hides the moving
+  group and shows a still copy.
+
+Not yet: Session 6 (the converter, the compositor, the SVG writer, `classic`), Session 7 (the
+other sets), Session 7a (every state's animation).
 
 ## The panel
 
@@ -432,7 +501,25 @@ animation).
   the squad asleep comes with the sprites (Session 6). The drawing reads and writes no state.
 - An open from `/possums` is the person's, so the declarations place it at any width (144 and
   110 columns hold only for an open the plugin makes unasked).
-- No redraw and no clock yet.
+
+The spike build (0.2.0) draws a test view instead, from `hooks/view/spike.tsx`, all as plain
+`Text` but the sprites:
+- a heading and a note, then the empty panel's line;
+- the sprites, where `e.surface` is not the terminal: twenty `BOBBING` with `isInteractive` in
+  a wrapping row, one as an image, then `QUERIED` once framed and once as an image. The
+  terminal shows one line saying they draw in the desktop app;
+- the plan limits from `$.session.usage()`, asked at each drawing, and from the last
+  `session.measure`;
+- the log's entries in a fixed event order, the main session's before a subagent's;
+- the clock's tick count.
+
+The redraw clock:
+- `/possums` arms one `$.clock.every(1000)` timer when it opens or raises the pane;
+- each tick counts and calls `$.ui.invalidate('ui.render')`, the pane's only redraw;
+- any close of the pane cancels it, and a reload stops it until `/possums` opens the pane
+  again.
+
+A drawing that fails draws the empty panel.
 
 Not yet: Session 3 (the row, both surfaces), Session 5 (sections, header, Lead, Finished, the
 clock, the terminal complete), Session 7 (the gallery), Session 11 (Peek, the collapsed view,
@@ -471,7 +558,9 @@ description from `hooks/strings.ts`.
     opened again with `focus: true`, which the declarations say raises it, so `/possums` never
     hides what the person is asking to see;
   - with no pane, it opens one.
-  An unplaced pane is never shown, so `isShown` alone decides.
+  An unplaced pane is never shown, so `isShown` alone decides. After an open or a raise it arms
+  the spike's redraw clock (*The panel*), in a guard of its own, so a refused timer never turns
+  into the one-line refusal.
 - Any words after it are ignored for now.
 - If `$.ui.panes`, the open or the close rejects (another plugin holds the id), it answers one
   plain line instead.
@@ -488,9 +577,10 @@ mods API calls allowed (I-02): `$.ui.resolve`, `$.ui.invalidate`, `$.ui.open`, `
 `$.agent.list`. A change to this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
 outside the engine; it is never part of the mod's running code.
 
-**Built** (0.1.0). `validate` lists `$.command.register`, `$.state.get`, `$.state.set`,
-`$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`; the state calls come through `update`.
-No network, process or file access, no model call, no tool registration.
+**Built** (0.2.0). `validate` lists `$.clock.every`, `$.command.register`, `$.session.usage`,
+`$.state.get`, `$.state.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`,
+`$.ui.resolve`; the state calls come through `update`. Each is on the allow-list. No network,
+process or file access, no model call, no tool registration.
 
 ## Testing strategy — the layers, and what each cannot see
 
@@ -523,7 +613,9 @@ unpushed build: it replaces the installed copy for that session and runs as
 starts; disabling the plugin is its kill switch. Every tracked file ships, so `art/`, `tools/`
 and, until round 1 closes, `docs/spec/research/` are in each installed copy.
 
-**Built.** Not yet: nothing is pushed or installed.
+**Built.** 0.1.0 was pushed on 2026-11-17, and the owner installed it. 0.2.0 waits for its push.
+The manifest declares one throwaway `userConfig` field, `testSetting` (a boolean, default
+`false`), which nothing reads and Session 3 removes.
 
 ## Deliberate decisions
 
@@ -542,14 +634,14 @@ and, until round 1 closes, `docs/spec/research/` are in each installed copy.
 
 None yet.
 
-## Baseline (v0.1.0)
+## Baseline (v0.2.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
-| `claude plugin test mods/possum-squad` | 11 pass, in 2 files: panel 8, pass-through 3 |
+| `claude plugin test mods/possum-squad` | 17 pass, in 3 files: panel 8, pass-through 3, spike 6 |
 | `validate`: hooks / gating / state keys | 12 / 5 (each with a `.catch`) / 1 (`view`) |
-| `validate`: calls | `$.command.register`, `$.state.get`, `$.state.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
+| `validate`: calls | `$.clock.every`, `$.command.register`, `$.session.usage`, `$.state.get`, `$.state.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |
 

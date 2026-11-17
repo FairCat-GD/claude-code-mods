@@ -230,6 +230,102 @@ Part 7 *Motion & feedback*, Part 8 *Technical risks*, Part 12 H2, H4; `ARCHITECT
   record what the terminal showed, and say the rest waits.
 - **A spike hook stays only if a later session needs it** (Session 3 removes the rest).
 
+**Done (2026-11-17, 0.2.0).**
+- **Decided with the user:**
+  - the block's question: the user will install 0.2.0 after the push and run the two prompts in
+    the desktop app before Session 3;
+  - 0.1.0 is installed (the handoff's open point);
+  - the terminal check runs this session, in the app's Terminal panel, read from there.
+- **The spike's memory.** `hooks/spike.ts` keeps the event log in `register`'s closure, not in
+  `$.state`. `passOn`'s reader `hear(event)` notes each event there synchronously, so no event
+  waits on a write, only the clock redraws the pane, and the state contract is unchanged. The
+  log keys each event by name, the engine's word and main or subagent, and keeps:
+  - a count;
+  - the first and last arrival number;
+  - the last input's and result's field names and types.
+
+  Nested keys show only for fields the engine defines and for a tool's arguments, one level
+  deep.
+- **The view.** `hooks/view/spike.tsx` draws, under a heading and the empty line:
+  - the fixture sprites from `hooks/sprites/fixture.ts`, where `e.surface` is not the terminal:
+    twenty framed, one image, and the media-query sprite framed and as an image;
+  - the plan limits asked for and last measured;
+  - the log;
+  - the clock's tick count.
+
+  A drawing that fails draws the empty panel.
+- **The clock.** `/possums` arms one `$.clock.every(1000)` when it opens or raises the pane; each
+  tick calls `$.ui.invalidate('ui.render')`; any close of the pane cancels it.
+- **The manifest.** 0.2.0, with one throwaway `userConfig` field, `testSetting`, a boolean
+  defaulting to `false`.
+- **Tests.**
+  - `tests/spike.test.ts` (6):
+    - the spawn gate;
+    - the sprites on both surfaces;
+    - the redraw at once a mock second, with none before the open or after a close;
+    - every event's entries, with no fixture value drawn;
+    - usage asked and measured;
+    - a failed usage call.
+  - The engine's stand-in and the shared test values moved to `tests/engine.ts`.
+- **Docs.**
+  - `CHANGELOG.md` 0.2.0, the README's version line, and the user guide's test view.
+  - `ARCHITECTURE.md`'s Built parts: *Overview*, *Context*, *Stack and pins*, *Layout*, *The
+    hooks*, *Values*, *Sprites and sets*, *The panel*, *The command and settings*, *Reach* and
+    *Packaging*; and the baseline.
+- **Amendments:**
+  - **The log is keyed by event, word and main or subagent, with arrival numbers;** the block
+    asks for one count per event. Amended at plan time, with the user, so `ask` and `allow`
+    don't overwrite each other and the order of results shows.
+  - **The media-query sprite is drawn twice,** framed and as an image; the block asks for one.
+    Amended at plan time, with the user: still sprites will be images.
+  - **The spike's values live in memory, not in a `$.state` key** as the handoff assumed.
+    Settled at plan time, with the user, for the reasons above.
+  - **Sprites follow `e.surface`, not the table.** The plan said "where `Svg` is in the
+    table"; the kit's terminal table answers `Svg`. The session's own finding.
+  - **The clock is armed inline in the command's hook.** The engine refuses a module that
+    passes `$` to a function declared inside `register`. The session's own finding.
+  - **The terminal's lower entries were not read** (below). Their answers come from the
+    desktop run.
+- **Measured** (CLI 2.1.326):
+  - the kit:
+    - a tool call whose check asks raises its own `tool.check`, then
+      `classic.PermissionRequest` (with `agent_id` from a subagent), before its result;
+    - the kit's terminal table answers `Svg`, drawing an empty `Box`;
+    - a module passing `$` to an inner function does not load;
+    - validate checks `userConfig`'s schema (a bad `type` is an error).
+  - the terminal, in `claude --plugin-dir mods/possum-squad`, by the user:
+    - `agent.spawn`'s and `turn.*`'s field names, as in *Context*;
+    - `turn.step`'s usage also carries `ephemeral_5m_input_tokens` and
+      `ephemeral_1h_input_tokens`;
+    - a spawn's result came back before its agent's first `turn.start`, the agents running in
+      the background;
+    - `$.session.usage()` and `session.measure` both gave `five_hour` and `seven_day` percents
+      on a subscription;
+    - `/config` lists "Test setting (does nothing) · possum-squad", and changing it reloads the
+      mod, which empties the log and stops the clock while the pane stays open;
+    - the pane is cut off when taller than its seat: about fifteen rows inline, and half the
+      list docked at full height, where the mouse did not scroll it.
+- **Checked by hand:**
+  - the user, in the terminal (CLI 2.1.326):
+    - the test view draws: the heading, the sprite note, the plan limits, and the first half of
+      the event list;
+    - the `classic.PermissionRequest` entry showed while the subagent's permission prompt
+      waited;
+    - the entries for `turn.complete`, `tool.call`, `tool.check` and `session.measure`, and the
+      redraw count, were cut off and not read.
+  - The desktop app waits for the push and the user's install, at Session 3's start.
+- **Falsified,** each failing at its own test:
+  - the shape showing string values (the spawn gate and the every-event test);
+  - an `Svg` drawn on the terminal, and one framed sprite dropped (the sprites test);
+  - the timer at 500 ms, and a close that leaves it running (the redraw test);
+  - the measured kinds dropped (the usage test);
+  - `tool.call`'s tool name shown (the every-event test).
+- **Numbers:**
+  - 17 tests (+6), in 3 files: panel 8, pass-through 3, spike 6;
+  - `validate` 12 hooks, 5 gating, each with a `.catch`, and 1 state key: all unchanged;
+  - calls +`$.clock.every`, +`$.session.usage`, +`$.ui.invalidate`, all on *Reach*'s
+    allow-list.
+
 ---
 
 ## 3: Panel shell
