@@ -6,6 +6,36 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-11-20
+
+The pane gets its shape: the main session on top, the session's totals, and the agents sorted
+into sections, with times that tick.
+
+### Added
+
+- **The main session** heads the pane as "Main session", with a bar of how full its context
+  is, the percent and its own tokens. The context shows "–" until Claude's first reply in the
+  session, and after a `/clear`.
+- **The session line** under it: tokens and time over the main session and every agent. The
+  time is work time: the main session's turns added up, plus each agent's time. It grows when
+  each of Claude's turns ends, and while agents run. An agent that ran and dropped out of the
+  list still counts.
+- **Sections:** Needs you, Running and Finished, in that order, each with its count. Running is
+  always there once an agent has started; the others show only when they hold someone. Failed
+  and stopped agents sit under Finished.
+- **Finished starts folded,** with a `show` button beside its heading; `hide` folds it again.
+  Your choice is kept between sessions.
+- **Times tick every second** while an agent runs and the pane is open, with nothing else
+  happening. With nothing running, or the pane closed, nothing ticks. A pane open behind
+  another pane's tab keeps time without redrawing, and catches up within a second of coming
+  back.
+
+### Changed
+
+- **`/possums set`** redraws the pane at once.
+- **The terminal** draws the whole pane as text: the main session's bar and every section in
+  block characters and coloured marks.
+
 ## [0.4.0] — 2026-11-20
 
 Agents show up. Every subagent Claude starts gets a row in the pane, live, until it ends.

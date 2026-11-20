@@ -98,6 +98,7 @@ test('watching leaves every tool call alone: the mod hooks neither tool.call nor
 test('a fault in reading or recording an event never changes what the engine gave (I-05)', async () => {
   const { hooks } = hooksOf()
   const refusing = {
+    command: { register: async () => ({ command: 'possums' }) },
     clock: { now: async () => Promise.reject(new Error('the fixture clock refuses')) },
     state: {
       get: async () => Promise.reject(new Error('the fixture state refuses reads')),
@@ -106,10 +107,14 @@ test('a fault in reading or recording an event never changes what the engine gav
   }
   type Plain = ($: unknown, e: unknown, next: (e: unknown) => Promise<unknown>) => Promise<unknown>
   const plain = (event: string) => hooks.get(event) as unknown as Plain
+  const { agentId: _, ...mainEnd } = TURN_COMPLETE
   const cases: [string, unknown, unknown][] = [
+    ['session.start', SESSION_START, STARTED],
     ['agent.spawn', SPAWN, SPAWNED],
     ['turn.start', TURN_START, TURN_STARTED],
     ['turn.complete', TURN_COMPLETE, TURN_COMPLETED],
+    ['turn.complete', mainEnd, TURN_COMPLETED],
+    ['session.measure', MEASURE, MEASURED],
     ['classic.SessionStart', { source: 'clear' }, CLEARED],
   ]
   for (const [event, e, given] of cases) expect(await plain(event)(refusing, e, async () => given)).toEqual(given)

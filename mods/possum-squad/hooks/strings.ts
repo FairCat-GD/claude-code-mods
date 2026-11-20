@@ -20,6 +20,13 @@ export const STRINGS = {
   noSuchSetting: (names: readonly string[]) => `There is no such setting. The settings are ${list(names, 'and')}.`,
   badValue: (name: string, values: readonly string[]) => `${name} can be ${list(values, 'or')}.`,
   cannotStore: 'The settings could not be read or saved here.',
+  lead: 'Main session',
+  // The header's line: tokens and work time over the Lead and every run.
+  session: (tokens: string, time: string) => `${tokens} tokens · ${time}`,
+  sections: { 'needs-you': 'Needs you', running: 'Running', finished: 'Finished' },
+  heading: (name: string, count: number) => `${name} · ${count}`,
+  show: 'show',
+  hide: 'hide',
   states: {
     starting: 'starting',
     working: 'working',

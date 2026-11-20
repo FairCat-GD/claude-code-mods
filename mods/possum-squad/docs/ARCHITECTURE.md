@@ -32,19 +32,26 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.4.0). Runs. `hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
+**Built** (0.5.0). The Lead, header and sections. `hooks/register.tsx`, named by
+`hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `set` and `settings`;
-- toggles and draws the pane: a row per subagent run, or the empty panel;
+- toggles and draws the pane: the Lead row and the session line, then the sections of subagent
+  runs, or the empty panel's line;
 - turns subagents' spawns, turns and steps into records, and keeps the runs in `runs`;
-- empties `runs` when the session is cleared, resumed or forked;
-- keeps the settings in the store under `prefs`, and records a close by the person in `view`;
+- keeps the main session's context, tokens and time in `lead`;
+- runs the one-second clock while the pane is open and a run is live;
+- empties `runs` and `lead` when the session is cleared, resumed or forked;
+- keeps the settings and Finished's flag in the store under `prefs`, and records a close by the
+  person in `view`;
 - passes every event on unchanged.
 
 Of the pure modules:
-- `hooks/model/` turns records into runs (`runs.ts`) and a step's calls into an activity
-  (`tools.ts`);
+- `hooks/model/` turns records into runs (`runs.ts`), the Lead and the header's totals
+  (`lead.ts`), and a step's calls into an activity (`tools.ts`);
 - `hooks/data/models.ts` holds the dated window table;
-- `hooks/view/` holds the empty panel, the run list and the row builders for both surfaces;
+- `hooks/view/` holds the panel and its sections (`panel.tsx`), the Lead row and the session line
+  (`lead.tsx`), a run's row data (`runs.ts`), the row builders for both surfaces (`row.tsx`) and
+  the empty panel's line (`empty.tsx`);
 - `hooks/settings.ts` holds the settings and the command's words;
 - these sit beside `hooks/strings.ts` and `hooks/config.ts`.
 
@@ -208,7 +215,23 @@ terminal session that loaded no other plugin; the owner typed the prompts.
 - **Context windows.** `session.measure` gave the main session (Opus 5.5) 1,000,000 tokens;
   `$.agent.list()` gave the same for subagents on Haiku 5.5 and Sonnet 5.5.
 - **The desktop app** (engine 2.1.326) did not load a plugin folder named by
-  `CLAUDE_CODE_PLUGIN_DIRS`, so how a subagent ends there was not measured.
+  `CLAUDE_CODE_PLUGIN_DIRS`, so how a subagent ends there was not measured. With 0.4.0
+  installed, the owner saw the desktop's rows show and end.
+
+What the kit did in Session 5, CLI 2.1.329:
+- **Each test loads the module afresh,** so module memory (the clock's timer and flags) never
+  leaks from one test to the next.
+- **A timer armed in an event hook** goes on beating after the hook has returned, as one armed
+  in a command does.
+- **A refused period ends a `$.clock.every` interval** without a word to the module that armed
+  it; the engine reports the refusal. A plugin hooking `clock.every` sees one period more than
+  the beats that ran: each beat asks for the next.
+- **A state write's redraw lands at the redraw rate,** on the mocked clock: a test moves the
+  clock a little before it reads or unmounts a drawing a write changed. An invalidation's
+  redraw lands within the act that made it.
+- **A state value's version is numbered across the test file:** a value never written reads
+  0, and a written one some later number, not 1.
+- **What a plugin's module logs is not shown** under `claude plugin test`.
 
 ## Stack and pins
 
@@ -220,9 +243,9 @@ dependency (PNG read with `node:zlib`); how the gate checks it is set by the rep
 that teaches it `tools/`. The tooling's own pins are the repository's.
 
 **Built.** Declarations read at intake: CLI 2.1.325, then 2.1.326 (it updated itself during
-`npm run types`). 0.1.0 to 0.3.0 were built and checked on CLI 2.1.326, 0.4.0 on 2.1.329 (the
-CLI updated itself twice during Session 4's `npm run types`). The desktop app ran engine 2.1.325
-for the 0.2.0 run, and 2.1.326 on 2026-11-20.
+`npm run types`). 0.1.0 to 0.3.0 were built and checked on CLI 2.1.326, 0.4.0 and 0.5.0 on
+2.1.329 (the CLI updated itself twice during Session 4's `npm run types`). The desktop app ran
+engine 2.1.325 for the 0.2.0 run, and 2.1.326 on 2026-11-20.
 
 ## Layout and boundaries
 
@@ -258,28 +281,33 @@ for the 0.2.0 run, and 2.1.326 on 2026-11-20.
   - nothing in `hooks/` or `tests/` imports from `tools/`, and `tools/` imports nothing from
     `hooks/`: it reads `art/` and writes `hooks/sprites/data.ts`.
 
-**Built** (0.3.0). In place:
+**Built** (0.5.0). In place:
 - the manifest, `.claude-plugin/plugin.json`, naming `types/index.d.ts`;
 - the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-06 and T-13) and
   `hooks/strings.ts`;
-- `hooks/model/`, pure: `runs.ts` (runs from records, and their figures) and `tools.ts` (a
-  step's calls as an activity). It uses `config.ts`, `data/` and the types alone;
+- `hooks/model/`, pure: `runs.ts` (runs from records, and their figures), `lead.ts` (the Lead
+  from measures and main turns, and the header's totals) and `tools.ts` (a step's calls as an
+  activity). It uses `config.ts`, `data/` and the types alone;
 - `hooks/data/models.ts`: the dated window table (T-11);
 - `hooks/settings.ts`, pure: the settings with their values and defaults, reading and merging
   `prefs`, the command's words, and the settings list's text. It is not in the Decided layout:
   the settings are neither runs, roles, sprites nor views, and the command and the pane both
   need them. It uses only `strings.ts`;
-- `hooks/view/`: `empty.tsx` (the empty panel), `runs.tsx` (the run list, a run's row data and
-  its activity line), `row.tsx` (the row, one builder per surface) and `format.ts` (tokens,
-  time, percent and the block bar);
-- the contract, `types/index.d.ts`: `View`; `StateId`; `Runs`, `Run`, `Pending`, `Tokens` and
-  `Activity`;
+- `hooks/view/`: `panel.tsx` (the header and the sections), `lead.tsx` (the Lead row, one
+  builder per surface, and the session line), `empty.tsx` (the empty panel's line), `runs.ts`
+  (a run's row data and its activity line), `row.tsx` (the row, one builder per surface) and
+  `format.ts` (tokens, time, percent and the block bar);
+- the contract, `types/index.d.ts`: `View`; `StateId`; `Runs`, `Run`, `Pending`, `Past`,
+  `Tokens` and `Activity`; `Lead` and `LeadContext`;
 - the tests, in `tests/`:
   - `tests/engine.ts`: the engine's stand-in, the store's stand-in, the shared test values, and
     `hooksOf`, which hands a test the module's hooks from one registration;
   - `tests/fixtures/events.ts` and `tests/fixtures/rows.ts`;
   - `tests/model.test.ts` runs the model's functions on records alone; `tests/runs.test.ts`
-    raises events in the kit and mounts the pane.
+    raises events in the kit and mounts the pane;
+  - `tests/header.test.ts` draws fixture panels with the view's builder, and raises the events
+    that feed the Lead and the header; `tests/clock.test.ts` moves a pinned clock and counts
+    what the mod's timer asks of the engine, through a plugin beside it.
 
 How it is held:
 - *Enforced by* the gate's `imports` stage (the import scan) and `validate`
@@ -288,8 +316,9 @@ How it is held:
 - The one-file rule is enforced by review: no test reads source files, and `validate`
   already lists every `$` call the module makes, with the helper it goes through. The view and
   the tables import only types from `claude-code`.
-- `emptyPanel` serves both surfaces with `Box` and `Text`. The row has a builder per surface:
-  `terminalRow` takes `Box` and `Text`, `desktopRow` also `Progress`.
+- `emptyPanel` serves both surfaces with `Box` and `Text`, and `panel` with `Button` too. The
+  row and the Lead each have a builder per surface: the terminal's take `Box` and `Text`, the
+  desktop's also `Progress`.
 - The tests import from `hooks/` (the module's `register`, `PANE` and `view`, the settings,
   the strings, the view builders and the config), so a test never repeats a value the module
   owns.
@@ -315,9 +344,9 @@ How it is held:
    store or to a log.** *Why:* that text is the owner's work, and the panel has no need to keep
    it. *Enforced by* `writeStore` in `hooks/register.tsx`, the one function that writes the
    store: its payload type holds only setting values and panel flags (role ids and agent type
-   names join it at Session 9). And by `tests/prefs.test.ts`: after fixture agent events and a
-   change of every setting, every write holds only those fields, and no fixture brief,
-   description, answer or path.
+   names join it at Session 9). And by `tests/prefs.test.ts`: after fixture agent events, a
+   press of Finished's show button on each surface and a change of every setting, every write
+   holds only those fields, and no fixture brief, description, answer or path.
 7. **I-04: agent-supplied text is drawn only as plain `Text`,** never inside an `Svg`, never as
    `Markdown`. *Why:* it may carry markup or links. *Enforced by* `tests/row.test.ts`, on both
    surfaces. Every fixture row's description and activity is drawn whole, in a `Text` of its
@@ -327,10 +356,12 @@ How it is held:
 8. **I-05: a fault in the mod never blocks or alters a turn.** *Why:* the mod runs in every
    session the owner starts. *Enforced by* every event hook returning what `next` gave; a
    `.catch` passing the event on, on every hook but the command's and the pane's drawing; a
-   test raising each hooked event with a shape the mod does not know; and `record`, the reading
-   guard in `hooks/register.tsx`, which reads the time and writes `runs` inside `try`, apart
-   from the event's result. `tests/pass-through.test.ts` runs each recording hook with a `$`
-   whose state and clock refuse every call, and gets back what `next` gave.
+   test raising each hooked event with a shape the mod does not know; and the reading guards in
+   `hooks/register.tsx`, `record` and `recordLead`, which read the time and write `runs` or
+   `lead` inside `try`, apart from the event's result. The clock is armed inside a guard too.
+   `tests/pass-through.test.ts` runs each recording hook, `session.start`, `session.measure`
+   and the main session's `turn.complete` among them, with a `$` whose state and clock refuse
+   every call, and gets back what `next` gave.
 9. **I-06: a state is never shown by colour or sprite alone;** each row carries its state word.
    *Why:* accessibility, and the terminal has no sprites. *Enforced by* `tests/row.test.ts`
    (every fixture row, in each state, on both surfaces) and `tests/runs.test.ts` (rows drawn
@@ -348,7 +379,7 @@ How it is held:
     keeps such an answer in requests all the same.
 13. **N-07: the mod's own work per event stays under 5 ms, and it awaits nothing but `next`, state,
     store and the clock's time in event hooks.** *Why:* every event of every session passes through it. *Enforced
-    by* review.
+    by* review. Arming the clock calls `$.clock.every`, which is synchronous: nothing waits on it.
 14. **Nothing private enters the repository.** *Why:* the repository's whole history will be
     published. *Enforced by* the hygiene stage: the owner's term list against every file, path and
     commit message, attribution against every commit message, and secrets by their exact shapes.
@@ -365,11 +396,11 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 | `session.start` | Registers `/possums` (`immediate`); after a reload, re-arms the clock if a run is working | 1 |
 | `command.run` `{ command: 'possums' }` | Answers the command (*The command and settings*) | 1 |
 | `ui.render` `{ component: 'Pane' }`, its `requestId` `possum-squad` | Draws the pane from state; never writes state | 1 |
-| `ui.close` | When `origin.kind` is `person`, records it in `view` | 1 |
+| `ui.close` | Stops the clock; when `origin.kind` is `person`, records it in `view` | 1, 5 |
 | `agent.spawn` | Opens a row from the input; re-keys it from the result | 2, 4 |
 | `turn.start` | Marks the loop's row working | 4 |
 | `turn.step` (streaming) | Yields every chunk through untouched; from the input, the model and effort; from the result, the usage and the calls it asks for (`toolUses`): the activity line, the last actions, files touched, calls in flight, the role's tool evidence | 2, 4, 8, 10, 11 |
-| `turn.complete` | Ends the row (*The run model*) | 4 |
+| `turn.complete` | Ends the row (*The run model*); the main session's adds its tokens and time to the Lead | 4, 5 |
 | `session.measure` | The Lead's context and the plan limits | 2, 5, 12 |
 | `classic.SessionStart` | On `clear`, `resume` or `fork`, cancels the clock and redraws from the reset state | 4 |
 | `classic.PermissionRequest` | Needs you begins for the run its `agent_id` names (*Attention*) | 2, 10 |
@@ -385,17 +416,21 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 - **A subagent ends on its `turn.complete`,** which carries the reason the endings need.
   `classic.SubagentStop` also fires for the engine's own helpers and can fire twice, and
   `agent.report` misses teammates and workflow agents; neither is hooked.
+- **The main loop's `turn.start` and `turn.step` make no `$` call;** its `turn.complete` makes
+  one write to `lead`, once per main turn, beside the one `session.measure` makes then.
 - Session 1 hooks every event marked 2 as a pass-through, so Session 2 only reads.
 - The spike's hooks that no later session needs are gone: `tool.check` and `tool.call`.
 
-**Built** (0.4.0). Eleven hooks, in `hooks/register.tsx`:
-- `session.start` registers `/possums` with `immediate` and its argument hint, then returns
-  `next(e)`.
+**Built** (0.5.0). Eleven hooks, in `hooks/register.tsx`:
+- `session.start` registers `/possums` with `immediate` and its argument hint, awaits
+  `next(e)`, then, inside a guard, arms the clock if `runs` holds a live run (*The panel*). It
+  awaits only the state's read for that; the Lead is not seeded from `$.session.usage()`.
 - `command.run` `{ command: 'possums' }` and `ui.render` `{ component: 'Pane', requestId:
   'possum-squad' }`: *The panel*, *The command and settings*.
-- `ui.close` `{ id: 'possum-squad' }` awaits `next(e)`; when `origin.kind` is `person` and the
-  close was not refused, it sets `view.isClosedByPerson` through `update`, inside a guard, so a
-  failed write loses only the flag. It returns what `next` gave.
+- `ui.close` `{ id: 'possum-squad' }` awaits `next(e)`. Unless the close was refused, it marks
+  the pane closed and stops the clock, whatever the origin; when `origin.kind` is `person`, it
+  also sets `view.isClosedByPerson` through `update`, inside a guard, so a failed write loses
+  only the flag. It returns what `next` gave.
 - **The recording hooks** each return what `next` gave, and write through the reading guard
   (I-05): `record` makes the change through `update` inside `try`, and `recordAt` reads
   `$.clock.now()` first, inside the same `try`. Only a spawn and an end need the time, so
@@ -403,16 +438,25 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   write alone.
   - `agent.spawn` records its row's opening before `next`, then its settling after. If `next`
     rejects, it records a settling with no agent, which removes the row, and throws on.
-  - `turn.start`, `turn.complete` and `turn.step` record only an event that carries `agentId`:
-    the main loop's make no `$` call.
+  - `turn.start` and `turn.step` record only an event that carries `agentId`: the main loop's
+    make no `$` call.
   - `turn.step` delegates every chunk (`const result = yield* next(e)`), then records the
     step's model (the usage's, else the input's), its effort, its usage and its calls, and
     returns `result`.
-  - `classic.SessionStart` with `source` `clear`, `resume` or `fork` empties `runs`. The engine
-    resets `$.state` on a clear already (*Context*); the mod's own reset keeps the list right
-    wherever it does not.
-- `session.measure` and `classic.PermissionRequest` are plain pass-throughs, `next(e)`, for
-  Sessions 5, 10 and 12.
+  - A subagent's `agent.spawn` opening, `turn.start` and `turn.step` each arm the clock when
+    the pane is open (*The panel*): `$.clock.every` is synchronous, and a no-op while a timer
+    is armed.
+  - `turn.complete` with `agentId` ends its row; without, it is the main session's, and
+    `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`). A malformed
+    one never gets that far: the engine refuses its `next(e)` first (*Context*).
+  - `session.measure` awaits `next(e)`, then records the Lead's context through `recordLead`
+    (`measured`).
+  - `recordLead` reads `lead` first and writes nothing when the change keeps the same object, so
+    a measure that leaves the Lead's context as it was redraws nothing.
+  - `classic.SessionStart` with `source` `clear`, `resume` or `fork` stops the clock, empties
+    `runs` and resets `lead`. The engine resets `$.state` on a clear already (*Context*); the
+    mod's own reset keeps the list right wherever it does not.
+- `classic.PermissionRequest` is a plain pass-through, `next(e)`, for Session 10.
 - Every hook but `command.run` and `ui.render` carries `.catch((_$, e, next) => next(e))`
   (`turn.step`'s a generator doing `return yield* next(e)`), gating or not, so the rule is one
   line to check. The engine's `next` there replays what the hook's own call settled to, so
@@ -428,8 +472,8 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     resume and fork), declared in `types/index.d.ts` under `PluginState['possum-squad']`:
     - `runs`: the session's runs, by run id (*The run model*). Written only through the `update`
       helper, never as a read and a later `set`, since several hooks write it at once.
-    - `lead`: the main session's record: context tokens, window and percent; tokens; plan
-      limits.
+    - `lead`: the main session's record: context tokens, window and percent; tokens; its
+      turns' time; plan limits.
     - `view`: the session's flags: whether the person closed the pane, which run's Peek is open,
       whether the gallery is open.
   - Any plugin can read any `$.state` value. `runs` holds briefs, answers and file paths, so
@@ -455,9 +499,9 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   Reserved for step reports, a later round: the tools `step` and `plan`, the setting
   `stepReports` (`off`, `tool`, `nudge`), the state key `planned`.
 
-**Built** (0.1.0, `prefs` 0.3.0, `runs` 0.4.0). `types/index.d.ts` declares
-`PluginState['possum-squad']` with `view` as `Shaped<View>` and `runs` as `Shaped<Runs>`, and
-exports their types; `plugin.json` names the file under `types`, and
+**Built** (0.1.0, `prefs` 0.3.0, `runs` 0.4.0, `lead` 0.5.0). `types/index.d.ts` declares
+`PluginState['possum-squad']` with `view` as `Shaped<View>`, `runs` as `Shaped<Runs>` and `lead`
+as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `types`, and
 `validate` holds the module's state keys to it.
 - `view` is `{ isClosedByPerson: boolean }` (default false), the atom in `hooks/register.tsx`
   with the shape tag `view-1`. A reload of the mod's code that names another tag reads the
@@ -465,11 +509,21 @@ exports their types; `plugin.json` names the file under `types`, and
   flag join it in Sessions 11 and 7.
 - Only the `ui.close` hook writes it, through `update`; nothing reads it yet (auto-open,
   Session 9).
-- `runs` (0.4.0) is `Runs`, `{ rows, pending, next }`, the atom `runs` with the shape tag
-  `runs-1`, starting as `NO_RUNS`. *The run model*'s Built part has its fields and rules. Only
-  the recording hooks write it, each through `update`, so concurrent writes retry rather than
-  lose one another; the pane reads it while drawing, which redraws it on every write.
-- `lead` is not yet used.
+- `runs` (0.4.0; `past` 0.5.0) is `Runs`, `{ rows, pending, next, past }`, the atom `runs` with
+  the shape tag `runs-2`, starting as `NO_RUNS`. *The run model*'s Built part has its fields and
+  rules. Only the recording hooks write it, each through `update`, so concurrent writes retry
+  rather than lose one another; the pane reads it while drawing, which redraws it on every write.
+  The clock's beat reads it too, outside any drawing.
+- `lead` (0.5.0) is `Lead`, `{ context?, tokens, workedMs }`, the atom `lead` with the shape tag
+  `lead-1`, starting as `NO_LEAD`:
+  - `context` is `session.measure`'s `{ tokens?, window, percent? }`, absent until the first
+    measure. A fresh window's has no `tokens` or `percent` until the session's first reply;
+  - `tokens` and `workedMs` sum the main session's turns, from each `turn.complete`'s `usage`
+    and `durationMs`;
+  - the plan limits join it in Session 12, with a new tag.
+
+  Only `session.measure`, the main session's `turn.complete` and a clear-type
+  `classic.SessionStart` write it, through `recordLead`; the pane reads it while drawing.
 
 `prefs` (0.3.0), in `$.store`:
 - **Its shape** is one flat object, as Decided. `hooks/settings.ts` holds each setting's values,
@@ -480,10 +534,12 @@ exports their types; `plugin.json` names the file under `types`, and
 - **Writing** goes through `writeStore` alone (I-03). It reads `prefs` just before it writes,
   then sets the change over that value (`mergePrefs`), so a key or value this version does not
   know is kept. A stored value that is not an object is replaced: no version writes one.
-- **Changes** come only from `/possums set` so far; the panel flags have no writer until their
-  buttons (Sessions 5 and 11).
-- **The pane doesn't redraw on a change yet:** nothing it draws reads `prefs`. The session that
-  first draws from it also redraws on `set`, since the store is not reactive.
+- **Changes** come from `/possums set` and from Finished's show button, which writes
+  `finishedOpen`; `collapsed` has no writer until its button (Session 11).
+- **The pane reads `prefs` while drawing** (`finishedOpen`), so each change calls
+  `$.ui.invalidate('ui.render')` after its write, since the store is not reactive. A change
+  another session makes shows at this pane's next redraw. A store that refuses a read while
+  drawing draws the defaults.
 
 ## The run model
 
@@ -520,7 +576,8 @@ exports their types; `plugin.json` names the file under `types`, and
 - **Lifetime.** Runs live in `runs` for the session only, and are never written anywhere else.
   Finished keeps the latest T-06 (30) runs.
 
-**Built** (0.4.0), in `hooks/model/runs.ts`: pure functions from `runs` and a record to `runs`,
+**Built** (0.4.0; the Lead and the totals 0.5.0), in `hooks/model/runs.ts` and
+`hooks/model/lead.ts`: pure functions from `runs` or the Lead, and a record, to its next value,
 each returning the same object when the record changes nothing.
 - **A run** (`Run`, in `types/index.d.ts`) holds what its row needs: its agent id once known,
   its parent's id, its type, description and round, whether it is a teammate, its state, model
@@ -549,11 +606,20 @@ each returning the same object when the record changes nothing.
   (to the end, or now) and the context percent, the last request over `windowOf` its model.
   `hooks/data/models.ts` holds the windows measured on 2026-11-20 (Haiku, Opus and Sonnet 5.5,
   1,000,000 each), and the same as the default; an id with a suffix finds its model.
+- **The header's totals** (`totals`, in `hooks/model/lead.ts`): the Lead's fresh tokens and
+  `workedMs`, plus every kept run's `figures`, plus `past`. A run is live (`isLive`) until it
+  ends.
+- **The Lead** (`hooks/model/lead.ts`): `measured` takes a measure's context, and `turnCounted`
+  adds a main turn's tokens and duration. A count, window or duration that is not a finite
+  number of 0 or more is not counted, so a malformed or interrupted turn, whose `usage` is
+  absent, never makes a figure NaN. Its context percent is the engine's `percent`, else its
+  tokens over its window. Each returns the same object when nothing changes.
 - **The activity** is the last call a step asked for, in `hooks/model/tools.ts`: its tool and
   the argument that names what it works on (a path, the command's first line, a pattern, a URL,
   a query, a description), cut to 80 characters. The engine's `SubagentHandback` is not shown.
-- **Lifetime:** `cleared` empties `runs`; past 30 ended runs (T-06) the oldest by end goes, but
-  never a teammate's.
+- **Lifetime:** `cleared` empties `runs`, `past` included; past 30 ended runs (T-06) the oldest
+  by end goes, but never a teammate's. What a dropped run counted, its fresh tokens and its time
+  to its end, is added to `past`, so the header's totals never drop.
 
 Not yet: Session 12 (nesting).
 
@@ -638,11 +704,13 @@ sprite was removed in 0.3.0; what the desktop showed of it is in *Context*.
 **Decided.**
 - **The pane.** Id `possum-squad`, title "Possum Squad", T-13 (46) columns asked. `/possums`
   toggles it; it opens by itself per *Attention*. It redraws when a state value it read changes,
-  and once a second while a run is working, for elapsed time.
+  and once a second while a run is live and it is shown, for elapsed time.
 - **Sections,** in this order: the Lead, then Needs you, Running, Finished (collapsed by
   default), each with its count. A section other than Running with no row is not drawn.
 - **The header:** the Lead row, then one line of the session's numbers: plan-limit percent,
-  tokens, time, and, with `cost` at `estimate`, a dollar figure labelled "est.".
+  tokens, time, and, with `cost` at `estimate`, a dollar figure labelled "est.". Its tokens and
+  time total the Lead and every run; the time is work time, the Lead's turns summed plus every
+  run's time, so it moves only while something works.
 - **A row:** the sprite (desktop) or a coloured state mark (terminal); line 1 the description;
   line 2 role, model, effort; line 3 the activity; line 4 a bar of context fill, then context
   percent, tokens and time; the state word on every row (I-06). A long text is cut to one line
@@ -660,8 +728,10 @@ sprite was removed in 0.3.0; what the desktop showed of it is in *Context*.
   owner's look after Session 7a finds 136 not smooth, the choice returns to the owner.
 - **The terminal** draws the same sections and numbers as text rows, a coloured mark per state
   and block-character bars, with no element the terminal lacks.
-- **The clock.** The only timer is `$.clock.every(1000)`, armed while a run is working and the
-  pane is shown, cancelled otherwise (N-03); a reload cancels it, so `session.start` re-arms it.
+- **The clock.** The only timer is `$.clock.every(1000)`, armed while a run is live and the
+  pane is open, cancelled otherwise (N-03); it redraws the pane only while it is shown, so a
+  pane behind another's tab keeps its times. A reload cancels it, so `session.start` re-arms
+  it.
 - **The empty panel:** the squad asleep and "No agents yet. They show up here when Claude starts
   one."
 - **Words** are plain and short, with no exclamation marks and no jokes in error text.
@@ -670,20 +740,60 @@ sprite was removed in 0.3.0; what the desktop showed of it is in *Context*.
 - `/possums` opens `possum-squad` with `{ id, title: 'Possum Squad', columns: PANE_COLUMNS }`
   (T-13, 46, in `hooks/config.ts`). It sets no `placement`, so the surface seats it: docked in
   a fullscreen terminal from 110 columns, inline above the prompt otherwise.
-- The pane draws `emptyPanel` from `hooks/view/empty.tsx`: a column `Box` holding one dim
-  `Text` with the empty panel's line from `hooks/strings.ts`. It is the same on both surfaces;
-  the squad asleep comes with the sprites (Session 6). The drawing reads and writes no state.
+- With no run, the pane draws the header, then `emptyPanel` from `hooks/view/empty.tsx`: a
+  column `Box` holding one dim `Text` with the empty panel's line from `hooks/strings.ts`. It is
+  the same on both surfaces; the squad asleep comes with the sprites (Session 6).
 - An open from `/possums` is the person's, so the declarations place it at any width (144 and
   110 columns hold only for an open the plugin makes unasked).
 
-The run list (0.4.0): the pane reads `runs` and the clock's time, and draws each run's row in
-spawn order, in one column, or the empty panel when there is none. The terminal gets
-`terminalRow`, every other surface `desktopRow`. `rowData` (`hooks/view/runs.tsx`) makes a
-run's `RowData` from it and the model's figures, and the activity line from `STRINGS.activity`.
-A state that cannot be read draws the empty panel, and a clock that cannot be read draws the
-times as `–`, so a refusal never puts the engine's error in the pane's place. The line reads
-"Reading notes.md", or "Using <tool>" for a tool it has no verb for (an MCP tool by its own last
-name). The elapsed time moves on as events redraw the pane; the one-second clock is Session 5's.
+The drawing (0.5.0), `drawPane`: the pane reads `runs`, `lead`, `prefs` and the clock's time,
+and draws `panel` (`hooks/view/panel.tsx`). The terminal gets the text builders, every other
+surface the desktop's. A value that cannot be read draws as it starts: no runs, the Lead
+unmeasured, the default `prefs`. A clock that cannot be read draws the times as `–`, so a
+refusal never puts the engine's error in the pane's place. The drawing writes no state.
+- **The header:** the Lead row, then the session line, `254k tokens · 4:12` (dim), from
+  `totals`.
+  - **`terminalLead`:** a `●` in the theme's `claude` colour and "Main session", then, indented,
+    the block bar and `ctx 31% · 120k`.
+  - **`desktopLead`:** the mark and "Main session" in semibold, then the app's `Progress`,
+    labelled "Context", valued `31% · 120k`.
+
+  The Lead is no run, so it has no state word; until a measure it reads `–`.
+- **The sections** come from each row's state (`SECTIONS`):
+  - Needs you: `needs-you`;
+  - Running: `starting`, `working`, `quiet`;
+  - Finished: `finished`, `failed`, `stopped`.
+
+  Each is headed `Running · 2` in bold. Running is drawn whenever any run exists, the others
+  only when they hold one, and rows keep spawn order. With no run at all, the empty panel's
+  line takes the sections' place.
+- **Finished's heading** carries a `Button` keyed `finished`, dim, labelled `show` or `hide`.
+  The terminal draws it `[ show ]`. Its rows are drawn only while `prefs.finishedOpen` is set;
+  a press writes the flag through `writeStore`, then invalidates the drawing.
+- `rowData` (`hooks/view/runs.ts`) makes a run's `RowData` from it and the model's figures, and
+  the activity line from `STRINGS.activity`. The line reads "Reading notes.md", or "Using
+  <tool>" for a tool it has no verb for (an MCP tool by its own last name).
+
+The clock (0.5.0), in module memory in `hooks/register.tsx`: a reload drops it, and the engine
+cancels its timer.
+- **Arming:** `armClock` creates the timer only when none is set, so arming is idempotent. It is
+  armed only from dispatches that are not drawings, since a drawing's `$` may not serve a later
+  beat:
+  - `/possums` opening or raising the pane, when a run is live;
+  - a subagent's spawn, turn start or step, when the pane is open (`keepTime`);
+  - `session.start`, when a run is live. The pane is not known there, so the first beat looks:
+    after a reload with the pane closed, one beat runs.
+- **The beat** asks `$.ui.panes()`. With no pane it marks the pane closed and stops. With no
+  live run in `runs` it stops. Otherwise it invalidates the drawing, but only if the pane is
+  shown. Any fault stops it. Each arming has its own generation, so a beat in flight from a
+  replaced timer stops nothing.
+- **Stopping:** at a close, whatever its origin; at a clear-type session start; and when a
+  drawing finds no live run, so the last run's end stops it at once.
+- **A timer the engine ends:** a refused period ends an interval silently (*Context*). A drawing
+  that finds no beat for 2.5 s of the clock's time with a live run clears the timer, and the
+  next arming starts another.
+- **Whether the pane is open** is the module's own flag: set by `/possums` opening it and by
+  any drawing, cleared by a close and by a beat that finds no pane.
 
 The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
 - **Its input** is `RowData`, plain data:
@@ -713,15 +823,10 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
   - the percent, rounded;
   - a number that is missing or not finite reads `–`, and the desktop bar's fill is empty
     rather than the bar that only spins.
-- **What the desktop row looks like has not been seen:** the desktop app runs the installed
-  release, so it waits for 0.4.0's push. The terminal's was seen in Session 4's check.
+- **The desktop row** was seen by the owner with 0.4.0 installed; the terminal's in Session 4's
+  check.
 
-The spike's test view and its redraw clock were removed in 0.3.0. The clock's tick, armed from
-a finished `/possums` dispatch, ran in the desktop (*Context*), so Session 5's clock can be armed
-the same way.
-
-Not yet: Session 5 (sections, header, Lead, Finished, the clock, the terminal complete), Session 7 (the gallery), Session 11 (Peek, the collapsed view, the
-`widget` seat).
+Not yet: Session 7 (the gallery), Session 11 (Peek, the collapsed view, the `widget` seat).
 
 ## Attention
 
@@ -770,11 +875,14 @@ a top-level function:
   An unplaced pane is never shown, so `isShown` alone decides. The answer is `{}`, which
   prints nothing.
 - **`open`** does the same, but leaves a shown pane as it is: it never closes.
+- **An open or a raise** marks the pane open and arms the clock when a run is live (*The
+  panel*).
 - **`settings`** reads `prefs` and answers a heading, so the engine's `possum-squad:` prefix
   stands apart from the list. Then one line per setting, `theme: classic (classic, steampunk,
   horror, prehistoric)`, then how to change one.
 - **`set <name> <value>`** matches the name and the value, ignoring case, and keeps their own
-  spelling. A good pair is written through `writeStore` and answered "theme is now horror.".
+  spelling. A good pair is written through `writeStore`, the pane is redrawn (the store is not
+  reactive), and it is answered "theme is now horror.".
   - No name answers "Name a setting: …"; a name it does not know answers the setting names,
     never repeating the word.
   - A value the setting does not take, or none, answers the setting's values.
@@ -798,12 +906,13 @@ mods API calls allowed (I-02): `$.ui.resolve`, `$.ui.invalidate`, `$.ui.open`, `
 `$.agent.list`. A change to this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
 outside the engine; it is never part of the mod's running code.
 
-**Built** (0.4.0). `validate` lists `$.clock.now`, `$.command.register`, `$.state.get`,
-`$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`,
-`$.ui.resolve`; the state calls come through `update` and `read`, the clock through `recordAt`
-and `drawPane`, the store calls through `writeStore` and `listSettings`, and the pane calls
-through `showPane`. Each is on the allow-list. No network, process or file
-access, no model call, no tool registration.
+**Built** (0.5.0). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
+`$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`,
+`$.ui.open`, `$.ui.panes`, `$.ui.resolve`. The state calls come through `update` and `read`;
+the clock through `armClock`, `recordAt` and `drawPane`; the store calls through `writeStore`,
+`listSettings` and `prefsWhileDrawing`; the pane calls through `showPane`, `tick` and `redraw`.
+Each is on the allow-list; `$.session.usage` is not called. No network, process or file access,
+no model call, no tool registration.
 
 ## Testing strategy — the layers, and what each cannot see
 
@@ -836,8 +945,8 @@ unpushed build: it replaces the installed copy for that session and runs as
 starts; disabling the plugin is its kill switch. Every tracked file ships, so `art/`, `tools/`
 and, until round 1 closes, `docs/spec/research/` are in each installed copy.
 
-**Built.** 0.1.0 to 0.3.0 were pushed on 2026-11-17, and the owner installed each. 0.4.0
-waits for its push. The manifest declares no settings: 0.2.0's throwaway `userConfig` field
+**Built.** 0.1.0 to 0.3.0 were pushed on 2026-11-17, and 0.4.0 on 2026-11-20; the owner
+installed each. 0.5.0 waits for its push. The manifest declares no settings: 0.2.0's throwaway `userConfig` field
 was removed in 0.3.0, and a value the owner set for it stays in their Claude Code settings,
 unread.
 
@@ -859,20 +968,29 @@ unread.
 - **A run whose `turn.complete` is recorded before its spawn settles stays Starting.** It would
   need a whole turn inside the spawn's own settling; in every spawn measured, the result came
   milliseconds after the agent's first turn began.
-- **How a subagent ends in the desktop app is unmeasured:** it did not load a probe from the
-  settings (*Context*). The endings rest on the terminal's measurement; the owner checks rows
-  ending in the desktop once 0.4.0 is installed (`docs/BACKLOG.md`).
+- **After a reload with the pane closed and a run live,** the clock beats once before it finds
+  the pane closed: `session.start` would have to await `$.ui.panes()` to know, which N-07 does
+  not allow.
+- **A timer the engine ends comes back only at a later subagent event:** a drawing notices it
+  (2.5 s without a beat), and the next spawn, turn start or step arms another. In between,
+  times move only on events.
+- **The Lead's time grows when each main turn ends,** not during it: the main loop's turn start
+  and steps make no `$` call.
+- **A subagent waiting on its own background shell reads finished:** its turn ended, which is
+  how a run ends here. Seen by hand in Session 5; the owner decides (`docs/BACKLOG.md`).
+- **A teammate's or resumed agent's time counts from its first start,** its rests included, in
+  its row and in the header's work time.
 - **A remote workflow agent's row** (internal builds only) has no local loop; its spawn names
   no agent here, so it gets no row.
 
-## Baseline (v0.4.0)
+## Baseline (v0.5.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
-| `claude plugin test mods/possum-squad` | 67 pass, in 7 files: command 11, model 15, panel 8, pass-through 5, prefs 4, row 7, runs 17 |
-| `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 2 (`runs`, `view`) |
-| `validate`: calls | `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
+| `claude plugin test mods/possum-squad` | 89 pass, in 9 files: clock 10, command 11, header 8, model 19, panel 8, pass-through 5, prefs 4, row 7, runs 17 |
+| `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
+| `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |
 
@@ -919,3 +1037,16 @@ one moves, that is the finding.
   `turn.complete` per subagent.
 - 2026-11-20, *The run model*: a teammate's turn that ends with an empty answer is Finished,
   not Failed, until its next turn. The owner's choice at Session 4.
+- 2026-11-20, *The hooks* and *Values*: the Lead's tokens and time come from the main session's
+  `turn.complete` (`usage`, `durationMs`), one write to `lead` per main turn; the main loop's
+  turn start and steps still make no `$` call. `lead` gains its turns' time. The owner's choice
+  at Session 5's plan: `session.measure` carries no running token count.
+- 2026-11-20, *The panel*: the header's time is total work time, the Lead's turns summed plus
+  every run's time, pruned runs included. The owner's choice at Session 5's plan: it is F-03's
+  total, and it never reads stale while nothing runs.
+- 2026-11-20, *The invariants* (N-07): `session.start` awaits nothing new. The Lead is not
+  seeded from `$.session.usage()`: its context comes from `session.measure` alone, and reads
+  "–" until the session's first reply. The owner's choice at Session 5's plan, after its review.
+- 2026-11-20, *The panel*: the clock runs while the pane is open, and redraws only while it is
+  shown. No event says a hidden pane is shown again, so a clock stopped while hidden would leave
+  its times frozen. The owner's choice at Session 5's plan, after its review.

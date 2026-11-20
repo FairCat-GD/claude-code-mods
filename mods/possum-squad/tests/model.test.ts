@@ -19,6 +19,7 @@ import {
   turnStarted,
 } from '../hooks/model/runs'
 import { callsOf, TARGET_CHARS } from '../hooks/model/tools'
+import { leadFigures, measured, NO_LEAD, totals, turnCounted } from '../hooks/model/lead'
 
 // Fictional spawns and steps.
 const SHOVELS: Spawn = { key: 'toolu_shovels', type: 'Explore', description: 'Count the shovels', isTeammate: false }
@@ -208,4 +209,68 @@ test('an event it cannot place changes nothing', () => {
   expect(spawnSettled(NO_RUNS, SHOVELS, { agentId: 'agent-1', isDenied: false }, 1)).toBe(NO_RUNS)
   const working = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1')
   expect(turnStarted(working, 'agent-1')).toBe(working)
+})
+
+// A main turn's usage as the engine reports it.
+const turnUsage = (input: number, output: number, cacheRead: number, cacheWrite: number) => ({
+  input_tokens: input,
+  output_tokens: output,
+  cache_read_input_tokens: cacheRead,
+  cache_creation_input_tokens: cacheWrite,
+})
+
+test("the Lead counts each main turn's tokens and time, and only the numbers the engine gave", () => {
+  let main = turnCounted(NO_LEAD, turnUsage(1_000, 200, 50_000, 300), 4_200)
+  main = turnCounted(main, turnUsage(10, 5, 0, 0), 800)
+  expect(main.tokens).toEqual(usage(1_010, 205, 50_000, 300))
+  expect(main.workedMs).toBe(5_000)
+  // Fresh tokens leave the cache reads out.
+  expect(leadFigures(main).tokens).toBe(1_515)
+  // An interrupted turn reports no usage; its time still counts.
+  expect(turnCounted(main, undefined, 300)).toMatchObject({ tokens: main.tokens, workedMs: 5_300 })
+  // A malformed turn changes nothing and never makes a figure NaN.
+  expect(turnCounted(main, undefined, undefined)).toBe(main)
+  expect(
+    turnCounted(
+      main,
+      { input_tokens: Number.NaN, output_tokens: -4, cache_read_input_tokens: 'many', cache_creation_input_tokens: Number.POSITIVE_INFINITY },
+      Number.NaN,
+    ),
+  ).toBe(main)
+})
+
+test("the Lead's context is the engine's percent, else its tokens over the window; a measure without a window changes nothing", () => {
+  expect(leadFigures(NO_LEAD).contextPercent).toBeUndefined()
+  const main = measured(NO_LEAD, { tokens: 310_000, window: 1_000_000, percent: 31 })
+  expect(leadFigures(main).contextPercent).toBe(31)
+  expect(measured(main, { tokens: 310_000, window: 1_000_000, percent: 31 })).toBe(main)
+  expect(leadFigures(measured(NO_LEAD, { tokens: 250_000, window: 1_000_000 })).contextPercent).toBe(25)
+  // A fresh window has no reading yet.
+  expect(leadFigures(measured(NO_LEAD, { window: 1_000_000 })).contextPercent).toBeUndefined()
+  for (const odd of [undefined, null, 7, {}, { window: 0 }, { window: Number.NaN, percent: 4 }]) expect(measured(NO_LEAD, odd)).toBe(NO_LEAD)
+})
+
+test('the totals are the Lead, every run kept, and what pruned runs counted', () => {
+  let runs = stepped(spawned(NO_RUNS, SHOVELS, 'agent-1', 1_000), 'agent-1', STEP)
+  runs = turnEnded(spawned(runs, RAKES, 'agent-2', 2_000), 'agent-2', ANSWERED, 5_000)
+  runs = { ...runs, past: { tokens: 50, workedMs: 700 } }
+  const main = turnCounted(NO_LEAD, turnUsage(1_000, 200, 0, 300), 4_200)
+  // Tokens: the Lead's 1,500, the working run's 200, the ended run's none, 50 past. Time: 4,200, then 9,000 working
+  // at 10,000, 3,000 ended, 700 past.
+  expect(totals(main, runs, 10_000)).toEqual({ tokens: 1_750, workedMs: 16_900 })
+})
+
+test('a run Finished no longer keeps still counts in the totals, and a clear starts them over', () => {
+  let runs = NO_RUNS
+  for (let i = 0; i <= FINISHED_KEPT; i++) {
+    runs = stepped(spawned(runs, { ...RAKES, key: `toolu_${i}` }, `agent-${i}`, 10 * i), `agent-${i}`, STEP)
+    runs = turnEnded(runs, `agent-${i}`, ANSWERED, 10 * i + 5)
+  }
+  expect(runs.rows['agent-0']).toBeUndefined()
+  // agent-0's 200 fresh tokens and 5 ms stay counted.
+  expect(runs.past).toEqual({ tokens: 200, workedMs: 5 })
+  expect(totals(NO_LEAD, runs, 0)).toEqual({ tokens: 200 * (FINISHED_KEPT + 1), workedMs: 5 * (FINISHED_KEPT + 1) })
+  expect(cleared(runs).past).toEqual(NO_RUNS.past)
+  // A past with nothing else beside it is still cleared.
+  expect(cleared({ ...NO_RUNS, past: { tokens: 7, workedMs: 1 } }).past).toEqual(NO_RUNS.past)
 })

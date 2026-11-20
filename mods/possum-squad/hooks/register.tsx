@@ -1,20 +1,23 @@
-import type { AgentSpawnInput, AgentSpawnResult, CommandRunResult, EngineInterface, Register, TurnStepResult } from 'claude-code'
+import type { AgentSpawnInput, AgentSpawnResult, CommandRunResult, EngineInterface, Register, Timer, TurnStepResult } from 'claude-code'
 import { atom, read, update } from 'claude-code'
 
-import type { Runs, Tokens } from '../types/index'
+import type { Lead, Runs, Tokens } from '../types/index'
 import { PANE_COLUMNS } from './config'
-import { cleared, figures, NO_RUNS, type Spawn, shownRuns, spawnOpened, spawnSettled, stepped, turnEnded, turnStarted } from './model/runs'
+import { leadFigures, measured, NO_LEAD, totals, turnCounted } from './model/lead'
+import { cleared, figures, isLive, NO_RUNS, type Spawn, shownRuns, spawnOpened, spawnSettled, stepped, turnEnded, turnStarted } from './model/runs'
 import { callsOf } from './model/tools'
 import { changeOf, mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES, SETTINGS, settingsText } from './settings'
 import { STRINGS } from './strings'
-import { emptyPanel } from './view/empty'
-import { rowData, runsPanel } from './view/runs'
+import { panel } from './view/panel'
+import { rowData } from './view/runs'
 
 export const PANE = 'possum-squad'
 // Bump the shape when View's fields change: an older value then reads as absent.
 export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, { isClosedByPerson: false }, { shape: 'view-1' })
 // Bump the shape when Runs or Run change their fields.
-export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-1' })
+export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-2' })
+// Bump the shape when Lead changes its fields.
+export const lead = atom({ plugin: 'possum-squad', key: 'lead' } as const, NO_LEAD, { shape: 'lead-1' })
 
 // A clear, a resume or a fork of the session starts the list over.
 const STARTS_OVER = new Set(['clear', 'resume', 'fork'])
@@ -28,8 +31,83 @@ async function writeStore($: Pick<EngineInterface, 'store'>, write: { key: 'pref
   await $.store.set(write.key, mergePrefs(await $.store.get(write.key), write.change))
 }
 
+// The store is not reactive, so a change the pane draws from redraws it by hand.
+function redraw($: Pick<EngineInterface, 'ui'>) {
+  try {
+    $.ui.invalidate('ui.render')
+  } catch {
+    // the pane catches up at its next redraw
+  }
+}
+
+// The one-second clock (N-03): a single timer while the pane is open and a run's time moves. It lives in module
+// memory, which a reload drops along with the timer. Each arming has its own generation, so a beat still in flight
+// from a timer already replaced stops nothing.
+const TICK_MS = 1000
+// Beats that stop this long mean the engine ended the timer (a refused period ends it silently).
+const STALE_MS = 2500
+let ticking: Timer | undefined
+let generation = 0
+let isPaneOpen = false
+let beats = 0
+let lastBeat = { beats: -1, at: 0 }
+
+function armClock($: Pick<EngineInterface, 'clock' | 'ui' | 'state'>) {
+  if (ticking !== undefined) return
+  const own = ++generation
+  beats = 0
+  lastBeat = { beats: -1, at: 0 }
+  ticking = $.clock.every(TICK_MS, () => void tick($, own))
+}
+
+function stopClock(own = generation) {
+  if (own !== generation) return
+  ticking?.cancel()
+  ticking = undefined
+}
+
+// A closed pane or no live run stops the clock. A pane open behind another keeps it, undrawn, so its times are right
+// the moment it shows.
+async function tick($: Pick<EngineInterface, 'ui' | 'state'>, own: number) {
+  if (own !== generation) return
+  beats++
+  try {
+    const pane = (await $.ui.panes()).find(one => one.id === PANE)
+    if (pane === undefined) {
+      isPaneOpen = false
+      return stopClock(own)
+    }
+    if (!shownRuns(await read($, runs)).some(isLive)) return stopClock(own)
+    if (pane.isShown) $.ui.invalidate('ui.render')
+  } catch {
+    stopClock(own)
+  }
+}
+
+// Where the pane is open and a run works, the clock starts, or starts again after the engine ended it. `every` is
+// synchronous, so no event waits on it.
+function keepTime($: Pick<EngineInterface, 'clock' | 'ui' | 'state'>) {
+  if (!isPaneOpen) return
+  try {
+    armClock($)
+  } catch {
+    // the times move on events alone
+  }
+}
+
+async function armIfLive($: Pick<EngineInterface, 'clock' | 'ui' | 'state'>) {
+  if (shownRuns(await read($, runs)).some(isLive)) armClock($)
+}
+
+// Seen while drawing: a timer whose beats stopped was ended by the engine, so the next arming starts another.
+function noteBeat(now: number) {
+  if (ticking === undefined) return
+  if (beats !== lastBeat.beats) lastBeat = { beats, at: now }
+  else if (now - lastBeat.at > STALE_MS) stopClock()
+}
+
 // A pane behind another's tab or waiting undrawn is raised; a shown one is closed only by the toggle.
-async function showPane($: Pick<EngineInterface, 'ui'>, mayClose: boolean): Promise<CommandRunResult> {
+async function showPane($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>, mayClose: boolean): Promise<CommandRunResult> {
   try {
     const pane = (await $.ui.panes()).find(one => one.id === PANE)
     if (pane?.isShown) {
@@ -38,10 +116,16 @@ async function showPane($: Pick<EngineInterface, 'ui'>, mayClose: boolean): Prom
     }
     const raise = pane === undefined ? {} : ({ focus: true } as const)
     await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS, ...raise })
-    return {}
+    isPaneOpen = true
   } catch {
     return say(STRINGS.cannotToggle)
   }
+  try {
+    await armIfLive($)
+  } catch {
+    // the times move on events alone
+  }
+  return {}
 }
 
 async function listSettings($: Pick<EngineInterface, 'store'>): Promise<CommandRunResult> {
@@ -52,13 +136,24 @@ async function listSettings($: Pick<EngineInterface, 'store'>): Promise<CommandR
   }
 }
 
-async function changeSetting($: Pick<EngineInterface, 'store'>, change: Partial<Prefs>, answer: string): Promise<CommandRunResult> {
+async function changeSetting($: Pick<EngineInterface, 'store' | 'ui'>, change: Partial<Prefs>, answer: string): Promise<CommandRunResult> {
   try {
     await writeStore($, { key: 'prefs', change })
-    return say(answer)
   } catch {
     return say(STRINGS.cannotStore)
   }
+  redraw($)
+  return say(answer)
+}
+
+// Finished's show button: the person's choice, kept across sessions.
+async function showFinished($: Pick<EngineInterface, 'store' | 'ui'>, isOpen: boolean) {
+  try {
+    await writeStore($, { key: 'prefs', change: { finishedOpen: isOpen } })
+  } catch {
+    return
+  }
+  redraw($)
 }
 
 // The reading guard (I-05): an event's record is read and written apart from its result, so a fault here loses only
@@ -66,6 +161,17 @@ async function changeSetting($: Pick<EngineInterface, 'store'>, change: Partial<
 async function record($: Pick<EngineInterface, 'state'>, change: (held: Runs) => Runs) {
   try {
     await update($, runs, change)
+  } catch {
+    // the event goes on as the engine gave it
+  }
+}
+
+// The same for the Lead. A change that keeps the same object writes nothing, so it redraws nothing.
+async function recordLead($: Pick<EngineInterface, 'state'>, change: (held: Lead) => Lead) {
+  try {
+    const held = await read($, lead)
+    if (change(held) === held) return
+    await update($, lead, change)
   } catch {
     // the event goes on as the engine gave it
   }
@@ -105,24 +211,54 @@ const usageOf = (result: TurnStepResult): Tokens | undefined =>
         cacheWrite: result.usage.cache_creation_input_tokens,
       }
 
-// A state that cannot be read draws the empty panel, and a clock that cannot be read leaves times unknown.
-async function drawPane($: Pick<EngineInterface, 'state' | 'clock' | 'ui'>, e: Parameters<EngineInterface['ui']['resolve']>[0] & { surface: string }) {
+async function prefsWhileDrawing($: Pick<EngineInterface, 'store'>): Promise<Prefs> {
+  try {
+    return readPrefs(await $.store.get('prefs'))
+  } catch {
+    return readPrefs(undefined)
+  }
+}
+
+// A value that cannot be read draws as its start (no runs, the Lead unmeasured, the default prefs), and a clock that
+// cannot be read leaves times unknown. Drawing never arms the clock: a drawing's `$` may not serve a later beat.
+async function drawPane(
+  $: Pick<EngineInterface, 'state' | 'clock' | 'ui' | 'store'>,
+  e: Parameters<EngineInterface['ui']['resolve']>[0] & { surface: string },
+) {
+  isPaneOpen = true
   const table = $.ui.resolve(e)
-  const shown = shownRuns(await read($, runs).catch(() => NO_RUNS))
-  if (shown.length === 0) return emptyPanel(table)
+  const held = await read($, runs).catch(() => NO_RUNS)
+  const main = await read($, lead).catch(() => NO_LEAD)
+  const prefs = await prefsWhileDrawing($)
   const now = await $.clock.now().catch(() => Number.NaN)
+  const shown = shownRuns(held)
+  if (shown.some(isLive)) noteBeat(now)
+  else stopClock()
   const keyOf = (run: (typeof shown)[number]) => run.agentId ?? `spawn-${run.order}`
-  return runsPanel(
+  return panel(
     table,
     e.surface === 'terminal',
-    shown.map(run => rowData(run, keyOf(run), figures(run, now))),
+    {
+      lead: leadFigures(main),
+      session: totals(main, held, now),
+      rows: shown.map(run => rowData(run, keyOf(run), figures(run, now))),
+      isFinishedOpen: prefs.finishedOpen,
+    },
+    () => void showFinished($, !prefs.finishedOpen),
   )
 }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'possums', description: STRINGS.commandDescription, argumentHint: STRINGS.commandHint, immediate: true })
-    return next(e)
+    const started = await next(e)
+    // A reload drops the clock; a live run starts it again, and its first beat finds whether the pane is open.
+    try {
+      await armIfLive($)
+    } catch {
+      // the times move on events alone
+    }
+    return started
   }).catch((_$, e, next) => next(e))
 
   on('command.run', { command: 'possums' }, async ($, e) => {
@@ -151,7 +287,10 @@ export const register: Register = on => {
 
   on('ui.close', { id: PANE }, async ($, e, next) => {
     const closed = await next(e)
-    if (closed.deny !== undefined || e.origin.kind !== 'person') return closed
+    if (closed.deny !== undefined) return closed
+    isPaneOpen = false
+    stopClock()
+    if (e.origin.kind !== 'person') return closed
     try {
       await update($, view, flags => ({ ...flags, isClosedByPerson: true }))
     } catch {
@@ -166,6 +305,7 @@ export const register: Register = on => {
   on('agent.spawn', async ($, e, next) => {
     const spawn = spawnOf(e)
     await recordAt($, (held, at) => spawnOpened(held, spawn, at))
+    keepTime($)
     let result: AgentSpawnResult
     try {
       result = await next(e)
@@ -180,24 +320,38 @@ export const register: Register = on => {
   on('turn.start', async ($, e, next) => {
     const started = await next(e)
     const { agentId } = e
-    if (agentId !== undefined) await record($, held => turnStarted(held, agentId))
+    if (agentId !== undefined) {
+      await record($, held => turnStarted(held, agentId))
+      keepTime($)
+    }
     return started
   }).catch((_$, e, next) => next(e))
 
+  // The main session's turn counts once, at its end: its tokens and time are the Lead's.
   on('turn.complete', async ($, e, next) => {
     const completed = await next(e)
     const { agentId } = e
     if (agentId !== undefined) await recordAt($, (held, at) => turnEnded(held, agentId, { reason: e.reason, hasText: e.answer.trim() !== '' }, at))
+    else await recordLead($, held => turnCounted(held, e.usage, e.durationMs))
     return completed
   }).catch((_$, e, next) => next(e))
 
   on('classic.SessionStart', async ($, e, next) => {
     const started = await next(e)
-    if (STARTS_OVER.has(e.source)) await record($, held => cleared(held))
+    if (STARTS_OVER.has(e.source)) {
+      stopClock()
+      await record($, held => cleared(held))
+      await recordLead($, () => NO_LEAD)
+    }
     return started
   }).catch((_$, e, next) => next(e))
 
-  on('session.measure', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
+  // The Lead's context, after each main turn.
+  on('session.measure', async ($, e, next) => {
+    const echoed = await next(e)
+    await recordLead($, held => measured(held, e.context))
+    return echoed
+  }).catch((_$, e, next) => next(e))
   on('classic.PermissionRequest', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
 
   // Every chunk is delegated untouched; the step is read once its stream has ended.
@@ -211,6 +365,7 @@ export const register: Register = on => {
         const effort = e.effort === undefined ? undefined : String(e.effort)
         return stepped(held, agentId, { model: result.usage?.model ?? e.model, effort, usage: usageOf(result), activity: calls.activity, calls: calls.count })
       })
+      keepTime($)
     }
     return result
   }).catch(async function* (_$, e, next) {

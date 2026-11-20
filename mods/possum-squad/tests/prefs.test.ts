@@ -2,7 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 
 import { readPrefs, SETTING_NAMES, SETTINGS, type SettingName } from '../hooks/settings'
 import { STRINGS } from '../hooks/strings'
-import { engine, possums, store } from './engine'
+import { engine, MOUNT, possums, SURFACES, store } from './engine'
 import {
   MEASURE,
   MEASURED,
@@ -71,10 +71,18 @@ test('every store write holds only setting values and panel flags, never what an
   await $.classic.SessionStart({ source: 'clear' })
   await $.turn.complete(TURN_COMPLETE)
   await $.session.measure(MEASURE)
+  // A run that ends after the clear, so Finished's show button is drawn and pressed on each surface.
+  await $.agent.spawn(SPAWN)
+  await $.turn.complete(TURN_COMPLETE)
+  for (const surface of SURFACES) {
+    const pane = await $.ui.mount({ ...MOUNT, surface })
+    await pane.press({ key: 'finished' })
+    await pane.unmount()
+  }
   const sets = SETTING_NAMES.flatMap(name => SETTINGS[name].values.map(value => `set ${name} ${value}`))
   for (const args of ['open', 'settings', ...sets, '']) await $.command.run(possums(args))
 
-  expect(kept.writes).toHaveLength(sets.length)
+  expect(kept.writes).toHaveLength(SURFACES.length + sets.length)
   const agentText = [SPAWN.prompt, SPAWN.description, TURN_START.text, TURN_COMPLETE.answer, SESSION_START.cwd, PERMISSION.tool_input.command]
   for (const write of kept.writes) {
     expect(write.key).toBe('prefs')

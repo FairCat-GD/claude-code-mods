@@ -48,11 +48,20 @@ export type Pending = {
   inFlight: number
 }
 
+// What ended runs had counted once Finished no longer keeps them, so the header's totals never drop.
+export type Past = { tokens: number; workedMs: number }
+
 // Rows by key: the agent id once known, else the spawn's own key. Pending entries by agent id, oldest first.
-export type Runs = { rows: Record<string, Run>; pending: Record<string, Pending>; next: number }
+export type Runs = { rows: Record<string, Run>; pending: Record<string, Pending>; next: number; past: Past }
+
+// The main session's context as `session.measure` last gave it: the last request's input over the model's window.
+export type LeadContext = { tokens?: number; window: number; percent?: number }
+
+// The main session's own numbers: its context, and its turns' tokens and time summed.
+export type Lead = { context?: LeadContext; tokens: Tokens; workedMs: number }
 
 declare module 'claude-code' {
   interface PluginState {
-    'possum-squad': { view: Shaped<View>; runs: Shaped<Runs> }
+    'possum-squad': { view: Shaped<View>; runs: Shaped<Runs>; lead: Shaped<Lead> }
   }
 }

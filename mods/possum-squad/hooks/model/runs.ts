@@ -1,12 +1,13 @@
-import type { Activity, Pending, Run, Runs, StateId, Tokens } from '../../types/index'
+import type { Activity, Past, Pending, Run, Runs, StateId, Tokens } from '../../types/index'
 import { FINISHED_KEPT } from '../config'
 import { windowOf } from '../data/models'
 
 // Each function takes `runs` and an event's record, and returns `runs` as it should now be. An event it cannot
 // place changes nothing and returns the same object. Only a spawn and an end need the time.
 
-export const NO_RUNS: Runs = { rows: {}, pending: {}, next: 0 }
-const NO_TOKENS: Tokens = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+const NO_PAST: Past = { tokens: 0, workedMs: 0 }
+export const NO_RUNS: Runs = { rows: {}, pending: {}, next: 0, past: NO_PAST }
+export const NO_TOKENS: Tokens = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
 
 // Loops nobody spawned (the engine's own forks) are dropped at their end; this bounds any that never end.
 export const PENDING_KEPT = 50
@@ -31,6 +32,7 @@ export type Ending = { reason: string; hasText: boolean }
 
 const ENDED: readonly StateId[] = ['finished', 'failed', 'stopped']
 export const hasEnded = (run: Run) => ENDED.includes(run.state)
+export const isLive = (run: Run) => !hasEnded(run)
 
 // An answer with text is Finished; aborted is Stopped; an error, a refusal or an empty answer is Failed. A teammate's
 // turn that ends without text (it answered with a message) rests as Finished until its next turn.
@@ -45,7 +47,7 @@ const without = <T>(record: Record<string, T>, key: string) => {
   return rest
 }
 
-const add = (a: Tokens, b: Tokens): Tokens => ({
+export const add = (a: Tokens, b: Tokens): Tokens => ({
   input: a.input + b.input,
   output: a.output + b.output,
   cacheRead: a.cacheRead + b.cacheRead,
@@ -100,14 +102,20 @@ function claimed(run: Run, pending: Pending | undefined): Run {
   return next
 }
 
-// Finished keeps the latest T-06 ended runs; a teammate is never dropped, since its next turn returns it.
+// Finished keeps the latest T-06 ended runs; a teammate is never dropped, since its next turn returns it. What a
+// dropped run counted stays in `past`.
 function pruned(runs: Runs): Runs {
   const ended = Object.entries(runs.rows)
     .filter(([, run]) => hasEnded(run) && !run.isTeammate)
     .sort(([, a], [, b]) => (b.endedAt ?? 0) - (a.endedAt ?? 0) || b.order - a.order)
   if (ended.length <= FINISHED_KEPT) return runs
-  const dropped = new Set(ended.slice(FINISHED_KEPT).map(([key]) => key))
-  return { ...runs, rows: Object.fromEntries(Object.entries(runs.rows).filter(([key]) => !dropped.has(key))) }
+  const gone = ended.slice(FINISHED_KEPT)
+  const dropped = new Set(gone.map(([key]) => key))
+  const past = gone.reduce(
+    (sum, [, run]) => ({ tokens: sum.tokens + fresh(run.tokens), workedMs: sum.workedMs + ((run.endedAt ?? run.startedAt) - run.startedAt) }),
+    runs.past,
+  )
+  return { ...runs, rows: Object.fromEntries(Object.entries(runs.rows).filter(([key]) => !dropped.has(key))), past }
 }
 
 // An entry keeps its place when it changes, so the first dropped is the loop that began longest ago.
@@ -175,19 +183,23 @@ export function turnEnded(runs: Runs, agentId: string, ending: Ending, at: numbe
   return pruned({ ...runs, rows: { ...runs.rows, [agentId]: run } })
 }
 
-// A clear, a resume or a fork of the session starts the list over.
+// A clear, a resume or a fork of the session starts the list and its totals over.
 export const cleared = (runs: Runs): Runs =>
-  Object.keys(runs.rows).length === 0 && Object.keys(runs.pending).length === 0 ? runs : { ...NO_RUNS, next: runs.next }
+  Object.keys(runs.rows).length === 0 && Object.keys(runs.pending).length === 0 && runs.past.tokens === 0 && runs.past.workedMs === 0
+    ? runs
+    : { ...NO_RUNS, next: runs.next }
 
 // The rows to draw, in spawn order.
 export const shownRuns = (runs: Runs): Run[] => Object.values(runs.rows).sort((a, b) => a.order - b.order)
 
 export type Figures = { tokens: number; elapsedMs: number; contextPercent?: number }
 
-// Fresh tokens are input, cache writes and output; cache reads are counted apart. Context is the last request's size
-// over the model's window.
+// Fresh tokens are input, cache writes and output; cache reads are counted apart.
+export const fresh = (tokens: Tokens) => tokens.input + tokens.cacheWrite + tokens.output
+
+// Context is the last request's size over the model's window.
 export function figures(run: Run, now: number): Figures {
-  const tokens = run.tokens.input + run.tokens.cacheWrite + run.tokens.output
+  const tokens = fresh(run.tokens)
   const elapsedMs = (run.endedAt ?? now) - run.startedAt
   if (run.lastRequest === undefined) return { tokens, elapsedMs }
   return { tokens, elapsedMs, contextPercent: (run.lastRequest / windowOf(run.model)) * 100 }

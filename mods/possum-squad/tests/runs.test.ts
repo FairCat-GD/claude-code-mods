@@ -4,17 +4,19 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 
 import { runs } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
-import { hooksOf, MOUNT, SURFACES } from './engine'
+import { hooksOf, MOUNT, SURFACES, store } from './engine'
 import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 
 type Surface = (typeof SURFACES)[number]
 const AGENT = 'agent-fixture-1'
 const usage = { input_tokens: 120, output_tokens: 30, cache_read_input_tokens: 40_000, cache_creation_input_tokens: 50, model: 'claude-haiku-5-5' }
 
-// The engine beneath the mod: each spawn gets the next agent id, unless the test holds or refuses it.
+// The engine beneath the mod: each spawn gets the next agent id, unless the test holds or refuses it. Finished is
+// open, so ended rows are drawn.
 function world(on: On, options: { ids?: string[]; hold?: Promise<void>; refuse?: boolean } = {}) {
   const ids = [...(options.ids ?? [AGENT])]
   const clock = mock.clock(on, { now: 1_000 })
+  store(on, { prefs: { finishedOpen: true } })
   on('agent.spawn', async () => {
     if (options.hold !== undefined) await options.hold
     if (options.refuse === true) return { deny: 'the fixture refuses the spawn' }
@@ -228,25 +230,36 @@ test("a call's arguments draw as plain Text in the activity line, never as marku
   }
 })
 
-// Another plugin, beside the mod, that shows the version `runs` stands at: 0 while never written.
-const RUNS_READER = {
-  name: 'runs-reader',
+// Another plugin, beside the mod, that shows the versions `runs` and `lead` stand at: 0 while never written.
+const STATE_READER = {
+  name: 'state-reader',
   register: (on: On) => {
-    on('command.run', { command: 'read-runs' }, async $ => ({ text: String((await $.state.get({ plugin: 'possum-squad', key: 'runs' })).version) }))
+    on('command.run', { command: 'read-versions' }, async $ => {
+      const runs = (await $.state.get({ plugin: 'possum-squad', key: 'runs' })).version
+      const lead = (await $.state.get({ plugin: 'possum-squad', key: 'lead' })).version
+      return { text: `${runs} ${lead}` }
+    })
   },
 }
 
-test("the main session's turns and steps never write runs", { plugins: [RUNS_READER] }, async ($, on) => {
+test("the main session's turn start and steps write nothing; its end writes the Lead alone, never runs", { plugins: [STATE_READER] }, async ($, on) => {
   world(on)
   steps(on, [{ name: 'Read', input: { file_path: 'shed/rack.txt' } }])
+  // Each version as `runs lead`: 0 while never written, and the kit numbers writes across the file.
+  const versions = async () =>
+    String((await $.command.run({ command: 'read-versions', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })).text)
+      .split(' ')
+      .map(Number)
   const { agentId: _, ...main } = TURN_START
   await $.turn.start(main)
   const { agentId: __, ...mainStep } = STEP
   await drain($.turn.step(mainStep))
+  expect(await versions()).toEqual([0, 0])
   const { agentId: ___, ...mainEnd } = TURN_COMPLETE
   await $.turn.complete(mainEnd)
-  const read = await $.command.run({ command: 'read-runs', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })
-  expect(read.text).toBe('0')
+  const [runsVersion, leadVersion] = await versions()
+  expect(runsVersion).toBe(0)
+  expect(leadVersion).toBeGreaterThan(0)
 })
 
 // The spawn hook runs here on its own, with a `$` holding only state and a clock, since the kit's engine cannot

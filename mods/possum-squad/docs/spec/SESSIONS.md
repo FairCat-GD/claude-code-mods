@@ -774,6 +774,95 @@ edge cases*, Part 5 F-02, F-03, F-04, F-09, F-22, N-03, Part 7 *Key screens & fl
 - **`session.measure` fires after the main session's turns,** not a subagent's: a row's numbers
   come from its own events.
 
+**Done (2026-11-20, 0.5.0).**
+- **Decided with the user:**
+  - **At the plan:**
+    - 0.4.0 was installed, and its rows showed and ended in the desktop app;
+    - the Lead's tokens and time come from the main session's `turn.complete`, one `lead` write
+      per main turn; `session.measure` carries no running token count;
+    - the header's time is total work time: the Lead's turns plus every run's time;
+    - the plan has an adversarial review before approval. Its 13 findings were folded in; the
+      largest:
+      - a timer the engine ends goes silently, so the clock is armed only from dispatches that
+        are not drawings, and a drawing clears a dead one;
+      - `session.start` awaiting `$.session.usage()` and `$.ui.panes()` would break N-07;
+      - a clock stopped while the pane is hidden leaves its times frozen once it shows;
+      - three planned checks could not fail as written.
+  - **After the review, each as recommended:**
+    - no seed at start: N-07 stays, and the Lead's context reads "–" until the first reply;
+    - the clock runs while the pane is open, and redraws only while it is shown.
+- **Shipped:**
+  - **The model.** `hooks/model/lead.ts` keeps the Lead from measures and main turns, and gives
+    the header's totals. `runs.ts` keeps what pruned runs counted in `past`.
+    `types/index.d.ts` declares `lead` (`lead-1`), and `runs` moves to `runs-2`.
+  - **The view.** `hooks/view/panel.tsx` draws the header and the sections, Finished with its
+    show button; `hooks/view/lead.tsx` draws the Lead row on each surface, and the session line.
+    `runsPanel` is gone, and `runs.tsx` is `runs.ts`.
+  - **The hooks.** `session.measure` and the main session's `turn.complete` record the Lead, and
+    a clear-type `classic.SessionStart` resets it. The one-second clock lives in module memory.
+    `/possums set` and the show button redraw the pane.
+- **Amendments:**
+  - **No `$.session.usage()` at start.** The owner's choice, after the review: it would have
+    broken N-07. F-09's test stubs `session.measure` instead.
+  - **The clock runs while the pane is open,** not only while it is shown. The owner's choice;
+    *The panel*'s Decided part is amended and logged.
+  - **The main session's `turn.complete` writes `lead`.** Session 4's handoff kept every
+    main-loop event free of `$` calls; the owner's choice narrows that to `turn.start` and
+    `turn.step`.
+  - **A subagent's steps arm the clock too,** not only its spawn and turn start. A subagent's
+    turn starts once per run, so a timer the engine ended would otherwise stay gone. Found by
+    the test of that case.
+  - **`runs` gains `past`,** under a new shape tag, so the header's totals keep what pruned runs
+    counted. The plan's, from the block's "the latest T-06 kept".
+- **Measured,** the kit on CLI 2.1.329 (the details are in *Context*):
+  - each test loads the module afresh;
+  - a timer armed in an event hook beats after the hook returns;
+  - a refused period ends an interval silently, and a plugin hooking `clock.every` sees one
+    period more than the beats;
+  - a state write's redraw lands at the redraw rate on the mocked clock;
+  - state versions are numbered across the test file;
+  - a plugin's logs are not shown.
+- **Checked by hand,** in the terminal, CLI 2.1.329: `claude --plugin-dir mods/possum-squad`,
+  typed by the user, in two sessions.
+  - The Lead read its context and tokens after the first reply. The session line totalled the
+    Lead and the rows: 46k was the Lead's 22k and the run's 24k, and 1:20 the run's 1:13 plus
+    the main turns.
+  - Running, then Finished with `[ show ]`. A press opened it, and the choice held in the next
+    session.
+  - A subagent running `ping -c 70 127.0.0.1`, with no other event: its time ticked every
+    second; closing and reopening the pane kept the times right; they stopped at its end.
+  - **Found:** a subagent that started `sleep 90` in the background, then ended its turn to wait
+    on it, read "finished", while Claude Code listed it as waiting on a shell. Its turn's end is
+    the ending Session 4 chose. Whether its row went back to working when the shell ended was
+    not seen. It is the user's to decide (`docs/BACKLOG.md`).
+  - Not seen: a reload, and the desktop (after the push).
+- **Falsified,** each failing at its own test:
+  - the Lead: any number counted, a zero window taken, no percent from tokens, a malformed turn
+    counted;
+  - the totals: `past` left out of them, forgotten at a prune, kept by a clear;
+  - the panel: Running hidden when empty, the sections out of order, Finished never folded, the
+    session line above the Lead, an `Svg` drawn in the terminal;
+  - the hooks: a measure or a main turn not recorded, the show button or `/possums set` not
+    redrawing, the show button writing other text, the guard gone from `recordLead` and from
+    `session.start`'s arming;
+  - the clock: never armed at a spawn or turn start, armed while closed, armed with nothing
+    live, left running at a close, at the last run's end and at a clear, beating on with no
+    pane, armed twice, stopped while hidden, redrawing while hidden, a dead timer kept, steps
+    never arming.
+  - **Four checks could not fail as first written,** and were changed until they did:
+    - F-22's, since the kit's terminal answers `Svg` with an empty `Box`: it now draws with
+      that table stripped of `Svg`;
+    - the clock's stops, since the beat's own checks stop it one beat later: the tests count
+      the beat's looks at the panes, and the clear has a test with no pane drawn;
+    - arming twice, which the generation check made inert: the test counts periods;
+    - a malformed main `turn.complete` in the pass-through test, which the engine refuses
+      before the hook records: that assertion was dropped, and the model test holds the rule.
+- **Numbers:**
+  - 89 tests (+22) in 9 files (+2): clock 10 (new), command 11, header 8 (new), model 19 (+4),
+    panel 8, pass-through 5, prefs 4, row 7, runs 17;
+  - `validate`: 11 hooks, 4 gating, each with a `.catch`; 3 state keys (+`lead`);
+  - calls: +`$.clock.every` and +`$.ui.invalidate`, both on *Reach*'s allow-list.
+
 ---
 
 ## 6: Sprites

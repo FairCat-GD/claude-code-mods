@@ -2,8 +2,8 @@
 
 possum-squad keeps a pane beside the conversation listing the main session and the agents it
 starts. It only watches: nothing Claude does changes because it is installed, and it adds
-nothing to what Claude is sent. For now it lists the subagents; the main session, sections and
-opossums arrive in later versions.
+nothing to what Claude is sent. For now each one is a row of text; the opossums arrive in later
+versions.
 
 ## `/possums`
 
@@ -16,7 +16,37 @@ otherwise sits above the prompt.
 `/possums open` does the same, except that it never hides the pane: use it when you want the
 pane in view whatever its state.
 
-Until an agent starts, the pane says "No agents yet. They show up here when Claude starts one."
+## The pane
+
+From the top:
+
+1. **Main session:** the conversation itself, with a bar of how full its context is, the percent
+   and its own tokens. The context reads "–" until Claude's first reply in the session, and
+   again after a `/clear`, until the next reply.
+2. **The session line:** tokens and time over the main session and every agent, such as
+   `254k tokens · 4:12`.
+3. **The sections,** each headed with its count, such as `Running · 2`:
+   - **Needs you:** agents waiting on you. It arrives with a later version;
+   - **Running:** agents starting or working. It is always there once an agent has started;
+   - **Finished:** agents that finished, failed or were stopped. It starts folded, with a
+     `show` button beside its heading; `hide` folds it again. Your choice is kept between
+     sessions, and shared by every session you have open.
+
+   A section other than Running shows only when it holds someone. Until an agent starts, the
+   pane says "No agents yet. They show up here when Claude starts one." under the session line.
+
+**The time is work time:** the main session's turns added up, plus each agent's time, so with
+several agents at once it runs faster than the clock on the wall. The main session's part grows
+when each of Claude's turns ends, not during it. An agent that answers more than once (a
+teammate, or one Claude resumes) counts from its first start, its rests included. Agents that
+dropped out of the list (it keeps the latest 30 ended runs) still count.
+
+**Times tick every second** while an agent runs and the pane is open, even when nothing else
+happens. With nothing running, or the pane closed, nothing ticks. A pane open behind another
+pane's tab keeps time without redrawing, and catches up within a second of coming back.
+
+In a terminal the pane is all text: block characters for the bars, and a coloured mark beside
+each state word.
 
 ## What a row shows
 
@@ -31,7 +61,7 @@ Each subagent Claude starts gets a row the moment it starts, in the order they s
 4. how full its context is, as a bar and a percent, then its tokens and its time.
 
 The tokens are what the agent read and wrote fresh; what it read back from the cache is left
-out. The time moves on as its requests come in, and stops when it ends. A long line is cut
+out. The time ticks while it runs, and stops when it ends. A long line is cut
 with an ellipsis. The state is always written out as a word, beside its colour.
 
 ## How a run ends

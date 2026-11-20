@@ -19,6 +19,13 @@ up, it moves out of this file.
 - **The `modern` set,** drawn in full before the build and not chosen as the first set; its
   layers are outside the repository. Left out at the round 1 intake.
 
+- **An agent waiting on its own background work reads "finished".** A subagent that starts a
+  shell in the background, then ends its turn to wait on it, has its `turn.complete`, which is
+  how a run ends (Session 4). Claude Code still lists it as waiting on a shell. Seen in
+  Session 5's hand check (CLI 2.1.329). Needs the owner's decision: whether such a run reads
+  something other than finished, and from which signal. Not seen: whether a new turn puts the
+  row back to working when the shell ends, as `turnStarted` would.
+
 ## Not yet checked by hand
 
 Checks that need a person at the machine. Each has an automated check covering most of it;
@@ -31,18 +38,16 @@ these are the parts only a person can see.
   the declarations say is read "on the queued lanes"; whether an `immediate` command typed
   between turns is on one was not checked. To check: type `/possums settings` between turns,
   then ask Claude what the last command printed.
-- **The rows in the desktop app.** `desktopRow` and the app's `Progress` were seen only in the
-  kit's tree; the terminal's rows were seen in Session 4. To check, once 0.4.0 is installed:
-  start three subagents in the desktop app and look at the pane.
-- **Rows ending in the desktop app.** The endings rest on `turn.complete`, measured in the
-  terminal (CLI 2.1.329); the desktop app (engine 2.1.326) could not load a probe, and its
-  0.2.0 run listed no subagent `turn.complete`. To check, in the same run: every row ends
-  finished, and an interrupted agent reads stopped. If a row stays working, the end signal
-  returns to the owner.
-- **Rows surviving a reload of the mod (F-23).** The kit cannot reload a module, and the hand
-  check did not reload one. The declarations say `$.state` survives a hot reload. To check: in
-  a `claude --plugin-dir mods/possum-squad` session with agents in the list, change and save a
-  file of the mod (then undo it), and see the rows stay.
+- **The header, sections and clock in the desktop app.** The terminal's were seen in Session 5;
+  the desktop draws the Lead with the app's `Progress` and Finished's `Button` natively, seen
+  only in the kit's tree. To check, once 0.5.0 is installed: start three subagents in the
+  desktop app, then compare the pane with the transcript: each row's tokens and time, the
+  header's total, and the times ticking. Recorded at Session 6's start.
+- **Rows and the clock surviving a reload of the mod (F-23).** The kit cannot reload a module,
+  and no hand check has reloaded one. The declarations say `$.state` survives a hot reload and
+  the reload stops the mod's timer; `session.start` arms it again for a live run. To check: in a
+  `claude --plugin-dir mods/possum-squad` session with an agent running, change and save a
+  file of the mod (then undo it), and see the rows stay and the time keep ticking.
 - **`/possums` bringing a hidden pane forward.** With another plugin's pane open and Possum
   Squad as the tab behind it, `/possums` reopens the pane with `focus`, which the declarations
   say raises it; the tests stand in for the engine, so whether the surfaces do is unchecked.

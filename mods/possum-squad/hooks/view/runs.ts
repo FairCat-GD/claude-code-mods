@@ -1,9 +1,6 @@
-import type { RenderElement } from 'claude-code'
-
 import type { Activity, Run } from '../../types/index'
 import { STRINGS } from '../strings'
-import type { Shared } from './empty'
-import { type DesktopTable, desktopRow, type RowData, terminalRow } from './row'
+import type { RowData } from './row'
 
 // "Reading shed/rack.txt"; an MCP tool by its own last name.
 export function activityText(activity: Activity): string {
@@ -20,14 +17,4 @@ export function rowData(run: Run, key: string, figures: { tokens: number; elapse
   if (run.activity !== undefined) row.activity = activityText(run.activity)
   if (run.round > 1) row.round = run.round
   return row
-}
-
-// One list, in spawn order; the sections come later. The terminal draws text rows, other surfaces the app's bar.
-export function runsPanel(table: Shared | DesktopTable, isTerminal: boolean, rows: readonly RowData[]): RenderElement {
-  const { Box } = table
-  return (
-    <Box flexDirection="column" gap={1}>
-      {rows.map(row => (isTerminal || !('Progress' in table) ? terminalRow(table, row) : desktopRow(table, row)))}
-    </Box>
-  )
 }

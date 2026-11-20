@@ -22,8 +22,8 @@ These keep their spelling, because installs and stored data live under them:
   (to come); its pane id, `possum-squad`;
 - its settings and their values, its set ids, role ids and state ids (`docs/ARCHITECTURE.md`,
   *Values*);
-- its `$.state` keys, `runs`, `lead`, `view`, declared in `types/index.d.ts` as each is built
-  (`view` under the shape tag `view-1` and `runs` under `runs-1`, each changing with its
+- its `$.state` keys, `runs`, `lead`, `view`, declared in `types/index.d.ts` (`view` under the
+  shape tag `view-1`, `runs` under `runs-2` and `lead` under `lead-1`, each changing with its
   fields);
   its `$.store` keys, `prefs` (built) and `role:<agent type>`;
 - reserved for a later round: the tools `step` and `plan`, the setting `stepReports`, the state
@@ -61,6 +61,10 @@ first line copies it.
   wait as a pending entry until the re-key. Keep that path, not the rare one.
 - **A test plugin closes over nothing of its test file.** To draw the module's builders in a
   test, use the test's own `ui.render` hook, matched with `{ plugin: '*' }`.
+- **A state write's redraw lands at the redraw rate, on the kit's mocked clock.** Move the clock
+  a little (`advance(100)`) before reading or unmounting a drawing a write changed; an
+  invalidation's redraw needs no move. State versions are numbered across the test file, so a
+  test checks a write as a version above 0, never as 1.
 - **The engine loads no JSON.** The role corpus is a `.ts` fixture; the art reaches the hooks only
   through the generated `hooks/sprites/data.ts`.
 - **`docs/spec/research/` is input** for round 1: copy from it, never edit it. Its corpus labels
