@@ -11,7 +11,7 @@ export type StateId = 'starting' | 'working' | 'needs-you' | 'quiet' | 'finished
 export type Tokens = { input: number; output: number; cacheRead: number; cacheWrite: number }
 
 // The last tool a run's model asked for, and what the call names: a path, a command's first line, a pattern.
-export type Activity = { tool: string; target?: string; at: number }
+export type Activity = { tool: string; target?: string }
 
 // One agent's life, as its row shows it. Any plugin can read `runs`, so it holds what a row needs and no more.
 export type Run = {
@@ -38,19 +38,17 @@ export type Run = {
   order: number
 }
 
-// What a loop's events said before any row claimed its agent id; drawn nowhere.
+// What a loop's events said before any row claimed its agent id; drawn nowhere. Its turn has begun.
 export type Pending = {
-  isWorking: boolean
   model?: string
   effort?: string
   tokens: Tokens
   lastRequest?: number
   activity?: Activity
   inFlight: number
-  at: number
 }
 
-// Rows by key: the agent id once known, else the spawn's own key. Pending entries by agent id.
+// Rows by key: the agent id once known, else the spawn's own key. Pending entries by agent id, oldest first.
 export type Runs = { rows: Record<string, Run>; pending: Record<string, Pending>; next: number }
 
 declare module 'claude-code' {

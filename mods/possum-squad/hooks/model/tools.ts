@@ -34,7 +34,7 @@ function targetOf(tool: string, input: unknown): string | undefined {
 }
 
 // The calls a model request asked for, as a row's activity: the last shown one, and how many are shown.
-export function callsOf(uses: unknown, at: number): { activity?: Activity; count: number } {
+export function callsOf(uses: unknown): { activity?: Activity; count: number } {
   if (!Array.isArray(uses)) return { count: 0 }
   const shown = uses.filter(
     (use): use is { name: string; input?: unknown } => typeof use === 'object' && use !== null && typeof use.name === 'string' && !UNSHOWN.has(use.name),
@@ -42,5 +42,5 @@ export function callsOf(uses: unknown, at: number): { activity?: Activity; count
   const last = shown[shown.length - 1]
   if (last === undefined) return { count: 0 }
   const target = targetOf(last.name, last.input)
-  return { activity: target === undefined ? { tool: last.name, at } : { tool: last.name, target, at }, count: shown.length }
+  return { activity: target === undefined ? { tool: last.name } : { tool: last.name, target }, count: shown.length }
 }

@@ -3,7 +3,7 @@ import { FINISHED_KEPT } from '../config'
 import { windowOf } from '../data/models'
 
 // Each function takes `runs` and an event's record, and returns `runs` as it should now be. An event it cannot
-// place changes nothing and returns the same object.
+// place changes nothing and returns the same object. Only a spawn and an end need the time.
 
 export const NO_RUNS: Runs = { rows: {}, pending: {}, next: 0 }
 const NO_TOKENS: Tokens = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
@@ -59,11 +59,12 @@ function roundFor(runs: Runs, description: string): number {
   return rounds.length === 0 ? 1 : Math.max(...rounds) + 1
 }
 
+// A resumed agent is the same run come back, so it starts no round of its own.
 function opened(runs: Runs, spawn: Spawn, at: number, agentId?: string): Run {
   const run: Run = {
     type: spawn.type,
     description: spawn.description,
-    round: roundFor(runs, spawn.description),
+    round: spawn.resumes === undefined ? roundFor(runs, spawn.description) : 1,
     isTeammate: spawn.isTeammate,
     state: 'starting',
     startedAt: at,
@@ -91,8 +92,7 @@ function withStep<T extends Run | Pending>(held: T, step: Step): T {
 
 function claimed(run: Run, pending: Pending | undefined): Run {
   if (pending === undefined) return run
-  const next: Run = { ...run, tokens: add(run.tokens, pending.tokens), inFlight: pending.inFlight }
-  if (pending.isWorking) next.state = 'working'
+  const next: Run = { ...run, state: 'working', tokens: add(run.tokens, pending.tokens), inFlight: pending.inFlight }
   if (pending.lastRequest !== undefined) next.lastRequest = pending.lastRequest
   if (pending.model !== undefined) next.model = pending.model
   if (pending.effort !== undefined) next.effort = pending.effort
@@ -110,11 +110,13 @@ function pruned(runs: Runs): Runs {
   return { ...runs, rows: Object.fromEntries(Object.entries(runs.rows).filter(([key]) => !dropped.has(key))) }
 }
 
+// An entry keeps its place when it changes, so the first dropped is the loop that began longest ago.
 function withPending(runs: Runs, agentId: string, pending: Pending): Runs {
-  let entries = Object.entries({ ...runs.pending, [agentId]: pending })
-  if (entries.length > PENDING_KEPT) entries = entries.sort(([, a], [, b]) => b.at - a.at).slice(0, PENDING_KEPT)
-  return { ...runs, pending: Object.fromEntries(entries) }
+  const entries = Object.entries({ ...runs.pending, [agentId]: pending })
+  return { ...runs, pending: entries.length > PENDING_KEPT ? Object.fromEntries(entries.slice(-PENDING_KEPT)) : Object.fromEntries(entries) }
 }
+
+const NO_PENDING: Pending = { tokens: NO_TOKENS, inFlight: 0 }
 
 // A spawn opens its row at once, under its own key, so the row shows before the agent's id is known.
 export function spawnOpened(runs: Runs, spawn: Spawn, at: number): Runs {
@@ -149,22 +151,20 @@ export function spawnSettled(runs: Runs, spawn: Spawn, settled: Settled, at: num
 }
 
 // A turn of a known run puts it back to working, a resumed or a teammate's run included.
-export function turnStarted(runs: Runs, agentId: string, at: number): Runs {
+export function turnStarted(runs: Runs, agentId: string): Runs {
   const held = runs.rows[agentId]
   if (held !== undefined) {
     if (held.state === 'working' && held.endedAt === undefined) return runs
     const { endedAt: _, ...run } = held
     return { ...runs, rows: { ...runs.rows, [agentId]: { ...run, state: 'working' } } }
   }
-  const pending = runs.pending[agentId] ?? { isWorking: true, tokens: NO_TOKENS, inFlight: 0, at }
-  return withPending(runs, agentId, { ...pending, isWorking: true })
+  return runs.pending[agentId] === undefined ? withPending(runs, agentId, NO_PENDING) : runs
 }
 
-export function stepped(runs: Runs, agentId: string, step: Step, at: number): Runs {
+export function stepped(runs: Runs, agentId: string, step: Step): Runs {
   const held = runs.rows[agentId]
   if (held !== undefined) return { ...runs, rows: { ...runs.rows, [agentId]: withStep(held, step) } }
-  const pending = runs.pending[agentId] ?? { isWorking: true, tokens: NO_TOKENS, inFlight: 0, at }
-  return withPending(runs, agentId, withStep(pending, step))
+  return withPending(runs, agentId, withStep(runs.pending[agentId] ?? NO_PENDING, step))
 }
 
 // A run's turn ends it; a loop no spawn claimed by its end is dropped and never drawn.

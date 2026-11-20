@@ -15,10 +15,12 @@ Release 0.5.0.
 ## State you need that is not in the specs
 
 - **Round 1 is the agents panel:** Sessions 0–4 are done; Sessions 5–13 and 7a remain.
-- **Push status:** `origin/main` holds everything through Session 3's review commit. Session
-  4's commits wait locally until the user approves a push. List `origin/main..HEAD` before any
-  push, and name any commit that is not the session's. Ask whether the user has installed
-  0.4.0.
+- **Push status:** pushed on 2026-11-20 with the user's approval: `origin/main` holds
+  everything through Session 4's review commit (`review(possum-squad): a rejected spawn
+  untested, and 8 smaller`). Nothing waits locally. List `origin/main..HEAD` before any push,
+  and name any commit that is not the session's. Ask whether the user has installed 0.4.0
+  (`claude plugin update possum-squad`), and whether the desktop rows showed and ended
+  (`docs/BACKLOG.md`).
 - **The engines:** the CLI is 2.1.329, and every folder's declarations were laid by it. The
   desktop app ran engine 2.1.326 on 2026-11-20. The CLI updated itself twice in one
   `npm run types`; run it again until it says the declarations match.
@@ -38,6 +40,10 @@ Release 0.5.0.
     before recording anything without `agentId`. The Lead's numbers come from `session.measure`,
     as the block says, so keep it that way: each main-session request would otherwise wait on a
     state write.
+- **Session 10's block was amended here:** Needs you ends at the asking agent's next
+  `turn.step` or its `turn.complete`. A call's start comes from its step's `toolUses`, the
+  user's choice, and no tool event is hooked, so a long allowed call keeps the row in Needs
+  you until its step's calls are done.
 - **What the user should hear first:**
   - **cartoon-fx hooks `tool.call` for every tool** (`mods/cartoon-fx/hooks/register.tsx`). The
     declarations say that turns off a tool's move to the background; Session 4's probe saw a Bash
@@ -60,7 +66,7 @@ Release 0.5.0.
 
   If it is not committed when Session 6 opens, Session 8 runs first, logged as an amendment.
 - **Baseline** (ARCHITECTURE's table, v0.4.0):
-  - 64 tests in 7 files;
+  - 67 tests in 7 files;
   - `validate`: 11 hooks, 4 gating each with a `.catch`, 2 state keys;
   - calls: `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`,
     `$.store.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`.
@@ -70,8 +76,8 @@ Release 0.5.0.
 
 ## Watch for
 
-- **A probe for the desktop needs another route.** `CLAUDE_CODE_PLUGIN_DIRS` in the user
-  settings loaded nothing into a desktop Code session (engine 2.1.326). The desktop runs only
+- **A probe for the desktop needs another route.** A plugin folder named by
+  `CLAUDE_CODE_PLUGIN_DIRS` was not loaded into a desktop Code session (engine 2.1.326). The desktop runs only
   the installed release; plan desktop checks for after a push.
 - **A slash command sent from one session to another arrives as text,** not as a command. A
   hand check that needs `/possums` or a probe's command needs the user at the prompt.

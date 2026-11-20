@@ -626,8 +626,7 @@ model*, *The panel*.
 - **Decided with the user:**
   - **At the plan:**
     - 0.3.0 was installed;
-    - the desktop half is measured with a probe loaded through `CLAUDE_CODE_PLUGIN_DIRS` in the
-      user settings, the edit shown first and undone after;
+    - the desktop half is measured with a probe loaded through `CLAUDE_CODE_PLUGIN_DIRS`;
     - N-07 is amended, so event hooks read the time with `$.clock.now()`;
     - the plan has an adversarial review before approval. Its 14 findings were folded in; the
       largest:
@@ -679,8 +678,8 @@ model*, *The panel*.
       agent;
     - a clear reset `$.state`;
     - `$.agent.list()` gave 1,000,000-token windows.
-  - **The desktop,** engine 2.1.326: the settings route loaded nothing. The user settings were
-    restored byte for byte.
+  - **The desktop,** engine 2.1.326: a plugin folder named by `CLAUDE_CODE_PLUGIN_DIRS` was not
+    loaded.
   - **The declarations** were laid again for 2.1.328, then 2.1.329, as the CLI updated itself.
     2.1.329 adds `agent.report` and `tool.offer`; the `tool.call` and `tool.run` remarks and the
     kit are unchanged.
@@ -707,6 +706,33 @@ model*, *The panel*.
   - `validate`: 11 hooks (+1 `classic.SessionStart`), 4 gating (+1), each with a `.catch`;
     2 state keys (+`runs`);
   - calls: +`$.clock.now`, on *Reach*'s allow-list.
+- **Review (`/code-review high`), 9 findings: 9 fixed and 0 skipped.** The user chose to fix
+  all nine.
+  - **A spawn whose engine call rejects** had no test of its own. A test now runs the spawn hook
+    with a rejecting `next`: the row it opened is gone, and the failure goes on.
+  - **Two UI tests drew the terminal alone,** the teammate's and the clear's kept half. Both
+    loop over the surfaces now, as the root `CLAUDE.md` asks.
+  - **The handoff did not record Session 10's amended end signal,** as `SESSIONS.md`'s header
+    asks. It does now.
+  - **The pane's drawing had no fallback:** a refused state read or clock call would have put
+    the engine's error in its place. A refused state read now draws the empty panel, and a
+    refused clock the times as `–`.
+  - **A resume that opens a row took a round from its description,** so a resumed agent could
+    read "round 2". It now starts in round 1.
+  - **`Pending.isWorking` was always true;** it is gone, and a claimed row is Working.
+  - **`Activity.at` was written and never read;** it is gone, and so is `Pending.at`. Pending
+    entries keep their insertion order, and the oldest is dropped first.
+  - **Each subagent step waited on a clock read** beside the state's read and write. `record`
+    no longer reads the clock; `recordAt` does, for a spawn and an end alone.
+  - **The done-note named the edit to the user's settings,** which the root `CLAUDE.md` keeps out
+    of done-notes. It now records only what was measured.
+  - **Falsified,** each failing at its own test:
+    - the rejected spawn's settling dropped;
+    - the clock's fallback and the state's fallback each removed;
+    - a resume's round taken from its description;
+    - the newest pending entry dropped first.
+  - **Numbers after the review:** 67 tests (+3), in 7 files: command 11, model 15,
+    panel 8, pass-through 5, prefs 4, row 7, runs 17 (+3). `validate` is unchanged.
 
 ---
 

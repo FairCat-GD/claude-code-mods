@@ -43,8 +43,8 @@ test('a spawn opens a starting row at once, and its result re-keys it to the age
 
 test("a loop's turn and step before the spawn's result wait as pending, and the re-key claims them", () => {
   let runs = spawnOpened(NO_RUNS, SHOVELS, 0)
-  runs = turnStarted(runs, 'agent-1', 10)
-  runs = stepped(runs, 'agent-1', STEP, 20)
+  runs = turnStarted(runs, 'agent-1')
+  runs = stepped(runs, 'agent-1', STEP)
   expect(Object.keys(runs.pending)).toEqual(['agent-1'])
   expect(shownRuns(runs).map(run => run.state)).toEqual(['starting'])
 
@@ -55,11 +55,11 @@ test("a loop's turn and step before the spawn's result wait as pending, and the 
 })
 
 test('a loop no spawn claims is dropped at its end, and the pending list is bounded', () => {
-  let runs = turnStarted(NO_RUNS, 'fork-1', 0)
+  let runs = turnStarted(NO_RUNS, 'fork-1')
   runs = turnEnded(runs, 'fork-1', ANSWERED, 5)
   expect(runs).toEqual(NO_RUNS)
 
-  for (let i = 0; i < PENDING_KEPT + 5; i++) runs = turnStarted(runs, `fork-${i}`, i)
+  for (let i = 0; i < PENDING_KEPT + 5; i++) runs = turnStarted(runs, `fork-${i}`)
   expect(Object.keys(runs.pending)).toHaveLength(PENDING_KEPT)
   expect(runs.pending['fork-0']).toBeUndefined()
   expect(runs.pending[`fork-${PENDING_KEPT + 4}`]).toBeDefined()
@@ -96,7 +96,7 @@ test('a resumed agent returns to its row; a resume of an agent no row has opens 
   expect(shownRuns(runs)).toHaveLength(1)
   expect(runs.rows['agent-1']?.state).toBe('starting')
   expect(runs.rows['agent-1']?.endedAt).toBeUndefined()
-  expect(turnStarted(runs, 'agent-1', 62).rows['agent-1']?.state).toBe('working')
+  expect(turnStarted(runs, 'agent-1').rows['agent-1']?.state).toBe('working')
 
   // A refused resume leaves the finished row as it was.
   const ended = turnEnded(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', ANSWERED, 50)
@@ -104,6 +104,9 @@ test('a resumed agent returns to its row; a resume of an agent no row has opens 
 
   const fresh = spawnSettled(NO_RUNS, { ...RAKES, key: 'toolu_r', resumes: 'agent-9' }, { agentId: 'agent-9', isDenied: false }, 5)
   expect(Object.keys(fresh.rows)).toEqual(['agent-9'])
+  // The same agent come back is no second round, even beside a finished run of the same task.
+  const beside = spawnSettled(ended, { ...SHOVELS, key: 'toolu_r', resumes: 'agent-9' }, { agentId: 'agent-9', isDenied: false }, 5)
+  expect(beside.rows['agent-9']?.round).toBe(1)
 })
 
 test('a second spawn with a finished run’s description is round 2; a failed one does not count', () => {
@@ -129,18 +132,18 @@ test('the endings: text is finished, aborted is stopped, error, refusal and an e
 
 test("a teammate's next turn puts its row back to working, its time counted from its first start", () => {
   const mate: Spawn = { ...SHOVELS, isTeammate: true }
-  let runs = turnStarted(spawned(NO_RUNS, mate, 'agent-1', 100), 'agent-1', 110)
+  let runs = turnStarted(spawned(NO_RUNS, mate, 'agent-1', 100), 'agent-1')
   runs = turnEnded(runs, 'agent-1', { reason: 'answer', hasText: false }, 200)
   expect(runs.rows['agent-1']?.state).toBe('finished')
-  runs = turnStarted(runs, 'agent-1', 300)
+  runs = turnStarted(runs, 'agent-1')
   expect(runs.rows['agent-1']).toMatchObject({ state: 'working', startedAt: 100 })
   expect(runs.rows['agent-1']?.endedAt).toBeUndefined()
 })
 
 test('tokens sum over steps, fresh apart from cache reads, and the context is the last request over the window', () => {
   let runs = spawned(NO_RUNS, SHOVELS, 'agent-1', 0)
-  runs = stepped(runs, 'agent-1', STEP, 1)
-  runs = stepped(runs, 'agent-1', { ...STEP, usage: usage(80, 20, 6000, 0) }, 2)
+  runs = stepped(runs, 'agent-1', STEP)
+  runs = stepped(runs, 'agent-1', { ...STEP, usage: usage(80, 20, 6000, 0) })
   const run = runs.rows['agent-1']
   if (run === undefined) throw new Error('no run')
   expect(run.tokens).toEqual(usage(200, 50, 10_000, 50))
@@ -173,7 +176,7 @@ test('finished keeps the latest T-06 ended runs, and never drops a teammate or a
 })
 
 test('a clear starts the list over; with nothing to clear it changes nothing', () => {
-  const runs = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'fork-1', 0)
+  const runs = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'fork-1')
   const empty = cleared(runs)
   expect(empty.rows).toEqual({})
   expect(empty.pending).toEqual({})
@@ -183,29 +186,26 @@ test('a clear starts the list over; with nothing to clear it changes nothing', (
 test("a step's activity is its last shown call, with what it names, cut to one line", () => {
   const long = 'x'.repeat(TARGET_CHARS + 20)
   expect(
-    callsOf(
-      [
-        { name: 'Grep', input: { pattern: 'rake' } },
-        { name: 'Read', input: { file_path: 'shed/rack.txt' } },
-      ],
-      7,
-    ),
+    callsOf([
+      { name: 'Grep', input: { pattern: 'rake' } },
+      { name: 'Read', input: { file_path: 'shed/rack.txt' } },
+    ]),
   ).toEqual({
-    activity: { tool: 'Read', target: 'shed/rack.txt', at: 7 },
+    activity: { tool: 'Read', target: 'shed/rack.txt' },
     count: 2,
   })
-  expect(callsOf([{ name: 'Bash', input: { command: `count shovels\n${long}` } }], 1).activity?.target).toBe('count shovels')
-  expect(callsOf([{ name: 'Bash', input: { command: long } }], 1).activity?.target).toHaveLength(TARGET_CHARS)
-  expect(callsOf([{ name: 'mcp__garden__water', input: { bed: 3 } }], 1).activity).toEqual({ tool: 'mcp__garden__water', at: 1 })
+  expect(callsOf([{ name: 'Bash', input: { command: `count shovels\n${long}` } }]).activity?.target).toBe('count shovels')
+  expect(callsOf([{ name: 'Bash', input: { command: long } }]).activity?.target).toHaveLength(TARGET_CHARS)
+  expect(callsOf([{ name: 'mcp__garden__water', input: { bed: 3 } }]).activity).toEqual({ tool: 'mcp__garden__water' })
   // The hand-back of a report is no work to show, and odd input is no call.
-  expect(callsOf([{ name: 'SubagentHandback', input: {} }], 1)).toEqual({ count: 0 })
-  expect(callsOf(undefined, 1)).toEqual({ count: 0 })
-  expect(callsOf([null, 7, { input: {} }], 1)).toEqual({ count: 0 })
+  expect(callsOf([{ name: 'SubagentHandback', input: {} }])).toEqual({ count: 0 })
+  expect(callsOf(undefined)).toEqual({ count: 0 })
+  expect(callsOf([null, 7, { input: {} }])).toEqual({ count: 0 })
 })
 
 test('an event it cannot place changes nothing', () => {
   expect(turnEnded(NO_RUNS, 'nobody', ANSWERED, 1)).toBe(NO_RUNS)
   expect(spawnSettled(NO_RUNS, SHOVELS, { agentId: 'agent-1', isDenied: false }, 1)).toBe(NO_RUNS)
-  const working = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', 1)
-  expect(turnStarted(working, 'agent-1', 2)).toBe(working)
+  const working = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1')
+  expect(turnStarted(working, 'agent-1')).toBe(working)
 })

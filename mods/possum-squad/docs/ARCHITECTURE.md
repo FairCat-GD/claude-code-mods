@@ -208,7 +208,7 @@ terminal session that loaded no other plugin; the owner typed the prompts.
 - **Context windows.** `session.measure` gave the main session (Opus 5.5) 1,000,000 tokens;
   `$.agent.list()` gave the same for subagents on Haiku 5.5 and Sonnet 5.5.
 - **The desktop app** (engine 2.1.326) did not load a plugin folder named by
-  `CLAUDE_CODE_PLUGIN_DIRS` in the user settings, so how a subagent ends there was not measured.
+  `CLAUDE_CODE_PLUGIN_DIRS`, so how a subagent ends there was not measured.
 
 ## Stack and pins
 
@@ -396,9 +396,11 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 - `ui.close` `{ id: 'possum-squad' }` awaits `next(e)`; when `origin.kind` is `person` and the
   close was not refused, it sets `view.isClosedByPerson` through `update`, inside a guard, so a
   failed write loses only the flag. It returns what `next` gave.
-- **The recording hooks** each return what `next` gave, and write through `record`, the reading
-  guard (I-05): the time from `$.clock.now()` and the change through `update`, both inside
-  `try`.
+- **The recording hooks** each return what `next` gave, and write through the reading guard
+  (I-05): `record` makes the change through `update` inside `try`, and `recordAt` reads
+  `$.clock.now()` first, inside the same `try`. Only a spawn and an end need the time, so
+  `turn.start` and `turn.step` use `record`: a step's result waits on the state's read and
+  write alone.
   - `agent.spawn` records its row's opening before `next`, then its settling after. If `next`
     rejects, it records a settling with no agent, which removes the row, and throws on.
   - `turn.start`, `turn.complete` and `turn.step` record only an event that carries `agentId`:
@@ -523,8 +525,9 @@ each returning the same object when the record changes nothing.
 - **A run** (`Run`, in `types/index.d.ts`) holds what its row needs: its agent id once known,
   its parent's id, its type, description and round, whether it is a teammate, its state, model
   and effort, its start and end times, its four token counts, its last request's size
-  (input, cache reads and cache writes), its activity (tool, target, time) and its calls in
-  flight. The brief, the answer, past actions and files touched wait for Peek (Session 11).
+  (input, cache reads and cache writes), its activity (tool and target) and its calls in
+  flight. A pending entry holds the same numbers; its loop's turn has begun, so a claimed row
+  is Working. The brief, the answer, past actions and files touched wait for Peek (Session 11).
 - **Joining:**
   - `spawnOpened` opens a starting row at the spawn's input, keyed by its `tool_use_id`, plus
     `#<agentIndex>` for a workflow's agent, since all of a workflow run's agents share the
@@ -532,10 +535,12 @@ each returning the same object when the record changes nothing.
     a resume opens nothing.
   - `spawnSettled` re-keys the row to the agent id and claims that id's pending entry; the
     spawn's model stands until a step names one. A result with no agent id (a refusal, a
-    remote agent) removes the row. A resume, unless refused, returns the row with that id to
-    Starting with its end cleared, or opens one.
-  - `turnStarted` and `stepped` for an id no row has keep a pending entry, at most 50, the
-    oldest dropped first. `turnEnded` drops it: that loop was the engine's own.
+    remote agent) removes the row, as does a spawn whose `next` rejects. A resume, unless
+    refused, returns the row with that id to Starting with its end cleared, or opens one in
+    round 1: the same agent come back starts no round of its own.
+  - `turnStarted` and `stepped` for an id no row has keep a pending entry, at most 50. An entry
+    keeps its place as it changes, so the one dropped first is the loop that began longest
+    ago. `turnEnded` drops it: that loop was the engine's own.
   - `turnStarted` puts a known row back to Working, its end cleared, so a teammate's next turn
     or a resumed agent's continues its row, its time counted from its first start.
   - A spawn whose description equals a Finished run's gets that run's round plus one.
@@ -674,7 +679,9 @@ sprite was removed in 0.3.0; what the desktop showed of it is in *Context*.
 The run list (0.4.0): the pane reads `runs` and the clock's time, and draws each run's row in
 spawn order, in one column, or the empty panel when there is none. The terminal gets
 `terminalRow`, every other surface `desktopRow`. `rowData` (`hooks/view/runs.tsx`) makes a
-run's `RowData` from it and the model's figures, and the activity line from `STRINGS.activity`:
+run's `RowData` from it and the model's figures, and the activity line from `STRINGS.activity`.
+A state that cannot be read draws the empty panel, and a clock that cannot be read draws the
+times as `–`, so a refusal never puts the engine's error in the pane's place. The line reads
 "Reading notes.md", or "Using <tool>" for a tool it has no verb for (an MCP tool by its own last
 name). The elapsed time moves on as events redraw the pane; the one-second clock is Session 5's.
 
@@ -793,7 +800,7 @@ outside the engine; it is never part of the mod's running code.
 
 **Built** (0.4.0). `validate` lists `$.clock.now`, `$.command.register`, `$.state.get`,
 `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`,
-`$.ui.resolve`; the state calls come through `update` and `read`, the clock through `record`
+`$.ui.resolve`; the state calls come through `update` and `read`, the clock through `recordAt`
 and `drawPane`, the store calls through `writeStore` and `listSettings`, and the pane calls
 through `showPane`. Each is on the allow-list. No network, process or file
 access, no model call, no tool registration.
@@ -863,7 +870,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
-| `claude plugin test mods/possum-squad` | 64 pass, in 7 files: command 11, model 15, panel 8, pass-through 5, prefs 4, row 7, runs 14 |
+| `claude plugin test mods/possum-squad` | 67 pass, in 7 files: command 11, model 15, panel 8, pass-through 5, prefs 4, row 7, runs 17 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 2 (`runs`, `view`) |
 | `validate`: calls | `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |

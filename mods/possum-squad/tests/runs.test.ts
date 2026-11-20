@@ -1,8 +1,10 @@
 import type { On } from 'claude-code'
+import { read } from 'claude-code'
 import { type Engine, expect, mock, test } from 'claude-code/testing'
 
+import { runs } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
-import { MOUNT, SURFACES } from './engine'
+import { hooksOf, MOUNT, SURFACES } from './engine'
 import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 
 type Surface = (typeof SURFACES)[number]
@@ -193,9 +195,9 @@ test("a teammate's next turn puts its row back to working", async ($, on) => {
   await $.agent.spawn({ ...SPAWN, isTeammate: true })
   await start($)
   await complete($, { reason: 'answer', answer: '' })
-  expect((await drawn($, 'terminal')).texts).toContain(STRINGS.states.finished)
+  for (const surface of SURFACES) expect((await drawn($, surface)).texts).toContain(STRINGS.states.finished)
   await start($)
-  expect((await drawn($, 'terminal')).texts).toContain(STRINGS.states.working)
+  for (const surface of SURFACES) expect((await drawn($, surface)).texts).toContain(STRINGS.states.working)
 })
 
 test('a clear, a resume or a fork of the session empties the list; a startup or a compaction keeps it (F-23)', async ($, on) => {
@@ -203,7 +205,7 @@ test('a clear, a resume or a fork of the session empties the list; a startup or 
   for (const source of ['startup', 'compact'] as const) {
     await $.agent.spawn(SPAWN)
     await $.classic.SessionStart({ source })
-    expect((await drawn($, 'terminal')).texts).toContain(SPAWN.description)
+    for (const surface of SURFACES) expect((await drawn($, surface)).texts).toContain(SPAWN.description)
   }
   for (const source of ['clear', 'resume', 'fork'] as const) {
     await $.agent.spawn(SPAWN)
@@ -245,4 +247,60 @@ test("the main session's turns and steps never write runs", { plugins: [RUNS_REA
   await $.turn.complete(mainEnd)
   const read = await $.command.run({ command: 'read-runs', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })
   expect(read.text).toBe('0')
+})
+
+// The spawn hook runs here on its own, with a `$` holding only state and a clock, since the kit's engine cannot
+// reject a spawn's `next`.
+test('a spawn whose engine call fails leaves no row, and the failure goes on to the caller', async () => {
+  const values = new Map<string, { value: unknown; version: number }>()
+  const state = {
+    get: async (ref: object) => values.get(JSON.stringify(ref)) ?? { value: undefined, version: 0 },
+    set: async (ref: object, value: unknown, options?: { ifVersion?: number }) => {
+      const now = values.get(JSON.stringify(ref))?.version ?? 0
+      if (options?.ifVersion !== undefined && options.ifVersion !== now) return { isSet: false, version: now }
+      values.set(JSON.stringify(ref), { value, version: now + 1 })
+      return { isSet: true, version: now + 1 }
+    },
+  }
+  const $ = { state, clock: { now: async () => 1_000 } }
+  type Plain = ($: unknown, e: unknown, next: (e: unknown) => Promise<unknown>) => Promise<unknown>
+  const hook = hooksOf().hooks.get('agent.spawn') as unknown as Plain
+  let opened = 0
+  const failing = async () => {
+    opened = Object.keys((await read($ as never, runs)).rows).length
+    throw new Error('the fixture engine fails the spawn')
+  }
+  await expect(hook($, SPAWN, failing)).rejects.toThrow('the fixture engine fails the spawn')
+  expect(opened).toBe(1)
+  expect((await read($ as never, runs)).rows).toEqual({})
+})
+
+test('a clock that cannot be read while drawing leaves the times unknown', async ($, on) => {
+  let isBroken = false
+  on('clock.now', () => (isBroken ? { deny: 'the fixture clock refuses' } : { value: 1_000 }))
+  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: AGENT }))
+  await $.agent.spawn(SPAWN)
+  isBroken = true
+  for (const surface of SURFACES) {
+    const { texts } = await drawn($, surface)
+    expect(texts).toContain(SPAWN.description)
+    expect(texts.some(text => text.includes(STRINGS.row.unknown))).toBe(true)
+    expect(texts.some(text => text.includes('NaN'))).toBe(false)
+  }
+})
+
+// The module's drawing hook, run by the test's own with a `$` whose state refuses reads: the kit's state cannot.
+test('a state that cannot be read while drawing draws the empty panel', async ($, on) => {
+  type Draw = ($: unknown, e: unknown) => unknown
+  const draw = hooksOf().hooks.get('ui.render') as unknown as Draw
+  on(
+    'ui.render',
+    { plugin: '*', requestId: 'refused-state' },
+    ($, e) => draw({ ui: $.ui, clock: $.clock, state: { get: async () => Promise.reject(new Error('the fixture state refuses reads')) } }, e) as never,
+  )
+  for (const surface of SURFACES) {
+    const pane = await $.ui.mount({ ...MOUNT, requestId: 'refused-state', surface })
+    expect((await pane.find({ type: 'Text', text: STRINGS.empty }))?.text).toBe(STRINGS.empty)
+    await pane.unmount()
+  }
 })

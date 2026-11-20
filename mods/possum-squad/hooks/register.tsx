@@ -63,7 +63,16 @@ async function changeSetting($: Pick<EngineInterface, 'store'>, change: Partial<
 
 // The reading guard (I-05): an event's record is read and written apart from its result, so a fault here loses only
 // the panel's record, never the event.
-async function record($: Pick<EngineInterface, 'state' | 'clock'>, change: (held: Runs, at: number) => Runs) {
+async function record($: Pick<EngineInterface, 'state'>, change: (held: Runs) => Runs) {
+  try {
+    await update($, runs, change)
+  } catch {
+    // the event goes on as the engine gave it
+  }
+}
+
+// The same, for the records that need the time: a spawn and an end.
+async function recordAt($: Pick<EngineInterface, 'state' | 'clock'>, change: (held: Runs, at: number) => Runs) {
   try {
     const at = await $.clock.now()
     await update($, runs, held => change(held, at))
@@ -96,11 +105,12 @@ const usageOf = (result: TurnStepResult): Tokens | undefined =>
         cacheWrite: result.usage.cache_creation_input_tokens,
       }
 
+// A state that cannot be read draws the empty panel, and a clock that cannot be read leaves times unknown.
 async function drawPane($: Pick<EngineInterface, 'state' | 'clock' | 'ui'>, e: Parameters<EngineInterface['ui']['resolve']>[0] & { surface: string }) {
   const table = $.ui.resolve(e)
-  const shown = shownRuns(await read($, runs))
+  const shown = shownRuns(await read($, runs).catch(() => NO_RUNS))
   if (shown.length === 0) return emptyPanel(table)
-  const now = await $.clock.now()
+  const now = await $.clock.now().catch(() => Number.NaN)
   const keyOf = (run: (typeof shown)[number]) => run.agentId ?? `spawn-${run.order}`
   return runsPanel(
     table,
@@ -155,29 +165,29 @@ export const register: Register = on => {
   // the declarations say a hook there turns off a tool's move to the background, even as a pass-through.
   on('agent.spawn', async ($, e, next) => {
     const spawn = spawnOf(e)
-    await record($, (held, at) => spawnOpened(held, spawn, at))
+    await recordAt($, (held, at) => spawnOpened(held, spawn, at))
     let result: AgentSpawnResult
     try {
       result = await next(e)
     } catch (error) {
-      await record($, (held, at) => spawnSettled(held, spawn, { isDenied: true }, at))
+      await recordAt($, (held, at) => spawnSettled(held, spawn, { isDenied: true }, at))
       throw error
     }
-    await record($, (held, at) => spawnSettled(held, spawn, settledOf(result), at))
+    await recordAt($, (held, at) => spawnSettled(held, spawn, settledOf(result), at))
     return result
   }).catch((_$, e, next) => next(e))
 
   on('turn.start', async ($, e, next) => {
     const started = await next(e)
     const { agentId } = e
-    if (agentId !== undefined) await record($, (held, at) => turnStarted(held, agentId, at))
+    if (agentId !== undefined) await record($, held => turnStarted(held, agentId))
     return started
   }).catch((_$, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
     const completed = await next(e)
     const { agentId } = e
-    if (agentId !== undefined) await record($, (held, at) => turnEnded(held, agentId, { reason: e.reason, hasText: e.answer.trim() !== '' }, at))
+    if (agentId !== undefined) await recordAt($, (held, at) => turnEnded(held, agentId, { reason: e.reason, hasText: e.answer.trim() !== '' }, at))
     return completed
   }).catch((_$, e, next) => next(e))
 
@@ -195,15 +205,11 @@ export const register: Register = on => {
     const result = yield* next(e)
     const { agentId } = e
     if (agentId !== undefined) {
-      await record($, (held, at) => {
-        const calls = callsOf(result.toolUses, at)
+      // No clock here: the step's result waits only on the state's read and write.
+      await record($, held => {
+        const calls = callsOf(result.toolUses)
         const effort = e.effort === undefined ? undefined : String(e.effort)
-        return stepped(
-          held,
-          agentId,
-          { model: result.usage?.model ?? e.model, effort, usage: usageOf(result), activity: calls.activity, calls: calls.count },
-          at,
-        )
+        return stepped(held, agentId, { model: result.usage?.model ?? e.model, effort, usage: usageOf(result), activity: calls.activity, calls: calls.count })
       })
     }
     return result
