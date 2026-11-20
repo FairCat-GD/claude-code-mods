@@ -40,13 +40,12 @@ function redraw($: Pick<EngineInterface, 'ui'>) {
   }
 }
 
-// The one-second clock (N-03): a single timer while the pane is open and a run's time moves. It lives in module
-// memory, which a reload drops along with the timer. Each arming has its own generation, so a beat still in flight
-// from a timer already replaced stops nothing.
+// The one-second clock (N-03), in module memory: a reload drops it along with its timer.
 const TICK_MS = 1000
 // Beats that stop this long mean the engine ended the timer (a refused period ends it silently).
 const STALE_MS = 2500
 let ticking: Timer | undefined
+// Each arming's own, so a beat still in flight from a replaced timer stops nothing.
 let generation = 0
 let isPaneOpen = false
 let beats = 0
@@ -73,10 +72,8 @@ async function tick($: Pick<EngineInterface, 'ui' | 'state'>, own: number) {
   beats++
   try {
     const pane = (await $.ui.panes()).find(one => one.id === PANE)
-    if (pane === undefined) {
-      isPaneOpen = false
-      return stopClock(own)
-    }
+    isPaneOpen = pane !== undefined
+    if (pane === undefined) return stopClock(own)
     if (!shownRuns(await read($, runs)).some(isLive)) return stopClock(own)
     if (pane.isShown) $.ui.invalidate('ui.render')
   } catch {
@@ -95,8 +92,11 @@ function keepTime($: Pick<EngineInterface, 'clock' | 'ui' | 'state'>) {
   }
 }
 
-async function armIfLive($: Pick<EngineInterface, 'clock' | 'ui' | 'state'>) {
-  if (shownRuns(await read($, runs)).some(isLive)) armClock($)
+async function armIfLive($: Pick<EngineInterface, 'clock' | 'ui' | 'state'>, isFresh = false) {
+  if (!shownRuns(await read($, runs)).some(isLive)) return
+  // The person asking for the pane starts a fresh timer, in case the engine ended the last one.
+  if (isFresh) stopClock()
+  armClock($)
 }
 
 // Seen while drawing: a timer whose beats stopped was ended by the engine, so the next arming starts another.
@@ -110,18 +110,17 @@ function noteBeat(now: number) {
 async function showPane($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>, mayClose: boolean): Promise<CommandRunResult> {
   try {
     const pane = (await $.ui.panes()).find(one => one.id === PANE)
-    if (pane?.isShown) {
-      if (mayClose) await $.ui.close({ id: PANE })
+    if (pane?.isShown && mayClose) {
+      await $.ui.close({ id: PANE })
       return {}
     }
-    const raise = pane === undefined ? {} : ({ focus: true } as const)
-    await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS, ...raise })
+    if (!pane?.isShown) await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS, ...(pane === undefined ? {} : ({ focus: true } as const)) })
     isPaneOpen = true
   } catch {
     return say(STRINGS.cannotToggle)
   }
   try {
-    await armIfLive($)
+    await armIfLive($, true)
   } catch {
     // the times move on events alone
   }
@@ -166,11 +165,9 @@ async function record($: Pick<EngineInterface, 'state'>, change: (held: Runs) =>
   }
 }
 
-// The same for the Lead. A change that keeps the same object writes nothing, so it redraws nothing.
+// The same for the Lead.
 async function recordLead($: Pick<EngineInterface, 'state'>, change: (held: Lead) => Lead) {
   try {
-    const held = await read($, lead)
-    if (change(held) === held) return
     await update($, lead, change)
   } catch {
     // the event goes on as the engine gave it
@@ -227,13 +224,15 @@ async function drawPane(
 ) {
   isPaneOpen = true
   const table = $.ui.resolve(e)
-  const held = await read($, runs).catch(() => NO_RUNS)
+  const readRuns = await read($, runs).catch(() => undefined)
+  const held = readRuns ?? NO_RUNS
   const main = await read($, lead).catch(() => NO_LEAD)
   const prefs = await prefsWhileDrawing($)
   const now = await $.clock.now().catch(() => Number.NaN)
   const shown = shownRuns(held)
   if (shown.some(isLive)) noteBeat(now)
-  else stopClock()
+  // A refused read says nothing of the runs, so it leaves the clock alone.
+  else if (readRuns !== undefined) stopClock()
   const keyOf = (run: (typeof shown)[number]) => run.agentId ?? `spawn-${run.order}`
   return panel(
     table,

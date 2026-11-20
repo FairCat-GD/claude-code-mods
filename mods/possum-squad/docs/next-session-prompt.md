@@ -16,9 +16,10 @@ Release 0.6.0.
 ## State you need that is not in the specs
 
 - **Round 1 is the agents panel:** Sessions 0–5 are done; Sessions 6–13 and 7a remain.
-- **Push status:** `origin/main` holds everything through Session 4's review commit. Session 5's
-  commits wait locally for the user's approval. List `origin/main..HEAD` before any push, and
-  name any commit that is not the session's.
+- **Push status:** pushed on 2026-11-20 with the user's approval: `origin/main` holds
+  everything through Session 5's review commit (`review(possum-squad): a beat never marked the
+  pane open, and 7 smaller`). Nothing waits locally. List `origin/main..HEAD` before any push,
+  and name any commit that is not the session's.
 - **Ask at the start:** whether the user has installed 0.5.0, and how the desktop pane compared
   with the transcript (`docs/BACKLOG.md`, *The header, sections and clock in the desktop app*).
   The block's three-agent check is recorded at this session's start.
@@ -52,7 +53,7 @@ Release 0.6.0.
 - **Session 10's block was amended at Session 4:** Needs you ends at the asking agent's next
   `turn.step` or its `turn.complete`.
 - **Baseline** (ARCHITECTURE's table, v0.5.0):
-  - 89 tests in 9 files;
+  - 92 tests in 9 files;
   - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys;
   - calls: `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`,
     `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`,

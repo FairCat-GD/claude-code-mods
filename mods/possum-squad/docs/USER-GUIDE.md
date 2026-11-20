@@ -43,7 +43,8 @@ dropped out of the list (it keeps the latest 30 ended runs) still count.
 
 **Times tick every second** while an agent runs and the pane is open, even when nothing else
 happens. With nothing running, or the pane closed, nothing ticks. A pane open behind another
-pane's tab keeps time without redrawing, and catches up within a second of coming back.
+pane's tab keeps time without redrawing, so its next tick after you bring it back draws it
+right. If the times ever stand still while an agent runs, `/possums open` starts them afresh.
 
 In a terminal the pane is all text: block characters for the bars, and a coloured mark beside
 each state word.

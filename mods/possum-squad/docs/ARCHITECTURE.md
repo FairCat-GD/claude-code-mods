@@ -451,8 +451,6 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     one never gets that far: the engine refuses its `next(e)` first (*Context*).
   - `session.measure` awaits `next(e)`, then records the Lead's context through `recordLead`
     (`measured`).
-  - `recordLead` reads `lead` first and writes nothing when the change keeps the same object, so
-    a measure that leaves the Lead's context as it was redraws nothing.
   - `classic.SessionStart` with `source` `clear`, `resume` or `fork` stops the clock, empties
     `runs` and resets `lead`. The engine resets `$.state` on a clear already (*Context*); the
     mod's own reset keeps the list right wherever it does not.
@@ -779,21 +777,23 @@ cancels its timer.
 - **Arming:** `armClock` creates the timer only when none is set, so arming is idempotent. It is
   armed only from dispatches that are not drawings, since a drawing's `$` may not serve a later
   beat:
-  - `/possums` opening or raising the pane, when a run is live;
+  - `/possums` or `/possums open`, when a run is live, whether it opened, raised or left the
+    pane: it stops any timer first, so the person can always start a fresh one;
   - a subagent's spawn, turn start or step, when the pane is open (`keepTime`);
   - `session.start`, when a run is live. The pane is not known there, so the first beat looks:
     after a reload with the pane closed, one beat runs.
-- **The beat** asks `$.ui.panes()`. With no pane it marks the pane closed and stops. With no
-  live run in `runs` it stops. Otherwise it invalidates the drawing, but only if the pane is
+- **The beat** asks `$.ui.panes()`, and marks the pane open or closed by what it finds. With no
+  pane it stops. With no live run in `runs` it stops. Otherwise it invalidates the drawing, but only if the pane is
   shown. Any fault stops it. Each arming has its own generation, so a beat in flight from a
   replaced timer stops nothing.
 - **Stopping:** at a close, whatever its origin; at a clear-type session start; and when a
-  drawing finds no live run, so the last run's end stops it at once.
+  drawing finds no live run, so the last run's end stops it at once. A drawing whose read of
+  `runs` is refused leaves it alone.
 - **A timer the engine ends:** a refused period ends an interval silently (*Context*). A drawing
   that finds no beat for 2.5 s of the clock's time with a live run clears the timer, and the
   next arming starts another.
-- **Whether the pane is open** is the module's own flag: set by `/possums` opening it and by
-  any drawing, cleared by a close and by a beat that finds no pane.
+- **Whether the pane is open** is the module's own flag: set by `/possums`, by any drawing and
+  by a beat that finds the pane; cleared by a close and by a beat that finds none.
 
 The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
 - **Its input** is `RowData`, plain data:
@@ -971,9 +971,11 @@ unread.
 - **After a reload with the pane closed and a run live,** the clock beats once before it finds
   the pane closed: `session.start` would have to await `$.ui.panes()` to know, which N-07 does
   not allow.
-- **A timer the engine ends comes back only at a later subagent event:** a drawing notices it
-  (2.5 s without a beat), and the next spawn, turn start or step arms another. In between,
-  times move only on events.
+- **A timer the engine ends comes back only at a later subagent event,** or at `/possums open`:
+  a drawing notices it (2.5 s without a beat), and the next spawn, turn start or step arms
+  another. In between, times move only on events.
+- **A drawing whose read of `runs` is refused leaves the clock alone, untested:** in the kit,
+  the clock beat on after such a drawing with the old code too, for a reason not found.
 - **The Lead's time grows when each main turn ends,** not during it: the main loop's turn start
   and steps make no `$` call.
 - **A subagent waiting on its own background shell reads finished:** its turn ended, which is
@@ -988,7 +990,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
-| `claude plugin test mods/possum-squad` | 89 pass, in 9 files: clock 10, command 11, header 8, model 19, panel 8, pass-through 5, prefs 4, row 7, runs 17 |
+| `claude plugin test mods/possum-squad` | 92 pass, in 9 files: clock 13, command 11, header 8, model 19, panel 8, pass-through 5, prefs 4, row 7, runs 17 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |

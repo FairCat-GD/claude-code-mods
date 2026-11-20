@@ -862,6 +862,30 @@ edge cases*, Part 5 F-02, F-03, F-04, F-09, F-22, N-03, Part 7 *Key screens & fl
     panel 8, pass-through 5, prefs 4, row 7, runs 17;
   - `validate`: 11 hooks, 4 gating, each with a `.catch`; 3 state keys (+`lead`);
   - calls: +`$.clock.every` and +`$.ui.invalidate`, both on *Reach*'s allow-list.
+- **Review (`/code-review high`), 8 findings: 8 fixed and 0 skipped.** The user chose to fix
+  all eight.
+  - **A beat never marked the pane open.** After a reload with the pane hidden, a beat found
+    the pane but left the flag unset, so once that timer stopped no later run armed one. The
+    beat now marks the pane open or closed by what it finds.
+  - **Opening the pane with a run already live** armed the clock untested. Two tests cover it
+    now.
+  - **`/possums open` on a shown pane** returned before arming, so it could not restart a timer
+    the engine had ended. Any `/possums` or `/possums open` with a run live now starts a fresh
+    timer.
+  - **A drawing whose read of `runs` was refused** stopped the clock. It now leaves it alone.
+    No kit test could fail on it: with the old code too, the kit's clock beat on after such a
+    drawing, for a reason not found. Recorded under *Known debt*.
+  - **`recordLead` read the Lead before its `update`,** a second read on every main turn's end
+    to save a rare redraw. It is a plain `update` now.
+  - **The changelog and user guide promised** a hidden pane catches up within a second, which no
+    hand check saw. They now say what the code does, and `docs/BACKLOG.md` holds the check.
+  - **Two comments:** `SECTIONS` said Running is drawn even when empty, which holds only once a
+    run exists; the clock's three-line comment is one line, its generation's why on its own.
+  - **Falsified,** each failing at its own test: the beat leaving the flag, opening never
+    arming, `/possums open` keeping a dead timer.
+  - **Numbers after the review:** 92 tests (+3), in 9 files: clock 13 (+3), command 11,
+    header 8, model 19, panel 8, pass-through 5, prefs 4, row 7, runs 17. `validate` is
+    unchanged.
 
 ---
 

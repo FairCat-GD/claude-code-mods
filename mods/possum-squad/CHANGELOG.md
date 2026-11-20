@@ -27,8 +27,8 @@ into sections, with times that tick.
   Your choice is kept between sessions.
 - **Times tick every second** while an agent runs and the pane is open, with nothing else
   happening. With nothing running, or the pane closed, nothing ticks. A pane open behind
-  another pane's tab keeps time without redrawing, and catches up within a second of coming
-  back.
+  another pane's tab keeps time without redrawing, so its next tick after you bring it back
+  draws it right. `/possums` or `/possums open` while an agent runs starts the ticking afresh.
 
 ### Changed
 

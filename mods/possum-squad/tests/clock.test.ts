@@ -220,3 +220,40 @@ test('a timer the engine ends is replaced at a later event', { plugins: [ENDS_ON
   expect((await textsOf(pane)).some(text => text?.endsWith(` · ${elapsed(6_200)}`))).toBe(true)
   await pane.unmount()
 })
+
+test('opening the pane while a run works starts the clock', async ($, on) => {
+  const { clock, redraws } = world(on)
+  await working($, 1)
+  await clock.advance(2_000)
+  expect(redraws()).toBe(0)
+  await $.command.run(POSSUMS)
+  await clock.advance(2_000)
+  expect(redraws()).toBe(2)
+})
+
+test('/possums open on a shown pane starts a fresh clock, after the engine ended the last', { plugins: [ENDS_ONE] }, async ($, on) => {
+  const { clock, redraws } = world(on)
+  await $.command.run(POSSUMS)
+  await working($, 1)
+  await clock.advance(1_000)
+  await clock.advance(3_000)
+  expect(redraws()).toBe(1)
+  await $.command.run(possums('open'))
+  await clock.advance(2_000)
+  expect(redraws()).toBe(3)
+})
+
+test('a beat that finds the pane open behind another lets later runs start the clock', async ($, on) => {
+  const { seen, clock, redraws } = world(on)
+  await working($, 1)
+  // After a reload: the pane open but hidden, so nothing draws it; the session start arms for the live run.
+  seen.panes = [{ id: PANE, isShown: false, isPlaced: true }]
+  await $.session.start(SESSION_START)
+  await clock.advance(1_000)
+  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-1' })
+  await clock.advance(1_000)
+  await working($, 2)
+  seen.panes = [{ id: PANE, isShown: true, isPlaced: true }]
+  await clock.advance(2_000)
+  expect(redraws()).toBe(2)
+})

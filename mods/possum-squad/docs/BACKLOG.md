@@ -48,6 +48,11 @@ these are the parts only a person can see.
   the reload stops the mod's timer; `session.start` arms it again for a live run. To check: in a
   `claude --plugin-dir mods/possum-squad` session with an agent running, change and save a
   file of the mod (then undo it), and see the rows stay and the time keep ticking.
+- **A pane behind another's tab, brought back mid-run.** The clock keeps beating while the pane
+  is hidden and redraws it at the first beat that finds it shown, which the kit shows; whether
+  the surfaces report a tab behind another as not shown was not seen. To check: with an agent
+  running, put another pane's tab in front, wait, bring Possum Squad back, and see the times
+  right within a second.
 - **`/possums` bringing a hidden pane forward.** With another plugin's pane open and Possum
   Squad as the tab behind it, `/possums` reopens the pane with `focus`, which the declarations
   say raises it; the tests stand in for the engine, so whether the surfaces do is unchecked.
