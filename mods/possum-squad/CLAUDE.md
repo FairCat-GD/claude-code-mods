@@ -23,7 +23,8 @@ These keep their spelling, because installs and stored data live under them:
 - its settings and their values, its set ids, role ids and state ids (`docs/ARCHITECTURE.md`,
   *Values*);
 - its `$.state` keys, `runs`, `lead`, `view`, declared in `types/index.d.ts` as each is built
-  (`view` so far, under the shape tag `view-1`, which changes with its fields);
+  (`view` under the shape tag `view-1` and `runs` under `runs-1`, each changing with its
+  fields);
   its `$.store` keys, `prefs` (built) and `role:<agent type>`;
 - reserved for a later round: the tools `step` and `plan`, the setting `stepReports`, the state
   key `planned`.
@@ -51,9 +52,13 @@ first line copies it.
 - **The installed release runs in every session the owner starts,** these included. A hook that
   changes an event, or throws into `turn.step`'s stream, breaks the owner's work, not just the
   panel. Disabling the plugin is the kill switch, and it is the owner's to do.
-- **Hooking `tool.call` or `tool.run` changes how tools run,** even as a pass-through: it turns
-  off a tool's move to the background and its live output. Hook neither without the owner's
-  OK; a test fails if either comes back.
+- **Hooking `tool.call` or `tool.run` changes how tools run,** the declarations say, even as a
+  pass-through: a tool's move to the background, a served call's live output. A Bash command
+  still moved to the background with one hooked (CLI 2.1.329), but the other cases were not
+  seen. Hook neither without the owner's OK; a test fails if either comes back. A call's start
+  comes from its step's `toolUses`.
+- **A subagent's `turn.start` comes before its spawn's result** (2.1.329), so its first events
+  wait as a pending entry until the re-key. Keep that path, not the rare one.
 - **A test plugin closes over nothing of its test file.** To draw the module's builders in a
   test, use the test's own `ui.render` hook, matched with `{ plugin: '*' }`.
 - **The engine loads no JSON.** The role corpus is a `.ts` fixture; the art reaches the hooks only

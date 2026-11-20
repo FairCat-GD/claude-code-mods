@@ -2,8 +2,8 @@
 
 possum-squad keeps a pane beside the conversation listing the main session and the agents it
 starts. It only watches: nothing Claude does changes because it is installed, and it adds
-nothing to what Claude is sent. For now the pane says only that no agents have shown up yet;
-the agents arrive in later versions.
+nothing to what Claude is sent. For now it lists the subagents; the main session, sections and
+opossums arrive in later versions.
 
 ## `/possums`
 
@@ -17,6 +17,35 @@ otherwise sits above the prompt.
 pane in view whatever its state.
 
 Until an agent starts, the pane says "No agents yet. They show up here when Claude starts one."
+
+## What a row shows
+
+Each subagent Claude starts gets a row the moment it starts, in the order they started:
+
+1. its task in a few words, and its state: starting, working, finished, failed or stopped;
+   "round 2" when a run with the same task already finished;
+2. the model it runs on and its effort, once its first request names them;
+3. what it is doing: the last tool it asked for and what that names, such as "Reading
+   notes.md", "Running npm test" or "Searching for TODO", cut to one line; "No tool calls yet"
+   before its first;
+4. how full its context is, as a bar and a percent, then its tokens and its time.
+
+The tokens are what the agent read and wrote fresh; what it read back from the cache is left
+out. The time moves on as its requests come in, and stops when it ends. A long line is cut
+with an ellipsis. The state is always written out as a word, beside its colour.
+
+## How a run ends
+
+- **finished:** it answered with text;
+- **stopped:** you interrupted it;
+- **failed:** an error, a refusal, or an answer with no text.
+
+A teammate (an agent of a team, which takes turns) that answers with a message and no text
+rests as finished, and goes back to working on its next turn. An agent Claude resumes picks up
+its own row again. The pane keeps the latest 30 ended runs.
+
+The list belongs to the conversation: `/clear`, resuming another conversation or forking this
+one empties it. The engine's own helpers (compacting, memory) never get a row.
 
 If the pane cannot be shown or hidden (another plugin holds a pane of the same name), `/possums`
 says so in one line.

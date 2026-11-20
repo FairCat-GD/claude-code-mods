@@ -36,5 +36,23 @@ export const STRINGS = {
     context: 'Context',
     contextShort: 'ctx',
     unknown: '–',
+    round: (round: number) => `round ${round}`,
   },
+  // A call's verb, by tool; a tool not here reads "Using <tool>".
+  activity: {
+    Read: 'Reading',
+    Write: 'Writing',
+    Edit: 'Editing',
+    MultiEdit: 'Editing',
+    NotebookEdit: 'Editing',
+    Bash: 'Running',
+    Grep: 'Searching for',
+    Glob: 'Finding',
+    WebFetch: 'Fetching',
+    WebSearch: 'Searching the web for',
+    Agent: 'Starting',
+    Task: 'Starting',
+    Skill: 'Using',
+  } as Record<string, string | undefined>,
+  using: (tool: string) => `Using ${tool}`,
 } as const

@@ -6,6 +6,37 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-20
+
+Agents show up. Every subagent Claude starts gets a row in the pane, live, until it ends.
+
+### Added
+
+- **A row for each subagent,** shown the moment Claude starts it, in the order they started.
+  It reads:
+  - its task, in a few words, and its state: starting, working, finished, failed or stopped;
+  - the model it runs on and its effort, once its first request names them;
+  - what it is doing: the last tool it asked for and what that names, such as "Reading
+    notes.md" or "Running npm test", or "No tool calls yet";
+  - a bar of how full its context is, the percent, its tokens and its time. The tokens are
+    what it read and wrote fresh; what it read back from the cache is left out. The time
+    moves on as the agent's requests come in; a clock that ticks every second comes later.
+- **How a run ends:** an answer with text is finished; one you interrupt is stopped; an error,
+  a refusal or an answer with no text is failed. A teammate that answers with a message rests
+  as finished, and goes back to working on its next turn. A resumed agent picks up its own
+  row again.
+- **"round 2"** marks an agent started with the same task as one that already finished.
+- **The list empties** when you `/clear`, resume another conversation or fork it. It keeps the
+  latest 30 ended runs.
+
+### Changed
+
+- **The note in 0.3.0 that earlier versions stopped tools moving to the background** was
+  measured since: with a version watching every tool call loaded, a shell command still moved
+  to the background with ctrl+b, and one asked to run there still did. Claude Code's
+  documentation warns of it for other cases, so the mod still doesn't watch tool calls; it
+  reads what each agent asked for from its own requests instead.
+
 ## [0.3.0] — 2026-11-17
 
 The test build is over: the pane is back to saying no agents have shown up yet, and its

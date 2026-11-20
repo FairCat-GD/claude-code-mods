@@ -5,8 +5,9 @@ their live numbers and state; in the desktop app each one is drawn as a small an
 opossum dressed for its job. It only watches: it changes nothing Claude does and adds nothing
 to what Claude is sent.
 
-This is 0.3.0: `/possums` opens the pane, which for now says no agents have shown up yet, and
-`/possums set` keeps its settings. The agents themselves arrive in the releases that follow.
+This is 0.4.0: `/possums` opens the pane, which lists every subagent Claude starts as a row
+with its state, model, activity, context, tokens and time, and `/possums set` keeps its
+settings. The main session, sections and the opossums arrive in the releases that follow.
 
 ## Install
 

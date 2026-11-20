@@ -31,8 +31,18 @@ these are the parts only a person can see.
   the declarations say is read "on the queued lanes"; whether an `immediate` command typed
   between turns is on one was not checked. To check: type `/possums settings` between turns,
   then ask Claude what the last command printed.
-- **The row in the desktop app.** `desktopRow` and the app's `Progress` were seen only in the
-  kit's tree; the first look is Session 4's, once rows are drawn.
+- **The rows in the desktop app.** `desktopRow` and the app's `Progress` were seen only in the
+  kit's tree; the terminal's rows were seen in Session 4. To check, once 0.4.0 is installed:
+  start three subagents in the desktop app and look at the pane.
+- **Rows ending in the desktop app.** The endings rest on `turn.complete`, measured in the
+  terminal (CLI 2.1.329); the desktop app (engine 2.1.326) could not load a probe, and its
+  0.2.0 run listed no subagent `turn.complete`. To check, in the same run: every row ends
+  finished, and an interrupted agent reads stopped. If a row stays working, the end signal
+  returns to the owner.
+- **Rows surviving a reload of the mod (F-23).** The kit cannot reload a module, and the hand
+  check did not reload one. The declarations say `$.state` survives a hot reload. To check: in
+  a `claude --plugin-dir mods/possum-squad` session with agents in the list, change and save a
+  file of the mod (then undo it), and see the rows stay.
 - **`/possums` bringing a hidden pane forward.** With another plugin's pane open and Possum
   Squad as the tab behind it, `/possums` reopens the pane with `focus`, which the declarations
   say raises it; the tests stand in for the engine, so whether the surfaces do is unchecked.

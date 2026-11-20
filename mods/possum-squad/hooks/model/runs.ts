@@ -1,0 +1,194 @@
+import type { Activity, Pending, Run, Runs, StateId, Tokens } from '../../types/index'
+import { FINISHED_KEPT } from '../config'
+import { windowOf } from '../data/models'
+
+// Each function takes `runs` and an event's record, and returns `runs` as it should now be. An event it cannot
+// place changes nothing and returns the same object.
+
+export const NO_RUNS: Runs = { rows: {}, pending: {}, next: 0 }
+const NO_TOKENS: Tokens = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+
+// Loops nobody spawned (the engine's own forks) are dropped at their end; this bounds any that never end.
+export const PENDING_KEPT = 50
+
+export type Spawn = {
+  // The spawn's row key at its input: its tool call's id, with the agent's place in a workflow run, which all of the
+  // run's agents share; empty for a fork no tool call starts.
+  key: string
+  type: string
+  description: string
+  isTeammate: boolean
+  parentId?: string
+  // The agent a resume continues.
+  resumes?: string
+}
+
+export type Settled = { agentId?: string; model?: string; isDenied: boolean }
+
+export type Step = { model?: string; effort?: string; usage?: Tokens; activity?: Activity; calls: number }
+
+export type Ending = { reason: string; hasText: boolean }
+
+const ENDED: readonly StateId[] = ['finished', 'failed', 'stopped']
+export const hasEnded = (run: Run) => ENDED.includes(run.state)
+
+// An answer with text is Finished; aborted is Stopped; an error, a refusal or an empty answer is Failed. A teammate's
+// turn that ends without text (it answered with a message) rests as Finished until its next turn.
+export function endingOf(ending: Ending, isTeammate: boolean): StateId {
+  if (ending.reason === 'aborted') return 'stopped'
+  if (ending.reason === 'answer' && (ending.hasText || isTeammate)) return 'finished'
+  return 'failed'
+}
+
+const without = <T>(record: Record<string, T>, key: string) => {
+  const { [key]: _, ...rest } = record
+  return rest
+}
+
+const add = (a: Tokens, b: Tokens): Tokens => ({
+  input: a.input + b.input,
+  output: a.output + b.output,
+  cacheRead: a.cacheRead + b.cacheRead,
+  cacheWrite: a.cacheWrite + b.cacheWrite,
+})
+
+function roundFor(runs: Runs, description: string): number {
+  const rounds = Object.values(runs.rows)
+    .filter(run => run.state === 'finished' && run.description === description)
+    .map(run => run.round)
+  return rounds.length === 0 ? 1 : Math.max(...rounds) + 1
+}
+
+function opened(runs: Runs, spawn: Spawn, at: number, agentId?: string): Run {
+  const run: Run = {
+    type: spawn.type,
+    description: spawn.description,
+    round: roundFor(runs, spawn.description),
+    isTeammate: spawn.isTeammate,
+    state: 'starting',
+    startedAt: at,
+    tokens: NO_TOKENS,
+    inFlight: 0,
+    order: runs.next,
+  }
+  if (agentId !== undefined) run.agentId = agentId
+  if (spawn.parentId !== undefined) run.parentId = spawn.parentId
+  return run
+}
+
+// A step's numbers on a row or a pending entry: tokens summed, the last request's size, the model and effort in use.
+function withStep<T extends Run | Pending>(held: T, step: Step): T {
+  const next: T = { ...held, inFlight: step.calls }
+  if (step.usage !== undefined) {
+    next.tokens = add(held.tokens, step.usage)
+    next.lastRequest = step.usage.input + step.usage.cacheRead + step.usage.cacheWrite
+  }
+  if (step.model !== undefined) next.model = step.model
+  if (step.effort !== undefined) next.effort = step.effort
+  if (step.activity !== undefined) next.activity = step.activity
+  return next
+}
+
+function claimed(run: Run, pending: Pending | undefined): Run {
+  if (pending === undefined) return run
+  const next: Run = { ...run, tokens: add(run.tokens, pending.tokens), inFlight: pending.inFlight }
+  if (pending.isWorking) next.state = 'working'
+  if (pending.lastRequest !== undefined) next.lastRequest = pending.lastRequest
+  if (pending.model !== undefined) next.model = pending.model
+  if (pending.effort !== undefined) next.effort = pending.effort
+  if (pending.activity !== undefined) next.activity = pending.activity
+  return next
+}
+
+// Finished keeps the latest T-06 ended runs; a teammate is never dropped, since its next turn returns it.
+function pruned(runs: Runs): Runs {
+  const ended = Object.entries(runs.rows)
+    .filter(([, run]) => hasEnded(run) && !run.isTeammate)
+    .sort(([, a], [, b]) => (b.endedAt ?? 0) - (a.endedAt ?? 0) || b.order - a.order)
+  if (ended.length <= FINISHED_KEPT) return runs
+  const dropped = new Set(ended.slice(FINISHED_KEPT).map(([key]) => key))
+  return { ...runs, rows: Object.fromEntries(Object.entries(runs.rows).filter(([key]) => !dropped.has(key))) }
+}
+
+function withPending(runs: Runs, agentId: string, pending: Pending): Runs {
+  let entries = Object.entries({ ...runs.pending, [agentId]: pending })
+  if (entries.length > PENDING_KEPT) entries = entries.sort(([, a], [, b]) => b.at - a.at).slice(0, PENDING_KEPT)
+  return { ...runs, pending: Object.fromEntries(entries) }
+}
+
+// A spawn opens its row at once, under its own key, so the row shows before the agent's id is known.
+export function spawnOpened(runs: Runs, spawn: Spawn, at: number): Runs {
+  if (spawn.resumes !== undefined || spawn.key === '' || runs.rows[spawn.key] !== undefined) return runs
+  return { ...runs, rows: { ...runs.rows, [spawn.key]: opened(runs, spawn, at) }, next: runs.next + 1 }
+}
+
+// The spawn's result re-keys its row to the agent's id and claims what that loop said meanwhile. A result naming no
+// agent here (a refusal among them) takes the row away. A resume that was not refused returns its agent's row to life.
+export function spawnSettled(runs: Runs, spawn: Spawn, settled: Settled, at: number): Runs {
+  const { agentId } = settled
+  if (spawn.resumes !== undefined) {
+    if (settled.isDenied) return runs
+    const id = agentId ?? spawn.resumes
+    const held = runs.rows[id]
+    if (held === undefined) {
+      const run = claimed({ ...opened(runs, spawn, at, id), ...(settled.model === undefined ? {} : { model: settled.model }) }, runs.pending[id])
+      return { ...runs, rows: { ...runs.rows, [id]: run }, pending: without(runs.pending, id), next: runs.next + 1 }
+    }
+    if (!hasEnded(held)) return runs
+    const { endedAt: _, ...resumed } = held
+    return { ...runs, rows: { ...runs.rows, [id]: { ...resumed, state: 'starting' } } }
+  }
+  const held = runs.rows[spawn.key] ?? (spawn.key === '' ? opened(runs, spawn, at) : undefined)
+  const next = spawn.key === '' ? runs.next + 1 : runs.next
+  const rows = without(runs.rows, spawn.key)
+  if (held === undefined) return runs
+  if (agentId === undefined) return spawn.key === '' ? runs : { ...runs, rows }
+  const model = held.model ?? settled.model
+  const run = claimed({ ...held, agentId, ...(model === undefined ? {} : { model }) }, runs.pending[agentId])
+  return { ...runs, rows: { ...rows, [agentId]: run }, pending: without(runs.pending, agentId), next }
+}
+
+// A turn of a known run puts it back to working, a resumed or a teammate's run included.
+export function turnStarted(runs: Runs, agentId: string, at: number): Runs {
+  const held = runs.rows[agentId]
+  if (held !== undefined) {
+    if (held.state === 'working' && held.endedAt === undefined) return runs
+    const { endedAt: _, ...run } = held
+    return { ...runs, rows: { ...runs.rows, [agentId]: { ...run, state: 'working' } } }
+  }
+  const pending = runs.pending[agentId] ?? { isWorking: true, tokens: NO_TOKENS, inFlight: 0, at }
+  return withPending(runs, agentId, { ...pending, isWorking: true })
+}
+
+export function stepped(runs: Runs, agentId: string, step: Step, at: number): Runs {
+  const held = runs.rows[agentId]
+  if (held !== undefined) return { ...runs, rows: { ...runs.rows, [agentId]: withStep(held, step) } }
+  const pending = runs.pending[agentId] ?? { isWorking: true, tokens: NO_TOKENS, inFlight: 0, at }
+  return withPending(runs, agentId, withStep(pending, step))
+}
+
+// A run's turn ends it; a loop no spawn claimed by its end is dropped and never drawn.
+export function turnEnded(runs: Runs, agentId: string, ending: Ending, at: number): Runs {
+  const held = runs.rows[agentId]
+  if (held === undefined) return runs.pending[agentId] === undefined ? runs : { ...runs, pending: without(runs.pending, agentId) }
+  const run: Run = { ...held, state: endingOf(ending, held.isTeammate), endedAt: at, inFlight: 0 }
+  return pruned({ ...runs, rows: { ...runs.rows, [agentId]: run } })
+}
+
+// A clear, a resume or a fork of the session starts the list over.
+export const cleared = (runs: Runs): Runs =>
+  Object.keys(runs.rows).length === 0 && Object.keys(runs.pending).length === 0 ? runs : { ...NO_RUNS, next: runs.next }
+
+// The rows to draw, in spawn order.
+export const shownRuns = (runs: Runs): Run[] => Object.values(runs.rows).sort((a, b) => a.order - b.order)
+
+export type Figures = { tokens: number; elapsedMs: number; contextPercent?: number }
+
+// Fresh tokens are input, cache writes and output; cache reads are counted apart. Context is the last request's size
+// over the model's window.
+export function figures(run: Run, now: number): Figures {
+  const tokens = run.tokens.input + run.tokens.cacheWrite + run.tokens.output
+  const elapsedMs = (run.endedAt ?? now) - run.startedAt
+  if (run.lastRequest === undefined) return { tokens, elapsedMs }
+  return { tokens, elapsedMs, contextPercent: (run.lastRequest / windowOf(run.model)) * 100 }
+}

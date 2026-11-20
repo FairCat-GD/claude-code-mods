@@ -38,6 +38,8 @@ export const MEASURE = {
 }
 export const MEASURED = { changed: ['context'] as ('context' | 'rateLimits' | 'cost')[] }
 
+export const CLEARED = {}
+
 export const PERMISSION = { tool_name: 'Bash', tool_input: { command: 'ls shed' } } as const
 export const PERMITTED = { decision: { behavior: 'allow' } } as const
 

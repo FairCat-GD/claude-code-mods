@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import { readPrefs, SETTING_NAMES, SETTINGS, type SettingName } from '../hooks/settings'
 import { STRINGS } from '../hooks/strings'
@@ -60,12 +60,15 @@ test('every store write holds only setting values and panel flags, never what an
   on('turn.complete', () => TURN_COMPLETED)
   on('session.measure', () => MEASURED)
   on('classic.PermissionRequest', () => PERMITTED)
+  on('classic.SessionStart', () => ({}))
+  mock.clock(on)
   const kept = store(on, { prefs: { future: 'kept' } })
 
   await $.session.start(SESSION_START)
   await $.agent.spawn(SPAWN)
   await $.turn.start(TURN_START)
   await $.classic.PermissionRequest(PERMISSION)
+  await $.classic.SessionStart({ source: 'clear' })
   await $.turn.complete(TURN_COMPLETE)
   await $.session.measure(MEASURE)
   const sets = SETTING_NAMES.flatMap(name => SETTINGS[name].values.map(value => `set ${name} ${value}`))

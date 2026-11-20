@@ -32,21 +32,23 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.3.0). The panel shell. `hooks/register.tsx`, named by `hooks/hooks.json`, does
-the following:
+**Built** (0.4.0). Runs. `hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `set` and `settings`;
-- toggles and draws the pane, which shows the empty panel;
-- keeps the settings in the store under `prefs`;
-- records a close by the person in `view`;
-- hooks the events later versions read, passing each on unchanged.
+- toggles and draws the pane: a row per subagent run, or the empty panel;
+- turns subagents' spawns, turns and steps into records, and keeps the runs in `runs`;
+- empties `runs` when the session is cleared, resumed or forked;
+- keeps the settings in the store under `prefs`, and records a close by the person in `view`;
+- passes every event on unchanged.
 
 Of the pure modules:
-- `hooks/view/` holds the empty panel and the row builders for both surfaces, which nothing
-  draws until Session 4;
+- `hooks/model/` turns records into runs (`runs.ts`) and a step's calls into an activity
+  (`tools.ts`);
+- `hooks/data/models.ts` holds the dated window table;
+- `hooks/view/` holds the empty panel, the run list and the row builders for both surfaces;
 - `hooks/settings.ts` holds the settings and the command's words;
 - these sit beside `hooks/strings.ts` and `hooks/config.ts`.
 
-`model/`, `roles/`, `sprites/`, `data/`, `art/` and `tools/` are not yet built.
+`roles/`, `sprites/`, `art/` and `tools/` are not yet built.
 
 ## Context
 
@@ -83,6 +85,11 @@ Of the pure modules:
     on, turns off for that tool its move to the background, a served call's live output, and
     Code Mode's wait for a stopped result. `tool.run` fires when a call has been allowed and is
     about to run, after whoever settled an ask; never for a refusal.
+  - `turn.step`'s result lists `toolUses`, the calls the response asks the engine to run, by
+    name and input, with no call id. `classic.PreToolUse`'s `e` is `tool.call`'s envelope
+    without `agentId`; `classic.PostToolUse` and `PostToolUseFailure` carry `agent_id` from a
+    subagent. From 2.1.329, `agent.report` fires as a subagent's report reaches its parent,
+    with `status` `completed`, `failed` or `stopped`; not for a teammate or a workflow's agent.
 - **What the mod never assumes:** the order in which hooks of different events arrive (a
   subagent's turn may begin before its spawn's result); that a field the declarations mark
   optional is present; the shape of an event it does not recognise; that a surface exists; that
@@ -176,6 +183,33 @@ two prompts and the permission mode off auto.
   arrives is Session 4's to measure.
 - **The desktop's plugin manager lists a `userConfig` field** and changes it.
 
+What Session 4's probe showed: a scratch plugin outside the repository, CLI 2.1.329, in a
+terminal session that loaded no other plugin; the owner typed the prompts.
+- **The background move.** With a pass-through hook on `tool.call` loaded and firing for the
+  call, a foreground Bash command still moved to the background with ctrl+b, and one asked to
+  run in the background still returned at once; so did each with `classic.PreToolUse` or
+  `classic.PostToolUse` hooked. The cost the declarations name was not seen for Bash; a served
+  call's live output and Code Mode's wait were not tried.
+- **What the tool events carry.** `classic.PreToolUse` had `tool`, `tool_use_id` and the
+  arguments, from a subagent's call too, as the kit showed. `classic.PostToolUse` had
+  `agent_id` from a subagent's call and none from the main session's, beside `tool_name`,
+  `tool_input`, `tool_use_id`, `tool_response` and `duration_ms`; for an Agent call it fired as
+  the background agent launched.
+- **A spawn's order,** in all eight spawns: the spawn's input, the agent's `turn.start` (with
+  `agentId`), `classic.SubagentStart`, then the spawn's result. The result came after the
+  agent's first turn began, the reverse of what the 0.2.0 terminal run showed.
+- **A subagent's end,** in all eight: `agent.report` (`completed`), the step that hands the
+  report back (`toolUses` naming `SubagentHandback`), `classic.SubagentStop`, then one
+  `turn.complete` with `agentId`, `reason` and `usage`. `classic.SubagentStop` also fired for
+  the engine's own helpers, with an empty `agent_type` and ids no spawn named, and twice for one
+  agent.
+- **A clear.** `classic.SessionStart` came with `source: clear`, and a `$.state` value written
+  before it read as unset after it.
+- **Context windows.** `session.measure` gave the main session (Opus 5.5) 1,000,000 tokens;
+  `$.agent.list()` gave the same for subagents on Haiku 5.5 and Sonnet 5.5.
+- **The desktop app** (engine 2.1.326) did not load a plugin folder named by
+  `CLAUDE_CODE_PLUGIN_DIRS` in the user settings, so how a subagent ends there was not measured.
+
 ## Stack and pins
 
 **Decided.** TypeScript, typed against the declarations the engine lays in
@@ -186,8 +220,9 @@ dependency (PNG read with `node:zlib`); how the gate checks it is set by the rep
 that teaches it `tools/`. The tooling's own pins are the repository's.
 
 **Built.** Declarations read at intake: CLI 2.1.325, then 2.1.326 (it updated itself during
-`npm run types`). 0.1.0 to 0.3.0 were built and checked on CLI 2.1.326. The desktop app ran
-engine 2.1.325 for the 0.2.0 run.
+`npm run types`). 0.1.0 to 0.3.0 were built and checked on CLI 2.1.326, 0.4.0 on 2.1.329 (the
+CLI updated itself twice during Session 4's `npm run types`). The desktop app ran engine 2.1.325
+for the 0.2.0 run, and 2.1.326 on 2026-11-20.
 
 ## Layout and boundaries
 
@@ -225,20 +260,26 @@ engine 2.1.325 for the 0.2.0 run.
 
 **Built** (0.3.0). In place:
 - the manifest, `.claude-plugin/plugin.json`, naming `types/index.d.ts`;
-- the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-13 only) and
+- the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-06 and T-13) and
   `hooks/strings.ts`;
+- `hooks/model/`, pure: `runs.ts` (runs from records, and their figures) and `tools.ts` (a
+  step's calls as an activity). It uses `config.ts`, `data/` and the types alone;
+- `hooks/data/models.ts`: the dated window table (T-11);
 - `hooks/settings.ts`, pure: the settings with their values and defaults, reading and merging
   `prefs`, the command's words, and the settings list's text. It is not in the Decided layout:
   the settings are neither runs, roles, sprites nor views, and the command and the pane both
   need them. It uses only `strings.ts`;
-- `hooks/view/`: `empty.tsx` (the empty panel), `row.tsx` (the row, one builder per surface)
-  and `format.ts` (tokens, time, percent and the block bar);
-- the contract, `types/index.d.ts`: `View`, and `StateId`, the state ids a row and (from
-  Session 4) a run carry;
+- `hooks/view/`: `empty.tsx` (the empty panel), `runs.tsx` (the run list, a run's row data and
+  its activity line), `row.tsx` (the row, one builder per surface) and `format.ts` (tokens,
+  time, percent and the block bar);
+- the contract, `types/index.d.ts`: `View`; `StateId`; `Runs`, `Run`, `Pending`, `Tokens` and
+  `Activity`;
 - the tests, in `tests/`:
   - `tests/engine.ts`: the engine's stand-in, the store's stand-in, the shared test values, and
     `hooksOf`, which hands a test the module's hooks from one registration;
-  - `tests/fixtures/events.ts` and `tests/fixtures/rows.ts`.
+  - `tests/fixtures/events.ts` and `tests/fixtures/rows.ts`;
+  - `tests/model.test.ts` runs the model's functions on records alone; `tests/runs.test.ts`
+    raises events in the kit and mounts the pane.
 
 How it is held:
 - *Enforced by* the gate's `imports` stage (the import scan) and `validate`
@@ -285,11 +326,15 @@ How it is held:
    mod's own data only.
 8. **I-05: a fault in the mod never blocks or alters a turn.** *Why:* the mod runs in every
    session the owner starts. *Enforced by* every event hook returning what `next` gave; a
-   `.catch` passing the event on, on every hook but the command's and the pane's drawing; and
-   a test raising each hooked event with a shape the mod does not know. The guard that runs a
-   hook's reading apart from its result returns with Session 4's readers.
+   `.catch` passing the event on, on every hook but the command's and the pane's drawing; a
+   test raising each hooked event with a shape the mod does not know; and `record`, the reading
+   guard in `hooks/register.tsx`, which reads the time and writes `runs` inside `try`, apart
+   from the event's result. `tests/pass-through.test.ts` runs each recording hook with a `$`
+   whose state and clock refuse every call, and gets back what `next` gave.
 9. **I-06: a state is never shown by colour or sprite alone;** each row carries its state word.
-   *Why:* accessibility, and the terminal has no sprites. *Enforced by* not yet: Session 4.
+   *Why:* accessibility, and the terminal has no sprites. *Enforced by* `tests/row.test.ts`
+   (every fixture row, in each state, on both surfaces) and `tests/runs.test.ts` (rows drawn
+   from runs, and the five endings, on both surfaces).
 10. **I-07: a run's outfit never changes once its role is settled,** except by the person's own
     reassignment. *Why:* a changing outfit misleads. *Enforced by* not yet: Session 8.
 11. **I-08: no art or code from another mod, and no likeness of another party's mascot or of a
@@ -301,8 +346,8 @@ How it is held:
     test checks. The declarations say it is read on the queued lanes; whether a `/possums`
     typed between turns is on one is not checked (`docs/BACKLOG.md`), and mid-turn the engine
     keeps such an answer in requests all the same.
-13. **N-07: the mod's own work per event stays under 5 ms, and it awaits nothing but `next`, state
-    and store in event hooks.** *Why:* every event of every session passes through it. *Enforced
+13. **N-07: the mod's own work per event stays under 5 ms, and it awaits nothing but `next`, state,
+    store and the clock's time in event hooks.** *Why:* every event of every session passes through it. *Enforced
     by* review.
 14. **Nothing private enters the repository.** *Why:* the repository's whole history will be
     published. *Enforced by* the hygiene stage: the owner's term list against every file, path and
@@ -323,9 +368,8 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 | `ui.close` | When `origin.kind` is `person`, records it in `view` | 1 |
 | `agent.spawn` | Opens a row from the input; re-keys it from the result | 2, 4 |
 | `turn.start` | Marks the loop's row working | 4 |
-| `turn.step` (streaming) | Yields every chunk through untouched; from the input, the model and effort; from the result, the usage | 2, 4 |
+| `turn.step` (streaming) | Yields every chunk through untouched; from the input, the model and effort; from the result, the usage and the calls it asks for (`toolUses`): the activity line, the last actions, files touched, calls in flight, the role's tool evidence | 2, 4, 8, 10, 11 |
 | `turn.complete` | Ends the row (*The run model*) | 4 |
-| A tool call's start and end: `tool.call`, or the classic `PreToolUse` and `PostToolUse` | The activity line, the last actions, files touched, tools in flight, the role's tool evidence | 4, 8, 10, 11 |
 | `session.measure` | The Lead's context and the plan limits | 2, 5, 12 |
 | `classic.SessionStart` | On `clear`, `resume` or `fork`, cancels the clock and redraws from the reset state | 4 |
 | `classic.PermissionRequest` | Needs you begins for the run its `agent_id` names (*Attention*) | 2, 10 |
@@ -333,15 +377,18 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 - `turn.step` is the costliest: it sits on every model request of the session. It is kept
   because it is the only source of per-request tokens, model and effort. Its body is
   `return yield* next(e)` around reads that cannot throw into the stream.
-- **A tool call's source is Session 4's to settle, with the owner.** A `tool.call` or `tool.run`
-  hook turns off a tool's move to the background and its live output (*Context*). So Session 4
-  first measures whether the classic tool-use hooks avoid that, then brings the choice to the
-  owner. Until then the mod hooks neither.
+- **A tool call's start comes from its step,** `turn.step`'s `toolUses`, by the step's
+  `agentId`; the mod hooks neither `tool.call` nor `tool.run`, nor the classic tool-use events.
+  A step's calls are in flight until that loop's next step or its end. The declarations say a
+  `tool.call` or `tool.run` hook turns off a tool's move to the background; the probe did not
+  see that for Bash, and the cases it names beside it were not tried (*Context*).
+- **A subagent ends on its `turn.complete`,** which carries the reason the endings need.
+  `classic.SubagentStop` also fires for the engine's own helpers and can fire twice, and
+  `agent.report` misses teammates and workflow agents; neither is hooked.
 - Session 1 hooks every event marked 2 as a pass-through, so Session 2 only reads.
-- The spike's hooks that no later session needs are gone: `tool.check`, and
-  `tool.call` until Session 4 decides.
+- The spike's hooks that no later session needs are gone: `tool.check` and `tool.call`.
 
-**Built** (0.3.0). Ten hooks, in `hooks/register.tsx`:
+**Built** (0.4.0). Eleven hooks, in `hooks/register.tsx`:
 - `session.start` registers `/possums` with `immediate` and its argument hint, then returns
   `next(e)`.
 - `command.run` `{ command: 'possums' }` and `ui.render` `{ component: 'Pane', requestId:
@@ -349,14 +396,27 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 - `ui.close` `{ id: 'possum-squad' }` awaits `next(e)`; when `origin.kind` is `person` and the
   close was not refused, it sets `view.isClosedByPerson` through `update`, inside a guard, so a
   failed write loses only the flag. It returns what `next` gave.
-- `agent.spawn`, `turn.start`, `turn.complete`, `session.measure` and
-  `classic.PermissionRequest` are plain pass-throughs, `next(e)`, hooked for the sessions that
-  read them. `turn.step` is `return yield* next(e)`, every chunk delegated untouched.
+- **The recording hooks** each return what `next` gave, and write through `record`, the reading
+  guard (I-05): the time from `$.clock.now()` and the change through `update`, both inside
+  `try`.
+  - `agent.spawn` records its row's opening before `next`, then its settling after. If `next`
+    rejects, it records a settling with no agent, which removes the row, and throws on.
+  - `turn.start`, `turn.complete` and `turn.step` record only an event that carries `agentId`:
+    the main loop's make no `$` call.
+  - `turn.step` delegates every chunk (`const result = yield* next(e)`), then records the
+    step's model (the usage's, else the input's), its effort, its usage and its calls, and
+    returns `result`.
+  - `classic.SessionStart` with `source` `clear`, `resume` or `fork` empties `runs`. The engine
+    resets `$.state` on a clear already (*Context*); the mod's own reset keeps the list right
+    wherever it does not.
+- `session.measure` and `classic.PermissionRequest` are plain pass-throughs, `next(e)`, for
+  Sessions 5, 10 and 12.
 - Every hook but `command.run` and `ui.render` carries `.catch((_$, e, next) => next(e))`
   (`turn.step`'s a generator doing `return yield* next(e)`), gating or not, so the rule is one
-  line to check. `validate` lists three as gating: `ui.close`, `agent.spawn` and
-  `classic.PermissionRequest`. `command.run` reads no `next`, so it is not gating; its body
-  catches its own faults (*The command and settings*).
+  line to check. The engine's `next` there replays what the hook's own call settled to, so
+  nothing beneath runs twice. `validate` lists four as gating: `ui.close`, `agent.spawn`,
+  `classic.SessionStart` and `classic.PermissionRequest`. `command.run` reads no `next`, so it
+  is not gating; its body catches its own faults (*The command and settings*).
 
 ## Values: `$.state` and `$.store`
 
@@ -393,8 +453,9 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   Reserved for step reports, a later round: the tools `step` and `plan`, the setting
   `stepReports` (`off`, `tool`, `nudge`), the state key `planned`.
 
-**Built** (0.1.0, `prefs` 0.3.0). `types/index.d.ts` declares `PluginState['possum-squad']` with `view` alone,
-as `Shaped<View>`, and exports `View`; `plugin.json` names the file under `types`, and
+**Built** (0.1.0, `prefs` 0.3.0, `runs` 0.4.0). `types/index.d.ts` declares
+`PluginState['possum-squad']` with `view` as `Shaped<View>` and `runs` as `Shaped<Runs>`, and
+exports their types; `plugin.json` names the file under `types`, and
 `validate` holds the module's state keys to it.
 - `view` is `{ isClosedByPerson: boolean }` (default false), the atom in `hooks/register.tsx`
   with the shape tag `view-1`. A reload of the mod's code that names another tag reads the
@@ -402,7 +463,11 @@ as `Shaped<View>`, and exports `View`; `plugin.json` names the file under `types
   flag join it in Sessions 11 and 7.
 - Only the `ui.close` hook writes it, through `update`; nothing reads it yet (auto-open,
   Session 9).
-- `runs` and `lead` are not yet used.
+- `runs` (0.4.0) is `Runs`, `{ rows, pending, next }`, the atom `runs` with the shape tag
+  `runs-1`, starting as `NO_RUNS`. *The run model*'s Built part has its fields and rules. Only
+  the recording hooks write it, each through `update`, so concurrent writes retry rather than
+  lose one another; the pane reads it while drawing, which redraws it on every write.
+- `lead` is not yet used.
 
 `prefs` (0.3.0), in `$.store`:
 - **Its shape** is one flat object, as Decided. `hooks/settings.ts` holds each setting's values,
@@ -443,7 +508,9 @@ as `Shaped<View>`, and exports `View`; `plugin.json` names the file under `types
   - a workflow's agents are ordinary rows;
   - a spawn whose description equals a finished run's opens a new row marked "round 2".
 - **How a run ends:** an answer with text is Finished; `aborted` is Stopped; `error`, `refusal`,
-  and `answer` with empty text are Failed. A failed run keeps its last T-07 actions.
+  and `answer` with empty text are Failed, but a teammate's `answer` with empty text (it
+  answered with a message) is Finished until its next turn. A failed run keeps its last T-07
+  actions.
 - **Numbers.** Fresh tokens (in and out) are counted apart from cache reads. A row's context
   percent is its last request's size over its model's window (`hooks/data/`, T-11, with a
   default for an unknown model). The header totals the Lead and every run. A run nested under
@@ -451,7 +518,39 @@ as `Shaped<View>`, and exports `View`; `plugin.json` names the file under `types
 - **Lifetime.** Runs live in `runs` for the session only, and are never written anywhere else.
   Finished keeps the latest T-06 (30) runs.
 
-**Built.** Not yet: Session 4 (rows, numbers, endings, reload and clear), Session 12 (nesting).
+**Built** (0.4.0), in `hooks/model/runs.ts`: pure functions from `runs` and a record to `runs`,
+each returning the same object when the record changes nothing.
+- **A run** (`Run`, in `types/index.d.ts`) holds what its row needs: its agent id once known,
+  its parent's id, its type, description and round, whether it is a teammate, its state, model
+  and effort, its start and end times, its four token counts, its last request's size
+  (input, cache reads and cache writes), its activity (tool, target, time) and its calls in
+  flight. The brief, the answer, past actions and files touched wait for Peek (Session 11).
+- **Joining:**
+  - `spawnOpened` opens a starting row at the spawn's input, keyed by its `tool_use_id`, plus
+    `#<agentIndex>` for a workflow's agent, since all of a workflow run's agents share the
+    Workflow call's id. A fork no tool call starts (empty `tool_use_id`) opens at its result;
+    a resume opens nothing.
+  - `spawnSettled` re-keys the row to the agent id and claims that id's pending entry; the
+    spawn's model stands until a step names one. A result with no agent id (a refusal, a
+    remote agent) removes the row. A resume, unless refused, returns the row with that id to
+    Starting with its end cleared, or opens one.
+  - `turnStarted` and `stepped` for an id no row has keep a pending entry, at most 50, the
+    oldest dropped first. `turnEnded` drops it: that loop was the engine's own.
+  - `turnStarted` puts a known row back to Working, its end cleared, so a teammate's next turn
+    or a resumed agent's continues its row, its time counted from its first start.
+  - A spawn whose description equals a Finished run's gets that run's round plus one.
+- **Ending:** `turnEnded` applies `endingOf` (Decided above) and clears the calls in flight.
+- **Numbers:** `figures` gives fresh tokens (input, cache writes and output), the elapsed time
+  (to the end, or now) and the context percent, the last request over `windowOf` its model.
+  `hooks/data/models.ts` holds the windows measured on 2026-11-20 (Haiku, Opus and Sonnet 5.5,
+  1,000,000 each), and the same as the default; an id with a suffix finds its model.
+- **The activity** is the last call a step asked for, in `hooks/model/tools.ts`: its tool and
+  the argument that names what it works on (a path, the command's first line, a pattern, a URL,
+  a query, a description), cut to 80 characters. The engine's `SubagentHandback` is not shown.
+- **Lifetime:** `cleared` empties `runs`; past 30 ended runs (T-06) the oldest by end goes, but
+  never a teammate's.
+
+Not yet: Session 12 (nesting).
 
 ## Roles
 
@@ -572,11 +671,19 @@ sprite was removed in 0.3.0; what the desktop showed of it is in *Context*.
 - An open from `/possums` is the person's, so the declarations place it at any width (144 and
   110 columns hold only for an open the plugin makes unasked).
 
-The row (0.3.0), in `hooks/view/row.tsx`, drawn by nothing yet: the pane shows the empty
-panel until Session 4 gives it runs.
+The run list (0.4.0): the pane reads `runs` and the clock's time, and draws each run's row in
+spawn order, in one column, or the empty panel when there is none. The terminal gets
+`terminalRow`, every other surface `desktopRow`. `rowData` (`hooks/view/runs.tsx`) makes a
+run's `RowData` from it and the model's figures, and the activity line from `STRINGS.activity`:
+"Reading notes.md", or "Using <tool>" for a tool it has no verb for (an MCP tool by its own last
+name). The elapsed time moves on as events redraw the pane; the one-second clock is Session 5's.
+
+The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
 - **Its input** is `RowData`, plain data:
   - always: `id`, `state` (a `StateId`), `description`, fresh `tokens` and `elapsedMs`;
-  - when known: `role` (its name), `model`, `effort`, `activity` and `contextPercent`.
+  - when known: `role` (its name), `model`, `effort`, `activity`, `contextPercent` and
+    `round`, drawn from 2 as its own dim `Text` ("round 2") between the description and the
+    state word.
 - **`terminalRow`** draws four lines:
   - a coloured `●`, the description and the state word;
   - then, indented, the role, model and effort that are known, joined by " · " and dim;
@@ -599,14 +706,14 @@ panel until Session 4 gives it runs.
   - the percent, rounded;
   - a number that is missing or not finite reads `–`, and the desktop bar's fill is empty
     rather than the bar that only spins.
-- **What the desktop row looks like has not been seen;** Session 4's hand check is the first.
+- **What the desktop row looks like has not been seen:** the desktop app runs the installed
+  release, so it waits for 0.4.0's push. The terminal's was seen in Session 4's check.
 
 The spike's test view and its redraw clock were removed in 0.3.0. The clock's tick, armed from
 a finished `/possums` dispatch, ran in the desktop (*Context*), so Session 5's clock can be armed
 the same way.
 
-Not yet: Session 4 (rows from runs), Session 5 (sections, header, Lead, Finished, the clock,
-the terminal complete), Session 7 (the gallery), Session 11 (Peek, the collapsed view, the
+Not yet: Session 5 (sections, header, Lead, Finished, the clock, the terminal complete), Session 7 (the gallery), Session 11 (Peek, the collapsed view, the
 `widget` seat).
 
 ## Attention
@@ -617,9 +724,10 @@ the terminal complete), Session 7 (the gallery), Session 11 (Peek, the collapsed
   - **It begins** on `classic.PermissionRequest`, which fires only when a person is asked, for
     the run whose agent id its `agent_id` names. A request without `agent_id` is the main
     session's, which the person already sees; it moves no row.
-  - **It ends** when that agent's asked call moves on, allowed or refused. The exact signal
-    comes with Session 4's choice of a tool call's source (*The hooks*): `tool.run` marks an
-    allowed call about to run but carries `tool.call`'s cost, and a refused call ends at once.
+  - **It ends** when that agent's asked call moves on, allowed or refused: at that agent's next
+    `turn.step` or its `turn.complete`, since a call's start comes from its step (*The
+    hooks*). A long call that was allowed keeps the row in Needs you until its step's calls
+    are done.
   - `tool.check` answering `ask` was the other candidate. It names the call, but it also fires
     where auto mode's classifier or a hook settles the ask with no prompt shown.
 - **Gone quiet:** a run with no event for T-05 (90 s) and no tool call in flight shows as quiet.
@@ -683,10 +791,11 @@ mods API calls allowed (I-02): `$.ui.resolve`, `$.ui.invalidate`, `$.ui.open`, `
 `$.agent.list`. A change to this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
 outside the engine; it is never part of the mod's running code.
 
-**Built** (0.3.0). `validate` lists `$.command.register`, `$.state.get`, `$.state.set`,
-`$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`; the
-state calls come through `update`, the store calls through `writeStore` and `listSettings`,
-and the pane calls through `showPane`. Each is on the allow-list. No network, process or file
+**Built** (0.4.0). `validate` lists `$.clock.now`, `$.command.register`, `$.state.get`,
+`$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`,
+`$.ui.resolve`; the state calls come through `update` and `read`, the clock through `record`
+and `drawPane`, the store calls through `writeStore` and `listSettings`, and the pane calls
+through `showPane`. Each is on the allow-list. No network, process or file
 access, no model call, no tool registration.
 
 ## Testing strategy — the layers, and what each cannot see
@@ -720,7 +829,7 @@ unpushed build: it replaces the installed copy for that session and runs as
 starts; disabling the plugin is its kill switch. Every tracked file ships, so `art/`, `tools/`
 and, until round 1 closes, `docs/spec/research/` are in each installed copy.
 
-**Built.** 0.1.0 and 0.2.0 were pushed on 2026-11-17, and the owner installed each. 0.3.0
+**Built.** 0.1.0 to 0.3.0 were pushed on 2026-11-17, and the owner installed each. 0.4.0
 waits for its push. The manifest declares no settings: 0.2.0's throwaway `userConfig` field
 was removed in 0.3.0, and a value the owner set for it stays in their Claude Code settings,
 unread.
@@ -740,20 +849,27 @@ unread.
 
 ## Known debt, deliberately deferred
 
-None yet.
+- **A run whose `turn.complete` is recorded before its spawn settles stays Starting.** It would
+  need a whole turn inside the spawn's own settling; in every spawn measured, the result came
+  milliseconds after the agent's first turn began.
+- **How a subagent ends in the desktop app is unmeasured:** it did not load a probe from the
+  settings (*Context*). The endings rest on the terminal's measurement; the owner checks rows
+  ending in the desktop once 0.4.0 is installed (`docs/BACKLOG.md`).
+- **A remote workflow agent's row** (internal builds only) has no local loop; its spawn names
+  no agent here, so it gets no row.
 
-## Baseline (v0.3.0)
+## Baseline (v0.4.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
-| `claude plugin test mods/possum-squad` | 34 pass, in 5 files: command 11, panel 8, pass-through 4, prefs 4, row 7 |
-| `validate`: hooks / gating / state keys | 10 / 3 (each with a `.catch`) / 1 (`view`) |
-| `validate`: calls | `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
+| `claude plugin test mods/possum-squad` | 64 pass, in 7 files: command 11, model 15, panel 8, pass-through 5, prefs 4, row 7, runs 14 |
+| `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 2 (`runs`, `view`) |
+| `validate`: calls | `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |
 
-Measured on CLI 2.1.326. A documentation or refactoring change should not move any of these; if
+Measured on CLI 2.1.329. A documentation or refactoring change should not move any of these; if
 one moves, that is the finding.
 
 ## Decision log
@@ -782,3 +898,17 @@ one moves, that is the finding.
   background and its live output, even as a pass-through (from the declarations). So 0.3.0
   hooks neither, and Session 4 measures the classic tool-use hooks before the owner picks a
   tool call's source. The owner's choice at Session 3's plan.
+- 2026-11-20, *The invariants* (N-07): event hooks may also await the clock's time, so a run's
+  start and end are read with `$.clock.now()`, which tests pin with `mock.clock`. The owner's
+  choice at Session 4's plan.
+- 2026-11-20, *The hooks*: a tool call's start comes from `turn.step`'s `toolUses`, adding no
+  hook; the classic tool-use events are not hooked, `classic.PreToolUse` carrying no agent id.
+  The owner's choice at Session 4, after the probe showed neither hook's cost for Bash.
+- 2026-11-20, *Attention*: Needs you ends at the asking agent's next step or its end, which
+  follows from a call's start coming from its step. The owner's choice at Session 4, with the
+  tool-call source.
+- 2026-11-20, *The hooks*: a subagent ends on its `turn.complete`, not `classic.SubagentStop`
+  or `agent.report`. The owner's choice at Session 4, after the terminal showed one
+  `turn.complete` per subagent.
+- 2026-11-20, *The run model*: a teammate's turn that ends with an empty answer is Finished,
+  not Failed, until its next turn. The owner's choice at Session 4.

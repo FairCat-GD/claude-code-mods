@@ -1,14 +1,23 @@
-import type { CommandRunResult, EngineInterface, Register } from 'claude-code'
-import { atom, update } from 'claude-code'
+import type { AgentSpawnInput, AgentSpawnResult, CommandRunResult, EngineInterface, Register, TurnStepResult } from 'claude-code'
+import { atom, read, update } from 'claude-code'
 
+import type { Runs, Tokens } from '../types/index'
 import { PANE_COLUMNS } from './config'
+import { cleared, figures, NO_RUNS, type Spawn, shownRuns, spawnOpened, spawnSettled, stepped, turnEnded, turnStarted } from './model/runs'
+import { callsOf } from './model/tools'
 import { changeOf, mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES, SETTINGS, settingsText } from './settings'
 import { STRINGS } from './strings'
 import { emptyPanel } from './view/empty'
+import { rowData, runsPanel } from './view/runs'
 
 export const PANE = 'possum-squad'
 // Bump the shape when View's fields change: an older value then reads as absent.
 export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, { isClosedByPerson: false }, { shape: 'view-1' })
+// Bump the shape when Runs or Run change their fields.
+export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-1' })
+
+// A clear, a resume or a fork of the session starts the list over.
+const STARTS_OVER = new Set(['clear', 'resume', 'fork'])
 
 // The person's answer, kept out of every request the engine lets it be.
 const say = (text: string): CommandRunResult => ({ text, isTextDisplayOnly: true })
@@ -52,6 +61,54 @@ async function changeSetting($: Pick<EngineInterface, 'store'>, change: Partial<
   }
 }
 
+// The reading guard (I-05): an event's record is read and written apart from its result, so a fault here loses only
+// the panel's record, never the event.
+async function record($: Pick<EngineInterface, 'state' | 'clock'>, change: (held: Runs, at: number) => Runs) {
+  try {
+    const at = await $.clock.now()
+    await update($, runs, held => change(held, at))
+  } catch {
+    // the event goes on as the engine gave it
+  }
+}
+
+function spawnOf(e: AgentSpawnInput): Spawn {
+  const spawn: Spawn = {
+    key: e.tool_use_id === '' ? '' : e.workflow === undefined ? e.tool_use_id : `${e.tool_use_id}#${e.workflow.agentIndex}`,
+    type: e.subagentType,
+    description: e.description,
+    isTeammate: e.isTeammate === true,
+  }
+  if (e.parentAgentId !== undefined) spawn.parentId = e.parentAgentId
+  if (e.resume !== undefined) spawn.resumes = e.resume.agentId
+  return spawn
+}
+
+const settledOf = (result: AgentSpawnResult) => ({ agentId: result.agentId, model: result.model, isDenied: result.deny !== undefined })
+
+const usageOf = (result: TurnStepResult): Tokens | undefined =>
+  result.usage === null
+    ? undefined
+    : {
+        input: result.usage.input_tokens,
+        output: result.usage.output_tokens,
+        cacheRead: result.usage.cache_read_input_tokens,
+        cacheWrite: result.usage.cache_creation_input_tokens,
+      }
+
+async function drawPane($: Pick<EngineInterface, 'state' | 'clock' | 'ui'>, e: Parameters<EngineInterface['ui']['resolve']>[0] & { surface: string }) {
+  const table = $.ui.resolve(e)
+  const shown = shownRuns(await read($, runs))
+  if (shown.length === 0) return emptyPanel(table)
+  const now = await $.clock.now()
+  const keyOf = (run: (typeof shown)[number]) => run.agentId ?? `spawn-${run.order}`
+  return runsPanel(
+    table,
+    e.surface === 'terminal',
+    shown.map(run => rowData(run, keyOf(run), figures(run, now))),
+  )
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'possums', description: STRINGS.commandDescription, argumentHint: STRINGS.commandHint, immediate: true })
@@ -80,7 +137,7 @@ export const register: Register = on => {
     }
   })
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, ($, e) => emptyPanel($.ui.resolve(e)))
+  on('ui.render', { component: 'Pane', requestId: PANE }, ($, e) => drawPane($, e))
 
   on('ui.close', { id: PANE }, async ($, e, next) => {
     const closed = await next(e)
@@ -93,17 +150,63 @@ export const register: Register = on => {
     return closed
   }).catch((_$, e, next) => next(e))
 
-  // Hooked for later versions to read; each passes on exactly what the engine gave. `tool.call` and
-  // `tool.run` stay unhooked: a hook there turns off a tool's move to the background, even as a pass-through.
-  on('agent.spawn', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
-  on('turn.start', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
-  on('turn.complete', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
+  // Each event passes on exactly what the engine gave; only subagents' events are recorded, the main loop's never
+  // call `$`. A tool call's start is read from its step's result: `tool.call` and `tool.run` stay unhooked, since
+  // the declarations say a hook there turns off a tool's move to the background, even as a pass-through.
+  on('agent.spawn', async ($, e, next) => {
+    const spawn = spawnOf(e)
+    await record($, (held, at) => spawnOpened(held, spawn, at))
+    let result: AgentSpawnResult
+    try {
+      result = await next(e)
+    } catch (error) {
+      await record($, (held, at) => spawnSettled(held, spawn, { isDenied: true }, at))
+      throw error
+    }
+    await record($, (held, at) => spawnSettled(held, spawn, settledOf(result), at))
+    return result
+  }).catch((_$, e, next) => next(e))
+
+  on('turn.start', async ($, e, next) => {
+    const started = await next(e)
+    const { agentId } = e
+    if (agentId !== undefined) await record($, (held, at) => turnStarted(held, agentId, at))
+    return started
+  }).catch((_$, e, next) => next(e))
+
+  on('turn.complete', async ($, e, next) => {
+    const completed = await next(e)
+    const { agentId } = e
+    if (agentId !== undefined) await record($, (held, at) => turnEnded(held, agentId, { reason: e.reason, hasText: e.answer.trim() !== '' }, at))
+    return completed
+  }).catch((_$, e, next) => next(e))
+
+  on('classic.SessionStart', async ($, e, next) => {
+    const started = await next(e)
+    if (STARTS_OVER.has(e.source)) await record($, held => cleared(held))
+    return started
+  }).catch((_$, e, next) => next(e))
+
   on('session.measure', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
   on('classic.PermissionRequest', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
 
-  // The stream goes through untouched.
-  on('turn.step', async function* (_$, e, next) {
-    return yield* next(e)
+  // Every chunk is delegated untouched; the step is read once its stream has ended.
+  on('turn.step', async function* ($, e, next) {
+    const result = yield* next(e)
+    const { agentId } = e
+    if (agentId !== undefined) {
+      await record($, (held, at) => {
+        const calls = callsOf(result.toolUses, at)
+        const effort = e.effort === undefined ? undefined : String(e.effort)
+        return stepped(
+          held,
+          agentId,
+          { model: result.usage?.model ?? e.model, effort, usage: usageOf(result), activity: calls.activity, calls: calls.count },
+          at,
+        )
+      })
+    }
+    return result
   }).catch(async function* (_$, e, next) {
     return yield* next(e)
   })

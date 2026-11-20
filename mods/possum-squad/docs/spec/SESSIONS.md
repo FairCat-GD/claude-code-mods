@@ -622,6 +622,92 @@ model*, *The panel*.
 - **`runs` is shared by every hook writing at once:** a read and a later `set` loses updates.
 - **Another plugin can read `runs`:** keep in it only what a row needs.
 
+**Done (2026-11-20, 0.4.0).**
+- **Decided with the user:**
+  - **At the plan:**
+    - 0.3.0 was installed;
+    - the desktop half is measured with a probe loaded through `CLAUDE_CODE_PLUGIN_DIRS` in the
+      user settings, the edit shown first and undone after;
+    - N-07 is amended, so event hooks read the time with `$.clock.now()`;
+    - the plan has an adversarial review before approval. Its 14 findings were folded in; the
+      largest:
+      - a workflow's agents share one `tool_use_id`;
+      - a refused or agentless spawn must not leave a row;
+      - the main loop's events make no `$` call;
+      - `view/` may not read `data/`.
+  - **After the measurements, each as recommended:**
+    - a tool call's start comes from `turn.step`'s `toolUses`, with no new hook, and Needs you
+      ends at the agent's next step or its end;
+    - a subagent ends on `turn.complete` only;
+    - a teammate's turn that ends with no text is Finished;
+    - the desktop's end is checked by hand after the push.
+  - **Confirms,** both with the picks, unchanged but for the teammate's ending:
+    - *The run model*;
+    - *Values* (`runs` written only through `update`).
+- **Shipped:**
+  - **The model.** `hooks/model/runs.ts` turns spawn, turn and step records into `Runs`, and
+    `hooks/model/tools.ts` turns a step's calls into an activity. `hooks/data/models.ts` holds
+    the dated window table, and `types/index.d.ts` declares `runs` (`runs-1`).
+  - **The hooks.** `hooks/register.tsx` records `agent.spawn`, `turn.start`, `turn.step` and
+    `turn.complete` through `record`, the reading guard, and empties `runs` on a clear-type
+    `classic.SessionStart`.
+  - **The pane** draws each run's row, oldest first, with `terminalRow` or `desktopRow`, and a
+    round from 2.
+- **Amendments:**
+  - **Rows open at the spawn's input,** keyed `tool_use_id#agentIndex` for a workflow's agent.
+    The plan's finding, from the declarations.
+  - **A resume opens nothing at its input,** and returns its row at its result unless refused.
+    Same source.
+  - **The endings:** a teammate's empty answer is Finished. The user's choice; *The run model*'s
+    Decided part is amended and logged.
+  - **Round 2 counts only a Finished run,** as Decided words it. A failed or stopped one starts
+    round 1.
+  - **The probe's desktop half** failed: the desktop app did not load the folder. It became a
+    hand check after the push, by the user's choice.
+  - **The window table holds Haiku, Opus and Sonnet 5.5 at 1,000,000,** measured, and the same
+    as the default; the plan left the default open.
+- **Measured** (the details are in *Context*):
+  - **The kit, CLI 2.1.329:** `classic.PreToolUse` carries no `agentId`, even for a subagent's
+    call.
+  - **The terminal,** hermetic, CLI 2.1.329, the user typing:
+    - with a pass-through `tool.call` hook live, a Bash command still moved to the background
+      with ctrl+b, and a `run_in_background` call still returned at once; likewise with the
+      classic hooks;
+    - in eight spawns, the agent's `turn.start` came before the spawn's result;
+    - every subagent's end was one `turn.complete` with its reason, after `agent.report` and
+      `classic.SubagentStop`. The latter also fired for the engine's helpers, and twice for one
+      agent;
+    - a clear reset `$.state`;
+    - `$.agent.list()` gave 1,000,000-token windows.
+  - **The desktop,** engine 2.1.326: the settings route loaded nothing. The user settings were
+    restored byte for byte.
+  - **The declarations** were laid again for 2.1.328, then 2.1.329, as the CLI updated itself.
+    2.1.329 adds `agent.report` and `tool.offer`; the `tool.call` and `tool.run` remarks and the
+    kit are unchanged.
+- **Checked by hand,** in the terminal, CLI 2.1.329: `claude --plugin-dir mods/possum-squad`
+  with the probe, user settings skipped, typed by the user.
+  - ctrl+b still moved a foreground Bash command to the background.
+  - Two subagents' rows read their description, model and effort, then "Running ping -c 20
+    127.0.0.1" and `ctx 19% · 37k · 0:32`, then finished. That 19% was over the 200,000
+    placeholder, replaced by the measured 1,000,000.
+  - `/clear` left the empty panel.
+  - Not seen: a reload (`docs/BACKLOG.md`), and the desktop (after the push).
+- **Falsified,** each failing at its own test:
+  - opening at the input, the pending claim, cache reads kept apart, aborted as stopped, the
+    teammate's ending, a refused spawn, round 2, the resume, the fork's clear;
+  - the workflow key, which passed until the test overlapped the two spawns;
+  - the main loop's writes, the guard, T-06 sparing teammates, the pending cap, the target's
+    cut, the hand-back hidden, the activity kept out of the bar's label, and no change keeping
+    the same object.
+  - **The `isDenied` check on a plain spawn's result could not fail,** since a refusal names no
+    agent. It was removed, and kept for a resume, where its test fails without it.
+- **Numbers:**
+  - 64 tests (+30) in 7 files (+2): command 11, model 15 (new), panel 8, pass-through 5 (+1),
+    prefs 4, row 7, runs 14 (new);
+  - `validate`: 11 hooks (+1 `classic.SessionStart`), 4 gating (+1), each with a `.catch`;
+    2 state keys (+`runs`);
+  - calls: +`$.clock.now`, on *Reach*'s allow-list.
+
 ---
 
 ## 5: The Lead, header and sections
@@ -858,8 +944,9 @@ hooks*, *The run model*, *The panel*.
 - **Needs you** (amended at Session 3, with the owner: F-12 stays):
   - it begins on `classic.PermissionRequest`, for the run its `agent_id` names; a request
     without one is the main session's and moves no row;
-  - it ends when that agent's asked call moves on, by the signal Session 4's choice of a tool
-    call's source allows.
+  - it ends when that agent's asked call moves on: at that agent's next `turn.step` or its
+    `turn.complete` (amended at Session 4, with the owner: a call's start comes from its step's
+    `toolUses`, and no tool event is hooked).
 - **Gone quiet** after T-05 with no tool call in flight.
 - **Toasts** while the pane is closed.
 - **Docs.**

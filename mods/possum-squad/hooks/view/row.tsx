@@ -18,6 +18,8 @@ export type RowData = {
   effort?: string
   activity?: string
   contextPercent?: number
+  // Drawn from 2: the same task again after a finished run.
+  round?: number
 }
 
 export type DesktopTable = Shared & { Progress: ElementConstructor<ProgressProps> }
@@ -44,6 +46,7 @@ function firstLine({ Box, Text }: Shared, row: RowData, mark?: RenderElement): R
       <Box flexGrow={1} flexShrink={1}>
         <Text wrap="end">{row.description}</Text>
       </Box>
+      {row.round !== undefined && row.round > 1 ? <Text dimColor>{STRINGS.row.round(row.round)}</Text> : undefined}
       <Text color={COLOURS[row.state]}>{STRINGS.states[row.state]}</Text>
     </Box>
   )
