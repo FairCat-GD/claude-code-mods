@@ -46,6 +46,8 @@ first line copies it.
 |---|---|
 | `npm run verify -- possum-squad` | The repo stages, then this mod's: `validate`, `types`, `tests` and `imports`. Run from the repository's root. |
 | `npm run types` | Lays the API declarations `tsc` types this mod against; after a clone or a CLI update. |
+| `node mods/possum-squad/tools/art.ts` | The converter: reads `art/` and writes `hooks/sprites/data.ts`. Run it after any change to `art/`, from anywhere; its spec fails while the committed `data.ts` differs from what `art/` converts to. |
+| `node --test "mods/possum-squad/tools/*.spec.ts"` | The converter's and the PNG reader's specs alone; `verify`'s `tests` runs them too. |
 
 ## Watch for
 
@@ -66,12 +68,19 @@ first line copies it.
   invalidation's redraw needs no move. State versions are numbered across the test file, so a
   test checks a write as a version above 0, never as 1.
 - **The engine loads no JSON.** The role corpus is a `.ts` fixture; the art reaches the hooks only
-  through the generated `hooks/sprites/data.ts`.
+  through the generated `hooks/sprites/data.ts`, which is never edited by hand: change `art/`
+  and run the converter.
+- **The kit's terminal answers `Svg` with an empty `Box`,** so a test looking for `Svg` there
+  finds none even when one is drawn. Count the empty `Box`es too, as `pane-sprites.test.ts`
+  does.
 - **A subagent may not `sleep` in the foreground:** it moves the sleep to the background and
   ends its turn, which reads as its end. For a long call in a hand check, use
   `ping -c <seconds> 127.0.0.1`, which stays in the foreground (CLI 2.1.330).
-- **A hand check can be driven without the user:** start `claude --plugin-dir
-  mods/possum-squad` detached in GNU `screen` (tmux is not installed), widen it to 160 columns
-  and send Ctrl+L so the pane docks, type with `-X stuff`, and read with `-X hardcopy`.
+- **A hand check can be driven without the user:** start `screen -U -dmS <name> claude
+  --plugin-dir mods/possum-squad` from the repository's root (GNU `screen` 4.0.3; tmux is not
+  installed), attach it in a Terminal-panel tab with `screen -U -r <name>`, type with
+  `screen -S <name> -X stuff`, and read the tab. The tab's width docks the pane. Detached alone,
+  `-X hardcopy` came back empty or stale after a `width` command (CLI 2.1.330), and without
+  `-U` the drawing is garbled. `/exit` ends it; check no `claude --plugin-dir` is left.
 - **`docs/spec/research/` is input** for round 1: copy from it, never edit it. Its corpus labels
   are fixed, and the role table is never tuned on `holdout`.

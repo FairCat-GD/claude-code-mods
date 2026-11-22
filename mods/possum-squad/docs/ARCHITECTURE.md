@@ -32,11 +32,11 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.6.0). The Lead, header, sections and roles. `hooks/register.tsx`, named by
+**Built** (0.7.0). The Lead, header, sections, roles and sprites. `hooks/register.tsx`, named by
 `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `set` and `settings`;
 - toggles and draws the pane: the Lead row and the session line, then the sections of subagent
-  runs, or the empty panel's line;
+  runs, or the empty panel's line; on every surface but the terminal, each with its sprite;
 - turns subagents' spawns, turns and steps into records, and keeps the runs in `runs`;
 - settles each run's role from its type, its description and its first calls, and Helper at
   T-04 or at its end;
@@ -56,10 +56,12 @@ Of the pure modules:
 - `hooks/view/` holds the panel and its sections (`panel.tsx`), the Lead row and the session line
   (`lead.tsx`), a run's row data (`runs.ts`), the row builders for both surfaces (`row.tsx`) and
   the empty panel's line (`empty.tsx`);
+- `hooks/sprites/` writes each sprite from the generated art data (`data.ts`), by its recipe
+  (`recipes.ts`), composed (`compose.ts`), written as SVG (`svg.ts`) and cached (`index.ts`);
 - `hooks/settings.ts` holds the settings and the command's words;
 - these sit beside `hooks/strings.ts` and `hooks/config.ts`.
 
-`sprites/`, `art/` and `tools/` are not yet built.
+The art's source is in `art/`, and `tools/art.ts` turns it into `hooks/sprites/data.ts`.
 
 ## Context
 
@@ -249,7 +251,8 @@ that teaches it `tools/`. The tooling's own pins are the repository's.
 **Built.** Declarations read at intake: CLI 2.1.325, then 2.1.326 (it updated itself during
 `npm run types`). 0.1.0 to 0.3.0 were built and checked on CLI 2.1.326, 0.4.0 and 0.5.0 on
 2.1.329 (the CLI updated itself twice during Session 4's `npm run types`). The desktop app ran
-engine 2.1.325 for the 0.2.0 run, and 2.1.326 on 2026-11-20.
+engine 2.1.325 for the 0.2.0 run, and 2.1.326 on 2026-11-20. 0.6.0 and 0.7.0 were built and
+checked on CLI 2.1.330, with Node 26.7.0 for `tools/`.
 
 ## Layout and boundaries
 
@@ -285,7 +288,7 @@ engine 2.1.325 for the 0.2.0 run, and 2.1.326 on 2026-11-20.
   - nothing in `hooks/` or `tests/` imports from `tools/`, and `tools/` imports nothing from
     `hooks/`: it reads `art/` and writes `hooks/sprites/data.ts`.
 
-**Built** (0.6.0). In place:
+**Built** (0.7.0). In place:
 - the manifest, `.claude-plugin/plugin.json`, naming `types/index.d.ts`;
 - the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-03, T-04, T-06 and
   T-13) and `hooks/strings.ts`;
@@ -295,14 +298,24 @@ engine 2.1.325 for the 0.2.0 run, and 2.1.326 on 2026-11-20.
 - `hooks/roles/`, pure: `words.ts` (the word lists) and `rules.ts` (the rules in their order,
   the calls read a step at a time, and the fallback). It uses `config.ts` and the types alone;
 - `hooks/data/models.ts`: the dated window table (T-11);
+- `hooks/sprites/`, pure: `types.ts` (the art's shape), `data.ts` (generated), `compose.ts`
+  (grids of palette keys, and a recipe's frame on them), `recipes.ts` (each pose's frame, the
+  tongue and the work loop), `svg.ts` (the writer and the light-theme outline) and `index.ts`
+  (a look's sprite, cached, and the empty panel's squad). It uses `config.ts` and the types
+  alone; `hooks/config.ts` holds T-01 and T-02 for it;
+- `art/`: the round's frozen `research/art/`, copied, its JSON formatted, then `failed`'s flip
+  widened (*Sprites and sets*);
+- `tools/`: `png.ts` (reads and writes 8-bit RGBA PNG), `art.ts` (the converter), their specs
+  and `tools/fixtures/art.ts`, a fictional art folder as data;
 - `hooks/settings.ts`, pure: the settings with their values and defaults, reading and merging
   `prefs`, the command's words, and the settings list's text. It is not in the Decided layout:
   the settings are neither runs, roles, sprites nor views, and the command and the pane both
   need them. It uses only `strings.ts`;
 - `hooks/view/`: `panel.tsx` (the header and the sections), `lead.tsx` (the Lead row, one
   builder per surface, and the session line), `empty.tsx` (the empty panel's line), `runs.ts`
-  (a run's row data and its activity line), `row.tsx` (the row, one builder per surface) and
-  `format.ts` (tokens, time, percent and the block bar);
+  (a run's row data and its activity line), `row.tsx` (the row, one builder per surface),
+  `sprite.tsx` (a sprite as an `Svg`) and `format.ts` (tokens, time, percent and the block
+  bar);
 - the contract, `types/index.d.ts`: `View`; `StateId`; `RoleId`, `RoleSource` and `Role`;
   `Runs`, `Run`, `Pending`, `Past`, `Tokens` and `Activity`; `Lead` and `LeadContext`;
 - the tests, in `tests/`:
@@ -317,7 +330,11 @@ engine 2.1.325 for the 0.2.0 run, and 2.1.326 on 2026-11-20.
     what the mod's timer asks of the engine, through a plugin beside it;
   - `tests/roles.test.ts` runs the rules on the corpus and the PDD's worked examples;
     `tests/settle.test.ts` raises spawns, steps and ends, and reads each row's role from the
-    drawn pane.
+    drawn pane;
+  - `tests/compose.test.ts` composes `tests/fixtures/art.ts`, a fictional art;
+    `tests/sprites.test.ts` reads every classic sprite with its own SVG reader, playing the
+    loop's SMIL a step at a time; `tests/pane-sprites.test.ts` raises events and reads the
+    pane's `Svg` elements.
 
 How it is held:
 - *Enforced by* the gate's `imports` stage (the import scan) and `validate`
@@ -328,7 +345,11 @@ How it is held:
   the tables import only types from `claude-code`.
 - `emptyPanel` serves both surfaces with `Box` and `Text`, and `panel` with `Button` too. The
   row and the Lead each have a builder per surface: the terminal's take `Box` and `Text`, the
-  desktop's also `Progress`.
+  desktop's also `Progress`. `panel` reads `Svg` only off the terminal.
+- `tools/` is walled off by the import scan: it imports only `node:` modules and its own
+  files, and nothing in `hooks/` or `tests/` imports it. The converter writes
+  `hooks/sprites/data.ts` as text and imports nothing of `hooks/`; `data.ts` imports only the
+  types in `hooks/sprites/types.ts`.
 - The tests import from `hooks/` (the module's `register`, `PANE` and `view`, the settings,
   the strings, the view builders and the config), so a test never repeats a value the module
   owns.
@@ -361,8 +382,9 @@ How it is held:
    `Markdown`. *Why:* it may carry markup or links. *Enforced by* `tests/row.test.ts`, on both
    surfaces. Every fixture row's description and activity is drawn whole, in a `Text` of its
    own; no other element's props hold agent text; and a description with markdown, a link and a
-   tag draws as that plain text, with no `Markdown`, `Link` or `Svg`. Sprites are built from the
-   mod's own data only.
+   tag draws as that plain text, with no `Markdown` or `Link`. The desktop's one `Svg` is the
+   row's sprite: its source is what the sprite module writes from the mod's own art, and its
+   other props hold no agent text.
 8. **I-05: a fault in the mod never blocks or alters a turn.** *Why:* the mod runs in every
    session the owner starts. *Enforced by* every event hook returning what `next` gave; a
    `.catch` passing the event on, on every hook but the command's and the pane's drawing; a
@@ -729,9 +751,12 @@ Not yet: Session 12 (nesting).
   state mark. Every state has one: `planned` (sitting, greyed), `starting` (slides in plain, then
   one hop and lands dressed), `working` (two-frame bob, prop moving against the body, a blink
   now and then), `needs-you` (holds up a "?" sign), `quiet` (dozing on its feet), `finished`
-  (two hops, then asleep with a rising "z"; still after 3 s), `failed` (on its back, tongue out;
-  still), `stopped` (startled with "!" for 1 s, then idle; still).
-- **SVG.** One rectangle per run of same-coloured pixels in a row. Animation is SMIL inside the
+  (two hops, then asleep with a rising "z"; still after 3 s), `failed` (on its back, tongue out,
+  hat on and nothing in hand; still), `stopped` (startled with "!" for 1 s, then idle; still).
+  `failed` turns rows 3..29 over, then down 2, so a hat above the head stays on.
+- **SVG.** One rectangle per run of same-coloured pixels in a row, written as a subpath of one
+  `<path>` per colour (`M11 17h3v1h-3`): as `<rect>` elements, an animated sprite with its
+  still copy and outline did not fit N-02. Animation is SMIL inside the
   SVG, in steps of T-01 (200 ms), so it needs no timer and no redraw. With `motion` at `off` the
   same SVG is written with no animation element. Each sprite is drawn as an `Svg` with an `alt`
   naming its role and state, `width` and `height` of its scaled size, and `isInteractive` only
@@ -748,9 +773,48 @@ Not yet: Session 12 (nesting).
   `@media (prefers-reduced-motion: reduce)`, under which its animation is hidden and its still
   pose shown. With `motion` at `off`, no animation element is written at all (F-21).
 
-**Built.** Not yet: Session 6 (the converter, the compositor, the SVG writer, `classic`),
-Session 7 (the other sets), Session 7a (every state's animation). The spike's hand-drawn test
-sprite was removed in 0.3.0; what the desktop showed of it is in *Context*.
+**Built** (0.7.0): `classic` in every state's still pose and the work loop; the other sets are
+in `data.ts` but not drawn (Session 7), and the other states' animations are Session 7a's.
+- **The converter,** `tools/art.ts`, run by hand (`node mods/possum-squad/tools/art.ts`). It
+  reads `art/`'s palette, manifest and PNGs (through `tools/png.ts`, which takes 8-bit RGBA,
+  non-interlaced only) and writes `hooks/sprites/data.ts`, `ART`: the canvas, the palette, the
+  pupils and their closed colour, the bob's rows, the base, every PNG in `extras/` (the joey
+  included), the recipes and the sets. It refuses, naming the place: a palette over 40 colours
+  or with a key that is not one letter or a colour twice; a layer not 32×32 (an extra may be
+  smaller), partly transparent, or with a colour outside the palette; a default set lacking a
+  role, a role outside `roleNames` or twice; a recipe field or body it does not know. Another
+  set may lack a role. A field the manifest gives in words is carried as its first word
+  (`tongue`, `greyed`), so none of the kit's prose ships.
+  - **Its output** is in Biome's own shape with nothing the line width decides: every object
+    expanded, a layer's rows a template literal of palette keys (`.` for none), one row a line,
+    from its first drawn row (`top`). About 87k characters for the four sets.
+- **The compositor** (`compose.ts`) lays grids of palette keys in the manifest's order: the
+  base (pupils' top row repainted when the eyes close, under the outfit), the outfit, the
+  body's move (the bob: rows 0..26 down one, row 27 covered, rows 28 on still; the flip), marks,
+  then the prop at its offset, or an extra in its place. Marks and extras land after the move,
+  so the "z" does not bob.
+- **The recipes** (`recipes.ts`): each pose's still frame from `ART.recipes`, `starting` and
+  the Lead's `idle` being the idle frame and `quiet` the blink. No prop on its back. The tongue
+  is drawn here, beside the nose's row (21) as the flip moves it. The work loop is 20 steps of
+  T-01: even steps the still frame, odd the bob with the prop at its `propWorkDy`, step 18 the
+  blink. It is drawn as parts placed per step: the body above the seam row, the seam row, the
+  rows below the bob, the eyelids (the pupils the outfit leaves bare) and the prop.
+- **The writer** (`svg.ts`): fills by colour in the order they first appear; the outline, in
+  `#464650`, on every empty pixel beside a colour under 3:1 against `#f8f6f0` (the reference's
+  light panel; the same colours fall under 3:1 against `#faf9f5` and `#ffffff`), in a
+  `<g class="o">` drawn first and shown only by the light query. A loop's parts each get a
+  discrete `animateTransform` and/or `animate opacity` over its shortest period, with step 0 in
+  its attributes; its outline is each step's own, one path per distinct outline with its
+  opacity schedule, so it is exact at every step. The still pose follows in `<g class="s">`.
+- **The cache** (`index.ts`): one string per set, role, pose and motion, in module memory, so a
+  redraw hands the app the same string and a running loop is never restarted. An unknown set
+  draws `classic`, a role a set lacks the default set's, an unknown role plain, an unknown pose
+  idle. The empty panel's squad is three plain asleep opossums, 24 px apart, cached once.
+- **Sizes** (all four sets): a still pose 1.6k–3.4k characters, the work loop at most 8.7k, the
+  squad 5.0k. Composing all 288 classic looks from a cold cache took 167 ms in the kit, one
+  work loop 3.5 ms (CLI 2.1.330).
+- **Seen:** every classic pose, still and animated, on dark and light, drawn by Quick Look from
+  a scratch page; not yet in the desktop app (`docs/BACKLOG.md`).
 
 ## The panel
 
@@ -794,8 +858,9 @@ sprite was removed in 0.3.0; what the desktop showed of it is in *Context*.
   (T-13, 46, in `hooks/config.ts`). It sets no `placement`, so the surface seats it: docked in
   a fullscreen terminal from 110 columns, inline above the prompt otherwise.
 - With no run, the pane draws the header, then `emptyPanel` from `hooks/view/empty.tsx`: a
-  column `Box` holding one dim `Text` with the empty panel's line from `hooks/strings.ts`. It is
-  the same on both surfaces; the squad asleep comes with the sprites (Session 6).
+  column `Box` holding one dim `Text` with the empty panel's line from `hooks/strings.ts`. Off
+  the terminal, the squad asleep sits above it: one `Svg` 160 px wide, its alt "The squad,
+  asleep".
 - An open from `/possums` is the person's, so the declarations place it at any width (144 and
   110 columns hold only for an open the plugin makes unasked).
 
@@ -808,7 +873,8 @@ refusal never puts the engine's error in the pane's place. The drawing writes no
   `totals`.
   - **`terminalLead`:** a `●` in the theme's `claude` colour and "Main session", then, indented,
     the block bar and `ctx 31% · 120k`.
-  - **`desktopLead`:** the mark and "Main session" in semibold, then the app's `Progress`,
+  - **`desktopLead`:** its sprite ("Lead": the `lead` outfit, idle and still), or the mark where
+    the surface draws no `Svg`, beside "Main session" in semibold, then the app's `Progress`,
     labelled "Context", valued `31% · 120k`.
 
   The Lead is no run, so it has no state word; until a measure it reads `–`.
@@ -867,8 +933,13 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
   - the activity, or "No tool calls yet";
   - a 10-cell block bar of context fill, then `ctx 9% · 18k · 0:42`. An unknown context draws
     an empty bar and `–`.
-- **`desktopRow`** draws the sprite it is given in the leading slot; until Session 6 that slot
-  holds the coloured mark. Beside it are the same lines, the second and third in footnote
+- **`desktopRow`** draws the sprite it is given in the leading slot, or the coloured mark where
+  the surface draws no `Svg`. `panel` gives it the sprite of the row's role (`RowData.roleId`,
+  plain while unsettled) in its state's pose, in `classic`, with `prefs.motion`; its alt is
+  "Builder, working", or "Opossum, starting" while plain. A working sprite with `motion` `auto`
+  is framed (`isInteractive`); every other one is an image. The terminal's table answers `Svg`
+  in the kit too, so `panel` asks for it only off the terminal. Beside it are the same lines,
+  the second and third in footnote
   size. The fourth is the app's own `Progress`, labelled "Context", its value text the
   percent, tokens and time. The engine draws a `Progress` as its label and figure above a thin
   fill the width of the row (*Context*), so nothing goes beside it.
@@ -966,13 +1037,15 @@ mods API calls allowed (I-02): `$.ui.resolve`, `$.ui.invalidate`, `$.ui.open`, `
 `$.agent.list`. A change to this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
 outside the engine; it is never part of the mod's running code.
 
-**Built** (0.6.0). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
+**Built** (0.7.0). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
 `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`,
-`$.ui.open`, `$.ui.panes`, `$.ui.resolve`. The state calls come through `update` and `read`;
+`$.ui.open`, `$.ui.panes`, `$.ui.resolve`; the sprites, being pure, added none. The state calls come through `update` and `read`;
 the clock through `armClock`, `recordAt`, `settleHelpers` and `drawPane`; the store calls through `writeStore`,
 `listSettings` and `prefsWhileDrawing`; the pane calls through `showPane`, `tick` and `redraw`.
 Each is on the allow-list; `$.session.usage` is not called. No network, process or file access,
-no model call, no tool registration.
+no model call, no tool registration. `tools/art.ts`, run by hand on Node, reads `art/` (its
+JSON and PNGs) and writes `hooks/sprites/data.ts`, nothing else; its specs write fictional art
+into a temporary folder, and read `art/` and the committed `data.ts`.
 
 ## Testing strategy — the layers, and what each cannot see
 
@@ -988,10 +1061,10 @@ that depends on time pins the clock; fixtures are fictional.
 |---|---|---|---|
 | `validate` | `verify` | The manifest, the hooks the module registers, which gate, and the API calls it makes | Behaviour |
 | `types` | `verify` | The module and tests against the CLI build's declarations | Another build's API, the desktop's included |
-| `tests` | `verify` | The hooks against the engine's kit, with the clock and `$` stood in; the pure modules: the run model on fixture event sequences, the role corpus, the compositor and SVG size, palette contrast | What the app actually draws; whether SMIL runs; real timing and order of events |
+| `tests` | `verify` | The hooks against the engine's kit, with the clock and `$` stood in; the pure modules: the run model on fixture event sequences, the role corpus, the compositor on a fictional art, every classic sprite's size, outline and frames as its SMIL plays | What the app actually draws; whether SMIL runs; real timing and order of events |
 | `imports` | `verify` | Every import resolves inside the folder or to a declared module | Anything at run time |
 | Hygiene | `verify`, with the drafted commit message; in full when the term list or the stage changes | Private terms in files, paths and messages; attribution in messages; secrets by their exact shapes; conflict markers | Images and binaries; a term joined inside one lowercase run; attribution in files; a home-directory path; a secret of any other shape |
-| The converter | Not yet: the repo-level round that teaches the gate `tools/` | — | — |
+| The converter | `verify`: `types` and `tests` take `tools/` | The PNG reader (every filter, an independent Paeth check, each refusal); the converter on a fictional art folder, kept as data in `tools/fixtures/art.ts` and written to a temporary folder as PNG and JSON, since a PNG made by hand could not be read for review; each broken input refused at its place; the committed `data.ts` equal to what `art/` converts to, and holding every layer the manifest names | Whether the art looks right: by eye, in the desktop app |
 | By hand | Recorded in done-notes | The mod in the app: the desktop from the installed release, the terminal from a `--plugin-dir` session; every animation, both themes, three real agents against the transcript | Anything not written down; what nobody checked goes to `docs/BACKLOG.md` |
 
 ## Packaging
@@ -1048,16 +1121,24 @@ unread.
   claims that agent reads its role from its later calls alone.
 - **With the pane closed and an agent silent past T-04,** Helper waits for its next step, its
   end or the first beat after the pane opens; the role is the same, only when it shows differs.
+- **The sprites are unseen in the desktop app** until 0.7.0 is pushed and installed
+  (`docs/BACKLOG.md`); `<path>` and a discrete `opacity` animation are drawn there by another
+  mod of this repository, not yet by this one.
+- **`data.ts` is about 87k characters,** loaded on every start; the kit loads it, and whether
+  the engine caps a module's size is not in the declarations.
+- **The tongue's place is the classic base's:** the nose's row (21) and columns (15, 16) are
+  constants in `recipes.ts`, so a base drawn anew must move them too.
 - **After the last live run, the clock may beat up to T-04 more** for a run whose role may still
   fall back (a teammate's, or one waiting on background work), redrawing a pane whose times no
   longer move.
 
-## Baseline (v0.6.0)
+## Baseline (v0.7.0)
 
 | Check | Expected |
 |---|---|
-| `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
-| `claude plugin test mods/possum-squad` | 122 pass, in 11 files: clock 13, command 11, header 8, model 28, panel 8, pass-through 5, prefs 4, roles 9, row 7, runs 17, settle 12 |
+| `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
+| `claude plugin test mods/possum-squad` | 141 pass, in 14 files: clock 13, command 11, compose 8, header 8, model 28, pane-sprites 3, panel 8, pass-through 5, prefs 4, roles 9, row 7, runs 17, settle 12, sprites 8 |
+| `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
@@ -1131,3 +1212,15 @@ one moves, that is the finding.
   hand check saw such a run kept as Helper.
 - 2026-11-22, *The panel*: the clock also runs while a run's role may still fall back to Helper,
   so a teammate resting with no role gets it at T-04. The owner's choice at Session 8's review.
+- 2026-11-22, *Sprites and sets*: each run of a row is a rectangle written as a subpath of one
+  `<path>` per colour, not a `<rect>`. As `<rect>` elements the largest animated sprites
+  measured about 17–18k characters, over N-02; as paths at most 8.7k. A second opinion agreed,
+  and set aside `<use>` (never seen on the desktop) and CSS over SMIL (unverified). The owner's
+  choice at Session 6's plan.
+- 2026-11-22, *Sprites and sets*: `failed` turns rows 3..29 over, not 7..29, so the 11 of 68
+  outfits that reach above row 7 keep their hats; it holds no prop, as the reference drew it.
+  The owner's choices at Session 6's plan; `art/manifest.json`'s recipe says so.
+- 2026-11-22, *The panel*: the Lead's sprite and the empty panel's sleeping squad came with
+  Session 6, beside the rows'. The owner's choice at Session 6's plan.
+- 2026-11-22, *Sprites and sets* and *Layout and boundaries*: confirmed as built, with the owner,
+  at Session 6.

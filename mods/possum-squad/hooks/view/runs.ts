@@ -12,7 +12,10 @@ export function activityText(activity: Activity): string {
 // A run as its row shows it, given the figures the model worked out for it.
 export function rowData(run: Run, key: string, figures: { tokens: number; elapsedMs: number; contextPercent?: number }): RowData {
   const row: RowData = { id: key, state: run.state, description: run.description, ...figures }
-  if (run.role !== undefined) row.role = STRINGS.roles[run.role.id]
+  if (run.role !== undefined) {
+    row.role = STRINGS.roles[run.role.id]
+    row.roleId = run.role.id
+  }
   if (run.model !== undefined) row.model = run.model
   if (run.effort !== undefined) row.effort = run.effort
   if (run.activity !== undefined) row.activity = activityText(run.activity)

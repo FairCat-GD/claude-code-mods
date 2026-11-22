@@ -1,63 +1,53 @@
-Read what Session 6's **Read** line in mods/possum-squad/docs/spec/SESSIONS.md names, the root
+Read what Session 7's **Read** line in mods/possum-squad/docs/spec/SESSIONS.md names, the root
 CLAUDE.md, then mods/possum-squad/CLAUDE.md, *The session cycle* in docs/DEVELOPMENT-WORKFLOW.md,
 mods/possum-squad/docs/ARCHITECTURE.md's overview, invariants and baseline, the header of
-mods/possum-squad/docs/spec/SESSIONS.md, Session 6's block and Session 8's done-note, then this
-file, and do Session 6: sprites.
+mods/possum-squad/docs/spec/SESSIONS.md, Session 7's block and Session 6's done-note, then this
+file, and do Session 7: sets and gallery.
 
-Session 6 covers:
-- `art/` seeded from `research/art/`;
-- the converter in `tools/`, and `hooks/sprites/data.ts`;
-- the compositor, the SVG writer and the cache;
-- `classic` in every state's still pose and the work loop, each row wearing its run's role;
-- motion off.
+Session 7 covers:
+- `theme` drawn: the pane wears `prefs.theme`'s set, and `/possums set theme` redraws at once;
+- a role a set lacks falls back to `classic`, and costume names per set;
+- `/possums roles`: the gallery of 17 roles in 8 states, on both surfaces.
 
-Release 0.7.0.
+Release 0.8.0.
 
 ## State you need that is not in the specs
 
-- **Round 1 is the agents panel:** Sessions 0–5 and 8 are done; Sessions 6, 7, 7a and 9–13
-  remain. Session 8 ran before Session 6 (amended in both blocks and the table), so Sessions 6,
-  7 and 7a release 0.7.0, 0.8.0 and 0.9.0.
-- **Before anything:** Session 6 needs the repo-level round that teaches the gate `tools/`
-  closed (`SPEC.md` decision 9): its last commit is `docs: close round 2`, after its one
-  session, G1. The round's opening commit, `docs: open round 2`, is not enough: until G1 lands
-  the gate still refuses a tool's `node:` imports. On 2026-11-22 a chat opened for Session 6
-  stopped here, and the user chose to run that round first rather than swap again; its intake
-  opened it the same day. If it is still not closed, ask the user which session runs instead,
-  and log the swap as an amendment in both blocks. The round's request, as its intake took it:
-
-  > The gate must take a mod's `tools/` folder: Node scripts run by hand, never loaded by the
-  > engine. The import scan should allow `node:` imports there and refuse any import of
-  > `tools/` from `hooks/` or `tests/`; `tools/` should be type-checked against Node's types;
-  > and the round should say how a tool's own behaviour is tested. possum-squad's sprite
-  > converter is the first user.
-- **Push status:** pushed on 2026-11-22 with the user's approval: `origin/main` holds everything
-  through Session 8's review commit. Nothing waits locally. List `origin/main..HEAD` before any
-  push, and name any commit that is not the session's.
-- **0.6.0 is installed, and roles showed on the desktop app's rows** (the user, 2026-11-22);
-  the backlog item is gone. Session 6's done-note records it under *Decided with the user*.
-- **The engines:** the CLI is 2.1.330, and every folder's declarations were laid by it. The
-  desktop app ran engine 2.1.326 on 2026-11-20.
-- **What Session 8 left for Session 6:**
-  - **Every run has `role?: Role`** in `runs` (`runs-3`): `{ id, source }`, absent while
-    unsettled. A row wears `run.role`'s outfit and draws the plain opossum while it is absent.
-    `RowData.role` is the role's name; the sprite needs the id, so `rowData` or the row's
-    caller passes it on.
-  - **The Lead's sprite** is the `lead` role's; no run ever gets `lead`.
-  - **Role names** are `STRINGS.roles`, the art manifest's `roleNames`; costume names come with
-    `data.ts`.
-  - **The clock's beat now writes `runs`** when Helper is due, and runs while a role may still
-    fall back (`keepsClock`); a redraw must not restart a sprite's animation (N-04).
-- **For Session 7a:** the dressing hop needs the moment a role settled. Every settle has the
-  time now (a spawn, a step, an end, a beat), so 7a adds it to `Role`, with a shape bump.
-- **For the user to decide, when they choose:** a subagent waiting on its own background shell
-  reads "finished" (`docs/BACKLOG.md`, *Deferred*); since 0.6.0 its role stays open there, as
-  a teammate's does. It touches *The run model*, so it is not Session 6's.
+- **Round 1 is the agents panel:** Sessions 0–6 and 8 are done; Sessions 7, 7a and 9–13
+  remain. Sessions 7 and 7a release 0.8.0 and 0.9.0.
+- **Push status:** `origin/main` holds everything through Session 8's review commit and repo
+  round 2's close. Session 6's commits are local until the user approves a push. List
+  `origin/main..HEAD` before any push, and name any commit that is not the session's.
+- **What Session 6 left for Session 7:**
+  - **`data.ts` already holds all four sets,** with their costume names, as Session 6's gate
+    required. `dressOf` (`hooks/sprites/index.ts`) already falls back to the default set's role
+    and to plain for an unknown one. What is left: `drawPane` passes `ART.defaultSet` today, and
+    should pass `prefs.theme`; F-27's tests (17 outfits, props and costume names per set;
+    switching changes every sprite and no role name; a fictional two-role set falls back).
+  - **`planned` has no pose yet.** The sprite module's poses are the 7 states and `idle`;
+    `STILL` in `recipes.ts` maps each to a recipe. The manifest's `planned` recipe is idle,
+    "greyed: 70% luminance grey, 30% colour, then 45% toward the background", carried in
+    `data.ts` as `colour: 'greyed'`. Greyed inside `opacity`, the outline `#464650` falls to
+    about 2.7:1, and greying changes which colours count as faint. Ask the owner how it is
+    greyed before drawing it (amended in Session 7's block).
+  - **The gallery can use `sprite({ set, role, pose, motion })`** for each role and pose, and
+    `spriteElement` for the `Svg`. Costume names are `ART.sets[set].roles[role].costume`; role
+    names `STRINGS.roles`.
+  - **N-02 across every set** is already met: still poses 1.6k–3.4k characters, the work loop
+    at most 8.7k, measured over all four.
+- **For Session 7a:** `stopped`'s still pose is the startled frame (the manifest's recipe), but
+  the PDD's animation ends on idle, so the settled frame and the motion-off pose will differ;
+  7a decides which `motion off` shows. The work loop's parts and `loopSvg` take any parts and
+  steps, so 7a's recipes can reuse them.
+- **The engines:** CLI 2.1.330, which laid every folder's declarations. The desktop app ran
+  engine 2.1.326 on 2026-11-20.
 - **Decisions written down nowhere else:**
   - Whether `/possums` opening the pane again should clear `view.isClosedByPerson` is still
     undecided: today the flag stays set for the session. It matters at Session 9 (auto-open).
-- **Baseline** (ARCHITECTURE's table, v0.6.0, CLI 2.1.330):
-  - 122 tests in 11 files;
+- **For the user to decide, when they choose:** a subagent waiting on its own background shell
+  reads "finished" (`docs/BACKLOG.md`, *Deferred*).
+- **Baseline** (ARCHITECTURE's table, v0.7.0, CLI 2.1.330):
+  - 141 tests in 14 files, and 10 tool specs in 2 files;
   - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys;
   - calls: `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`,
     `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`,
@@ -65,14 +55,14 @@ Release 0.7.0.
 
 ## Watch for
 
-- **Drive hand checks yourself** in GNU `screen` (mods/possum-squad/CLAUDE.md, *Watch for*):
-  the user asked for this over relaying prompts through them. `npm run types` runs the same
-  way: start it detached, send `/exit` once its prompt shows.
-- **A subagent may not `sleep` in the foreground;** use `ping -c <seconds> 127.0.0.1`.
-- **A probe for the desktop needs another route.** A plugin folder named by
-  `CLAUDE_CODE_PLUGIN_DIRS` was not loaded into a desktop Code session (engine 2.1.326). The
-  desktop runs only the installed release; plan desktop checks for after a push.
-- **A kit test cannot read state from its own hooks:** the host refuses the read. Read what the
-  pane draws, or count writes with a plugin hooking `state.set`.
+- **Drive hand checks yourself:** `screen -U -dmS <name> claude --plugin-dir mods/possum-squad`,
+  attached in a Terminal-panel tab with `screen -U -r <name>` (mods/possum-squad/CLAUDE.md,
+  *Watch for*); detached `hardcopy` was unreliable here. `npm run types` runs the same way.
+- **The kit's terminal draws an `Svg` as an empty `Box`:** a terminal check counts those too.
+- **`data.ts` is generated:** change `art/` and run `node mods/possum-squad/tools/art.ts`; the
+  converter's spec fails while they differ.
 - **A check the code already covers twice cannot fail.** Falsify each new check by breaking the
-  code it guards, and change the test until it fails at its own step.
+  code it guards, and change the test until it fails at its own step: four of Session 6's
+  could not fail as first written.
+- **The desktop has not shown these sprites yet.** It runs the installed release only; plan the
+  gallery's look for after the push (`docs/BACKLOG.md`).

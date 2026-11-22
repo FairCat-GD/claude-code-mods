@@ -921,7 +921,9 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
 - **Rows draw their sprite** on surfaces where `Svg` resolves (decision 17), in
   `desktopRow`'s leading slot, which holds the state's mark until then (amended at Session 8's
   plan, with the owner: Session 8 ran first, so each row wears its run's role, `run.role`, and
-  draws the plain opossum while the role is unsettled).
+  draws the plain opossum while the role is unsettled). (Amended at Session 6's plan, with the
+  owner: the Lead's sprite and the empty panel's sleeping squad come too, Decided in *The
+  panel*.)
 - **Docs.**
   - `CHANGELOG.md`: 0.7.0 (amended at Session 8's plan).
   - `ARCHITECTURE.md`: Built for *Sprites and sets*, *Layout and boundaries* (`art/`, `tools/`),
@@ -932,7 +934,8 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
 
 **Gates:**
 - `npm run verify -- possum-squad`, with these tests:
-  - every role and state of `classic` is under 16,000 characters (N-02);
+  - every role and state of `classic` is under 16,000 characters (N-02; amended at Session 6's
+    plan, with the owner: `planned`, reserved in `StateId`, is drawn with Session 7's gallery);
   - with `motion` off no `Svg` source holds an animation element (F-21);
   - sprites stay readable on the light theme (N-06): every edge colour under 3:1 against the
     light background is outlined inside the light-theme style, and no outline is drawn outside
@@ -951,6 +954,102 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
   hand.
 - **One `Svg` source holds at most 131,072 characters,** and every sprite needs `alt`.
 
+
+**Done (2026-11-22, 0.7.0).**
+- **Decided with the user:**
+  - **At the start:** the repo-level round for `tools/` had closed (`docs: close round 2`), so
+    this session ran as planned. 0.6.0 was installed, and roles showed on the desktop app's
+    rows; the backlog item is gone.
+  - **At the plan:**
+    - **The SVG shape.** Each run of a row is a rectangle written as a subpath of one `<path>`
+      per colour. As `<rect>` elements, an animated sprite with its reduced-motion copy and
+      outline measured about 17–18k characters for the largest classic roles, over N-02. At the
+      owner's request a second model weighed it, and agreed: it set aside `<use>`, never seen
+      on the desktop, and CSS over SMIL, unverified.
+    - **The Lead's sprite and the empty panel's sleeping squad** come now, Decided in *The
+      panel* but not in the block.
+    - **`failed` turns rows 3..29 over,** not 7..29: 11 of the 68 outfits reach above row 7,
+      the highest to row 3, and would lose their hats. It holds no prop, as the reference drew
+      it. `art/manifest.json`'s recipe text says so, changed after the unchanged seed.
+    - **The plan had an adversarial review** (the same second model). Its findings were folded
+      in; the largest:
+      - an outline drawn per part, each beneath its own fills, painted over the parts drawn
+        before it, up to 40 wrong pixels a frame; each step's outline is now its own, exactly;
+      - Biome's line-fit rule landed on real layers (the joey, two 3- and 4-row props); a
+        layer's rows are now a template literal, which Biome leaves alone;
+      - the converter refused a set lacking a role, though a role a set lacks falls back
+        (Decided); only the default set must be whole;
+      - `planned`, reserved in `StateId`, greyed inside `opacity` would put its outline under
+        3:1; it goes to Session 7's gallery;
+      - a stored unknown role must draw plain, never throw inside the drawing.
+  - **At the docs:** *Sprites and sets* and *Layout and boundaries* confirmed as built.
+- **Shipped:**
+  - **`art/`,** the round's `research/art/`: 141 PNGs unchanged (`cmp`), `manifest.json` and
+    `palette.json` formatted with their content unchanged (deep-equal), then `failed`'s flip.
+  - **The converter,** `tools/art.ts`, with `tools/png.ts` (reads 8-bit RGBA PNG, and writes it
+    for the specs), their specs, and `tools/fixtures/art.ts`, a fictional art folder as data,
+    written to a temporary folder by the spec. It writes `hooks/sprites/data.ts`: four sets, 68
+    roles, four extras, about 87k characters, Biome-clean as written.
+  - **`hooks/sprites/`:** `types.ts`, `data.ts`, `compose.ts`, `recipes.ts`, `svg.ts` and
+    `index.ts` (the cache, `dressOf`'s fallback, and the squad). T-01 and T-02 in
+    `hooks/config.ts`.
+  - **The view:** `hooks/view/sprite.tsx`; `RowData.roleId`; `panel` gives each row, the Lead and
+    the empty panel its sprite off the terminal, with `prefs.motion`, in `classic`;
+    `STRINGS.sprite` holds the alts.
+- **Readings settled within scope:**
+  - each state's still pose is its manifest recipe's frame: `starting` and the Lead are idle,
+    `quiet` the blink, `stopped` the startled frame (7a's animation ends on idle instead);
+  - the prop follows the compose order (none under an extra) and is never held on its back; the
+    plain opossum is the body alone;
+  - the light panel is the reference's `#f8f6f0`, the outline `#464650`, from four neighbours;
+    the same 15 colours fall under 3:1 against `#f8f6f0`, `#faf9f5` and `#ffffff`;
+  - the work loop is 20 steps of T-01, the bob on odd steps and the blink on step 18; every
+    animation is a discrete `animateTransform` or `animate opacity`, with step 0 in its
+    attributes;
+  - the tongue sits by the nose's row as the flip moves it.
+- **Amendments:** in Session 6 (the Lead and the squad; `planned` to Session 7) and Session 7
+  (`data.ts` already holds the four sets and the fallback; `planned`'s greying to the owner
+  first).
+- **Measured** (CLI 2.1.330, Node 26.7.0):
+  - sizes over all four sets: a still pose 1.6k–3.4k characters, the work loop at most 8.7k,
+    the squad 5.0k;
+  - in the kit, all 288 classic looks from a cold cache in 167 ms, one work loop in 3.5 ms;
+  - `validate` unchanged: 11 hooks, 4 gating each with a `.catch`, 3 state keys, the same calls.
+- **Checked by hand:**
+  - **every classic pose,** still and the loop's first frame, on dark and on a forced light
+    theme, drawn by Quick Look from a scratch page: outfits, sign, "z", "!", the hats kept on
+    their backs, and the outline only round pale edges;
+  - **in the terminal,** `claude --plugin-dir mods/possum-squad` (CLI 2.1.330), driven by the
+    session: `/possums` docked the Lead, the session line and the empty panel's line, text only;
+    one Explore agent's row read "finished", Scout, its activity and its block bar, as before.
+  - **Found:** detached `screen` 4.0.3 gave empty or stale hardcopies after a `width` command;
+    attached in a Terminal-panel tab with `-U`, it read cleanly (`CLAUDE.md`, *Watch for*).
+  - Not seen: the desktop (after the push; `docs/BACKLOG.md`).
+- **Falsified,** each failing at its own test, 26 breaks: the bob leaving the seam row; the flip
+  off by one; the eyes closed over the outfit; the contrast threshold at 2; the outline on the
+  dark query; the loop's outline from step 0; a reduced-motion copy of another frame; animation
+  with motion off; the size budget; the blink on a bob step; an unknown role throwing; a prop
+  under an extra; a prop on its back; no Lead sprite; the description in the alt; a row dropping
+  its role id; partial alpha accepted; every set made to be whole; a colour allowed twice; an
+  unknown body read as none; Paeth's third choice; a stale `data.ts`; a role the strings name
+  and the art lacks; a worded mark not drawn; a sprite on the terminal; a set left out of
+  `data.ts`.
+  - **Four could not fail as first written:**
+    - the fixture's rows 26 and 27 were the same, so a seam row left unbobbed looked right; the
+      seam row is distinct now;
+    - `recipes.ts` hid the prop beside an extra, which the compositor already does; the copy is
+      gone, and the compositor's branch is the one broken;
+    - the PNG spec wrote and read with the module's own predictor, so a wrong one round-tripped;
+      a Paeth encoding written apart in the spec, with a pixel that reaches the third choice,
+      catches it (the first break, a tie, changed nothing);
+    - the kit's terminal draws an `Svg` as an empty `Box`; the terminal checks count those.
+- **Numbers:**
+  - 141 tests (+19) in 14 files (+3): clock 13, command 11, compose 8 (new), header 8, model 28,
+    pane-sprites 3 (new), panel 8, pass-through 5, prefs 4, roles 9, row 7, runs 17, settle 12,
+    sprites 8 (new);
+  - the tools' specs: 10 in 2 files (new), art 6, png 4;
+  - `validate` unchanged; the gate green on CLI 2.1.330.
+
 ---
 
 ## 7: Sets and gallery
@@ -960,10 +1059,14 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
 gallery), *The command and settings*, *Testing strategy*.
 
 - **The other three sets** in `data.ts`; `/possums set theme` redraws at once; a role a set lacks
-  falls back to `classic`; costume names per set.
+  falls back to `classic`; costume names per set. (Amended at Session 6's plan, with the owner:
+  `data.ts` already holds all four sets and their costume names, as Session 6's gate required,
+  and `dressOf` already falls back; this session draws `prefs.theme` and adds F-27's tests.)
 - **`/possums roles`:** the gallery of 17 roles in 8 states, with role and costume names, on both
   surfaces (text on the terminal), in Session 6's still poses; Session 7a animates it, framed,
-  as decided at Session 3 (amended at Session 3, with the owner).
+  as decided at Session 3 (amended at Session 3, with the owner). (Amended at Session 6's plan,
+  with the owner: `planned`'s pose comes here. Greyed inside `opacity`, as the manifest's words
+  suggest, its outline falls under 3:1, so how it is greyed goes to the owner first.)
 - **Docs.**
   - `CHANGELOG.md`: 0.8.0 (amended at Session 8's plan).
   - `ARCHITECTURE.md`: Built for *Sprites and sets*, *The panel* (the gallery), *The command and

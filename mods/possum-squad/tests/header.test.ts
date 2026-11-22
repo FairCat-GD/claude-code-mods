@@ -14,14 +14,15 @@ const LEAD = { tokens: 120_000, contextPercent: 31 }
 const SESSION = { tokens: 254_000, workedMs: 252_000 }
 const stateOf = (states: readonly string[]) => ROWS.filter(row => states.includes(row.state))
 const ENDED = ['finished', 'failed', 'stopped']
+const LOOK = { set: 'classic', motion: 'auto' } as const
 
 // The panels a fixture draws, by request id.
 const PANELS: Record<string, PanelData> = {
-  every: { lead: LEAD, session: SESSION, rows: ROWS, isFinishedOpen: false },
-  open: { lead: LEAD, session: SESSION, rows: ROWS, isFinishedOpen: true },
-  running: { lead: LEAD, session: SESSION, rows: stateOf(['starting', 'working', 'quiet']), isFinishedOpen: true },
-  ended: { lead: LEAD, session: SESSION, rows: stateOf(ENDED), isFinishedOpen: true },
-  none: { lead: { tokens: 0 }, session: { tokens: 0, workedMs: 0 }, rows: [], isFinishedOpen: false },
+  every: { lead: LEAD, session: SESSION, rows: ROWS, isFinishedOpen: false, look: LOOK },
+  open: { lead: LEAD, session: SESSION, rows: ROWS, isFinishedOpen: true, look: LOOK },
+  running: { lead: LEAD, session: SESSION, rows: stateOf(['starting', 'working', 'quiet']), isFinishedOpen: true, look: LOOK },
+  ended: { lead: LEAD, session: SESSION, rows: stateOf(ENDED), isFinishedOpen: true, look: LOOK },
+  none: { lead: { tokens: 0 }, session: { tokens: 0, workedMs: 0 }, rows: [], isFinishedOpen: false, look: LOOK },
 }
 
 // The test's own drawing of a fixture panel with the module's builder. `bare-<id>` draws the terminal with the kit's

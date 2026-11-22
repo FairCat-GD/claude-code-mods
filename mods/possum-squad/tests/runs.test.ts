@@ -225,7 +225,8 @@ test("a call's arguments draw as plain Text in the activity line, never as marku
   for (const surface of SURFACES) {
     const { elements, texts } = await drawn($, surface)
     expect(texts).toContain(`Reading ${path}`)
-    expect(elements.filter(element => element.type === 'Markdown' || element.type === 'Link' || element.type === 'Svg')).toEqual([])
+    // The sprite is the only Svg, built from the mod's own art: no element's props, its source included, hold the call's text.
+    expect(elements.filter(element => element.type === 'Markdown' || element.type === 'Link')).toEqual([])
     for (const element of elements.filter(one => one.type !== 'Text')) expect(JSON.stringify(element.props)).not.toContain('hedge')
   }
 })

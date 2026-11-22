@@ -2,8 +2,8 @@
 
 possum-squad keeps a pane beside the conversation listing the main session and the agents it
 starts. It only watches: nothing Claude does changes because it is installed, and it adds
-nothing to what Claude is sent. For now each one is a row of text; the opossums arrive in later
-versions.
+nothing to what Claude is sent. In the desktop app each one is a small pixel opossum beside a
+few lines of text; in a terminal, the text alone.
 
 ## `/possums`
 
@@ -33,7 +33,8 @@ From the top:
      sessions, and shared by every session you have open.
 
    A section other than Running shows only when it holds someone. Until an agent starts, the
-   pane says "No agents yet. They show up here when Claude starts one." under the session line.
+   pane says "No agents yet. They show up here when Claude starts one." under the session line,
+   with three opossums asleep above it in the desktop app.
 
 **The time is work time:** the main session's turns added up, plus each agent's time, so with
 several agents at once it runs faster than the clock on the wall. The main session's part grows
@@ -48,6 +49,27 @@ right. If the times ever stand still while an agent runs, `/possums open` starts
 
 In a terminal the pane is all text: block characters for the bars, and a coloured mark beside
 each state word.
+
+## The opossums
+
+In the desktop app, and any app that draws pictures, every row starts with its opossum, and
+the main session has its own, in the Lead's crown and robe. A row's opossum is plain until its
+role is settled, then wears that role's outfit for good. Its pose says its state:
+
+- **starting:** standing;
+- **working:** bobbing, its tool moving against it, blinking every few seconds;
+- **quiet:** dozing on its feet, eyes closed;
+- **needs you:** holding up a "?" sign;
+- **finished:** asleep, with a "z";
+- **stopped:** startled, with a "!";
+- **failed:** on its back, tongue out.
+
+For now only a working opossum moves; the others hold their pose. The state is always written
+beside it too, so the picture never has to be read alone.
+
+On the app's light theme each opossum's pale edges get a thin dark outline; on the dark theme
+it has none. With `motion` at `off`, every opossum keeps still; at `auto` they move, unless your
+system asks for reduced motion, which keeps them still too.
 
 ## What a row shows
 
@@ -121,11 +143,11 @@ nothing; `/possums set` alone names the settings. Names and values can be typed 
 |---|---|---|---|
 | `autoOpen` | `never`, `first`, `always` | `first` | Open the pane by itself never, when a session's first agent starts, or on every new agent. |
 | `cost` | `off`, `estimate` | `off` | Show an estimated dollar figure beside the plan-limit percent. |
-| `motion` | `auto`, `off` | `auto` | Animate the opossums, following your system's reduced-motion setting, or keep them still. |
-| `theme` | `classic`, `steampunk`, `horror`, `prehistoric` | `classic` | The set of outfits the opossums wear. |
+| `motion` | `auto`, `off` | `auto` | Animate the opossums, following your system's reduced-motion setting, or keep them still. Works now. |
+| `theme` | `classic`, `steampunk`, `horror`, `prehistoric` | `classic` | The set of outfits the opossums wear. Kept for now: every opossum wears `classic` until 0.8.0. |
 
-The settings are kept between sessions and shared by every session you have open. Each takes
-effect when the part of the pane it controls arrives; for now they are only kept. If two
+The settings are kept between sessions and shared by every session you have open. `motion`
+takes effect at once; the others when the part of the pane they control arrives. If two
 sessions change a setting at the same moment, one change may be lost: set it again.
 
 Answers in words are marked as yours alone. Claude Code keeps such an answer out of what

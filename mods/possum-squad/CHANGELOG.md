@@ -6,6 +6,36 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-11-22
+
+The opossums arrive: in the desktop app each agent is a small pixel opossum, dressed for its
+role.
+
+### Added
+
+- **An opossum per row,** beside the row's text, in the desktop app and every other app that
+  draws pictures; the terminal keeps its text rows. It wears its agent's role from the
+  `classic` set (a hard hat and hammer for a Builder, a pith helmet and flashlight for a Scout,
+  and so on), and is a plain opossum until the role is settled.
+- **A pose for each state:** standing while starting; dozing with its eyes closed when quiet;
+  holding up a "?" sign when it needs you; asleep with a "z" when finished; startled with a "!"
+  when stopped; on its back when failed.
+- **A working opossum moves:** it bobs, its tool moves against it, and it blinks now and then.
+  The other poses are still for now; their animations come in a later version.
+- **The main session** wears the Lead's crown and robe at the top of the pane, and an empty pane
+  shows three opossums asleep above its line.
+- **The `motion` setting** works: `auto` animates, and keeps still for anyone whose system asks
+  for reduced motion; `off` keeps every opossum still.
+- **On the app's light theme** each opossum's pale edges get a thin dark outline, so it stays
+  readable; on the dark theme it has none.
+
+### Notes
+
+- The `theme` setting is still only kept: every opossum wears `classic` until 0.8.0 brings the
+  other three sets.
+- A hat stays on an opossum on its back, so it lies a little higher than the first drawings
+  showed.
+
 ## [0.6.0] — 2026-11-22
 
 Every agent gets a role, worked out from what it is doing; the outfits that show it arrive with

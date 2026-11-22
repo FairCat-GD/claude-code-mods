@@ -1,6 +1,6 @@
 import type { Color, ElementConstructor, ProgressProps, RenderElement } from 'claude-code'
 
-import type { StateId } from '../../types/index'
+import type { RoleId, StateId } from '../../types/index'
 import { STRINGS } from '../strings'
 import type { Shared } from './empty'
 import { bar, elapsed, fill, percent, tokens } from './format'
@@ -12,8 +12,9 @@ export type RowData = {
   description: string
   tokens: number
   elapsedMs: number
-  // The role's name, once it is settled.
+  // The role's name and id, once it is settled.
   role?: string
+  roleId?: RoleId
   model?: string
   effort?: string
   activity?: string
@@ -71,7 +72,7 @@ export function terminalRow(table: Shared, row: RowData): RenderElement {
   )
 }
 
-// The desktop's row: the sprite (the state's mark until sprites are drawn) beside four lines. The last is the app's
+// The desktop's row: the sprite (the state's mark where the surface draws none) beside four lines. The last is the app's
 // own bar, which draws its label and figure above the fill at the full width, so the numbers ride in its figure.
 export function desktopRow(table: DesktopTable, row: RowData, sprite?: RenderElement): RenderElement {
   const { Box, Text, Progress } = table

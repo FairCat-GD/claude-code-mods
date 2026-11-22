@@ -34,6 +34,16 @@ up, it moves out of this file.
 Checks that need a person at the machine. Each has an automated check covering most of it;
 these are the parts only a person can see.
 
+- **The opossums in the desktop app (0.7.0).** The kit checks each sprite's SVG, its size, its
+  outline and its animation's frames, but not how the app paints them, and a terminal shows
+  none. To check after the push, with three agents running: each row's opossum in its role's
+  outfit, plain before; a working one bobbing and blinking smoothly, and not restarting each
+  second; the Lead's crown; the empty pane's sleeping three; on the light theme the dark
+  outline round pale edges, and none on the dark; with reduced motion on in the system, and
+  with `/possums set motion off`, every opossum still. These sprites use `<path>` and an
+  `opacity` animation, which the other mod in this repository draws on the desktop but this
+  one has not yet.
+
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.

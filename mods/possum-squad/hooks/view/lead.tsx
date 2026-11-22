@@ -29,11 +29,11 @@ export function terminalLead({ Box, Text }: Shared, lead: LeadData): RenderEleme
   )
 }
 
-// The desktop's Lead: the mark (the sprite to come) beside its name and the app's bar of its context.
-export function desktopLead({ Box, Text, Progress }: DesktopTable, lead: LeadData): RenderElement {
+// The desktop's Lead: its sprite (the mark where the surface draws none) beside its name and the app's bar of its context.
+export function desktopLead({ Box, Text, Progress }: DesktopTable, lead: LeadData, sprite?: RenderElement): RenderElement {
   return (
     <Box key="lead" flexDirection="row" gap={1}>
-      <Text color={COLOUR}>{STRINGS.row.mark}</Text>
+      {sprite ?? <Text color={COLOUR}>{STRINGS.row.mark}</Text>}
       <Box flexDirection="column" flexGrow={1} flexShrink={1}>
         <Text weight="semibold">{STRINGS.lead}</Text>
         <Progress label={STRINGS.row.context} value={fill(lead.contextPercent)} valueText={figures(lead)} />

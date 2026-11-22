@@ -82,4 +82,10 @@ export const STRINGS = {
     Skill: 'Using',
   } as Record<string, string | undefined>,
   using: (tool: string) => `Using ${tool}`,
+  // What a sprite shows, for a reader that cannot see it.
+  sprite: {
+    plain: 'Opossum',
+    alt: (who: string, state: string) => `${who}, ${state}`,
+    squad: 'The squad, asleep',
+  },
 } as const

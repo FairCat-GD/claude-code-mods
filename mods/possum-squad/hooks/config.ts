@@ -9,3 +9,9 @@ export const WEAK_CALLS_FOR_SCOUT = 6
 
 // T-04: the time from a run's start after which a role no rule settled is Helper.
 export const ROLE_SETTLES_MS = 60_000
+
+// T-01: one frame of a sprite's loop.
+export const ANIMATION_STEP_MS = 200
+
+// T-02: a sprite's pixel drawn this many CSS pixels wide.
+export const SPRITE_SCALE = 2

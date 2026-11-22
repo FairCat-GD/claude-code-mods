@@ -22,6 +22,7 @@ import {
 import { callsOf } from './model/tools'
 import { atSpawn, HELPER, toolsSeen } from './roles/rules'
 import { changeOf, mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES, SETTINGS, settingsText } from './settings'
+import { ART } from './sprites/data'
 import { STRINGS } from './strings'
 import { panel } from './view/panel'
 import { rowData } from './view/runs'
@@ -288,6 +289,8 @@ async function drawPane(
       session: totals(main, held, now),
       rows: shown.map(run => rowData(run, keyOf(run), figures(run, now))),
       isFinishedOpen: prefs.finishedOpen,
+      // The pane wears the default set; `theme` is kept, not drawn.
+      look: { set: ART.defaultSet, motion: prefs.motion },
     },
     () => void showFinished($, !prefs.finishedOpen),
   )

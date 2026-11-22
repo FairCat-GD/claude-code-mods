@@ -1,22 +1,29 @@
 import type { On } from 'claude-code'
 import { type Engine, expect, test } from 'claude-code/testing'
 
+import { sprite } from '../hooks/sprites/index'
 import { STRINGS } from '../hooks/strings'
 import { BAR_CELLS, bar, elapsed, fill, percent, tokens } from '../hooks/view/format'
 import { desktopRow, type RowData, terminalRow } from '../hooks/view/row'
+import { spriteElement } from '../hooks/view/sprite'
 import { MOUNT, SURFACES } from './engine'
 import { LONG_ROW, MARKUP_ROW, ROWS } from './fixtures/rows'
 
 const EVERY_ROW = [...ROWS, MARKUP_ROW, LONG_ROW]
 
-// The engine beneath the mod drawing one fixture row, picked by the request id, with the surface's builder.
-// A test plugin closes over nothing of this file, so the drawing is the test's own hook.
+// A row's sprite as the panel draws it.
+const spriteOf = (row: RowData) => sprite({ set: 'classic', role: row.roleId, pose: row.state, motion: 'auto' })
+
+// The engine beneath the mod drawing one fixture row, picked by the request id, with the surface's builder; the desktop's
+// with its sprite. A test plugin closes over nothing of this file, so the drawing is the test's own hook.
 function drawRows(on: On) {
   on('ui.render', { plugin: '*' }, ($, e) => {
     const row = EVERY_ROW.find(one => one.id === e.requestId)
     if (row === undefined) throw new Error(`no fixture row ${e.requestId}`)
     const table = $.ui.resolve(e)
-    return e.surface === 'terminal' ? terminalRow(table, row) : desktopRow(table, row)
+    if (e.surface === 'terminal') return terminalRow(table, row)
+    const alt = STRINGS.sprite.alt(row.role ?? STRINGS.sprite.plain, STRINGS.states[row.state])
+    return desktopRow(table, row, 'Svg' in table ? spriteElement(table.Svg, spriteOf(row), alt) : undefined)
   })
 }
 
@@ -41,9 +48,13 @@ test("a row's agent text is drawn only as plain Text, never as markup, a link or
       for (const whole of [row.description, row.activity]) {
         for (const text of texts.filter(one => whole !== undefined && one.includes(whole))) expect(text).toBe(whole)
       }
-      expect(elements.filter(element => element.type === 'Markdown' || element.type === 'Link' || element.type === 'Svg')).toEqual([])
+      expect(elements.filter(element => element.type === 'Markdown' || element.type === 'Link')).toEqual([])
+      // The desktop's one Svg is the sprite, its source the mod's own art; its other props hold no agent text.
+      const svgs = elements.filter(element => element.type === 'Svg')
+      expect(svgs.map(svg => svg.props.source)).toEqual(surface === 'terminal' ? [] : [spriteOf(row).source])
       for (const element of elements.filter(one => one.type !== 'Text')) {
-        for (const text of agentText(row)) expect(JSON.stringify(element.props)).not.toContain(text)
+        const { source: _, ...props } = element.props as Record<string, unknown>
+        for (const text of agentText(row)) expect(JSON.stringify(props)).not.toContain(text)
       }
     }
   }
