@@ -8,21 +8,16 @@ A new mod is not a repo-level round: it starts with `npm run new-mod` and its ow
 
 ## State you need that is not in the docs
 
-- **Round 2, the gate taking a mod's `tools/` (Session G1), closes with `docs: close round 2`.**
-  That commit deletes its spec files; the last done-note is in `docs/spec/SESSIONS.md` as of
-  G1's review commit (`<sha>`, filled in by the close).
-- **possum-squad's Session 6 can run from that close on,** not before it. The gate takes a mod's
-  `tools/`: the import scan allows a tool's `node:` imports behind the wall, `types` types it,
-  and `tests` runs its `*.spec.ts`. Its handoff names this round's close as what it waits for.
-- **Push status:** `origin/main` holds everything through `65c36b2` (possum-squad's Session 8
-  review). Waiting locally, none pushed, in order:
-  - `7b9e3be`, a possum-squad docs commit;
-  - `dd87acc`, this round's intake;
-  - `61e6d3e`, a possum-squad docs commit;
-  - `72d0324`, the intake's review;
-  - G1's `feat: the gate takes a mod's tools/`, its `review:` commits, and `docs: close round 2`.
-
-  List `origin/main..HEAD` before any push, and name any commit that is not the session's.
+- **Round 2, the gate taking a mod's `tools/` (Session G1), is closed.** Its spec files are
+  deleted; the last done-note, with both of its reviews, is in `docs/spec/SESSIONS.md` as of
+  G1's last review commit (`dfdca6738b84e1ed27b0146281185583a3805e40`).
+- **possum-squad's Session 6 can run.** The gate takes a mod's `tools/`: the import scan allows a
+  tool's `node:` imports behind the wall, `types` types it, and `tests` runs its `*.spec.ts`. Its
+  handoff names this round's close as what it waits for.
+- **Push status:** Pushed on 2026-11-22 with the owner's approval: `origin/main` holds everything
+  through this close (`docs: close round 2`), possum-squad's two docs commits from the same days
+  included. Nothing waits locally. List `origin/main..HEAD` before any push, and name any commit
+  that is not the session's.
 - **Open items live in `docs/BACKLOG.md`;** round 2 added none.
 - **Baseline** (`docs/ARCHITECTURE.md`, CLI 2.1.330): `npm run verify` 18 stages PASS; tooling
   tests 190 in 11 files; the template 1 test, 2 hooks, 0 gating; each mod's counts in its own
