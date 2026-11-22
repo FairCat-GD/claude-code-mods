@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { test } from 'node:test'
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { type TestContext, test } from 'node:test'
 
 import { declaredModules, scanImports } from '../scripts/imports.ts'
 import { FIXTURES, temporaryFolder } from './support.ts'
@@ -111,5 +111,71 @@ test('a tool names a module Node has, by its node: name', t => {
   assert.deepEqual(scanImports(dir, DECLARED), [
     "tools/convert.ts:1: 'fs' is no node: module: a tool imports only from tools/ and node: modules",
     "tools/convert.ts:2: 'node:nothing' is no node: module: a tool imports only from tools/ and node: modules",
+  ])
+})
+
+// A mod in a scratch folder, its files written from a map of path to text.
+const scratchMod = (t: TestContext, files: Record<string, string>) => {
+  const dir = join(temporaryFolder(t), 'mod')
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true })
+    writeFileSync(join(dir, path), text)
+  }
+  return dir
+}
+
+test('the wall ignores case, as the disk does', t => {
+  const into = scanImports(
+    scratchMod(t, { 'tools/shout.ts': 'export const shout = 1\n', 'hooks/a.ts': "export { shout } from '../Tools/shout.ts'\n" }),
+    DECLARED,
+  )
+  assert.equal(into.length, 1)
+  assert.match(into[0] ?? '', /^hooks\/a\.ts:1: '\.\.\/Tools\/shout\.ts' /)
+  assert.deepEqual(scanImports(scratchMod(t, { 'Tools/shout.ts': 'export const shout = 1\n' }), DECLARED), [
+    'Tools/shout.ts:1: a folder named tools/ in another case: name it tools/',
+  ])
+})
+
+test('a symbolic link in the folder is refused, so nothing reaches past the scan through one', t => {
+  const dir = scratchMod(t, { 'hooks/register.ts': 'export const register = 1\n' })
+  mkdirSync(join(dir, '../outside'))
+  writeFileSync(join(dir, '../outside/v.ts'), "import ts from 'typescript'\nexport const v = ts\n")
+  symlinkSync('../outside', join(dir, 'tools'))
+  symlinkSync('register.ts', join(dir, 'hooks/link.ts'))
+  assert.deepEqual(scanImports(dir, DECLARED), [
+    'hooks/link.ts:1: a symbolic link, which the import scan does not follow: replace it with what it points to',
+    'tools:1: a symbolic link, which the import scan does not follow: replace it with what it points to',
+  ])
+})
+
+test('tools/ holds only .ts, but in tools/fixtures/, where a source must be .ts too', t => {
+  const dir = scratchMod(t, {
+    'tools/run.sh': 'echo fictional\n',
+    'tools/fixtures/sample.json': '{}\n',
+    'tools/fixtures/legacy.mjs': 'export const legacy = 1\n',
+  })
+  assert.deepEqual(scanImports(dir, DECLARED), [
+    'tools/fixtures/legacy.mjs:1: a source under tools/ must be .ts',
+    'tools/run.sh:1: a file under tools/ but outside tools/fixtures/ must be .ts',
+  ])
+})
+
+test('the wall judges the file an import resolves to: a root tools.ts is no tool, a tools/index.ts is', t => {
+  const file = scratchMod(t, { 'tools.ts': 'export const t = 1\n', 'hooks/e.ts': "export { t } from '../tools'\n" })
+  assert.deepEqual(scanImports(file, DECLARED), [])
+  const index = scratchMod(t, { 'tools/index.ts': 'export const t = 1\n', 'hooks/e.ts': "export { t } from '../tools'\n" })
+  assert.deepEqual(scanImports(index, DECLARED), ["hooks/e.ts:1: '../tools' reaches into tools/, which runs on Node, never in the engine"])
+})
+
+test('a reference path crosses the wall like an import, both ways', t => {
+  const dir = scratchMod(t, {
+    'hooks/shapes.d.ts': 'export type Hook = 1\n',
+    'tools/shapes.d.ts': 'export type Tool = 1\n',
+    'hooks/register.ts': '/// <reference path="../tools/shapes.d.ts" />\nexport const register = 1\n',
+    'tools/convert.ts': '/// <reference path="../hooks/shapes.d.ts" />\nexport const convert = 1\n',
+  })
+  assert.deepEqual(scanImports(dir, DECLARED), [
+    "hooks/register.ts:1: '../tools/shapes.d.ts' reaches into tools/, which runs on Node, never in the engine",
+    "tools/convert.ts:1: '../hooks/shapes.d.ts' leaves tools/: a tool imports only from tools/ and node: modules",
   ])
 })

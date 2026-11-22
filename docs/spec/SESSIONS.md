@@ -206,8 +206,9 @@ pins*, *Layout and boundaries*, *What a mod is*, *The gate*, *`validate` and the
   - `node --test` on spec paths holding glob characters: `a[1].spec.ts` ran nothing,
     `a\[1\].spec.ts` ran nothing, `a[[]1].spec.ts` ran it, and `b\*.spec.ts` ran 0 tests and
     passed.
-  - `main` on `tooled-mod`'s `types` and `tests`: each kit half could not start (no declarations;
-    no hooks module), each tools half ran and passed, and both stages failed.
+  - `main` on `tooled-mod`'s `types` and `tests`: the `types` kit half could not start (no
+    declarations), and the `tests` kit half started and its `claude plugin test` failed (no hooks
+    module); each tools half ran and passed, and both stages failed.
 - **Falsified,** each by copying the script aside, breaking one rule and copying it back; each
   failed at its own test:
   - the `.ts`-only rule, the types-reference rule, the wall leaving `tools/` and the wall into
@@ -225,3 +226,28 @@ pins*, *Layout and boundaries*, *What a mod is*, *The gate*, *`validate` and the
 - **Numbers:** tooling tests 180 in 11 files (+14, +1 file): imports 13 (+3), tools 9 (new),
   verify 17 (+2). `npm run verify` green, 18 stages, as before: no mod has a `tools/` yet. The
   template 1 test, 2 hooks, 0 gating.
+- **Adversarial review (on the owner's word, after the commit), 7 findings, all fixed, the
+  owner's choice:**
+  - **A different-case path crossed the wall.** `../Tools/shout.ts` passed the scan on this
+    case-insensitive disk, and the engine would have loaded the tool. The wall now matches
+    `tools/` without regard to case, and a top-level `Tools/` is refused by name.
+  - **A symbolic link got past the scan.** The scan reads files without following links, while
+    the tools' halves follow them, so a linked `tools/` was typed and run but never walled. Any
+    symbolic link in a mod's folder is now refused.
+  - **A folder without `tools/` changed:** `'../tools'` naming a root `tools.ts` was refused. The
+    wall now judges the file an import resolves to, so that passes and a `tools/index.ts` does
+    not.
+  - **A non-source file under `tools/` passed,** such as a `run.sh`. Any file that is not `.ts`
+    is now refused outside `tools/fixtures/`, where data lives.
+  - **A package loaded at run time** (`createRequire`, a computed `import()`) passes the scan. It
+    is named in *Testing strategy*'s "Cannot see" for the tools row.
+  - **The tests missed cases:** a tools half that throws beside a running kit half, a failing
+    tools command beside a passing kit, a folder that exists without `tools/` (the template), and
+    a `/// <reference path>` crossing the wall both ways. Each has a test now.
+  - **The docs said more than was true:** the done-note's measurement said both kit halves could
+    not start; the handoff read as if the round were already closed. Both corrected.
+  - **Falsified,** each failing at its own test: the wall's case-blindness, the other-case
+    folder, the link refusal, the non-`.ts` rule, the resolved-file rule (which first passed
+    unbroken, until a `tools/index.ts` case was added), a reference path read as one, a throwing
+    half that fails, the tools' commands running, and no half for a folder without `tools/`.
+  - **Numbers after it:** tooling tests 187 in 11 files (+7): imports 18 (+5), verify 19 (+2).

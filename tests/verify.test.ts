@@ -211,9 +211,10 @@ test("a folder with tools/ keeps its tools' commands in types and tests, with no
   }
   assert.equal(stage('validate')?.tools, undefined)
   assert.equal(stage('imports')?.tools, undefined)
-  const without = plan(['alpha'], FOLDERS)
+  const template = { name: 'mod-template', path: 'templates/mod-template' }
+  const without = plan(['mod-template'], [template])
   assert.ok(Array.isArray(without))
-  assert.ok(without.every(each => each.tools === undefined))
+  assert.ok(without.length > 6 && without.every(each => each.tools === undefined))
 })
 
 test("a half that cannot start fails the stage, and the tools' half still runs", t => {
@@ -230,4 +231,25 @@ test("a half that cannot start fails the stage, and the tools' half still runs",
   assert.equal(passed, false)
   assert.ok(existsSync(marker))
   assert.ok(lines.includes('verify: halves cannot start: no declarations'))
+})
+
+test("a tools' half that cannot start fails the stage, and the kit's commands still run", t => {
+  const marker = join(temporaryFolder(t), 'ran')
+  const lines: string[] = []
+  const stage: Stage = {
+    name: 'halves',
+    commands: () => [{ argv: [process.execPath, '-e', `require('fs').writeFileSync(${JSON.stringify(marker)}, '')`] }],
+    tools: () => {
+      throw new SetupError('typescript is not installed')
+    },
+  }
+  const [passed] = runStage(stage, line => lines.push(line))
+  assert.equal(passed, false)
+  assert.ok(existsSync(marker))
+  assert.ok(lines.includes('verify: halves cannot start: typescript is not installed'))
+})
+
+test("a failing tools' command fails the stage beside a passing kit", () => {
+  assert.equal(runStage({ name: 'halves', commands: () => [exits(0)], tools: () => [exits(1)] }, quiet)[0], false)
+  assert.equal(runStage({ name: 'halves', commands: () => [exits(0)], tools: () => [exits(0)] }, quiet)[0], true)
 })

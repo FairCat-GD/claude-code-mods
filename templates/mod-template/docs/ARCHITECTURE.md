@@ -70,8 +70,9 @@ not Node. The tooling's own pins are the repository's.
   a module the engine declares. Nothing is imported from another mod or from the repository's
   root, because the installed copy holds only this folder.
 - **`tools/` is walled off both ways:** nothing outside it imports it, and a tool imports only from
-  `tools/` and `node:` modules, every source under it `.ts`. What a tool reads, writes or runs is
-  named in this file, as all reach is.
+  `tools/` and `node:` modules. Every file under it is `.ts`, but data in `tools/fixtures/`, and
+  no file in this folder is a symbolic link. What a tool reads, writes or runs is named in this
+  file, as all reach is.
 
 **Built.** *Enforced by* the gate's `imports` stage (the import scan, which holds the wall around
 `tools/` too) and `validate` (`claude plugin validate`). A `tools/` is typed and its specs run by

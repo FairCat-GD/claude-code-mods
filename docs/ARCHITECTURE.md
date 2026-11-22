@@ -413,16 +413,20 @@ script, so a new build's modules pass without an edit. It walls a mod's `tools/`
     `declare module` in the laid declarations declares. At 2.1.325 those are `claude-code` and
     `claude-code/testing`; `claude-code-tools/` and `claude-code-mcp/` are additions to
     `claude-code`, not modules to import.
-  - **The `tools/` rules** hold for every source under the folder's top-level `tools/`,
-    `tools/fixtures/` included:
-    - a source that is not `.ts` is refused, at its first line;
+  - **The `tools/` rules** hold for every file under the folder's top-level `tools/`, matched
+    without regard to case, since the disk ignores it; a `Tools/` is refused by name:
+    - a source that is not `.ts` is refused at its first line, in `tools/fixtures/` too, and any
+      other file that is not `.ts` outside `tools/fixtures/` (a `run.sh`, say);
     - a bare import must start with `node:` and name a module Node's `isBuiltin` knows, so `fs`
       and `node:nothing` are refused, and so is a `/// <reference types>`;
-    - a relative import, or a `/// <reference path>`, that resolves inside the folder but outside
+    - a relative import, or a `/// <reference path>`, whose file is inside the folder but outside
       `tools/` leaves it.
 
-    Outside `tools/`, a relative import that resolves into it is refused, saying it runs on
-    Node, never in the engine; `node:` there stays an undeclared module.
+    Outside `tools/`, a relative import whose file is in it is refused, saying it runs on Node,
+    never in the engine; `node:` there stays an undeclared module. The wall judges the file an
+    import resolves to, so `'../tools'` reaches a `tools/index.ts` but not a root `tools.ts`.
+  - **A symbolic link anywhere in the folder is refused,** since the scan reads files without
+    following links, while the tools' halves and the engine follow them.
 
 ## The API declarations (`npm run types`)
 
@@ -498,7 +502,7 @@ tool has a spec is per folder: a tool its specs leave untested rests on review.
 | `claude plugin test` | `verify`, per folder | A mod's hooks against the engine's kit, with the clock and the store mocked, on each surface a test names | What a surface actually paints; the real order and timing of events; another plugin above the mod; a desktop engine newer than the CLI |
 | Tooling tests | `verify` (`node --test`) | The gate's own scripts, hygiene included, in scratch repositories and roots, with fixture terms and a scratch home for the CLI | The real term file, the real stamp, the owner's config |
 | Hygiene and marketplace | `verify`; hygiene with the drafted message, in full when the term file or the stage changes | Private terms in files, paths and messages; attribution in messages; secrets by their exact shapes; conflict markers; the marketplace against the folders | Images and other binaries, their metadata included; a term joined inside one lowercase run; attribution in files; a home-directory path; a secret of any other shape; a submodule entry |
-| A mod's tools | `verify`, per folder with `tools/`: `scripts/tools.ts` in `types` and `tests`, the wall in `imports` | A tool's types, with the tooling's options and Node's; its behaviour, by its `*.spec.ts` under Node; that a `tools/` with a tool has a spec | Which tools the specs leave untested; how the engine uses what a tool writes, which the mod's own tests see |
+| A mod's tools | `verify`, per folder with `tools/`: `scripts/tools.ts` in `types` and `tests`, the wall in `imports` | A tool's types, with the tooling's options and Node's; its behaviour, by its `*.spec.ts` under Node; that a `tools/` with a tool has a spec | Which tools the specs leave untested; how the engine uses what a tool writes, which the mod's own tests see; a package a tool loads at run time (`createRequire`, an `import()` of a computed name), which the scan cannot read and the type check resolves from the root |
 | By hand | Recorded in done-notes | A mod in the app, from the installed release or a `--plugin-dir` session; what a session runs that no harness can | Anything not written down; what nobody checked goes to the level's `docs/BACKLOG.md` |
 
 The last read of each diff covers what hygiene cannot see: a home-directory path, attribution in a
@@ -573,7 +577,7 @@ file, the owner's data.
 | Check | Expected |
 |---|---|
 | `npm run verify` | green: 18 stages, the 6 repo stages, then 4 for each of cartoon-fx, possum-squad and `mod-template` (4 more per mod) |
-| Tooling tests (`node --test "tests/*.test.ts"`) | 180 pass, in 11 files: hygiene 109 in 4, verify 17, marketplace 13, imports 13, tools 9, new-mod 9, validate 6, types 4 |
+| Tooling tests (`node --test "tests/*.test.ts"`) | 187 pass, in 11 files: hygiene 109 in 4, verify 19, imports 18, marketplace 13, tools 9, new-mod 9, validate 6, types 4 |
 | `mod-template`: tests | 1 pass |
 | `mod-template`: `validate` | 2 hooks, 0 gating, calls `$.command.register`; no warning but the allowed one |
 | Each mod | its 4 stages green; its counts are in its own `docs/ARCHITECTURE.md`'s baseline |
