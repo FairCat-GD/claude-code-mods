@@ -27,6 +27,8 @@ pins*, *Layout and boundaries*, *What a mod is*, *The gate*, *`validate` and the
     intake read its pattern, `\.test\.tsx?$`, from the CLI 2.1.330 binary.
   - **If `validate` warns or errors on `tools/`, stop and bring it to the owner.**
     `scripts/validate.ts` allows one warning by name, so every mod with `tools/` would fail.
+  - Type a fixture tool under `tests/fixtures/<mod>/tools/` with the root `tsconfig.json`'s
+    options through the TypeScript API, and see it resolve `@types/node` as an ES module.
 - **The import scan** (*Layout and boundaries*, *`validate` and the import scan*), in
   `scanImports` (`scripts/imports.ts:33`).
   - In `tools/`:
@@ -42,14 +44,17 @@ pins*, *Layout and boundaries*, *What a mod is*, *The gate*, *`validate` and the
   - A new script types every `.ts` under `<folder>/tools/` but `tools/fixtures/`, with the
     compiler options of the root `tsconfig.json`, read through the TypeScript API. The script's
     name is G1's.
-  - The intake measured the route: `ts.getParsedCommandLineOfConfigFile`, then
-    `ts.createProgram(files, options)`, types a file the config does not include against
-    `@types/node`. Resolve the config from `ROOT`, not the working directory.
+  - The route: `ts.getParsedCommandLineOfConfigFile`, then `ts.createProgram(files, options)`,
+    with the files named. The intake ran it on `scripts/repo.ts`, which the config includes:
+    `@types/node` resolved, with 0 diagnostics. The plan's reviewer checked a file outside the
+    config only in memory. A file under `mods/` is measured at G1's start, above. Resolve the
+    config from `ROOT`, not the working directory.
 - **The tools' specs** (*What a mod is*, *Testing strategy*), in a new script, or the type
   check's with a word.
   - It lists `tools/**/*.spec.ts` outside `tools/fixtures/`.
-  - It fails when `tools/` holds a tool (a `.ts` that is neither a spec nor under `fixtures/`)
-    and no spec.
+  - It fails when `tools/` holds a tool and no spec. A tool is a `.ts` that is neither a spec, a
+    declaration file (`.d.ts`) nor under `fixtures/`. A `.d.ts` is allowed under `tools/` and is
+    typed, but asks for no spec.
   - It runs `node --test` on those files by name, with `NODE_TEST_CONTEXT` removed from its
     environment.
 - **`folderStages`** (`scripts/verify.ts:56`). When `<folder>/tools/` exists:
@@ -67,6 +72,7 @@ pins*, *Layout and boundaries*, *What a mod is*, *The gate*, *`validate` and the
   - a `.mjs` tool;
   - a tool with a type error;
   - a `tools/` with no spec;
+  - a `tools/` holding only a `.d.ts`;
   - a spec under `tools/fixtures/`.
 
   `tests/fixtures/README.md` describes each.
@@ -74,9 +80,9 @@ pins*, *Layout and boundaries*, *What a mod is*, *The gate*, *`validate` and the
   - `ARCHITECTURE.md`:
     - the Built parts of the sections above, each now saying "Not yet: Session G1";
     - *Testing strategy*'s table, a row for the tools' type check and specs;
-    - *Overview*'s Built: two mods, and the script count;
-    - *Baseline*: the tooling's test counts, and the stage count. 18 since possum-squad joined:
-      the 6 repo stages, then 4 for each of two mods and the template.
+    - *Overview*'s Built: the script count, if G1 adds a script;
+    - *Baseline*: the tooling's test counts. The intake's review already set the stage count to
+      18 and the two mods.
   - `CLAUDE.md`:
     - invariants 2 and 6, as `ARCHITECTURE.md` now decides them;
     - *The plugin API is early access*: "A mod's tests run under `claude plugin test`, not Node"
@@ -114,7 +120,7 @@ pins*, *Layout and boundaries*, *What a mod is*, *The gate*, *`validate` and the
   - **the specs:**
     - a failing spec fails;
     - a spec under `tools/fixtures/` is not run;
-    - a `tools/` with no spec fails;
+    - a `tools/` with no spec fails, and one holding only a `.d.ts` passes;
     - each is run from a tooling test, so it proves `NODE_TEST_CONTEXT` is removed;
   - **`plan`:** a folder with `tools/` keeps its tools' commands in `types` and `tests` with no
     declarations and no `claude`; a folder without `tools/` gets no new command.

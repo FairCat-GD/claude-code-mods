@@ -42,8 +42,8 @@ here describes a mod's internals.
   | `<name>`'s entry in `.claude-plugin/marketplace.json`, its row in `README.md` | that mod's sessions |
   | everything else | repo sessions |
 
-**Built.** Eight scripts and their tests, the template, and one mod, cartoon-fx (its
-`ARCHITECTURE.md` is in its folder). The marketplace lists it.
+**Built.** Eight scripts and their tests, the template, and two mods, cartoon-fx and possum-squad
+(each one's `ARCHITECTURE.md` is in its folder). The marketplace lists both.
 
 ## Context
 
@@ -142,9 +142,9 @@ here describes a mod's internals.
   - parallel sessions share this one checkout, each editing only its own paths (*Overview*).
 
 **Built.**
-- The first and third boundaries: *Enforced by* the import scan and `claude plugin validate`, per
-  folder.
-- The wall around `tools/`: Not yet: Session G1.
+- The first boundary, but its exception for a tool's `node:` imports, and the third: *Enforced
+  by* the import scan and `claude plugin validate`, per folder.
+- The wall around `tools/`, and a tool's `node:` imports: Not yet: Session G1.
 - The template: *Enforced by* the per-folder stages, which run on it, and the marketplace stage,
   which checks its manifest.
 - Who edits what: by rule only (`CLAUDE.md`'s entry gate). Nothing stops a session editing
@@ -165,7 +165,7 @@ here describes a mod's internals.
    part that needs the repository: run by hand on the repository's Node, typed and tested with its
    pins, and never loaded by the engine. *Why:* the installed copy holds only the mod's folder, so
    a reach outside it breaks there. *Enforced by* the import scan and `claude plugin validate`;
-   the wall around `tools/` from Session G1.
+   the wall around `tools/`: Not yet: Session G1.
 3. **The marketplace matches `mods/`.** Every folder has exactly one entry and every entry its
    folder; names agree with folders and `plugin.json`; each source is `./mods/<name>`; no entry
    carries a version. *Why:* the marketplace is how the owner installs. *Enforced by* the
@@ -534,7 +534,7 @@ file, the owner's data.
 
 | Check | Expected |
 |---|---|
-| `npm run verify` | green: 14 stages, the 6 repo stages, then 4 for each of cartoon-fx and `mod-template` (4 more per mod) |
+| `npm run verify` | green: 18 stages, the 6 repo stages, then 4 for each of cartoon-fx, possum-squad and `mod-template` (4 more per mod) |
 | Tooling tests (`node --test "tests/*.test.ts"`) | 166 pass, in 10 files: hygiene 109 in 4, verify 15, marketplace 13, imports 10, new-mod 9, validate 6, types 4 |
 | `mod-template`: tests | 1 pass |
 | `mod-template`: `validate` | 2 hooks, 0 gating, calls `$.command.register`; no warning but the allowed one |
@@ -542,7 +542,8 @@ file, the owner's data.
 | `npm run verify -- hygiene --all` | clean, 0 hits in pushed history |
 | A fresh clone: `npm ci`, `npm run types`, `npm run verify` | green |
 
-Measured on CLI 2.1.325, 2026-11-15. A documentation or refactoring change should not move any of
+Measured on CLI 2.1.325, 2026-11-15; the stage count and the tooling tests again on CLI 2.1.330,
+2026-11-22, with possum-squad. A documentation or refactoring change should not move any of
 these; if one moves, that is the finding.
 
 ## Decision log
