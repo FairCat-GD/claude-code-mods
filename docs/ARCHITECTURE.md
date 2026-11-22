@@ -79,7 +79,7 @@ here describes a mod's internals.
 
 ## Stack and pins
 
-**Decided** (2026-10-24, amended the same day).
+**Decided** (2026-10-24, amended the same day and on 2026-11-22).
 - **The tooling is TypeScript on Node 26.** Node runs the `.ts` files directly by stripping their
   types, so there is no build step. Only erasable syntax survives: no enums, namespaces or
   parameter properties, and relative imports name their `.ts` extension.
@@ -91,8 +91,12 @@ here describes a mod's internals.
 
   The lockfile is committed, and `npm ci` restores it. No dependency is added before it is used,
   and none is upgraded in passing.
-- **Mods are TypeScript too,** typed against the engine's declarations for the CLI's build. Their
-  tests run under `claude plugin test`, in the engine's environment, not Node.
+- **Mods are TypeScript too.** A mod's hooks and tests are typed against the engine's
+  declarations for the CLI's build, and its tests run under `claude plugin test`, in the engine's
+  environment, not Node.
+- **A mod's `tools/` runs on the repository's Node,** by hand. Its tools are TypeScript with no
+  dependency beyond Node's built-ins, typed with the tooling's own compiler options from the root
+  `tsconfig.json` (*What a mod is*).
 
 **Built.**
 - The tooling's `tsconfig.json`: strict, `noEmit`, `erasableSyntaxOnly`, `verbatimModuleSyntax`,
@@ -104,6 +108,7 @@ here describes a mod's internals.
   and leaves out every `docs` folder, every `.claude-plugin/types` and the lockfile. It follows
   `.gitignore`.
 - Measured on this machine on 2026-11-15: node 26.7.0 and npm 11.19.0, CLI 2.1.325, git 2.50.1.
+- A mod's `tools/`: Not yet: Session G1.
 
 ## Layout and boundaries
 
@@ -128,15 +133,18 @@ here describes a mod's internals.
   The names are fixed; the files inside `scripts/` and `tests/` are each session's.
 - **Boundaries:**
   - every file a mod imports is inside its folder, and every bare import names a module the
-    engine declares;
+    engine declares, but a tool's, which name `node:` modules;
+  - a mod's `tools/` is walled off both ways: nothing outside it imports it, a tool imports only
+    from `tools/` and `node:` modules, and every source under it is `.ts`;
   - no mod imports from another mod or from the root, and the tooling is never imported by a mod;
   - the template is checked like a mod, and its folder and its `plugin.json` name are both
     `mod-template`;
   - parallel sessions share this one checkout, each editing only its own paths (*Overview*).
 
 **Built.**
-- The first two boundaries: *Enforced by* the import scan and `claude plugin validate`, per
+- The first and third boundaries: *Enforced by* the import scan and `claude plugin validate`, per
   folder.
+- The wall around `tools/`: Not yet: Session G1.
 - The template: *Enforced by* the per-folder stages, which run on it, and the marketplace stage,
   which checks its manifest.
 - Who edits what: by rule only (`CLAUDE.md`'s entry gate). Nothing stops a session editing
@@ -153,9 +161,11 @@ here describes a mod's internals.
    their exact shapes, and conflict markers. The last read of each diff covers what it cannot
    see (*Testing strategy*).
 2. **A mod is self-contained.** Every file it imports is inside its folder; no mod imports from
-   another mod or from the root; each validates, tests and installs alone. *Why:* the installed
-   copy holds only the mod's folder, so a reach outside it breaks there. *Enforced by* the import
-   scan and `claude plugin validate`.
+   another mod or from the root; each validates, tests and installs alone. Its `tools/` is the one
+   part that needs the repository: run by hand on the repository's Node, typed and tested with its
+   pins, and never loaded by the engine. *Why:* the installed copy holds only the mod's folder, so
+   a reach outside it breaks there. *Enforced by* the import scan and `claude plugin validate`;
+   the wall around `tools/` from Session G1.
 3. **The marketplace matches `mods/`.** Every folder has exactly one entry and every entry its
    folder; names agree with folders and `plugin.json`; each source is `./mods/<name>`; no entry
    carries a version. *Why:* the marketplace is how the owner installs. *Enforced by* the
@@ -167,9 +177,13 @@ here describes a mod's internals.
    Code's API declarations. *Why:* they are regenerated for every build, and they are not this
    repository's to publish. *Enforced by* `.gitignore` (`**/.claude-plugin/types/`) and the
    marketplace stage, which fails on any tracked path under one.
-6. **Tests use fictional data and read no docs.** Fixtures live in `tests/fixtures/`. *Why:* a
-   test that reads a document makes the document undeletable, and the history will be public.
-   *Enforced by* review; the fixtures' README states it.
+6. **Tests use fictional data and read no docs.** Fixtures live in `tests/fixtures/`, and a
+   tool's in its mod's `tools/fixtures/`, Biome-clean; a spec that needs a broken input writes it
+   into a temporary folder. The one exception: a tool's spec may read its own mod's source and the
+   output the tool committed (a converter's input and the module it writes, say), read-only and
+   never `docs/`, so an output left stale is caught. *Why:* a test that reads a document makes the
+   document undeletable, and the history will be public. *Enforced by* review; the fixtures'
+   README states it.
 7. **Nothing touches the owner's Claude Code setup without asking:** `~/.claude/settings.json`,
    the installed plugins and marketplaces, `~/.claude/mods/`, the session mods folder the
    plugin-authoring skill watches, a mod's stored values in the owner's sessions, and the owner's
@@ -190,15 +204,23 @@ here describes a mod's internals.
 - **Where it runs.** Inside the engine's own environment, with no DOM, no Node and no `import()`.
   It reaches everything outside itself through `$`, and its JSX compiles against the global `h`.
 - **How it is tested.** Its tests run under `claude plugin test`, against the engine's kit
-  (`claude-code/testing`).
+  (`claude-code/testing`); its tools' tests run under Node (below).
 - **Its types.** `tsconfig.json` extends `./.claude-plugin/types/tsconfig.json`, the one the engine
   lays for the build that runs it.
+- **Its tools,** when it has any, in `tools/`, made when first needed.
+  - A tool is a TypeScript script run by hand from the repository's root
+    (`node mods/<name>/tools/<tool>.ts`), never loaded by the engine. It does its work only under
+    `import.meta.main`, so its spec can import it.
+  - It is typed with the tooling's compiler options, and tested by Node tests beside it, named
+    `*.spec.ts`: `claude plugin test` runs every `*.test.ts` under the mod. Their fixtures are in
+    `tools/fixtures/` (invariant 6).
+  - What a tool reads, writes or runs is named in the mod's `ARCHITECTURE.md`, as all reach is.
 - **What every mod follows** is in `CLAUDE.md`, under that heading.
 
 **Built.** The template's module is `hooks/register.ts`, and cartoon-fx's is `register.tsx`. The
 laid `tsconfig.json` types `hooks/`, `types/` and `tests/` for `es2023`, with JSX through `h`. Its
 types are `claude-code`, the module a mod imports, and `claude-code-tools` and `claude-code-mcp`,
-which add to it and are never imported.
+which add to it and are never imported. A mod's tools: Not yet: Session G1.
 
 ## The repository's data
 
@@ -238,6 +260,13 @@ store's keying was measured in both engines' code and on disk (CLI 2.1.310, desk
   (`node --test` over the top level of `tests/` only), `marketplace`, and `hygiene`.
 - **Per-folder stages,** for each `mods/<name>` and for the template: `validate`, `types`, `tests`
   (`claude plugin test`) and `imports`.
+- **A folder with `tools/`** has the same stages take it, with no new stage name:
+  - `types` also types `tools/` with the tooling's compiler options;
+  - `tests` also runs its specs with `node --test`, and fails a `tools/` that holds a tool and
+    no spec;
+  - `imports` holds the wall (*`validate` and the import scan*).
+
+  The tools' commands run even when the kit's half of a stage cannot start.
 - **Names pick what runs.** Each name is a stage or a mod. Mods alone narrow the folders, and
   `format` and `lint` then cover the tooling and those folders only. Stages alone run just those.
   Both run those stages for those mods. `--message <draft>` and `--all` go to hygiene.
@@ -267,6 +296,7 @@ store's keying was measured in both engines' code and on disk (CLI 2.1.310, desk
   - `report`, the print-and-count tail of `validate`, `marketplace` and `imports`.
 - **The folder `types` stage** fails when the laid declarations' first line, `// Written by Claude
   Code X`, names another version than `claude --version`, naming both and the fix.
+- **A folder with `tools/`:** Not yet: Session G1.
 
 ## Hygiene
 
@@ -334,7 +364,11 @@ prints the term or the secret, and the stage never holds what it bans.
 root is not loaded as project context", which every mod draws from the workflow `CLAUDE.md` in
 its folder: that file is for the sessions that develop the mod, not context it ships. The import
 scan reads the list of declared modules from the laid declarations, never from a list kept in the
-script, so a new build's modules pass without an edit.
+script, so a new build's modules pass without an edit. It walls a mod's `tools/` off both ways:
+- in `tools/`, a bare import names a `node:` module, and a relative import stays inside `tools/`.
+  A source that is not `.ts` is refused, and so is a `/// <reference types>`, since the stage
+  supplies Node's types;
+- outside `tools/`, nothing imports it, and `node:` stays an undeclared module.
 
 **Built.**
 - **`scripts/validate.ts <folder>`** runs `claude plugin validate --json` in the hermetic
@@ -350,6 +384,7 @@ script, so a new build's modules pass without an edit.
     `declare module` in the laid declarations declares. At 2.1.325 those are `claude-code` and
     `claude-code/testing`; `claude-code-tools/` and `claude-code-mcp/` are additions to
     `claude-code`, not modules to import.
+  - The `tools/` rules: Not yet: Session G1.
 
 ## The API declarations (`npm run types`)
 
@@ -380,8 +415,9 @@ update or a new mod.
   one test, `tsconfig.json`, and the workflow files: `CLAUDE.md`, `CHANGELOG.md`, `README.md`,
   `docs/ARCHITECTURE.md` (the workflow's outline, with what every mod shares filled in),
   `docs/USER-GUIDE.md`, `docs/BACKLOG.md`, and a handoff whose next session is the mod's intake.
-  `tests/fixtures/`, `types/` and `docs/spec/` are made when first needed: `types/` only with
-  `$.state`, `docs/spec/` by the intake.
+  `tests/fixtures/`, `types/`, `tools/` and `docs/spec/` are made when first needed: `types/`
+  only with `$.state`, `tools/` when the mod needs a script run by hand, `docs/spec/` by the
+  intake.
 - **`npm run new-mod -- <name> "<description>"` makes a mod from it.** It writes only
   `mods/<name>/` and the marketplace entry, and prints the README row ready to paste.
 - **The mod's intake commits what `new-mod` made,** with its docs, in
@@ -411,7 +447,9 @@ docs-only command (`npm run verify -- hygiene --message <draft>`) for a commit t
 docs: Biome reads no Markdown here, so hygiene is the only stage that reads them. A mod's
 `CLAUDE.md` is read by `validate`, so a change to one runs that mod's `validate` too. There is no
 CI: the session holds the gate, and the owner's review and push approval stand behind it. The
-commands are in `CLAUDE.md`.
+commands are in `CLAUDE.md`. A mod's `tools/` is checked by its folder's stages (*The gate*):
+typed with the tooling's options, its specs run by `node --test`. The rule that a `tools/` with a
+tool has a spec is per folder: a tool its specs leave untested rests on review.
 
 **Built.**
 
@@ -422,6 +460,7 @@ commands are in `CLAUDE.md`.
 | `claude plugin test` | `verify`, per folder | A mod's hooks against the engine's kit, with the clock and the store mocked, on each surface a test names | What a surface actually paints; the real order and timing of events; another plugin above the mod; a desktop engine newer than the CLI |
 | Tooling tests | `verify` (`node --test`) | The gate's own scripts, hygiene included, in scratch repositories and roots, with fixture terms and a scratch home for the CLI | The real term file, the real stamp, the owner's config |
 | Hygiene and marketplace | `verify`; hygiene with the drafted message, in full when the term file or the stage changes | Private terms in files, paths and messages; attribution in messages; secrets by their exact shapes; conflict markers; the marketplace against the folders | Images and other binaries, their metadata included; a term joined inside one lowercase run; attribution in files; a home-directory path; a secret of any other shape; a submodule entry |
+| A mod's tools | Not yet: Session G1 | — | — |
 | By hand | Recorded in done-notes | A mod in the app, from the installed release or a `--plugin-dir` session; what a session runs that no harness can | Anything not written down; what nobody checked goes to the level's `docs/BACKLOG.md` |
 
 The last read of each diff covers what hygiene cannot see: a home-directory path, attribution in a
@@ -438,7 +477,8 @@ file, the owner's data.
   meant for the owner cuts a version.
 - **An unpushed build is tried** in a terminal session started with
   `claude --plugin-dir mods/<name>` from the repository's root.
-- **A mod keeps nothing in its folder it would not publish:** the installed copy holds all of it.
+- **A mod keeps nothing in its folder it would not publish:** the installed copy holds all of it,
+  `tools/` with its specs and fixtures included.
 - Sharing mods with anyone else waits for going public (`docs/BACKLOG.md`).
 
 **Built** (measured on CLI 2.1.310 and desktop 2.1.308).
@@ -532,3 +572,23 @@ history keeps that round's `docs/spec/SPEC.md`. The amendments and the decisions
   instead of by hand before it.
 - 2026-11-15, *The template and `new-mod`*: a new mod's Session 1 releases 0.1.0, rewriting the
   made entry, instead of 0.2.0 after a made scaffold.
+- 2026-11-22, *Stack and pins* and *What a mod is*: a mod may have a `tools/` of TypeScript run
+  by hand on the repository's Node. Tools are typed with the tooling's own compiler options,
+  instead of a config in each mod, so no mod can loosen them.
+- 2026-11-22, *Layout and boundaries* and *`validate` and the import scan*: `tools/` is walled
+  off both ways, only `.ts` under it, its bare imports `node:` alone. Hooks code is engine code
+  that Node cannot run, and the engine must never load a tool.
+- 2026-11-22, *The invariants* 2: a mod's `tools/` is the one part that needs the repository,
+  since it runs on the repository's Node and pins.
+- 2026-11-22, *The invariants* 6: a tool's fixtures live in `tools/fixtures/`, Biome-clean. A
+  tool's spec may read its own mod's source and committed output, read-only: nothing else
+  catches an output left stale.
+- 2026-11-22, *What a mod is* and *Testing strategy*: a tool is tested by Node tests named
+  `*.spec.ts`, instead of `*.test.ts`, because `claude plugin test` runs every `*.test.ts` under
+  the mod in the engine.
+- 2026-11-22, *The gate*: a folder with `tools/` has its `types`, `tests` and `imports` stages
+  take it, with no new stage name. A `tools/` with a tool and no spec fails. The tools' commands
+  run even when the kit's half of a stage cannot start.
+- 2026-11-22, *The template and `new-mod`* and *Packaging*: the template gets no `tools/`, so a
+  new mod starts without one. A mod's `tools/` ships in its installed copy, with its specs and
+  fixtures.
