@@ -19,10 +19,12 @@ Release 0.7.0.
   remain. Session 8 ran before Session 6 (amended in both blocks and the table), so Sessions 6,
   7 and 7a release 0.7.0, 0.8.0 and 0.9.0.
 - **Before anything:** Session 6 needs the repo-level round that teaches the gate `tools/`
-  committed (`SPEC.md` decision 9). It was not on 2026-11-22: a chat opened for Session 6 that
-  day stopped there, and the user chose to run that round first rather than swap again. If it
-  still is not, ask the user which session runs instead, and log the swap as an amendment in
-  both blocks. Its request, ready to give that intake:
+  closed (`SPEC.md` decision 9): its last commit is `docs: close round 2`, after its one
+  session, G1. The round's opening commit, `docs: open round 2`, is not enough: until G1 lands
+  the gate still refuses a tool's `node:` imports. On 2026-11-22 a chat opened for Session 6
+  stopped here, and the user chose to run that round first rather than swap again; its intake
+  opened it the same day. If it is still not closed, ask the user which session runs instead,
+  and log the swap as an amendment in both blocks. The round's request, as its intake took it:
 
   > The gate must take a mod's `tools/` folder: Node scripts run by hand, never loaded by the
   > engine. The import scan should allow `node:` imports there and refuse any import of
