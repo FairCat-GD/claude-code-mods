@@ -143,3 +143,85 @@ pins*, *Layout and boundaries*, *What a mod is*, *The gate*, *`validate` and the
 - **possum-squad's folder is not G1's,** and nor are its rows that wait on this round. A
   possum-squad session may be running beside G1, and its uncommitted work can turn the full gate
   red for its folder.
+
+**Done (2026-11-22, no version).**
+- **Decided with the owner at the start:** the plan as the block gives it, with one script for
+  both of the tools' checks. Confirmed as decided, with no change: *Layout and boundaries* (the
+  wall), *What a mod is* (its tools), *The gate* (the per-folder stages and `tools/`),
+  *`validate` and the import scan* (the `tools/` rules) and invariant 6.
+- **The import scan** (`scanImports`, `scripts/imports.ts`). A source is a tool's when its path
+  in the folder starts `tools/`, `tools/fixtures/` included, and each reference is a path, a
+  module or a types reference.
+  - In `tools/`: a source that is not `.ts` is refused at its first line; a module must start
+    `node:` and be one Node's `isBuiltin` knows; a types reference is refused; a path that
+    resolves inside the folder but outside `tools/` leaves it.
+  - Outside `tools/`: a path that resolves into it "reaches into tools/, which runs on Node,
+    never in the engine"; `node:` stays an undeclared module.
+  - A path is judged in order: it leaves the folder, it crosses the wall, it resolves to no file.
+    Every message keeps the `file:line: '<spec>'` form.
+- **`scripts/tools.ts`,** `node scripts/tools.ts <types|specs> <folder>`.
+  - `toolFiles` lists every `.ts` under `tools/` but `tools/fixtures/`: the specs (`*.spec.ts`)
+    and the tools (neither a spec nor a `.d.ts`).
+  - `typeProblems` reads the options with `ts.getParsedCommandLineOfConfigFile` from `ROOT`'s
+    `tsconfig.json` and hands the list to `ts.createProgram`. A diagnostic prints as
+    `<file>:<line>: TS<code> <message>`. The root's `skipLibCheck` holds, so a `.d.ts` is in the
+    program but its body is not checked.
+  - `specProblems` fails a tool with no spec, naming it. Otherwise it runs `node --test` from
+    `ROOT` on the specs by name, with `NODE_TEST_CONTEXT` removed, and never with no file, which
+    would collect by Node's own patterns.
+- **`scripts/verify.ts`.** `Stage` has an optional `tools`, the tools' half. `folderStages` gives
+  `types` and `tests` one when `<folder>/tools/` is a directory, and no folder without one gets
+  it. `runStage` starts each half on its own: a half that throws logs `cannot start` and fails
+  the stage, and the other half's commands still run.
+- **Fixtures,** six under `tests/fixtures/`, each in its README: `tooled-mod`, `walled-mod`,
+  `mistyped-mod`, `failing-spec-mod`, `unspecced-mod`, `declarations-only-mod`. `tooled-mod`'s
+  `tools/fixtures/never.spec.ts` carries a type error and a failing test, so one file shows if
+  either half reads `tools/fixtures/`.
+- **Docs.** `ARCHITECTURE.md`: every "Not yet: Session G1" Built part, *Testing strategy*'s tools
+  row, *Overview*'s nine scripts, `report`'s users, the baseline. `CLAUDE.md`: invariants 2 and
+  6, the tests line, *What every mod follows* 3 and 6, *Commands* (the tools script, running a
+  tool, the import scan's line, `verify`'s halves), *Watch for* (a `*.test.ts` under `tools/`).
+  `USER-GUIDE.md`: running a mod's tool. The template's `docs/ARCHITECTURE.md`: the `tools/`
+  layout and wall. `README.md`: the gate's line and its list of scripts.
+- **Amendments:**
+  - **A spec whose path holds a glob character is refused, by name, and the others still run.**
+    `node --test` reads each path it is given as a glob and passes when one matches no file, so
+    running the specs "by name" could skip one without a word. The session's own finding,
+    measured below.
+  - **`README.md` changed too.** It lists every script and describes the gate; the block's Docs
+    line did not name it. The session's own finding.
+  - **The *Testing strategy* heading says seven layers.** The intake added the tools row to a
+    table headed six. The session's own finding.
+- **Measured** (CLI 2.1.330, Node 26.7.0, 2026-11-22):
+  - `claude plugin validate --json`, in a scratch home without `CLAUDE_CODE_PLUGIN_DIRS`, on a
+    copy of the template with `tools/shout.ts`, its spec and a JSON fixture: the report matched
+    the copy's without `tools/`, field for field, `directory.findings` included, and
+    `scripts/validate.ts` judged it 0 problems. Nothing to stop for.
+  - `claude plugin test` on the same copy ran 1 test in 1 file, the template's, with and without
+    `tools/`. A `tools/shout.test.ts` added to it was collected and failed: "the file did not
+    load", on its `node:assert/strict` import.
+  - The TypeScript API with the root config's options, run from `/tmp`, on `tooled-mod`'s tool,
+    its spec and its fixture spec: the config read from `ROOT`, all three ES modules,
+    `@types/node` in the program, and no diagnostic but the fixture's planted TS2322.
+  - `node --test` on spec paths holding glob characters: `a[1].spec.ts` ran nothing,
+    `a\[1\].spec.ts` ran nothing, `a[[]1].spec.ts` ran it, and `b\*.spec.ts` ran 0 tests and
+    passed.
+  - `main` on `tooled-mod`'s `types` and `tests`: each kit half could not start (no declarations;
+    no hooks module), each tools half ran and passed, and both stages failed.
+- **Falsified,** each by copying the script aside, breaking one rule and copying it back; each
+  failed at its own test:
+  - the `.ts`-only rule, the types-reference rule, the wall leaving `tools/` and the wall into
+    it: the wall test;
+  - the `node:` prefix and `isBuiltin`: the test of a tool naming a module Node has;
+  - the `tools/fixtures/` exclusion: the listing, type-check and passing-spec tests;
+  - a `.d.ts` counted as a tool: the listing and `.d.ts`-only tests;
+  - type errors dropped: the type-error test;
+  - `NODE_TEST_CONTEXT` kept: the failing-spec, passing-spec and glob tests;
+  - a failed run reported as passing: the failing-spec test;
+  - the no-spec rule: the no-spec test;
+  - the glob refusal: the glob test;
+  - one half only in `runStage`: the halves test;
+  - no tools' half in `tests`: the `plan` test.
+- **Numbers:** tooling tests 180 in 11 files (+14, +1 file): imports 13 (+3), tools 9 (new),
+  verify 17 (+2). `npm run verify` green, 18 stages, as before: no mod has a `tools/` yet. The
+  template 1 test, 2 hooks, 0 gating.

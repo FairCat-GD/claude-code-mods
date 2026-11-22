@@ -1,7 +1,9 @@
 // Keeps a mod self-contained: every relative import resolves inside its folder, and every bare
-// import names a module the engine's declarations declare.
+// import names a module the engine's declarations declare. A mod's `tools/` runs on Node, never in
+// the engine, so it is walled off both ways: a tool imports only from `tools/` and `node:` modules.
 
 import { existsSync, readFileSync } from 'node:fs'
+import { isBuiltin } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import ts from 'typescript'
 
@@ -24,6 +26,9 @@ export const declaredModules = (declarations: string): Set<string> => {
   return names
 }
 
+const inTools = (path: string) => path === 'tools' || path.startsWith(`tools${sep}`)
+const TOOL_IMPORTS = 'a tool imports only from tools/ and node: modules'
+
 const resolves = (target: string) => {
   const suffix = Object.keys(SOURCE_OF).find(js => target.endsWith(js))
   const sources = suffix ? (SOURCE_OF[suffix] ?? []).map(source => target.slice(0, -suffix.length) + source) : []
@@ -37,21 +42,32 @@ export const scanImports = (folder: string, declared: ReadonlySet<string>): stri
   const problems: string[] = []
   for (const file of files.sort()) {
     const text = readFileSync(file, 'utf8')
+    const own = relative(root, file)
+    const tool = inTools(own)
+    if (tool && !file.endsWith('.ts')) problems.push(`${own}:1: a source under tools/ must be .ts`)
     const info = ts.preProcessFile(text, true, true)
     // `/// <reference path>` always names a file, and `/// <reference types>` always a module.
     const references = [
-      ...info.importedFiles.map(reference => ({ reference, isPath: reference.fileName.startsWith('.') || isAbsolute(reference.fileName) })),
-      ...info.referencedFiles.map(reference => ({ reference, isPath: true })),
-      ...info.typeReferenceDirectives.map(reference => ({ reference, isPath: false })),
+      ...info.importedFiles.map(reference => ({
+        reference,
+        kind: reference.fileName.startsWith('.') || isAbsolute(reference.fileName) ? ('path' as const) : ('module' as const),
+      })),
+      ...info.referencedFiles.map(reference => ({ reference, kind: 'path' as const })),
+      ...info.typeReferenceDirectives.map(reference => ({ reference, kind: 'types' as const })),
     ].sort((a, b) => a.reference.pos - b.reference.pos)
-    for (const { reference, isPath } of references) {
+    for (const { reference, kind } of references) {
       const spec = reference.fileName
-      const where = `${relative(root, file)}:${text.slice(0, reference.pos).split('\n').length}`
-      if (isPath) {
+      const where = `${own}:${text.slice(0, reference.pos).split('\n').length}`
+      if (kind === 'path') {
         const target = resolve(dirname(file), spec)
         const inside = relative(root, target)
         if (inside === '..' || inside.startsWith(`..${sep}`) || isAbsolute(inside)) problems.push(`${where}: '${spec}' leaves the mod's folder`)
+        else if (tool && !inTools(inside)) problems.push(`${where}: '${spec}' leaves tools/: ${TOOL_IMPORTS}`)
+        else if (!tool && inTools(inside)) problems.push(`${where}: '${spec}' reaches into tools/, which runs on Node, never in the engine`)
         else if (!resolves(target)) problems.push(`${where}: '${spec}' resolves to no file`)
+      } else if (tool) {
+        if (kind === 'types') problems.push(`${where}: '${spec}' is a types reference: the tools' type check supplies Node's types`)
+        else if (!spec.startsWith('node:') || !isBuiltin(spec)) problems.push(`${where}: '${spec}' is no node: module: ${TOOL_IMPORTS}`)
       } else if (!declared.has(spec)) {
         problems.push(`${where}: '${spec}' is no module the engine declares (${[...declared].sort().join(', ')})`)
       }

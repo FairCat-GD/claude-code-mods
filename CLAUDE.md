@@ -119,7 +119,10 @@ The why for each is in `docs/ARCHITECTURE.md`, *The invariants*.
    - Every file it imports is inside its folder.
    - No mod imports from another mod or from the root.
    - Each validates, tests and installs alone.
-   - *Enforced by* the import scan and `claude plugin validate`.
+   - Its `tools/` is the one part that needs the repository: run by hand on the repository's
+     Node, typed and tested with its pins, never loaded by the engine, and walled off both ways.
+   - *Enforced by* the import scan, which also holds the wall around `tools/`, and
+     `claude plugin validate`.
 3. **The marketplace matches `mods/`.**
    - Every mod folder has exactly one entry, and every entry has its folder.
    - Names agree with folders and with `plugin.json`, and each source is `./mods/<name>`.
@@ -129,7 +132,10 @@ The why for each is in `docs/ARCHITECTURE.md`, *The invariants*.
    it.** *Enforced by* the marketplace stage.
 5. **What the engine writes is never committed:** `.claude-plugin/types/`, or any copy of Claude
    Code's API declarations. *Enforced by* `.gitignore` and the marketplace stage.
-6. **Tests use fictional data and read no docs.** Fixtures live in `tests/fixtures/`.
+6. **Tests use fictional data and read no docs.** Fixtures live in `tests/fixtures/`, and a tool's
+   in its mod's `tools/fixtures/`, Biome-clean; a spec that needs a broken input writes it into a
+   temporary folder. The one exception: a tool's spec may read its own mod's source and the output
+   the tool committed, read-only and never `docs/`.
 7. **Nothing touches the owner's Claude Code setup without asking.**
    - The setup is `~/.claude/settings.json`, the installed plugins and marketplaces,
      `~/.claude/mods/`, the session mods folder the plugin-authoring skill watches, a mod's
@@ -159,8 +165,8 @@ The why for each is in `docs/ARCHITECTURE.md`, *The invariants*.
 - **A hooks module runs in the engine's environment.**
   - There is no DOM, no Node and no `import()`; it reaches everything outside itself through `$`.
   - JSX compiles against the global `h`, and elements come from `$.ui.resolve(e)`.
-- **A mod's tests run under `claude plugin test`, not Node.** The practices every mod follows,
-  its tests included, are below.
+- **A mod's tests run under `claude plugin test`, not Node;** its tools' specs run under Node.
+  The practices every mod follows, its tests and tools included, are below.
 
 ## What every mod follows
 
@@ -174,12 +180,16 @@ Whatever a mod does:
    - A UI test loops over `['terminal', 'desktop']` and never assumes a surface.
    - A test that depends on time pins the clock (`mock.clock`).
    - Fixtures are fictional.
+   - A tool in `tools/` has Node tests beside it, named `*.spec.ts`, and does its work only under
+     `import.meta.main`, so a spec can import it. The gate fails a `tools/` with a tool and no
+     spec.
 4. **Hooks fail on purpose.** Every hook `claude plugin validate` lists as gating has a `.catch`
    that decides what its failure does. A mod that only reacts to something never refuses it.
 5. **Stored values are the owner's data.** They are read forward-only, and never dropped without a
    changelog line.
 6. **Reach is named.** A mod uses network, process or file access only where its purpose needs
-   it, and its `ARCHITECTURE.md` names each use.
+   it, and its `ARCHITECTURE.md` names each use, what each of its tools reads, writes or runs
+   included.
 7. **Its `README.md`** says what the mod does, gives the install lines and lists its commands. Its
    `CHANGELOG.md` is written for the person using the mod.
 
@@ -221,7 +231,7 @@ the last read of the diff.
 | `npm ci` | Restores the pinned toolchain from `package-lock.json`: TypeScript, Biome and Node's types. |
 | `npm run types` | Starts an interactive `claude` that loads every mod and the template, so the engine lays this CLI build's declarations beside each; type `/exit` once its prompt shows, then it checks each folder. Run it in a terminal after a clone, a CLI update or a new mod. It keeps the owner's live mods out (no `CLAUDE_CODE_PLUGIN_DIRS`, user settings skipped), and says so and exits when every folder is fresh. A first run in a checkout asks Claude Code's folder-trust question. |
 | `npm run new-mod -- <name> "<description>"` | Makes `mods/<name>/` from the template, renamed throughout, at 0.1.0 dated today, and adds its marketplace entry in name order; nothing else is written. It refuses, writing nothing, a name that is not lowercase kebab-case, `mod-template`, a stage's name, an existing folder, or no description. It prints what is left: the README row, `npm run types`, `verify`, and the intake. The name is the install id and store key for good. |
-| `npm run verify` | The gate. Repo stages `format`, `lint`, `types`, `tooling-tests`, `marketplace` and `hygiene`, then `validate`, `types`, `tests` and `imports` for each `mods/<name>` and `mod-template`. Every stage runs; a summary follows; exit 1 on any failure. A stage that cannot start names its fix. |
+| `npm run verify` | The gate. Repo stages `format`, `lint`, `types`, `tooling-tests`, `marketplace` and `hygiene`, then `validate`, `types`, `tests` and `imports` for each `mods/<name>` and `mod-template`. A folder with `tools/` has its `types` and `tests` take it too, and those halves run even when the kit's cannot start. Every stage runs; a summary follows; exit 1 on any failure. A stage that cannot start names its fix. |
 | `npm run verify -- <name> ...` | Each name is a stage or a mod (a folder under `mods/`, or `mod-template`). Mods alone: the repo stages, with `format` and `lint` over the tooling and those folders only, then their four stages each. Stages alone: just those, for every folder. Both: those stages for those mods (`npm run verify -- cartoon-fx tests`). `types` names the tooling's and each folder's. An unknown name, or one naming both a stage and a mod, exits 2. |
 | `npm run verify -- --message "$(git rev-parse --git-dir)/COMMIT_DRAFT"` | The gate with the drafted message checked too, before each commit. `--message` and `--all` go to hygiene, so they need it among the stages. |
 | `npm run verify -- hygiene --message "$(git rev-parse --git-dir)/COMMIT_DRAFT"` | The docs-only command, for a commit that changes only docs. Biome reads no Markdown here, so hygiene is the only stage that reads them. |
@@ -230,7 +240,9 @@ the last read of the diff.
 | `node --test "tests/*.test.ts"` | The tooling's tests alone. Keep the quotes and the top-level pattern: Node expands it, and it never reaches `tests/fixtures/` or a mod's tests, which run only under `claude plugin test`. |
 | `node scripts/hygiene.ts [--message <draft>] [--all] [--terms <file>]` | Hygiene alone, over the repository it runs in. `--terms` is for tests, which point it at `tests/fixtures/hygiene-terms.txt` and never at the owner's file. |
 | `node scripts/validate.ts <folder>` | `claude plugin validate` as the gate judges it, in the gate's environment (without `CLAUDE_CODE_PLUGIN_DIRS`): every error and warning fails, but the one a mod's own `CLAUDE.md` draws ("not loaded as project context"). |
-| `node scripts/imports.ts <folder>` | The import scan alone, against the folder's laid declarations. |
+| `node scripts/imports.ts <folder>` | The import scan alone, against the folder's laid declarations, with the wall around its `tools/`. |
+| `node scripts/tools.ts <types\|specs> <folder>` | A mod's `tools/` alone. `types` types every `.ts` under it but `tools/fixtures/` with the root `tsconfig.json`'s options; `specs` runs its `*.spec.ts` with `node --test`, and fails a tool with no spec. |
+| `node mods/<name>/tools/<tool>.ts` | Runs a mod's tool, from the repository's root. |
 
 The owner runs each mod as the release installed from this marketplace, at user scope. It is
 enabled in user settings, so every `claude` the owner starts loads it. `npm run types` skips user
@@ -297,6 +309,8 @@ it impossible. A mod's own go in its `CLAUDE.md`; a session's own, in its block 
 - **Never undo with `git checkout <path>`.** It discards changes that may be another session's.
   Revert your own edits by editing, and falsify a check by copying the file aside and back.
 - **Give stdin-reading commands `< /dev/null`.** A bare `cat > file` with no heredoc hangs.
+- **A `*.test.ts` under `tools/` runs in the engine:** `claude plugin test` collects every
+  `*.test.ts` under the mod, and a tool's fails to load there. Name a tool's tests `*.spec.ts`.
 - **The toolchain on this Mac:**
   - node 26.7.0 and npm 11.19.0 in `/opt/homebrew/bin`;
   - `claude` at `~/.local/bin/claude`, a link to the newest of `~/.local/share/claude/versions/`;

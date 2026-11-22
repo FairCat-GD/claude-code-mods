@@ -37,6 +37,15 @@ a new mod. Each mod's own behaviour is in its `docs/USER-GUIDE.md`.
   and asks which findings to fix.
 - **Pushes and tags wait for your approval,** one at a time. Before a push the session lists
   `git log origin/main..HEAD` and names any commit that is not its own.
+- **Run a mod's tool** from the repository's root, with what the mod's docs say it takes:
+
+  ```bash
+  node mods/<name>/tools/<tool>.ts
+  ```
+
+  A tool is a script for you or a session to run by hand, on the repository's Node, such as a
+  converter that writes a module the mod then imports. The installed mod never runs it. `verify`
+  types it and runs its specs, the `*.spec.ts` beside it.
 - **After a Claude Code update,** run `npm run types` in a terminal and type `/exit` once its
   prompt shows. `verify` says when it is needed: a folder's `types` stage names both versions.
   The CLI can update itself during the run, and then it asks for another.

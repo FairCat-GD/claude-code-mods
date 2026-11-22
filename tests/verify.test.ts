@@ -185,3 +185,49 @@ test('a directory named claude on PATH is passed over for the CLI further down',
   assert.equal(findClaude(`${first}:${second}`), join(second, 'claude'))
   assert.throws(() => findClaude(first), SetupError)
 })
+
+test("a folder with tools/ keeps its tools' commands in types and tests, with no declarations and no claude", t => {
+  const path = process.env.PATH
+  process.env.PATH = temporaryFolder(t)
+  t.after(() => {
+    if (path === undefined) delete process.env.PATH
+    else process.env.PATH = path
+  })
+  const tooled = { name: 'tooled', path: 'tests/fixtures/tooled-mod' }
+  const planned = plan(['tooled'], [...FOLDERS, tooled])
+  assert.ok(Array.isArray(planned))
+  const stage = (kind: string) => planned.find(each => each.name === `tooled: ${kind}`)
+  for (const [kind, word] of [
+    ['types', 'types'],
+    ['tests', 'specs'],
+  ] as const) {
+    assert.throws(() => stage(kind)?.commands(), SetupError)
+    assert.deepEqual(
+      stage(kind)
+        ?.tools?.()
+        .map(command => command.argv.slice(1)),
+      [['scripts/tools.ts', word, tooled.path]],
+    )
+  }
+  assert.equal(stage('validate')?.tools, undefined)
+  assert.equal(stage('imports')?.tools, undefined)
+  const without = plan(['alpha'], FOLDERS)
+  assert.ok(Array.isArray(without))
+  assert.ok(without.every(each => each.tools === undefined))
+})
+
+test("a half that cannot start fails the stage, and the tools' half still runs", t => {
+  const marker = join(temporaryFolder(t), 'ran')
+  const lines: string[] = []
+  const stage: Stage = {
+    name: 'halves',
+    commands: () => {
+      throw new SetupError('no declarations')
+    },
+    tools: () => [{ argv: [process.execPath, '-e', `require('fs').writeFileSync(${JSON.stringify(marker)}, '')`] }],
+  }
+  const [passed] = runStage(stage, line => lines.push(line))
+  assert.equal(passed, false)
+  assert.ok(existsSync(marker))
+  assert.ok(lines.includes('verify: halves cannot start: no declarations'))
+})

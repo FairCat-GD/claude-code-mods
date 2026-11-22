@@ -42,7 +42,7 @@ here describes a mod's internals.
   | `<name>`'s entry in `.claude-plugin/marketplace.json`, its row in `README.md` | that mod's sessions |
   | everything else | repo sessions |
 
-**Built.** Eight scripts and their tests, the template, and two mods, cartoon-fx and possum-squad
+**Built.** Nine scripts and their tests, the template, and two mods, cartoon-fx and possum-squad
 (each one's `ARCHITECTURE.md` is in its folder). The marketplace lists both.
 
 ## Context
@@ -108,7 +108,11 @@ here describes a mod's internals.
   and leaves out every `docs` folder, every `.claude-plugin/types` and the lockfile. It follows
   `.gitignore`.
 - Measured on this machine on 2026-11-15: node 26.7.0 and npm 11.19.0, CLI 2.1.325, git 2.50.1.
-- A mod's `tools/`: Not yet: Session G1.
+- A mod's `tools/` is typed by `scripts/tools.ts` with the compiler options it reads from the root
+  `tsconfig.json`, and its specs run on the Node that runs the gate. Measured on 2026-11-22 (CLI
+  2.1.330, Node 26.7.0) on a fixture tool under `tests/fixtures/`: the root `package.json` makes
+  it an ES module, and `@types/node` resolves from the root whatever the working directory. No mod
+  holds a `package.json` of its own, so a tool under `mods/` takes the same root one.
 
 ## Layout and boundaries
 
@@ -142,9 +146,12 @@ here describes a mod's internals.
   - parallel sessions share this one checkout, each editing only its own paths (*Overview*).
 
 **Built.**
-- The first boundary, but its exception for a tool's `node:` imports, and the third: *Enforced
-  by* the import scan and `claude plugin validate`, per folder.
-- The wall around `tools/`, and a tool's `node:` imports: Not yet: Session G1.
+- The first and third boundaries: *Enforced by* the import scan and `claude plugin validate`, per
+  folder.
+- The wall around `tools/`, and a tool's `node:` imports: *Enforced by* the import scan alone
+  (*`validate` and the import scan*). `claude plugin validate` reports nothing about `tools/`: its
+  report on the template with a tool, its spec and a fixture beside it matched its report without
+  them (measured 2026-11-22, CLI 2.1.330).
 - The template: *Enforced by* the per-folder stages, which run on it, and the marketplace stage,
   which checks its manifest.
 - Who edits what: by rule only (`CLAUDE.md`'s entry gate). Nothing stops a session editing
@@ -164,8 +171,8 @@ here describes a mod's internals.
    another mod or from the root; each validates, tests and installs alone. Its `tools/` is the one
    part that needs the repository: run by hand on the repository's Node, typed and tested with its
    pins, and never loaded by the engine. *Why:* the installed copy holds only the mod's folder, so
-   a reach outside it breaks there. *Enforced by* the import scan and `claude plugin validate`;
-   the wall around `tools/`: Not yet: Session G1.
+   a reach outside it breaks there. *Enforced by* the import scan, which also holds the wall
+   around `tools/`, and `claude plugin validate`.
 3. **The marketplace matches `mods/`.** Every folder has exactly one entry and every entry its
    folder; names agree with folders and `plugin.json`; each source is `./mods/<name>`; no entry
    carries a version. *Why:* the marketplace is how the owner installs. *Enforced by* the
@@ -220,7 +227,11 @@ here describes a mod's internals.
 **Built.** The template's module is `hooks/register.ts`, and cartoon-fx's is `register.tsx`. The
 laid `tsconfig.json` types `hooks/`, `types/` and `tests/` for `es2023`, with JSX through `h`. Its
 types are `claude-code`, the module a mod imports, and `claude-code-tools` and `claude-code-mcp`,
-which add to it and are never imported. A mod's tools: Not yet: Session G1.
+which add to it and are never imported. That `tsconfig.json` leaves `tools/` out, so a tool is
+typed only by the tools' type check. No mod has a tool yet; the gate takes one (*The gate*).
+`claude plugin test` collects no `*.spec.ts`, but it does collect a `*.test.ts` under `tools/`,
+which fails there as "the file did not load" on its `node:` import (measured 2026-11-22, CLI
+2.1.330).
 
 ## The repository's data
 
@@ -293,10 +304,28 @@ store's keying was measured in both engines' code and on disk (CLI 2.1.310, desk
     removed, so the owner's live mods never load into a `claude` the tooling starts;
   - `readClaudeVersion`, the one reading of the CLI's version, which `verify` caches for its run;
   - the declarations' checks (`laidVersion`, `declarationsProblem`, `staleFolders`);
-  - `report`, the print-and-count tail of `validate`, `marketplace` and `imports`.
+  - `report`, the print-and-count tail of `validate`, `marketplace`, `imports` and `tools`.
 - **The folder `types` stage** fails when the laid declarations' first line, `// Written by Claude
   Code X`, names another version than `claude --version`, naming both and the fix.
-- **A folder with `tools/`:** Not yet: Session G1.
+- **A folder with `tools/`** (a directory, looked for when `plan` picks the stages) gives its
+  `types` and `tests` stages a second half, `Stage.tools`: `node scripts/tools.ts types <folder>`
+  and `node scripts/tools.ts specs <folder>`. `runStage` starts each half on its own, so a half
+  that cannot start fails the stage and the other half's commands still run. A folder without
+  one gets no `tools`, and runs what it ran before.
+- **`scripts/tools.ts`** lists every `.ts` under `tools/` but `tools/fixtures/`: a spec ends
+  `.spec.ts`, and a tool is a `.ts` that is neither a spec nor a `.d.ts`.
+  - `types` hands that list to `ts.createProgram`, with the options
+    `ts.getParsedCommandLineOfConfigFile` reads from `ROOT`'s `tsconfig.json`. Its `skipLibCheck`
+    holds here too, so a `.d.ts` is in the program but its body is not checked. Each diagnostic
+    prints as `<file>:<line>: TS<code> <message>`, from the folder.
+  - `specs` fails a `tools/` with a tool and no spec, naming the tools. Otherwise it runs
+    `node --test` from `ROOT` on the specs by name, with `NODE_TEST_CONTEXT` removed, so a run
+    started inside a tooling test still runs them. With no spec it starts nothing, since
+    `node --test` given no file collects by its own patterns.
+  - `node --test` reads each path it is given as a glob and passes when one matches no file
+    (measured 2026-11-22, Node 26.7.0: a spec named `a[1].spec.ts` ran nothing, and a
+    backslash does not escape). So a spec whose path holds one of `*?[]{}()!+@\` is refused by
+    name, and the others still run.
 
 ## Hygiene
 
@@ -384,7 +413,16 @@ script, so a new build's modules pass without an edit. It walls a mod's `tools/`
     `declare module` in the laid declarations declares. At 2.1.325 those are `claude-code` and
     `claude-code/testing`; `claude-code-tools/` and `claude-code-mcp/` are additions to
     `claude-code`, not modules to import.
-  - The `tools/` rules: Not yet: Session G1.
+  - **The `tools/` rules** hold for every source under the folder's top-level `tools/`,
+    `tools/fixtures/` included:
+    - a source that is not `.ts` is refused, at its first line;
+    - a bare import must start with `node:` and name a module Node's `isBuiltin` knows, so `fs`
+      and `node:nothing` are refused, and so is a `/// <reference types>`;
+    - a relative import, or a `/// <reference path>`, that resolves inside the folder but outside
+      `tools/` leaves it.
+
+    Outside `tools/`, a relative import that resolves into it is refused, saying it runs on
+    Node, never in the engine; `node:` there stays an undeclared module.
 
 ## The API declarations (`npm run types`)
 
@@ -440,7 +478,7 @@ update or a new mod.
 - It prints what is left: the README row (a `|` escaped), `npm run types`,
   `npm run verify -- <name>`, and the intake's handoff.
 
-## Testing strategy — six layers, and what each cannot see
+## Testing strategy — seven layers, and what each cannot see
 
 **Decided.** `verify` runs the stages of *The gate*. It is green before every commit, or the
 docs-only command (`npm run verify -- hygiene --message <draft>`) for a commit that changes only
@@ -460,7 +498,7 @@ tool has a spec is per folder: a tool its specs leave untested rests on review.
 | `claude plugin test` | `verify`, per folder | A mod's hooks against the engine's kit, with the clock and the store mocked, on each surface a test names | What a surface actually paints; the real order and timing of events; another plugin above the mod; a desktop engine newer than the CLI |
 | Tooling tests | `verify` (`node --test`) | The gate's own scripts, hygiene included, in scratch repositories and roots, with fixture terms and a scratch home for the CLI | The real term file, the real stamp, the owner's config |
 | Hygiene and marketplace | `verify`; hygiene with the drafted message, in full when the term file or the stage changes | Private terms in files, paths and messages; attribution in messages; secrets by their exact shapes; conflict markers; the marketplace against the folders | Images and other binaries, their metadata included; a term joined inside one lowercase run; attribution in files; a home-directory path; a secret of any other shape; a submodule entry |
-| A mod's tools | Not yet: Session G1 | — | — |
+| A mod's tools | `verify`, per folder with `tools/`: `scripts/tools.ts` in `types` and `tests`, the wall in `imports` | A tool's types, with the tooling's options and Node's; its behaviour, by its `*.spec.ts` under Node; that a `tools/` with a tool has a spec | Which tools the specs leave untested; how the engine uses what a tool writes, which the mod's own tests see |
 | By hand | Recorded in done-notes | A mod in the app, from the installed release or a `--plugin-dir` session; what a session runs that no harness can | Anything not written down; what nobody checked goes to the level's `docs/BACKLOG.md` |
 
 The last read of each diff covers what hygiene cannot see: a home-directory path, attribution in a
@@ -535,7 +573,7 @@ file, the owner's data.
 | Check | Expected |
 |---|---|
 | `npm run verify` | green: 18 stages, the 6 repo stages, then 4 for each of cartoon-fx, possum-squad and `mod-template` (4 more per mod) |
-| Tooling tests (`node --test "tests/*.test.ts"`) | 166 pass, in 10 files: hygiene 109 in 4, verify 15, marketplace 13, imports 10, new-mod 9, validate 6, types 4 |
+| Tooling tests (`node --test "tests/*.test.ts"`) | 180 pass, in 11 files: hygiene 109 in 4, verify 17, marketplace 13, imports 13, tools 9, new-mod 9, validate 6, types 4 |
 | `mod-template`: tests | 1 pass |
 | `mod-template`: `validate` | 2 hooks, 0 gating, calls `$.command.register`; no warning but the allowed one |
 | Each mod | its 4 stages green; its counts are in its own `docs/ARCHITECTURE.md`'s baseline |
@@ -543,7 +581,8 @@ file, the owner's data.
 | A fresh clone: `npm ci`, `npm run types`, `npm run verify` | green |
 
 Measured on CLI 2.1.325, 2026-11-15; the stage count and the tooling tests again on CLI 2.1.330,
-2026-11-22, with possum-squad. A documentation or refactoring change should not move any of
+2026-11-22, with possum-squad, and the tooling tests once more at Session G1 the same day. A
+documentation or refactoring change should not move any of
 these; if one moves, that is the finding.
 
 ## Decision log

@@ -80,3 +80,36 @@ test('reference directives are scanned: a path names a file, a types reference a
     "hooks/register.ts:2: 'node' is no module the engine declares (claude-code, claude-code/testing, fictional-noun)",
   ])
 })
+
+test("a tool's node: imports and its imports inside tools/ pass, beside the hooks' own", () => {
+  assert.deepEqual(scanImports(join(FIXTURES, 'tooled-mod'), DECLARED), [])
+})
+
+test('the wall around tools/ holds both ways', () => {
+  const engine = 'is no module the engine declares (claude-code, claude-code/testing, fictional-noun)'
+  const into = 'reaches into tools/, which runs on Node, never in the engine'
+  const only = 'a tool imports only from tools/ and node: modules'
+  assert.deepEqual(scanImports(join(FIXTURES, 'walled-mod'), DECLARED), [
+    `hooks/register.ts:1: 'node:fs' ${engine}`,
+    `hooks/register.ts:3: '../tools/shout.ts' ${into}`,
+    `tests/walled.test.ts:3: '../tools/shout.ts' ${into}`,
+    'tools/legacy.mjs:1: a source under tools/ must be .ts',
+    "tools/shout.ts:1: 'node' is a types reference: the tools' type check supplies Node's types",
+    `tools/shout.ts:3: 'left-pad' is no node: module: ${only}`,
+    `tools/shout.ts:5: '../hooks/register.ts' leaves tools/: ${only}`,
+    `types/index.d.ts:1: '../tools/shout.ts' ${into}`,
+  ])
+})
+
+test('a tool names a module Node has, by its node: name', t => {
+  const dir = temporaryFolder(t)
+  mkdirSync(join(dir, 'tools'))
+  writeFileSync(
+    join(dir, 'tools/convert.ts'),
+    "import { readFileSync } from 'fs'\nimport { nothing } from 'node:nothing'\nimport { test } from 'node:test'\nexport const convert = [readFileSync, nothing, test]\n",
+  )
+  assert.deepEqual(scanImports(dir, DECLARED), [
+    "tools/convert.ts:1: 'fs' is no node: module: a tool imports only from tools/ and node: modules",
+    "tools/convert.ts:2: 'node:nothing' is no node: module: a tool imports only from tools/ and node: modules",
+  ])
+})

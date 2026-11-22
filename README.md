@@ -43,8 +43,9 @@ npm run verify
 
 `verify` is the gate: format, lint, types and the tooling's tests, the marketplace and hygiene
 checks, then `claude plugin validate`, `tsc`, `claude plugin test` and the import scan for each mod
-and the template. `npm run verify -- <name> ...` runs only the stages or mods it names. Every
-command is in `CLAUDE.md`'s Commands table.
+and the template, with a mod's `tools/` typed and its specs run under Node.
+`npm run verify -- <name> ...` runs only the stages or mods it names. Every command is in
+`CLAUDE.md`'s Commands table.
 
 ```bash
 npm run new-mod -- <name> "<description>"
@@ -60,7 +61,7 @@ Starting a mod, from choosing its name to its intake, is in `docs/USER-GUIDE.md`
 mods/<name>/                      one mod: the whole plugin, and its own workflow files
 templates/mod-template/           where a new mod starts; checked by the gate like a mod
 scripts/                          verify, hygiene, the marketplace check, the import scan, types,
-                                  validate, new-mod, and repo (what they share)
+                                  validate, tools, new-mod, and repo (what they share)
 tests/                            the tooling's tests; tests/fixtures/ is fictional
 docs/                             the repository's own workflow files
 ```

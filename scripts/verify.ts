@@ -1,17 +1,18 @@
 // The gate: the repo stages, then four stages per mod and for the template, each failing on its
-// own, then a summary. Names pick stages, mods or both; hygiene takes the drafted message.
+// own, then a summary. Names pick stages, mods or both; hygiene takes the drafted message. A
+// folder's `tools/` is taken by its `types` and `tests` stages, as a half that starts on its own.
 //
 // Usage: npm run verify [-- <stage or mod> ...] [--message <draft>] [--all]
 
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 
 import { claudeCommand, declarationsProblem, type Folder, findClaude, modFolders, ROOT, readClaudeVersion, SetupError } from './repo.ts'
 
 export type Command = { argv: string[]; env?: NodeJS.ProcessEnv }
-export type Stage = { name: string; commands: () => Command[] }
+export type Stage = { name: string; commands: () => Command[]; tools?: () => Command[] }
 
 export const TOOLING_TESTS = ['--test', 'tests/*.test.ts']
 const TOOLING_PATHS = ['scripts', 'tests', '.claude-plugin', 'package.json', 'tsconfig.json', 'biome.json']
@@ -53,19 +54,28 @@ const repoStages = (scope: Folder[] | undefined, { message, all }: Hygiene): Sta
   ]
 }
 
-const folderStages = (path: string): Record<string, Stage['commands']> => ({
-  validate: () => {
-    findClaude()
-    return [node('scripts/validate.ts', path)]
-  },
-  types: () => {
-    const problem = declarationsProblem(join(ROOT, path), path, claudeVersion())
-    if (problem) throw new SetupError(problem)
-    return [{ argv: [bin('tsc'), '-p', path] }]
-  },
-  tests: () => [claudeCommand('plugin', 'test', path)],
-  imports: () => [node('scripts/imports.ts', path)],
-})
+const folderStages = (path: string): Record<string, Omit<Stage, 'name'>> => {
+  const tools = statSync(join(ROOT, path, 'tools'), { throwIfNoEntry: false })?.isDirectory()
+  const half = (word: string) => (tools ? { tools: () => [node('scripts/tools.ts', word, path)] } : {})
+  return {
+    validate: {
+      commands: () => {
+        findClaude()
+        return [node('scripts/validate.ts', path)]
+      },
+    },
+    types: {
+      commands: () => {
+        const problem = declarationsProblem(join(ROOT, path), path, claudeVersion())
+        if (problem) throw new SetupError(problem)
+        return [{ argv: [bin('tsc'), '-p', path] }]
+      },
+      ...half('types'),
+    },
+    tests: { commands: () => [claudeCommand('plugin', 'test', path)], ...half('specs') },
+    imports: { commands: () => [node('scripts/imports.ts', path)] },
+  }
+}
 
 // Every stage's name; `types` names the tooling's and each folder's.
 export const STAGE_NAMES = [...new Set([...repoStages(undefined, { all: false }).map(stage => stage.name), ...Object.keys(folderStages(''))])]
@@ -98,7 +108,7 @@ export const plan = (argv: readonly string[], folders: Folder[] = modFolders(), 
     ...chosen.flatMap(folder =>
       Object.entries(folderStages(folder.path))
         .filter(([kind]) => picked(kind))
-        .map(([kind, commands]) => ({ name: `${folder.name}: ${kind}`, commands })),
+        .map(([kind, stage]) => ({ name: `${folder.name}: ${kind}`, ...stage })),
     ),
   ]
 }
@@ -113,17 +123,18 @@ const call = ({ argv, env }: Command, log: (line: string) => void) => {
 export const runStage = (stage: Stage, log: (line: string) => void = console.log): [boolean, number] => {
   log(`\n== ${stage.name} ==`)
   const start = performance.now()
-  let commands: Command[]
-  try {
-    commands = stage.commands()
-  } catch (error) {
-    // Whatever stops a stage starting fails that stage alone; the others still run.
-    log(`verify: ${stage.name} cannot start: ${(error as Error).message}`)
-    return [false, (performance.now() - start) / 1000]
-  }
+  // Whatever stops a stage, or one half of it, starting fails that stage alone; the rest still runs.
+  const started = [stage.commands, ...(stage.tools ? [stage.tools] : [])].map(half => {
+    try {
+      return half()
+    } catch (error) {
+      log(`verify: ${stage.name} cannot start: ${(error as Error).message}`)
+      return undefined
+    }
+  })
   // Every command runs, even after one fails, so each reports its own errors.
-  const results = commands.map(command => call(command, log))
-  return [results.every(Boolean), (performance.now() - start) / 1000]
+  const results = started.flatMap(commands => commands ?? []).map(command => call(command, log))
+  return [started.every(Boolean) && results.every(Boolean), (performance.now() - start) / 1000]
 }
 
 export const main = (argv: readonly string[], planned = plan(argv), log: (line: string) => void = console.log): number => {

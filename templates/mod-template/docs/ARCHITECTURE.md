@@ -60,13 +60,22 @@ not Node. The tooling's own pins are the repository's.
   - `types/index.d.ts`: the `$.state` contract, once the mod declares any (`plugin.json` then
     names it under `types`);
   - `tests/`: the tests; `tests/fixtures/`: fictional data, once a test needs any;
+  - `tools/`, once the mod needs a script run by hand: TypeScript run from the repository's root
+    on its Node (`node mods/mod-template/tools/<tool>.ts`), never loaded by the engine. Each tool
+    does its work only under `import.meta.main`, and has Node tests beside it, named `*.spec.ts`,
+    never `*.test.ts`, which `claude plugin test` runs in the engine. Their fixtures are in
+    `tools/fixtures/`;
   - `CLAUDE.md`, `CHANGELOG.md`, `README.md`, and `docs/` for this mod's workflow files.
 - **Boundaries:** every file the module imports is inside this folder, and every bare import names
   a module the engine declares. Nothing is imported from another mod or from the repository's
   root, because the installed copy holds only this folder.
+- **`tools/` is walled off both ways:** nothing outside it imports it, and a tool imports only from
+  `tools/` and `node:` modules, every source under it `.ts`. What a tool reads, writes or runs is
+  named in this file, as all reach is.
 
-**Built.** *Enforced by* the gate's `imports` stage (the import scan) and `validate`
-(`claude plugin validate`).
+**Built.** *Enforced by* the gate's `imports` stage (the import scan, which holds the wall around
+`tools/` too) and `validate` (`claude plugin validate`). A `tools/` is typed and its specs run by
+the `types` and `tests` stages.
 
 ## The invariants
 
