@@ -19,9 +19,10 @@ Release 0.7.0.
   remain. Session 8 ran before Session 6 (amended in both blocks and the table), so Sessions 6,
   7 and 7a release 0.7.0, 0.8.0 and 0.9.0.
 - **Before anything:** Session 6 needs the repo-level round that teaches the gate `tools/`
-  committed (`SPEC.md` decision 9). It was not on 2026-11-22. If it still is not, ask the user
-  which session runs instead, and log the swap as an amendment in both blocks. Its request,
-  ready to give that intake:
+  committed (`SPEC.md` decision 9). It was not on 2026-11-22: a chat opened for Session 6 that
+  day stopped there, and the user chose to run that round first rather than swap again. If it
+  still is not, ask the user which session runs instead, and log the swap as an amendment in
+  both blocks. Its request, ready to give that intake:
 
   > The gate must take a mod's `tools/` folder: Node scripts run by hand, never loaded by the
   > engine. The import scan should allow `node:` imports there and refuse any import of
@@ -31,8 +32,8 @@ Release 0.7.0.
 - **Push status:** pushed on 2026-11-22 with the user's approval: `origin/main` holds everything
   through Session 8's review commit. Nothing waits locally. List `origin/main..HEAD` before any
   push, and name any commit that is not the session's.
-- **Ask at the start:** whether the user has installed 0.6.0, and whether roles showed in the
-  desktop app (`docs/BACKLOG.md`, *Roles in the desktop app*).
+- **0.6.0 is installed, and roles showed on the desktop app's rows** (the user, 2026-11-22);
+  the backlog item is gone. Session 6's done-note records it under *Decided with the user*.
 - **The engines:** the CLI is 2.1.330, and every folder's declarations were laid by it. The
   desktop app ran engine 2.1.326 on 2026-11-20.
 - **What Session 8 left for Session 6:**
