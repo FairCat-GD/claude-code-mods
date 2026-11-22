@@ -1,9 +1,10 @@
 // Keeps a mod self-contained: every relative import resolves inside its folder, and every bare
 // import names a module the engine's declarations declare. A mod's `tools/` runs on Node, never in
 // the engine, so it is walled off both ways: a tool imports only from `tools/` and `node:` modules.
-// A symbolic link is refused, since the scan does not follow one.
+// A symbolic link is refused, since the scan does not follow one. Files git ignores are not judged.
 
-import { existsSync, lstatSync, readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs'
 import { isBuiltin } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import ts from 'typescript'
@@ -39,10 +40,15 @@ const resolved = (target: string) => {
   return [...CANDIDATES.map(candidate => target + candidate), ...sources].find(isFile)
 }
 
-// What the folder's files say about `tools/` before their imports are read.
+// The files git ignores, which no commit holds; none outside a repository.
+const ignoredBy = (root: string, owns: string[]) => {
+  const run = spawnSync('git', ['check-ignore', '-z', '--stdin'], { cwd: root, input: owns.join('\0'), encoding: 'utf8' })
+  return new Set(run.status === 0 ? run.stdout.split('\0').filter(Boolean) : [])
+}
+
+// What a file says about `tools/` before its imports are read.
 const layoutProblems = (own: string, link: boolean) => {
-  if (link) return [`${own}:1: a symbolic link, which the import scan does not follow: replace it with what it points to`]
-  if (inTools(own) && !own.startsWith('tools/')) return [`${own}:1: a folder named tools/ in another case: name it tools/`]
+  if (link) return [`${own}: a symbolic link, which the import scan does not follow: replace it with what it points to`]
   if (inTools(own) && !own.endsWith('.ts')) {
     if (SOURCE.test(own)) return [`${own}:1: a source under tools/ must be .ts`]
     if (!inToolFixtures(own)) return [`${own}:1: a file under tools/ but outside tools/fixtures/ must be .ts`]
@@ -54,9 +60,16 @@ export const scanImports = (folder: string, declared: ReadonlySet<string>): stri
   const root = resolve(folder)
   const engineFiles = join(root, DECLARATIONS)
   const problems: string[] = []
-  const all = filesUnder(root, path => path === engineFiles || path.endsWith('/node_modules')).filter(path => !path.endsWith('/.DS_Store'))
-  for (const file of all.sort()) {
+  const misnamed = readdirSync(root).filter(name => name !== 'tools' && name.toLowerCase() === 'tools')
+  problems.push(...misnamed.map(name => `${name}/: a folder named tools/ in another case: name it tools/`))
+  const all = filesUnder(root, path => path === engineFiles || path.endsWith('/node_modules')).sort()
+  const ignored = ignoredBy(
+    root,
+    all.map(file => relative(root, file)),
+  )
+  for (const file of all) {
     const own = relative(root, file)
+    if (ignored.has(own)) continue
     const link = lstatSync(file).isSymbolicLink()
     problems.push(...layoutProblems(own, link))
     if (link || !SOURCE.test(file)) continue
@@ -79,11 +92,12 @@ export const scanImports = (folder: string, declared: ReadonlySet<string>): stri
         const target = resolve(dirname(file), spec)
         const inside = relative(root, target)
         const found = resolved(target)
-        const lands = found && relative(root, found)
+        // The wall judges the file the import resolves to, or the path it names when there is none.
+        const lands = found ? relative(root, found) : inside
         if (inside === '..' || inside.startsWith(`..${sep}`) || isAbsolute(inside)) problems.push(`${where}: '${spec}' leaves the mod's folder`)
-        else if (lands === undefined) problems.push(`${where}: '${spec}' resolves to no file`)
         else if (tool && !inTools(lands)) problems.push(`${where}: '${spec}' leaves tools/: ${TOOL_IMPORTS}`)
         else if (!tool && inTools(lands)) problems.push(`${where}: '${spec}' reaches into tools/, which runs on Node, never in the engine`)
+        else if (!found) problems.push(`${where}: '${spec}' resolves to no file`)
       } else if (tool) {
         if (kind === 'types') problems.push(`${where}: '${spec}' is a types reference: the tools' type check supplies Node's types`)
         else if (!spec.startsWith('node:') || !isBuiltin(spec)) problems.push(`${where}: '${spec}' is no node: module: ${TOOL_IMPORTS}`)

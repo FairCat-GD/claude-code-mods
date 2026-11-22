@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { type TestContext, test } from 'node:test'
 
 import { declaredModules, scanImports } from '../scripts/imports.ts'
-import { FIXTURES, temporaryFolder } from './support.ts'
+import { FIXTURES, git, temporaryFolder } from './support.ts'
 
 const DECLARED = declaredModules(join(FIXTURES, 'declarations'))
 
@@ -131,9 +131,8 @@ test('the wall ignores case, as the disk does', t => {
   )
   assert.equal(into.length, 1)
   assert.match(into[0] ?? '', /^hooks\/a\.ts:1: '\.\.\/Tools\/shout\.ts' /)
-  assert.deepEqual(scanImports(scratchMod(t, { 'Tools/shout.ts': 'export const shout = 1\n' }), DECLARED), [
-    'Tools/shout.ts:1: a folder named tools/ in another case: name it tools/',
-  ])
+  const misnamed = scratchMod(t, { 'Tools/shout.ts': 'export const shout = 1\n', 'Tools/convert.ts': 'export const convert = 1\n' })
+  assert.deepEqual(scanImports(misnamed, DECLARED), ['Tools/: a folder named tools/ in another case: name it tools/'])
 })
 
 test('a symbolic link in the folder is refused, so nothing reaches past the scan through one', t => {
@@ -143,8 +142,8 @@ test('a symbolic link in the folder is refused, so nothing reaches past the scan
   symlinkSync('../outside', join(dir, 'tools'))
   symlinkSync('register.ts', join(dir, 'hooks/link.ts'))
   assert.deepEqual(scanImports(dir, DECLARED), [
-    'hooks/link.ts:1: a symbolic link, which the import scan does not follow: replace it with what it points to',
-    'tools:1: a symbolic link, which the import scan does not follow: replace it with what it points to',
+    'hooks/link.ts: a symbolic link, which the import scan does not follow: replace it with what it points to',
+    'tools: a symbolic link, which the import scan does not follow: replace it with what it points to',
   ])
 })
 
@@ -178,4 +177,22 @@ test('a reference path crosses the wall like an import, both ways', t => {
     "hooks/register.ts:1: '../tools/shapes.d.ts' reaches into tools/, which runs on Node, never in the engine",
     "tools/convert.ts:1: '../hooks/shapes.d.ts' leaves tools/: a tool imports only from tools/ and node: modules",
   ])
+})
+
+test('a tool importing a missing file outside tools/ is told it crosses the wall', t => {
+  const dir = scratchMod(t, { 'tools/convert.ts': "export { gone } from '../hooks/gone.ts'\n" })
+  assert.deepEqual(scanImports(dir, DECLARED), ["tools/convert.ts:1: '../hooks/gone.ts' leaves tools/: a tool imports only from tools/ and node: modules"])
+})
+
+test('files git ignores are not judged, and a tracked one is', t => {
+  const dir = scratchMod(t, {
+    '.gitignore': '*.swp\nnotes.txt\n',
+    'tools/convert.ts': 'export const convert = 1\n',
+    'tools/.convert.ts.swp': 'fictional swap\n',
+    'tools/notes.txt': 'fictional notes\n',
+    'tools/kept.swp': 'fictional, but committed\n',
+  })
+  git(dir, 'init', '-q')
+  git(dir, 'add', '-f', 'tools/kept.swp')
+  assert.deepEqual(scanImports(dir, DECLARED), ['tools/kept.swp:1: a file under tools/ but outside tools/fixtures/ must be .ts'])
 })

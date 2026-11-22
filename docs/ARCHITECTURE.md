@@ -312,8 +312,9 @@ store's keying was measured in both engines' code and on disk (CLI 2.1.310, desk
   and `node scripts/tools.ts specs <folder>`. `runStage` starts each half on its own, so a half
   that cannot start fails the stage and the other half's commands still run. A folder without
   one gets no `tools`, and runs what it ran before.
-- **`scripts/tools.ts`** lists every `.ts` under `tools/` but `tools/fixtures/`: a spec ends
-  `.spec.ts`, and a tool is a `.ts` that is neither a spec nor a `.d.ts`.
+- **`scripts/tools.ts`** lists every `.ts` under `tools/` but `tools/fixtures/`, matched in any
+  case as the import scan matches it: a spec ends `.spec.ts`, and a tool is a `.ts` that is
+  neither a spec nor a `.d.ts`.
   - `types` hands that list to `ts.createProgram`, with the options
     `ts.getParsedCommandLineOfConfigFile` reads from `ROOT`'s `tsconfig.json`. Its `skipLibCheck`
     holds here too, so a `.d.ts` is in the program but its body is not checked. Each diagnostic
@@ -414,7 +415,7 @@ script, so a new build's modules pass without an edit. It walls a mod's `tools/`
     `claude-code/testing`; `claude-code-tools/` and `claude-code-mcp/` are additions to
     `claude-code`, not modules to import.
   - **The `tools/` rules** hold for every file under the folder's top-level `tools/`, matched
-    without regard to case, since the disk ignores it; a `Tools/` is refused by name:
+    without regard to case, since the disk ignores it; a `Tools/` is refused once, by name:
     - a source that is not `.ts` is refused at its first line, in `tools/fixtures/` too, and any
       other file that is not `.ts` outside `tools/fixtures/` (a `run.sh`, say);
     - a bare import must start with `node:` and name a module Node's `isBuiltin` knows, so `fs`
@@ -424,9 +425,15 @@ script, so a new build's modules pass without an edit. It walls a mod's `tools/`
 
     Outside `tools/`, a relative import whose file is in it is refused, saying it runs on Node,
     never in the engine; `node:` there stays an undeclared module. The wall judges the file an
-    import resolves to, so `'../tools'` reaches a `tools/index.ts` but not a root `tools.ts`.
-  - **A symbolic link anywhere in the folder is refused,** since the scan reads files without
-    following links, while the tools' halves and the engine follow them.
+    import resolves to, so `'../tools'` reaches a `tools/index.ts` but not a root `tools.ts`;
+    an import that resolves to nothing is judged by the path it names, so a tool reaching for a
+    missing `../hooks/gone.ts` is told it leaves `tools/`.
+  - **A symbolic link anywhere in the folder is refused,** by its path alone, since the scan reads
+    files without following links, while the tools' halves and the engine follow them.
+  - **Files git ignores are not judged** (`git check-ignore`, so the global excludes count too),
+    since no commit holds them: an editor's swap file under `tools/` does not fail the gate. A
+    tracked file is judged whatever the ignore rules say, and outside a repository nothing is
+    ignored.
 
 ## The API declarations (`npm run types`)
 
@@ -577,7 +584,7 @@ file, the owner's data.
 | Check | Expected |
 |---|---|
 | `npm run verify` | green: 18 stages, the 6 repo stages, then 4 for each of cartoon-fx, possum-squad and `mod-template` (4 more per mod) |
-| Tooling tests (`node --test "tests/*.test.ts"`) | 187 pass, in 11 files: hygiene 109 in 4, verify 19, imports 18, marketplace 13, tools 9, new-mod 9, validate 6, types 4 |
+| Tooling tests (`node --test "tests/*.test.ts"`) | 190 pass, in 11 files: hygiene 109 in 4, imports 20, verify 19, marketplace 13, tools 10, new-mod 9, validate 6, types 4 |
 | `mod-template`: tests | 1 pass |
 | `mod-template`: `validate` | 2 hooks, 0 gating, calls `$.command.register`; no warning but the allowed one |
 | Each mod | its 4 stages green; its counts are in its own `docs/ARCHITECTURE.md`'s baseline |

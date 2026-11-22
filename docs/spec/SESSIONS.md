@@ -251,3 +251,22 @@ pins*, *Layout and boundaries*, *What a mod is*, *The gate*, *`validate` and the
     unbroken, until a `tools/index.ts` case was added), a reference path read as one, a throwing
     half that fails, the tools' commands running, and no half for a folder without `tools/`.
   - **Numbers after it:** tooling tests 187 in 11 files (+7): imports 18 (+5), verify 19 (+2).
+- **Review (`/code-review high`), 5 findings, all fixed, the owner's choice:**
+  - **The fixtures folder was matched in two ways.** The scan took `tools/Fixtures/` as fixtures
+    while `toolFiles` typed and ran what was in it. `toolFiles` now matches it in any case too.
+  - **A tool reaching for a missing file outside `tools/` was told only that it resolves to no
+    file.** The wall now judges the path an import names when it resolves to nothing, so the
+    breach is named first.
+  - **A symbolic link's problem carried a line number,** `tools:1`, on a directory. It now names
+    the path alone.
+  - **A misnamed `Tools/` drew one problem per file in it.** It is now named once, from the
+    folder's own listing.
+  - **The scan judged files no commit could hold,** such as an editor's swap file under `tools/`.
+    It now leaves out what `git check-ignore` reports, tracked files never among them; the
+    `.DS_Store` skip went with it, since `.gitignore` names it.
+  - **Falsified,** each failing at its own test: the fixtures folder in any case (as the code
+    stood before), the wall on a missing file (a first mutation that kept the same message was
+    replaced by one that bypassed the wall), `Tools/` named once, ignored files skipped, and
+    tracked files still judged (with `--no-index`).
+  - **Numbers after it:** tooling tests 190 in 11 files (+3): imports 20 (+2), tools 10 (+1).
+    `npm run verify` green, 18 stages (CLI 2.1.330).

@@ -16,9 +16,10 @@ const GLOB = /[*?[\]{}()!+@\\]/
 // neither specs nor declaration files.
 export const toolFiles = (folder: string) => {
   const tools = resolve(folder, 'tools')
-  const fixtures = join(tools, 'fixtures')
+  // The disk ignores case, and so does the import scan's idea of the fixtures folder.
+  const fixtures = join(tools, 'fixtures').toLowerCase()
   const typed = statSync(tools, { throwIfNoEntry: false })?.isDirectory()
-    ? filesUnder(tools, path => path === fixtures)
+    ? filesUnder(tools, path => path.toLowerCase() === fixtures)
         .filter(path => path.endsWith('.ts'))
         .sort()
     : []

@@ -75,3 +75,14 @@ test('a spec whose path node --test would read as a glob is refused, and the oth
   assert.match(run.stdout, /the plain spec ran/)
   assert.doesNotMatch(run.stdout, /the bracketed spec ran/)
 })
+
+test('the listing leaves out a fixtures folder in any case, as the import scan does', t => {
+  const dir = temporaryFolder(t)
+  mkdirSync(join(dir, 'tools/Fixtures'), { recursive: true })
+  writeFileSync(join(dir, 'tools/Fixtures/broken.spec.ts'), 'export const broken = 1\n')
+  writeFileSync(join(dir, 'tools/convert.ts'), 'export const convert = 1\n')
+  assert.deepEqual(
+    toolFiles(dir).typed.map(path => relative(dir, path)),
+    ['tools/convert.ts'],
+  )
+})

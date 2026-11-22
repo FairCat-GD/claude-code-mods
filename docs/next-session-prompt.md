@@ -25,7 +25,7 @@ A new mod is not a repo-level round: it starts with `npm run new-mod` and its ow
   List `origin/main..HEAD` before any push, and name any commit that is not the session's.
 - **Open items live in `docs/BACKLOG.md`;** round 2 added none.
 - **Baseline** (`docs/ARCHITECTURE.md`, CLI 2.1.330): `npm run verify` 18 stages PASS; tooling
-  tests 187 in 11 files; the template 1 test, 2 hooks, 0 gating; each mod's counts in its own
+  tests 190 in 11 files; the template 1 test, 2 hooks, 0 gating; each mod's counts in its own
   baseline.
 
 ## Watch for

@@ -240,7 +240,7 @@ the last read of the diff.
 | `node --test "tests/*.test.ts"` | The tooling's tests alone. Keep the quotes and the top-level pattern: Node expands it, and it never reaches `tests/fixtures/` or a mod's tests, which run only under `claude plugin test`. |
 | `node scripts/hygiene.ts [--message <draft>] [--all] [--terms <file>]` | Hygiene alone, over the repository it runs in. `--terms` is for tests, which point it at `tests/fixtures/hygiene-terms.txt` and never at the owner's file. |
 | `node scripts/validate.ts <folder>` | `claude plugin validate` as the gate judges it, in the gate's environment (without `CLAUDE_CODE_PLUGIN_DIRS`): every error and warning fails, but the one a mod's own `CLAUDE.md` draws ("not loaded as project context"). |
-| `node scripts/imports.ts <folder>` | The import scan alone, against the folder's laid declarations, with the wall around its `tools/`; it refuses any symbolic link in the folder. |
+| `node scripts/imports.ts <folder>` | The import scan alone, against the folder's laid declarations, with the wall around its `tools/`; it refuses any symbolic link in the folder, and leaves out files git ignores. |
 | `node scripts/tools.ts <types\|specs> <folder>` | A mod's `tools/` alone. `types` types every `.ts` under it but `tools/fixtures/` with the root `tsconfig.json`'s options; `specs` runs its `*.spec.ts` with `node --test`, and fails a tool with no spec. |
 | `node mods/<name>/tools/<tool>.ts` | Runs a mod's tool, from the repository's root. |
 
