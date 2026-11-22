@@ -4,8 +4,23 @@ import { atom, read, update } from 'claude-code'
 import type { Lead, Runs, Tokens } from '../types/index'
 import { PANE_COLUMNS } from './config'
 import { leadFigures, measured, NO_LEAD, totals, turnCounted } from './model/lead'
-import { cleared, figures, isLive, NO_RUNS, type Spawn, shownRuns, spawnOpened, spawnSettled, stepped, turnEnded, turnStarted } from './model/runs'
+import {
+  cleared,
+  fellBack,
+  figures,
+  isLive,
+  NO_RUNS,
+  type Spawn,
+  shownRuns,
+  spawnOpened,
+  spawnSettled,
+  stepped,
+  turnEnded,
+  turnStarted,
+  weakOf,
+} from './model/runs'
 import { callsOf } from './model/tools'
+import { atSpawn, HELPER, toolsSeen } from './roles/rules'
 import { changeOf, mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES, SETTINGS, settingsText } from './settings'
 import { STRINGS } from './strings'
 import { panel } from './view/panel'
@@ -15,7 +30,7 @@ export const PANE = 'possum-squad'
 // Bump the shape when View's fields change: an older value then reads as absent.
 export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, { isClosedByPerson: false }, { shape: 'view-1' })
 // Bump the shape when Runs or Run change their fields.
-export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-2' })
+export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-3' })
 // Bump the shape when Lead changes its fields.
 export const lead = atom({ plugin: 'possum-squad', key: 'lead' } as const, NO_LEAD, { shape: 'lead-1' })
 
@@ -66,18 +81,34 @@ function stopClock(own = generation) {
 }
 
 // A closed pane or no live run stops the clock. A pane open behind another keeps it, undrawn, so its times are right
-// the moment it shows.
-async function tick($: Pick<EngineInterface, 'ui' | 'state'>, own: number) {
+// the moment it shows. A role settled here redraws the pane by its write.
+async function tick($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>, own: number) {
   if (own !== generation) return
   beats++
   try {
     const pane = (await $.ui.panes()).find(one => one.id === PANE)
     isPaneOpen = pane !== undefined
     if (pane === undefined) return stopClock(own)
-    if (!shownRuns(await read($, runs)).some(isLive)) return stopClock(own)
-    if (pane.isShown) $.ui.invalidate('ui.render')
+    const held = await read($, runs)
+    if (!shownRuns(held).some(isLive)) return stopClock(own)
+    const hasSettled = await settleHelpers($, held)
+    if (pane.isShown && !hasSettled) $.ui.invalidate('ui.render')
   } catch {
     stopClock(own)
+  }
+}
+
+// Helper at T-04 with no event to bring it. It writes only when a role is due, through the update's own read, so a
+// beat still in flight after a clear writes nothing stale; a fault leaves the clock running.
+async function settleHelpers($: Pick<EngineInterface, 'state' | 'clock'>, held: Runs): Promise<boolean> {
+  if (!Object.values(held.rows).some(run => run.role === undefined)) return false
+  try {
+    const now = await $.clock.now()
+    if (fellBack(held, now, HELPER) === held) return false
+    await update($, runs, latest => fellBack(latest, now, HELPER))
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -174,7 +205,7 @@ async function recordLead($: Pick<EngineInterface, 'state'>, change: (held: Lead
   }
 }
 
-// The same, for the records that need the time: a spawn and an end.
+// The same, for the records that need the time: a spawn, a subagent's step and an end.
 async function recordAt($: Pick<EngineInterface, 'state' | 'clock'>, change: (held: Runs, at: number) => Runs) {
   try {
     const at = await $.clock.now()
@@ -182,6 +213,12 @@ async function recordAt($: Pick<EngineInterface, 'state' | 'clock'>, change: (he
   } catch {
     // the event goes on as the engine gave it
   }
+}
+
+// The role the spawn's type and description settle, worked out inside the record's guard.
+function dressed(spawn: Spawn): Spawn {
+  const role = atSpawn(spawn.type, spawn.description)
+  return role === undefined ? spawn : { ...spawn, role }
 }
 
 function spawnOf(e: AgentSpawnInput): Spawn {
@@ -303,16 +340,16 @@ export const register: Register = on => {
   // the declarations say a hook there turns off a tool's move to the background, even as a pass-through.
   on('agent.spawn', async ($, e, next) => {
     const spawn = spawnOf(e)
-    await recordAt($, (held, at) => spawnOpened(held, spawn, at))
+    await recordAt($, (held, at) => spawnOpened(held, dressed(spawn), at))
     keepTime($)
     let result: AgentSpawnResult
     try {
       result = await next(e)
     } catch (error) {
-      await recordAt($, (held, at) => spawnSettled(held, spawn, { isDenied: true }, at))
+      await recordAt($, (held, at) => spawnSettled(held, dressed(spawn), { isDenied: true }, at))
       throw error
     }
-    await recordAt($, (held, at) => spawnSettled(held, spawn, settledOf(result), at))
+    await recordAt($, (held, at) => spawnSettled(held, dressed(spawn), settledOf(result), at))
     return result
   }).catch((_$, e, next) => next(e))
 
@@ -330,8 +367,10 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     const completed = await next(e)
     const { agentId } = e
-    if (agentId !== undefined) await recordAt($, (held, at) => turnEnded(held, agentId, { reason: e.reason, hasText: e.answer.trim() !== '' }, at))
-    else await recordLead($, held => turnCounted(held, e.usage, e.durationMs))
+    if (agentId !== undefined) {
+      // A run no rule settled is Helper at its end.
+      await recordAt($, (held, at) => fellBack(turnEnded(held, agentId, { reason: e.reason, hasText: e.answer.trim() !== '' }, at), at, HELPER))
+    } else await recordLead($, held => turnCounted(held, e.usage, e.durationMs))
     return completed
   }).catch((_$, e, next) => next(e))
 
@@ -358,11 +397,19 @@ export const register: Register = on => {
     const result = yield* next(e)
     const { agentId } = e
     if (agentId !== undefined) {
-      // No clock here: the step's result waits only on the state's read and write.
-      await record($, held => {
+      // The clock settles Helper at T-04 before the step's calls count, whether or not the pane is open.
+      await recordAt($, (held, at) => {
         const calls = callsOf(result.toolUses)
         const effort = e.effort === undefined ? undefined : String(e.effort)
-        return stepped(held, agentId, { model: result.usage?.model ?? e.model, effort, usage: usageOf(result), activity: calls.activity, calls: calls.count })
+        const due = fellBack(held, at, HELPER)
+        return stepped(due, agentId, {
+          model: result.usage?.model ?? e.model,
+          effort,
+          usage: usageOf(result),
+          activity: calls.activity,
+          calls: calls.count,
+          tools: toolsSeen(weakOf(due, agentId), calls.clues),
+        })
       })
       keepTime($)
     }

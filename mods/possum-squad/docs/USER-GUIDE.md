@@ -55,7 +55,8 @@ Each subagent Claude starts gets a row the moment it starts, in the order they s
 
 1. its task in a few words, and its state: starting, working, finished, failed or stopped;
    "round 2" when a run with the same task already finished;
-2. the model it runs on and its effort, once its first request names them;
+2. its role, such as Builder or Scout, once it is settled (*How roles are chosen*, below); then
+   the model it runs on and its effort, once its first request names them;
 3. what it is doing: the last tool it asked for and what that names, such as "Reading
    notes.md", "Running npm test" or "Searching for TODO", cut to one line; "No tool calls yet"
    before its first;
@@ -64,6 +65,30 @@ Each subagent Claude starts gets a row the moment it starts, in the order they s
 The tokens are what the agent read and wrote fresh; what it read back from the cache is left
 out. The time ticks while it runs, and stops when it ends. A long line is cut
 with an ellipsis. The state is always written out as a word, beside its colour.
+
+## How roles are chosen
+
+Each agent gets one of seventeen roles, which says what kind of work it is doing: Scout,
+Planner, Builder, Tester, Bug catcher, Reviewer, Researcher, Operator, Courier, Writer, Artist,
+Analyst, Guard, Janitor, Pilot or Helper; Lead is the main session's. The role comes from what
+possum-squad sees anyway, never from asking a model, by the first of these that fits:
+
+1. **The agent's type.** An Explore agent is a Scout, a Plan agent a Planner. An agent type of
+   your own is read by its name, so a `code-reviewer` is a Reviewer. The general-purpose type
+   says nothing.
+2. **The words of its task.** Security words make a Guard. Then the first word, when it is a
+   strong verb: "Review the migration plan" is a Reviewer's, "Document the test setup" a
+   Writer's. "Design" is an Artist's, unless it designs a system, such as an API or a database
+   schema, which is a Planner's. Then other words anywhere, from the specific to the general.
+3. **Its first tool calls.** An edit or a write makes a Builder; a web search or fetch a
+   Researcher; a browser or computer tool a Pilot; a shell command that runs tests a Tester, and
+   one that commits, pushes, tags or opens a pull request a Courier. Six reads and searches with
+   nothing else make a Scout. Any other shell command says nothing.
+4. **Helper,** when nothing has settled it a minute after it started, or when it ends first. A
+   teammate whose turn ends keeps its role open for its next turn.
+
+Until its role settles, a row shows none. Once settled, a run's role never changes. A wrong
+role costs nothing but the outfit; choosing one yourself comes in a later version.
 
 ## How a run ends
 

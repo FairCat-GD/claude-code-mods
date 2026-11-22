@@ -1,9 +1,9 @@
-import type { Activity, Past, Pending, Run, Runs, StateId, Tokens } from '../../types/index'
-import { FINISHED_KEPT } from '../config'
+import type { Activity, Past, Pending, Role, Run, Runs, StateId, Tokens } from '../../types/index'
+import { FINISHED_KEPT, ROLE_SETTLES_MS } from '../config'
 import { windowOf } from '../data/models'
 
 // Each function takes `runs` and an event's record, and returns `runs` as it should now be. An event it cannot
-// place changes nothing and returns the same object. Only a spawn and an end need the time.
+// place changes nothing and returns the same object. A spawn, an end and the fallback role take the time.
 
 const NO_PAST: Past = { tokens: 0, workedMs: 0 }
 export const NO_RUNS: Runs = { rows: {}, pending: {}, next: 0, past: NO_PAST }
@@ -22,11 +22,14 @@ export type Spawn = {
   parentId?: string
   // The agent a resume continues.
   resumes?: string
+  // What the type and description settle at once.
+  role?: Role
 }
 
 export type Settled = { agentId?: string; model?: string; isDenied: boolean }
 
-export type Step = { model?: string; effort?: string; usage?: Tokens; activity?: Activity; calls: number }
+// `tools` is what the step's calls say of the role, read on from the run's earlier reads and searches.
+export type Step = { model?: string; effort?: string; usage?: Tokens; activity?: Activity; calls: number; tools?: { weak: number; role?: Role } }
 
 export type Ending = { reason: string; hasText: boolean }
 
@@ -76,7 +79,19 @@ function opened(runs: Runs, spawn: Spawn, at: number, agentId?: string): Run {
   }
   if (agentId !== undefined) run.agentId = agentId
   if (spawn.parentId !== undefined) run.parentId = spawn.parentId
+  if (spawn.role !== undefined) run.role = spawn.role
   return run
+}
+
+// The one guard of I-07: evidence reaches only a run or entry whose role is unsettled.
+function withEvidence<T extends Run | Pending>(next: T, evidence: { weak?: number; role?: Role }): T {
+  if (next.role !== undefined) return next
+  if (evidence.role !== undefined) {
+    const { weakCalls: _, ...settled } = next
+    return { ...settled, role: evidence.role } as T
+  }
+  if (evidence.weak !== undefined && evidence.weak > 0) next.weakCalls = evidence.weak
+  return next
 }
 
 // A step's numbers on a row or a pending entry: tokens summed, the last request's size, the model and effort in use.
@@ -89,7 +104,7 @@ function withStep<T extends Run | Pending>(held: T, step: Step): T {
   if (step.model !== undefined) next.model = step.model
   if (step.effort !== undefined) next.effort = step.effort
   if (step.activity !== undefined) next.activity = step.activity
-  return next
+  return step.tools === undefined ? next : withEvidence(next, step.tools)
 }
 
 function claimed(run: Run, pending: Pending | undefined): Run {
@@ -99,7 +114,10 @@ function claimed(run: Run, pending: Pending | undefined): Run {
   if (pending.model !== undefined) next.model = pending.model
   if (pending.effort !== undefined) next.effort = pending.effort
   if (pending.activity !== undefined) next.activity = pending.activity
-  return next
+  return withEvidence(next, {
+    ...(pending.weakCalls === undefined ? {} : { weak: pending.weakCalls }),
+    ...(pending.role === undefined ? {} : { role: pending.role }),
+  })
 }
 
 // Finished keeps the latest T-06 ended runs; a teammate is never dropped, since its next turn returns it. What a
@@ -169,6 +187,9 @@ export function turnStarted(runs: Runs, agentId: string): Runs {
   return runs.pending[agentId] === undefined ? withPending(runs, agentId, NO_PENDING) : runs
 }
 
+// The reads and searches a run or its pending entry has seen while its role is unsettled.
+export const weakOf = (runs: Runs, agentId: string): number => (runs.rows[agentId] ?? runs.pending[agentId])?.weakCalls ?? 0
+
 export function stepped(runs: Runs, agentId: string, step: Step): Runs {
   const held = runs.rows[agentId]
   if (held !== undefined) return { ...runs, rows: { ...runs.rows, [agentId]: withStep(held, step) } }
@@ -181,6 +202,21 @@ export function turnEnded(runs: Runs, agentId: string, ending: Ending, at: numbe
   if (held === undefined) return runs.pending[agentId] === undefined ? runs : { ...runs, pending: without(runs.pending, agentId) }
   const run: Run = { ...held, state: endingOf(ending, held.isTeammate), endedAt: at, inFlight: 0 }
   return pruned({ ...runs, rows: { ...runs.rows, [agentId]: run } })
+}
+
+// A run no rule settled is Helper once T-04 has passed since its start, or once it ends: no rule can fire after. A
+// teammate's end is not its last, so it waits for its next turn or T-04.
+export function fellBack(runs: Runs, now: number, fallback: Role): Runs {
+  const due = Object.entries(runs.rows).filter(
+    ([, run]) => run.role === undefined && (now - run.startedAt >= ROLE_SETTLES_MS || (hasEnded(run) && !run.isTeammate)),
+  )
+  if (due.length === 0) return runs
+  const rows = { ...runs.rows }
+  for (const [key, run] of due) {
+    const { weakCalls: _, ...settled } = run
+    rows[key] = { ...settled, role: fallback }
+  }
+  return { ...runs, rows }
 }
 
 // A clear, a resume or a fork of the session starts the list and its totals over.

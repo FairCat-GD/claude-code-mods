@@ -24,7 +24,9 @@ up, it moves out of this file.
   how a run ends (Session 4). Claude Code still lists it as waiting on a shell. Seen in
   Session 5's hand check (CLI 2.1.329). Needs the owner's decision: whether such a run reads
   something other than finished, and from which signal. Not seen: whether a new turn puts the
-  row back to working when the shell ends, as `turnStarted` would.
+  row back to working when the shell ends, as `turnStarted` would. Since 0.6.0 such a run with
+  no role is Helper at that first end, and keeps it when it comes back: seen in Session 8's
+  hand check, where an agent refused a foreground `sleep 70` started it in the background.
 
 ## Not yet checked by hand
 
@@ -38,11 +40,10 @@ these are the parts only a person can see.
   the declarations say is read "on the queued lanes"; whether an `immediate` command typed
   between turns is on one was not checked. To check: type `/possums settings` between turns,
   then ask Claude what the last command printed.
-- **The header, sections and clock in the desktop app.** The terminal's were seen in Session 5;
-  the desktop draws the Lead with the app's `Progress` and Finished's `Button` natively, seen
-  only in the kit's tree. To check, once 0.5.0 is installed: start three subagents in the
-  desktop app, then compare the pane with the transcript: each row's tokens and time, the
-  header's total, and the times ticking. Recorded at Session 6's start.
+- **Roles in the desktop app.** The kit draws each row's role first on its second line, and the
+  terminal is checked by hand in Session 8. To check, once 0.6.0 is installed: start an
+  Explore agent and a general-purpose one with a vague task in the desktop app, and see Scout
+  at once, then the second's role once it edits or a minute passes.
 - **Rows and the clock surviving a reload of the mod (F-23).** The kit cannot reload a module,
   and no hand check has reloaded one. The declarations say `$.state` survives a hot reload and
   the reload stops the mod's timer; `session.start` arms it again for a live run. To check: in a

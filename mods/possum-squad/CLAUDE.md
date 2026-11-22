@@ -23,7 +23,7 @@ These keep their spelling, because installs and stored data live under them:
 - its settings and their values, its set ids, role ids and state ids (`docs/ARCHITECTURE.md`,
   *Values*);
 - its `$.state` keys, `runs`, `lead`, `view`, declared in `types/index.d.ts` (`view` under the
-  shape tag `view-1`, `runs` under `runs-2` and `lead` under `lead-1`, each changing with its
+  shape tag `view-1`, `runs` under `runs-3` and `lead` under `lead-1`, each changing with its
   fields);
   its `$.store` keys, `prefs` (built) and `role:<agent type>`;
 - reserved for a later round: the tools `step` and `plan`, the setting `stepReports`, the state
@@ -67,5 +67,11 @@ first line copies it.
   test checks a write as a version above 0, never as 1.
 - **The engine loads no JSON.** The role corpus is a `.ts` fixture; the art reaches the hooks only
   through the generated `hooks/sprites/data.ts`.
+- **A subagent may not `sleep` in the foreground:** it moves the sleep to the background and
+  ends its turn, which reads as its end. For a long call in a hand check, use
+  `ping -c <seconds> 127.0.0.1`, which stays in the foreground (CLI 2.1.330).
+- **A hand check can be driven without the user:** start `claude --plugin-dir
+  mods/possum-squad` detached in GNU `screen` (tmux is not installed), widen it to 160 columns
+  and send Ctrl+L so the pane docks, type with `-X stuff`, and read with `-X hardcopy`.
 - **`docs/spec/research/` is input** for round 1: copy from it, never edit it. Its corpus labels
   are fixed, and the role table is never tuned on `holdout`.

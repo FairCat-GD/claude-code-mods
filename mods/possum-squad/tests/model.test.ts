@@ -1,11 +1,12 @@
 import { expect, test } from 'claude-code/testing'
 
-import type { Runs } from '../types/index'
-import { FINISHED_KEPT } from '../hooks/config'
+import type { Role, Runs } from '../types/index'
+import { FINISHED_KEPT, ROLE_SETTLES_MS } from '../hooks/config'
 import { DEFAULT_WINDOW, WINDOWS } from '../hooks/data/models'
 import {
   cleared,
   endingOf,
+  fellBack,
   figures,
   NO_RUNS,
   PENDING_KEPT,
@@ -17,6 +18,7 @@ import {
   stepped,
   turnEnded,
   turnStarted,
+  weakOf,
 } from '../hooks/model/runs'
 import { callsOf, TARGET_CHARS } from '../hooks/model/tools'
 import { leadFigures, measured, NO_LEAD, totals, turnCounted } from '../hooks/model/lead'
@@ -194,14 +196,28 @@ test("a step's activity is its last shown call, with what it names, cut to one l
   ).toEqual({
     activity: { tool: 'Read', target: 'shed/rack.txt' },
     count: 2,
+    clues: ['Grep', 'Read'],
   })
   expect(callsOf([{ name: 'Bash', input: { command: `count shovels\n${long}` } }]).activity?.target).toBe('count shovels')
   expect(callsOf([{ name: 'Bash', input: { command: long } }]).activity?.target).toHaveLength(TARGET_CHARS)
   expect(callsOf([{ name: 'mcp__garden__water', input: { bed: 3 } }]).activity).toEqual({ tool: 'mcp__garden__water' })
   // The hand-back of a report is no work to show, and odd input is no call.
-  expect(callsOf([{ name: 'SubagentHandback', input: {} }])).toEqual({ count: 0 })
-  expect(callsOf(undefined)).toEqual({ count: 0 })
-  expect(callsOf([null, 7, { input: {} }])).toEqual({ count: 0 })
+  expect(callsOf([{ name: 'SubagentHandback', input: {} }])).toEqual({ count: 0, clues: [] })
+  expect(callsOf(undefined)).toEqual({ count: 0, clues: [] })
+  expect(callsOf([null, 7, { input: {} }])).toEqual({ count: 0, clues: [] })
+})
+
+test("a step's calls read as the role rules' clues: the tool's name, and a shell command whole after it", () => {
+  const command = 'cd shed && npm test\necho done'
+  expect(callsOf([{ name: 'Bash', input: { command } }]).clues).toEqual([`Bash:${command}`])
+  expect(callsOf([{ name: 'Bash', input: {} }, { name: 'Bash' }]).clues).toEqual(['Bash', 'Bash'])
+  expect(callsOf([{ name: 'Edit', input: { file_path: 'shed/rack.txt', old_string: 'Bash:git push' } }]).clues).toEqual(['Edit'])
+  expect(
+    callsOf([
+      { name: 'SubagentHandback', input: {} },
+      { name: 'Read', input: {} },
+    ]).clues,
+  ).toEqual(['Read'])
 })
 
 test('an event it cannot place changes nothing', () => {
@@ -273,4 +289,67 @@ test('a run Finished no longer keeps still counts in the totals, and a clear sta
   expect(cleared(runs).past).toEqual(NO_RUNS.past)
   // A past with nothing else beside it is still cleared.
   expect(cleared({ ...NO_RUNS, past: { tokens: 7, workedMs: 1 } }).past).toEqual(NO_RUNS.past)
+})
+
+// Roles as the rules settle them.
+const BUILDER: Role = { id: 'builder', source: 'keywords' }
+const SCOUT: Role = { id: 'scout', source: 'tools' }
+const HELPER: Role = { id: 'helper', source: 'fallback' }
+const RESEARCHER: Role = { id: 'researcher', source: 'tools' }
+
+test("a spawn's role from its words is its row's from the start, and a resume keeps the row's", () => {
+  const runs = spawned(NO_RUNS, { ...RAKES, role: BUILDER }, 'agent-1')
+  expect(runs.rows['agent-1']?.role).toEqual(BUILDER)
+  const ended = turnEnded(turnStarted(runs, 'agent-1'), 'agent-1', ANSWERED, 10)
+  const resumed = spawnSettled(ended, { ...RAKES, key: 'toolu_again', resumes: 'agent-1', role: SCOUT }, { agentId: 'agent-1', isDenied: false }, 20)
+  expect(resumed.rows['agent-1']?.role).toEqual(BUILDER)
+})
+
+test('a settled role never changes on later calls, whatever settled it (I-07)', () => {
+  for (const role of [BUILDER, SCOUT, HELPER]) {
+    const runs = turnStarted(spawned(NO_RUNS, { ...RAKES, role }, 'agent-1'), 'agent-1')
+    const later = stepped(runs, 'agent-1', { ...STEP, tools: { weak: 0, role: RESEARCHER } })
+    expect(later.rows['agent-1']?.role).toEqual(role)
+    expect(fellBack(later, 1_000_000, HELPER).rows['agent-1']?.role).toEqual(role)
+  }
+})
+
+test("an unsettled run counts its weak calls until a step's calls settle it", () => {
+  const runs = turnStarted(spawned(NO_RUNS, RAKES, 'agent-1'), 'agent-1')
+  expect(weakOf(runs, 'agent-1')).toBe(0)
+  const searched = stepped(runs, 'agent-1', { ...STEP, tools: { weak: 3 } })
+  expect(searched.rows['agent-1']?.role).toBeUndefined()
+  expect(weakOf(searched, 'agent-1')).toBe(3)
+  const settled = stepped(searched, 'agent-1', { ...STEP, tools: { weak: 6, role: SCOUT } })
+  expect(settled.rows['agent-1']?.role).toEqual(SCOUT)
+  expect(settled.rows['agent-1']?.weakCalls).toBeUndefined()
+})
+
+test("a loop's calls before the re-key settle its row only when the row's words did not", () => {
+  const early = stepped(turnStarted(NO_RUNS, 'agent-1'), 'agent-1', { ...STEP, tools: { weak: 0, role: RESEARCHER } })
+  expect(weakOf(early, 'agent-1')).toBe(0)
+  expect(spawned(early, RAKES, 'agent-1').rows['agent-1']?.role).toEqual(RESEARCHER)
+  expect(spawned(early, { ...RAKES, role: BUILDER }, 'agent-1').rows['agent-1']?.role).toEqual(BUILDER)
+
+  const weak = stepped(turnStarted(NO_RUNS, 'agent-1'), 'agent-1', { ...STEP, tools: { weak: 2 } })
+  expect(weakOf(weak, 'agent-1')).toBe(2)
+  const claimed = spawned(weak, RAKES, 'agent-1')
+  expect(claimed.rows['agent-1']?.role).toBeUndefined()
+  expect(weakOf(claimed, 'agent-1')).toBe(2)
+})
+
+test("the fallback settles a run past T-04 or ended, but not a teammate's end, and leaves the rest alone", () => {
+  const young = turnStarted(spawned(NO_RUNS, RAKES, 'agent-1', 0), 'agent-1')
+  expect(fellBack(young, ROLE_SETTLES_MS - 1, HELPER)).toBe(young)
+  expect(fellBack(young, ROLE_SETTLES_MS, HELPER).rows['agent-1']?.role).toEqual(HELPER)
+
+  const ended = turnEnded(young, 'agent-1', ANSWERED, 10)
+  expect(fellBack(ended, 10, HELPER).rows['agent-1']?.role).toEqual(HELPER)
+
+  const teammate = turnEnded(turnStarted(spawned(NO_RUNS, { ...RAKES, isTeammate: true }, 'agent-2', 0), 'agent-2'), 'agent-2', ANSWERED, 10)
+  expect(fellBack(teammate, 10, HELPER)).toBe(teammate)
+  expect(fellBack(teammate, ROLE_SETTLES_MS, HELPER).rows['agent-2']?.role).toEqual(HELPER)
+
+  const dressed = turnEnded(turnStarted(spawned(NO_RUNS, { ...RAKES, role: BUILDER }, 'agent-3', 0), 'agent-3'), 'agent-3', ANSWERED, 10)
+  expect(fellBack(dressed, ROLE_SETTLES_MS * 2, HELPER)).toBe(dressed)
 })

@@ -20,15 +20,19 @@ and I-04 from Session 3; I-06 from Session 4. N-07 and I-08 are review rules in 
 | 3 | Panel shell: the spike results decided; `/possums open`, `set`, `settings`; `prefs`; the row on both surfaces | 5, 6, 15, 16, 19 | **0.3.0** |
 | 4 | Runs: subagents as live rows with tokens, context and endings; reload and clear | 12, 13, 14 | **0.4.0** |
 | 5 | The Lead, header totals, sections, Finished, the one-second clock; the terminal complete | 17, 18 | **0.5.0** |
-| 6 | Sprites: `art/` seeded, the converter, compositor and SVG writer; `classic` in every state's still pose and the work loop; motion off | 5, 9, 15, 17 | **0.6.0** |
-| 7 | Sets and gallery: `theme`, the other three sets, `/possums roles` | 5, 15 | **0.7.0** |
-| 7a | Every state's animation | 15 | **0.8.0** |
-| 8 | Roles: the reference ported, the corpus, arrival and dressing | 2, 20 | **0.9.0** |
+| 6 | Sprites: `art/` seeded, the converter, compositor and SVG writer; `classic` in every state's still pose and the work loop; motion off | 5, 9, 15, 17 | **0.7.0** |
+| 7 | Sets and gallery: `theme`, the other three sets, `/possums roles` | 5, 15 | **0.8.0** |
+| 7a | Every state's animation | 15 | **0.9.0** |
+| 8 | Roles: the reference ported, the corpus, arrival and dressing | 2, 20 | **0.6.0** |
 | 9 | Role picker and memory, states wired to runs, auto-open | 6, 19 | **0.10.0** |
 | 10 | Attention: Needs you, gone quiet, toasts | 16 | **0.11.0** |
 | 11 | Peek and the collapsed view; the `widget` seat | 18 | **0.12.0** |
 | 12 | Plan limits, the cost estimate, nested helpers | 1, 22 | **0.13.0** |
 | 13 | Docs, changelog, manual runs; `ARCHITECTURE.md` read cold; close the round | all | **1.0.0**, tagged `possum-squad-v1.0.0` |
+
+Session 8 ran before Session 6 (amended at Session 8's plan, with the owner: the repo-level round
+that teaches the gate `tools/` was not committed, as Session 6's block foresaw). It released
+0.6.0, so Sessions 6, 7 and 7a release 0.7.0, 0.8.0 and 0.9.0.
 
 ---
 
@@ -898,7 +902,8 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
 *Testing strategy*.
 
 - **Before anything:** the repo-level round that teaches the gate `tools/` is committed. If it
-  is not, this session swaps with Session 8, logged as an amendment in both blocks.
+  is not, this session swaps with Session 8, logged as an amendment in both blocks (amended at
+  Session 8's plan, with the owner: it was not, so Session 8 ran first and released 0.6.0).
 - **`art/`,** seeded from `research/art/`: the PNGs copied unchanged; `manifest.json` and
   `palette.json` copied, then formatted with `npx biome format --write`, their content
   unchanged.
@@ -914,9 +919,11 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
     style that hides the animation and shows its still pose;
   - an animated sprite is drawn framed (`isInteractive`), a still one as an image.
 - **Rows draw their sprite** on surfaces where `Svg` resolves (decision 17), in
-  `desktopRow`'s leading slot, which holds the state's mark until then.
+  `desktopRow`'s leading slot, which holds the state's mark until then (amended at Session 8's
+  plan, with the owner: Session 8 ran first, so each row wears its run's role, `run.role`, and
+  draws the plain opossum while the role is unsettled).
 - **Docs.**
-  - `CHANGELOG.md`: 0.6.0.
+  - `CHANGELOG.md`: 0.7.0 (amended at Session 8's plan).
   - `ARCHITECTURE.md`: Built for *Sprites and sets*, *Layout and boundaries* (`art/`, `tools/`),
     the converter's row of *Testing strategy*.
   - `CLAUDE.md`: how to run the converter.
@@ -958,7 +965,7 @@ gallery), *The command and settings*, *Testing strategy*.
   surfaces (text on the terminal), in Session 6's still poses; Session 7a animates it, framed,
   as decided at Session 3 (amended at Session 3, with the owner).
 - **Docs.**
-  - `CHANGELOG.md`: 0.7.0.
+  - `CHANGELOG.md`: 0.8.0 (amended at Session 8's plan).
   - `ARCHITECTURE.md`: Built for *Sprites and sets*, *The panel* (the gallery), *The command and
     settings* (`roles`).
   - `USER-GUIDE.md`: themes and the gallery.
@@ -985,12 +992,15 @@ sets*, *The panel*, *Testing strategy*.
 
 - **Every state's animation** as its recipe, on every set: arrival and the dressing hop, the
   work loop, the sign, the doze, the cheer then sleep, playing dead, the startle; each with its
-  still form for `motion` `off`.
+  still form for `motion` `off`. (Amended at Session 8's plan, with the owner: the hop comes
+  here whole from Session 8, which ran before the sprites. A role often settles while its run
+  is already working, and `runs` does not say when; every settle now has the time, so this
+  session adds the moment to `Role`, with its own shape bump.)
 - **The gallery animates, framed,** as decided at Session 3 (amended at Session 3, with the
   owner). Only twenty frames were measured at once: the owner's look after the push says
   whether 136 stay smooth, and if not, the choice returns to the owner.
 - **Docs.**
-  - `CHANGELOG.md`: 0.8.0.
+  - `CHANGELOG.md`: 0.9.0 (amended at Session 8's plan).
   - `ARCHITECTURE.md`: Built for *Sprites and sets*.
 - **Confirms:** *Sprites and sets* (the recipes, SMIL in steps of T-01).
 
@@ -1012,6 +1022,9 @@ sets*, *The panel*, *Testing strategy*.
 
 ## 8: Roles
 
+Run before Session 6 (amended at Session 8's plan, with the owner): the repo-level round that
+teaches the gate `tools/` was not committed, as Session 6's block foresaw.
+
 **Read:** `SPEC.md` §2 decisions 2, 20; `PDD.md` Part 6 *Role detection*, Part 4 *Worked
 examples*, Part 5 F-05, F-06, I-07, T-03, T-04; `research/roles/`; `ARCHITECTURE.md` *Roles*,
 *The run model*, *Sprites and sets* (`starting`), *Testing strategy*.
@@ -1022,9 +1035,13 @@ examples*, Part 5 F-05, F-06, I-07, T-03, T-04; `research/roles/`; `ARCHITECTURE
   copied unchanged.
 - **Detection on runs:** type, name and description at spawn; decisive and weak tool calls;
   Helper at T-04 from the one-second clock, not a timer of its own; a row arrives plain and
-  dresses with one hop when its role settles.
+  dresses with one hop when its role settles. (Amended at Session 8's plan, with the owner:
+  Helper also at a run's end with no rule fired, but not a teammate's; a subagent's step past
+  T-04 settles Helper too, so a closed pane changes no role; with no sprites yet, a row
+  arrives with no role name and gains it when its role settles, and the outfit and the hop go
+  to Sessions 6 and 7a.)
 - **Docs.**
-  - `CHANGELOG.md`: 0.9.0.
+  - `CHANGELOG.md`: 0.6.0 (amended at Session 8's plan).
   - `ARCHITECTURE.md`: Built for *Roles*; I-07's *Enforced by*.
   - `USER-GUIDE.md`: how roles are chosen.
 - **Confirms:** *Roles* (the rule order, settled once).
@@ -1034,13 +1051,96 @@ examples*, Part 5 F-05, F-06, I-07, T-03, T-04; `research/roles/`; `ARCHITECTURE
   - every `dev` item and at least 90% of `holdout` get their label (F-05);
   - "Take care of it" then an Edit is Builder; with no call past T-04, Helper (F-06);
   - a settled role never changes on later calls (I-07).
-- After the push, the owner's week of use for H1 starts.
+- After the push, the owner's week of use for H1 starts (amended at Session 8's plan, with the
+  owner: after Session 9's push, whose picker counts each miss).
 
 **Watch for:**
 - **Labels are fixed, and `holdout` never tunes the table;** cases may be added to `dev`.
 - **`subagentType` carries the engine's spelling** (`Explore`, `general-purpose`): match the
   reference's case handling, not a guess.
 
+
+**Done (2026-11-22, 0.6.0).**
+- **Decided with the user:**
+  - **At the start:**
+    - the repo-level round for `tools/` was not committed, so this session ran instead of
+      Session 6, as its block foresaw;
+    - 0.5.0 was installed, and with three agents the desktop pane matched the transcript: each
+      row's tokens and time, the header's total, the times ticking. Session 5's desktop check
+      is done; its backlog item is gone;
+    - told: a subagent waiting on its own background shell reads "finished" (`docs/BACKLOG.md`).
+  - **At the plan:**
+    - a run that ends with no rule fired is Helper at its end, but not a teammate's;
+    - the plan has an adversarial review before approval. Its 14 findings (none high) were
+      folded in; the largest:
+      - the Python reference's `\b` is Unicode-aware, so the port's runner and git patterns
+        need Unicode word boundaries;
+      - the beat alone, which runs only while the pane is open, would let one agent be Helper
+        or Builder by the pane; the owner chose that a subagent's step reads the clock;
+      - the end rule would trap a teammate in Helper; the owner chose the exception;
+      - two checks could not fail as written, and the corpus test by events was
+        under-specified.
+- **Shipped:**
+  - **The port.** `hooks/roles/words.ts` holds the reference's lists in its order;
+    `hooks/roles/rules.ts` the tokenizer, the matching, `fromText`, `toolsSeen` (calls read on
+    from a count of reads and searches), `fromTools`, `detect`, `atSpawn` and `HELPER`. T-03
+    and T-04 are in `hooks/config.ts`.
+  - **The model.** `Run` and `Pending` carry `role` and `weakCalls` (`runs-3`); `withEvidence`
+    is the one guard of I-07; `fellBack` settles Helper; `callsOf` gives each call as a clue.
+  - **The hooks.** A spawn's role is worked out inside its record's guard; a subagent's step
+    takes the time (`recordAt`), settles Helper past T-04, then reads its calls; an end settles
+    Helper on a run no rule settled; the clock's beat settles Helper with no event, writing only
+    when one is due.
+  - **The view.** `STRINGS.roles`, and the role's name first on the row's second line.
+- **Amendments:**
+  - **Run before Session 6, released 0.6.0;** Sessions 6, 7 and 7a release 0.7.0, 0.8.0 and
+    0.9.0. The repo-level round was not committed. Logged in the table and in Sessions 6, 7, 7a
+    and 8.
+  - **The outfit and the dressing hop** go to Sessions 6 and 7a: no sprites exist yet. A row
+    arrives with no role name and gains it when its role settles. Session 7a needs the moment a
+    role settled, which every settle now has.
+  - **Helper at a run's end, not a teammate's;** and **a step past T-04 settles Helper.** The
+    owner's choices at the plan; `SPEC.md` §4 and *Roles* carry them.
+  - **H1's week starts after Session 9's push,** whose picker counts each miss. `SPEC.md` §5
+    carries it.
+  - **Kit tests read each row's role from the drawn pane:** the host refuses a state read from
+    a test's own hooks. Sources are checked by the pure tests.
+- **Measured,** the kit on CLI 2.1.329:
+  - the engine runs the `u`-flag patterns with lookbehind and `\p{}`;
+  - a subagent's step whose call ran a 1 MB command took 2.0 to 2.6 ms, and the rules alone
+    3.8 ms on that command (N-07);
+  - the Python reference on its corpus: dev 102 of 102, holdout 39 of 42, its misses "Draft an
+    implementation plan" (writer), "Add pagination to the list" (scout) and "Hook up analytics
+    events" (analyst), all by keywords. Every expected value the tests name was checked against
+    the reference.
+- **Checked by hand,** in the terminal, `claude --plugin-dir mods/possum-squad`:
+  - **typed by the user** (CLI 2.1.329, updated to 2.1.330 during it): four agents told to
+    reply "ok", "Research competitor launches", "Design the launch graphics", "Build the landing
+    page" and an Explore "Find where reports are built", read Researcher, Artist, Builder and
+    Scout at once.
+  - **Found:** a subagent may not `sleep 70` in the foreground; it started the sleep in the
+    background and ended its turn, so its row read finished and, with no rule fired, Helper at
+    that end. It kept Helper when it came back. Recorded with the backlog's background-wait item.
+  - **driven by the session in GNU `screen`** (CLI 2.1.330), the pane docked at 160 columns: a
+    general-purpose "Ping check" whose only call was `ping -c 70 127.0.0.1` in the foreground
+    read working with no role at 0:51, and working as Helper at 1:05: the beat's write, with no
+    event. It ended as Helper at 1:14.
+  - Not seen: the desktop (after the push; `docs/BACKLOG.md`).
+- **Falsified,** each failing at its own test, 21 breaks: a strong verb removed (F-05);
+  `replace` for `replaceAll`; a split at a second colon; plain `\b`; the type not lowercased;
+  the I-07 guard removed; the fallback ignoring a role; the claim dropping a pending role; the
+  beat's settle removed; the step's fallback removed; no fallback at the end; the teammate
+  exception removed; the beat writing every second; `toolsSeen` restarting its count; clues
+  losing the command; the row dropping its role; a holdout miss moved; no role at the spawn;
+  `opened` dropping the role; non-text read as is; a remembered role for a generic type.
+  - **One check could not fail as first written:** the kit's I-07 test, past T-04, since the
+    beat skips runs that have a role. It now raises a step and an end after T-04.
+- **Numbers:**
+  - 115 tests (+23) in 11 files (+2): clock 13, command 11, header 8, model 25 (+6), panel 8,
+    pass-through 5, prefs 4, roles 9 (new), row 7, runs 17, settle 8 (new);
+  - `validate`: 11 hooks, 4 gating, each with a `.catch`; 3 state keys; calls unchanged, with
+    `settleHelpers` among the clock's helpers;
+  - the gate green on CLI 2.1.330, its declarations laid by `npm run types` in this session.
 ---
 
 ## 9: Role picker, states and auto-open

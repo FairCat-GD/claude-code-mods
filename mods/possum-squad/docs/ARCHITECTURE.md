@@ -32,12 +32,14 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.5.0). The Lead, header and sections. `hooks/register.tsx`, named by
+**Built** (0.6.0). The Lead, header, sections and roles. `hooks/register.tsx`, named by
 `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `set` and `settings`;
 - toggles and draws the pane: the Lead row and the session line, then the sections of subagent
   runs, or the empty panel's line;
 - turns subagents' spawns, turns and steps into records, and keeps the runs in `runs`;
+- settles each run's role from its type, its description and its first calls, and Helper at
+  T-04 or at its end;
 - keeps the main session's context, tokens and time in `lead`;
 - runs the one-second clock while the pane is open and a run is live;
 - empties `runs` and `lead` when the session is cleared, resumed or forked;
@@ -48,6 +50,7 @@ art's source is the PNG layers in `art/`, which a Node script in `tools/` turns 
 Of the pure modules:
 - `hooks/model/` turns records into runs (`runs.ts`), the Lead and the header's totals
   (`lead.ts`), and a step's calls into an activity (`tools.ts`);
+- `hooks/roles/` holds the role rules and their word lists (`rules.ts`, `words.ts`);
 - `hooks/data/models.ts` holds the dated window table;
 - `hooks/view/` holds the panel and its sections (`panel.tsx`), the Lead row and the session line
   (`lead.tsx`), a run's row data (`runs.ts`), the row builders for both surfaces (`row.tsx`) and
@@ -55,7 +58,7 @@ Of the pure modules:
 - `hooks/settings.ts` holds the settings and the command's words;
 - these sit beside `hooks/strings.ts` and `hooks/config.ts`.
 
-`roles/`, `sprites/`, `art/` and `tools/` are not yet built.
+`sprites/`, `art/` and `tools/` are not yet built.
 
 ## Context
 
@@ -281,13 +284,15 @@ engine 2.1.325 for the 0.2.0 run, and 2.1.326 on 2026-11-20.
   - nothing in `hooks/` or `tests/` imports from `tools/`, and `tools/` imports nothing from
     `hooks/`: it reads `art/` and writes `hooks/sprites/data.ts`.
 
-**Built** (0.5.0). In place:
+**Built** (0.6.0). In place:
 - the manifest, `.claude-plugin/plugin.json`, naming `types/index.d.ts`;
-- the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-06 and T-13) and
-  `hooks/strings.ts`;
+- the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-03, T-04, T-06 and
+  T-13) and `hooks/strings.ts`;
 - `hooks/model/`, pure: `runs.ts` (runs from records, and their figures), `lead.ts` (the Lead
   from measures and main turns, and the header's totals) and `tools.ts` (a step's calls as an
   activity). It uses `config.ts`, `data/` and the types alone;
+- `hooks/roles/`, pure: `words.ts` (the word lists) and `rules.ts` (the rules in their order,
+  the calls read a step at a time, and the fallback). It uses `config.ts` and the types alone;
 - `hooks/data/models.ts`: the dated window table (T-11);
 - `hooks/settings.ts`, pure: the settings with their values and defaults, reading and merging
   `prefs`, the command's words, and the settings list's text. It is not in the Decided layout:
@@ -297,17 +302,21 @@ engine 2.1.325 for the 0.2.0 run, and 2.1.326 on 2026-11-20.
   builder per surface, and the session line), `empty.tsx` (the empty panel's line), `runs.ts`
   (a run's row data and its activity line), `row.tsx` (the row, one builder per surface) and
   `format.ts` (tokens, time, percent and the block bar);
-- the contract, `types/index.d.ts`: `View`; `StateId`; `Runs`, `Run`, `Pending`, `Past`,
-  `Tokens` and `Activity`; `Lead` and `LeadContext`;
+- the contract, `types/index.d.ts`: `View`; `StateId`; `RoleId`, `RoleSource` and `Role`;
+  `Runs`, `Run`, `Pending`, `Past`, `Tokens` and `Activity`; `Lead` and `LeadContext`;
 - the tests, in `tests/`:
   - `tests/engine.ts`: the engine's stand-in, the store's stand-in, the shared test values, and
     `hooksOf`, which hands a test the module's hooks from one registration;
-  - `tests/fixtures/events.ts` and `tests/fixtures/rows.ts`;
+  - `tests/fixtures/events.ts`, `tests/fixtures/rows.ts`, and `tests/fixtures/role-corpus.ts`,
+    the round's role corpus copied unchanged;
   - `tests/model.test.ts` runs the model's functions on records alone; `tests/runs.test.ts`
     raises events in the kit and mounts the pane;
   - `tests/header.test.ts` draws fixture panels with the view's builder, and raises the events
     that feed the Lead and the header; `tests/clock.test.ts` moves a pinned clock and counts
-    what the mod's timer asks of the engine, through a plugin beside it.
+    what the mod's timer asks of the engine, through a plugin beside it;
+  - `tests/roles.test.ts` runs the rules on the corpus and the PDD's worked examples;
+    `tests/settle.test.ts` raises spawns, steps and ends, and reads each row's role from the
+    drawn pane.
 
 How it is held:
 - *Enforced by* the gate's `imports` stage (the import scan) and `validate`
@@ -361,13 +370,19 @@ How it is held:
    `lead` inside `try`, apart from the event's result. The clock is armed inside a guard too.
    `tests/pass-through.test.ts` runs each recording hook, `session.start`, `session.measure`
    and the main session's `turn.complete` among them, with a `$` whose state and clock refuse
-   every call, and gets back what `next` gave.
+   every call, and gets back what `next` gave. The role rules read anything that is not text as
+   empty, so a malformed event never throws there, and they run inside the reading guard. The
+   clock's beat settles Helper inside a guard of its own, which leaves the clock running.
 9. **I-06: a state is never shown by colour or sprite alone;** each row carries its state word.
    *Why:* accessibility, and the terminal has no sprites. *Enforced by* `tests/row.test.ts`
    (every fixture row, in each state, on both surfaces) and `tests/runs.test.ts` (rows drawn
    from runs, and the five endings, on both surfaces).
 10. **I-07: a run's outfit never changes once its role is settled,** except by the person's own
-    reassignment. *Why:* a changing outfit misleads. *Enforced by* not yet: Session 8.
+    reassignment. *Why:* a changing outfit misleads. *Enforced by* the model: evidence reaches a
+    run only through `withEvidence` in `hooks/model/runs.ts`, which leaves a run with a role as
+    it is, and `fellBack` settles only a run with none. `tests/model.test.ts` checks a role
+    settled by words, by calls and by the fallback against a later decisive call and the
+    fallback; `tests/settle.test.ts` checks it by events, past T-04 and at the run's end.
 11. **I-08: no art or code from another mod, and no likeness of another party's mascot or of a
     film, game or cartoon character.** *Why:* the mod and its art are published under MIT.
     *Enforced by* review; every sprite originates from `art/`.
@@ -380,6 +395,8 @@ How it is held:
 13. **N-07: the mod's own work per event stays under 5 ms, and it awaits nothing but `next`, state,
     store and the clock's time in event hooks.** *Why:* every event of every session passes through it. *Enforced
     by* review. Arming the clock calls `$.clock.every`, which is synchronous: nothing waits on it.
+    The role rules read a shell command whole: a subagent's step whose call ran a 1 MB command
+    took 2.0 to 2.6 ms in the kit, and the rules alone 3.8 ms on it (CLI 2.1.329).
 14. **Nothing private enters the repository.** *Why:* the repository's whole history will be
     published. *Enforced by* the hygiene stage: the owner's term list against every file, path and
     commit message, attribution against every commit message, and secrets by their exact shapes.
@@ -433,20 +450,23 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   only the flag. It returns what `next` gave.
 - **The recording hooks** each return what `next` gave, and write through the reading guard
   (I-05): `record` makes the change through `update` inside `try`, and `recordAt` reads
-  `$.clock.now()` first, inside the same `try`. Only a spawn and an end need the time, so
-  `turn.start` and `turn.step` use `record`: a step's result waits on the state's read and
-  write alone.
-  - `agent.spawn` records its row's opening before `next`, then its settling after. If `next`
-    rejects, it records a settling with no agent, which removes the row, and throws on.
+  `$.clock.now()` first, inside the same `try`. A spawn, a subagent's step and an end need the
+  time, so they use `recordAt`; `turn.start` uses `record`.
+  - `agent.spawn` records its row's opening before `next`, then its settling after, each with
+    the role its type and description settle (`atSpawn`), worked out inside the guard. If
+    `next` rejects, it records a settling with no agent, which removes the row, and throws on.
   - `turn.start` and `turn.step` record only an event that carries `agentId`: the main loop's
     make no `$` call.
   - `turn.step` delegates every chunk (`const result = yield* next(e)`), then records the
     step's model (the usage's, else the input's), its effort, its usage and its calls, and
-    returns `result`.
+    returns `result`. In the same change it first settles Helper on any run past T-04
+    (`fellBack`), then reads the step's calls as role evidence (`toolsSeen`, from the run's
+    reads and searches so far).
   - A subagent's `agent.spawn` opening, `turn.start` and `turn.step` each arm the clock when
     the pane is open (*The panel*): `$.clock.every` is synchronous, and a no-op while a timer
     is armed.
-  - `turn.complete` with `agentId` ends its row; without, it is the main session's, and
+  - `turn.complete` with `agentId` ends its row, and settles Helper on it if no rule has, unless
+    it is a teammate's (`fellBack`); without, it is the main session's, and
     `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`). A malformed
     one never gets that far: the engine refuses its `next(e)` first (*Context*).
   - `session.measure` awaits `next(e)`, then records the Lead's context through `recordLead`
@@ -507,11 +527,12 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
   flag join it in Sessions 11 and 7.
 - Only the `ui.close` hook writes it, through `update`; nothing reads it yet (auto-open,
   Session 9).
-- `runs` (0.4.0; `past` 0.5.0) is `Runs`, `{ rows, pending, next, past }`, the atom `runs` with
-  the shape tag `runs-2`, starting as `NO_RUNS`. *The run model*'s Built part has its fields and
-  rules. Only the recording hooks write it, each through `update`, so concurrent writes retry
-  rather than lose one another; the pane reads it while drawing, which redraws it on every write.
-  The clock's beat reads it too, outside any drawing.
+- `runs` (0.4.0; `past` 0.5.0; roles 0.6.0) is `Runs`, `{ rows, pending, next, past }`, the
+  atom `runs` with the shape tag `runs-3`, starting as `NO_RUNS`. *The run model*'s Built part
+  has its fields and rules. The recording hooks write it, and the clock's beat when it settles
+  Helper, each through `update`, so concurrent writes retry rather than lose one another; the
+  pane reads it while drawing, which redraws it on every write. The beat reads it too, outside
+  any drawing.
 - `lead` (0.5.0) is `Lead`, `{ context?, tokens, workedMs }`, the atom `lead` with the shape tag
   `lead-1`, starting as `NO_LEAD`:
   - `context` is `session.measure`'s `{ tokens?, window, percent? }`, absent until the first
@@ -574,15 +595,15 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
 - **Lifetime.** Runs live in `runs` for the session only, and are never written anywhere else.
   Finished keeps the latest T-06 (30) runs.
 
-**Built** (0.4.0; the Lead and the totals 0.5.0), in `hooks/model/runs.ts` and
+**Built** (0.4.0; the Lead and the totals 0.5.0; roles 0.6.0), in `hooks/model/runs.ts` and
 `hooks/model/lead.ts`: pure functions from `runs` or the Lead, and a record, to its next value,
 each returning the same object when the record changes nothing.
 - **A run** (`Run`, in `types/index.d.ts`) holds what its row needs: its agent id once known,
-  its parent's id, its type, description and round, whether it is a teammate, its state, model
-  and effort, its start and end times, its four token counts, its last request's size
-  (input, cache reads and cache writes), its activity (tool and target) and its calls in
-  flight. A pending entry holds the same numbers; its loop's turn has begun, so a claimed row
-  is Working. The brief, the answer, past actions and files touched wait for Peek (Session 11).
+  its parent's id, its type, description and round, whether it is a teammate, its state, its
+  role once settled and its reads and searches until then, its model and effort, its start
+  and end times, its four token counts, its last request's size (input, cache reads and cache
+  writes), its activity (tool and target) and its calls in flight. A pending entry holds the
+  same numbers and role evidence; its loop's turn has begun, so a claimed row is Working. The brief, the answer, past actions and files touched wait for Peek (Session 11).
 - **Joining:**
   - `spawnOpened` opens a starting row at the spawn's input, keyed by its `tool_use_id`, plus
     `#<agentIndex>` for a workflow's agent, since all of a workflow run's agents share the
@@ -600,6 +621,11 @@ each returning the same object when the record changes nothing.
     or a resumed agent's continues its row, its time counted from its first start.
   - A spawn whose description equals a Finished run's gets that run's round plus one.
 - **Ending:** `turnEnded` applies `endingOf` (Decided above) and clears the calls in flight.
+- **Roles** (*Roles*): `opened` takes the role the spawn's words settled. `stepped` applies a
+  step's evidence, and `claimed` a pending entry's, both through `withEvidence`, which leaves a
+  run with a role as it is (I-07). `weakOf` gives the reads and searches a run or entry has
+  seen. `fellBack` settles Helper on every run with no role that is T-04 past its start, or
+  has ended and is not a teammate's.
 - **Numbers:** `figures` gives fresh tokens (input, cache writes and output), the elapsed time
   (to the end, or now) and the context percent, the last request over `windowOf` its model.
   `hooks/data/models.ts` holds the windows measured on 2026-11-20 (Haiku, Opus and Sonnet 5.5,
@@ -642,7 +668,10 @@ Not yet: Session 12 (nesting).
      that commits, pushes, tags or opens a pull request `courier`; reads and searches are weak,
      and T-03 (6) of them with nothing decisive settle `scout`; any other shell command is no
      evidence;
-  7. *`helper`*, at T-04 (60 s) with no rule fired.
+  7. *`helper`*, at T-04 (60 s) with no rule fired, or at the run's end with none fired; a
+     teammate's end is not its last, so it waits for T-04 or its next turn's calls. T-04
+     holds whether or not the pane is open: a subagent's step past it settles Helper before
+     its calls count.
 - **Settled once.** A run whose role is not settled at spawn draws plain in `starting`, and gets
   its outfit when a rule fires; after that only the person's reassignment changes it (I-07). A
   reassignment applies to that run at once, and is remembered only for a custom type.
@@ -653,7 +682,27 @@ Not yet: Session 12 (nesting).
   of the `holdout` items get their label. Labels are never changed; the table is never tuned on
   `holdout`; cases may be added to `dev`.
 
-**Built.** Not yet: Session 8 (detection), Session 9 (the picker and memory).
+**Built** (0.6.0). Detection; Session 9 adds the picker and memory.
+- **The port,** `hooks/roles/`: `words.ts` holds the reference's lists in its order; `rules.ts`
+  holds `words` (the tokenizer), `hit` (whole words, stems, phrases), `fromText`, `toolsSeen`,
+  `fromTools` and `detect`, which returns the role and its rule, or nothing while unsettled.
+  `stated` and `remembered` are taken and have no caller yet.
+- **Where it matches the reference exactly:** a custom type's every hyphen is a space; a call is
+  split at its first colon; the test-runner and git patterns use Unicode word boundaries, as
+  Python's `\b` does. Letters Unicode added after the reference's Python (Unicode 13) may read
+  differently there; nothing else is known to.
+- **Calls a step at a time:** `toolsSeen` reads on from a count of reads and searches, so a run
+  keeps only that count (`weakCalls`) between steps, and `fromTools` is `toolsSeen` from 0.
+  Each call reaches it as `callsOf` gives it: the tool's name, or `Bash:` and the whole command.
+  It is read, never stored.
+- **Settling:** at the spawn, the type and description (`atSpawn`); at each step, the calls;
+  Helper (`HELPER`, source `fallback`) from `fellBack` at a subagent's step, at its end and at
+  the clock's beat. Words outrank calls: a role settled at the spawn stands over any evidence
+  its pending entry carried.
+- **The corpus,** `tests/fixtures/role-corpus.ts`: all 102 `dev` cases right, and 39 of 42
+  `holdout`, whose three misses are the reference's own, with its answers.
+- **The names** are `STRINGS.roles`, the art manifest's; `rowData` puts the role's name first on
+  the row's second line.
 
 ## Sprites and sets
 
@@ -768,8 +817,8 @@ refusal never puts the engine's error in the pane's place. The drawing writes no
 - **Finished's heading** carries a `Button` keyed `finished`, dim, labelled `show` or `hide`.
   The terminal draws it `[ show ]`. Its rows are drawn only while `prefs.finishedOpen` is set;
   a press writes the flag through `writeStore`, then invalidates the drawing.
-- `rowData` (`hooks/view/runs.ts`) makes a run's `RowData` from it and the model's figures, and
-  the activity line from `STRINGS.activity`. The line reads "Reading notes.md", or "Using
+- `rowData` (`hooks/view/runs.ts`) makes a run's `RowData` from it and the model's figures, its
+  role's name from `STRINGS.roles`, and the activity line from `STRINGS.activity`. The line reads "Reading notes.md", or "Using
   <tool>" for a tool it has no verb for (an MCP tool by its own last name).
 
 The clock (0.5.0), in module memory in `hooks/register.tsx`: a reload drops it, and the engine
@@ -783,8 +832,13 @@ cancels its timer.
   - `session.start`, when a run is live. The pane is not known there, so the first beat looks:
     after a reload with the pane closed, one beat runs.
 - **The beat** asks `$.ui.panes()`, and marks the pane open or closed by what it finds. With no
-  pane it stops. With no live run in `runs` it stops. Otherwise it invalidates the drawing, but only if the pane is
-  shown. Any fault stops it. Each arming has its own generation, so a beat in flight from a
+  pane it stops. With no live run in `runs` it stops. While a run has no role, it reads the
+  clock and settles Helper on any run past T-04 (`settleHelpers`), writing `runs` through
+  `update` only when one is due; that write redraws the pane, so it skips its own
+  invalidation, and a fault there leaves the clock running. A real session showed it: a
+  subagent whose only call was a foreground `ping` of 70 s read Helper at about 1:00 while
+  still working (CLI 2.1.330). Otherwise it invalidates the
+  drawing, but only if the pane is shown. Any other fault stops it. Each arming has its own generation, so a beat in flight from a
   replaced timer stops nothing.
 - **Stopping:** at a close, whatever its origin; at a clear-type session start; and when a
   drawing finds no live run, so the last run's end stops it at once. A drawing whose read of
@@ -906,10 +960,10 @@ mods API calls allowed (I-02): `$.ui.resolve`, `$.ui.invalidate`, `$.ui.open`, `
 `$.agent.list`. A change to this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
 outside the engine; it is never part of the mod's running code.
 
-**Built** (0.5.0). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
+**Built** (0.6.0). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
 `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`,
 `$.ui.open`, `$.ui.panes`, `$.ui.resolve`. The state calls come through `update` and `read`;
-the clock through `armClock`, `recordAt` and `drawPane`; the store calls through `writeStore`,
+the clock through `armClock`, `recordAt`, `settleHelpers` and `drawPane`; the store calls through `writeStore`,
 `listSettings` and `prefsWhileDrawing`; the pane calls through `showPane`, `tick` and `redraw`.
 Each is on the allow-list; `$.session.usage` is not called. No network, process or file access,
 no model call, no tool registration.
@@ -945,8 +999,8 @@ unpushed build: it replaces the installed copy for that session and runs as
 starts; disabling the plugin is its kill switch. Every tracked file ships, so `art/`, `tools/`
 and, until round 1 closes, `docs/spec/research/` are in each installed copy.
 
-**Built.** 0.1.0 to 0.3.0 were pushed on 2026-11-17, and 0.4.0 on 2026-11-20; the owner
-installed each. 0.5.0 waits for its push. The manifest declares no settings: 0.2.0's throwaway `userConfig` field
+**Built.** 0.1.0 to 0.3.0 were pushed on 2026-11-17, 0.4.0 and 0.5.0 on 2026-11-20; the owner
+installed each. 0.6.0 waits for its push. The manifest declares no settings: 0.2.0's throwaway `userConfig` field
 was removed in 0.3.0, and a value the owner set for it stays in their Claude Code settings,
 unread.
 
@@ -984,19 +1038,26 @@ unread.
   its row and in the header's work time.
 - **A remote workflow agent's row** (internal builds only) has no local loop; its spawn names
   no agent here, so it gets no row.
+- **A pending entry dropped at the cap of 50** loses its calls' evidence: the row that later
+  claims that agent reads its role from its later calls alone.
+- **With the pane closed and an agent silent past T-04,** Helper waits for its next step, its
+  end or the first beat after the pane opens; the role is the same, only when it shows differs.
+- **A run that ends its turn to wait on its own background shell** is Helper at that end when
+  no rule has fired, and keeps it if it comes back: its turn's end is how a run ends here (seen
+  by hand in Session 8; `docs/BACKLOG.md`).
 
-## Baseline (v0.5.0)
+## Baseline (v0.6.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
-| `claude plugin test mods/possum-squad` | 92 pass, in 9 files: clock 13, command 11, header 8, model 19, panel 8, pass-through 5, prefs 4, row 7, runs 17 |
+| `claude plugin test mods/possum-squad` | 115 pass, in 11 files: clock 13, command 11, header 8, model 25, panel 8, pass-through 5, prefs 4, roles 9, row 7, runs 17, settle 8 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |
 
-Measured on CLI 2.1.329. A documentation or refactoring change should not move any of these; if
+Measured on CLI 2.1.330. A documentation or refactoring change should not move any of these; if
 one moves, that is the finding.
 
 ## Decision log
@@ -1037,6 +1098,13 @@ one moves, that is the finding.
 - 2026-11-20, *The hooks*: a subagent ends on its `turn.complete`, not `classic.SubagentStop`
   or `agent.report`. The owner's choice at Session 4, after the terminal showed one
   `turn.complete` per subagent.
+- 2026-11-22, *Roles*: a run that ends with no rule fired is Helper at its end, but a
+  teammate's end is not: its next turn's calls may still settle it. The owner's choice at
+  Session 8's plan; no rule can fire after a run's end, and a teammate has more turns.
+- 2026-11-22, *Roles* and *The hooks*: a subagent's step reads the clock, so T-04 settles
+  Helper whether or not the pane is open, before the step's calls count. The owner's choice at
+  Session 8's plan, after its review showed the clock's beat alone, which runs only while the
+  pane is open, would let the same agent be Helper or Builder by the pane.
 - 2026-11-20, *The run model*: a teammate's turn that ends with an empty answer is Finished,
   not Failed, until its next turn. The owner's choice at Session 4.
 - 2026-11-20, *The hooks* and *Values*: the Lead's tokens and time come from the main session's

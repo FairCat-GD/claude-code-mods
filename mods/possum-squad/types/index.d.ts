@@ -13,6 +13,31 @@ export type Tokens = { input: number; output: number; cacheRead: number; cacheWr
 // The last tool a run's model asked for, and what the call names: a path, a command's first line, a pattern.
 export type Activity = { tool: string; target?: string }
 
+// The seventeen roles, by id; `lead` is the main session's alone.
+export type RoleId =
+  | 'lead'
+  | 'scout'
+  | 'planner'
+  | 'builder'
+  | 'tester'
+  | 'bugcatcher'
+  | 'reviewer'
+  | 'researcher'
+  | 'operator'
+  | 'courier'
+  | 'writer'
+  | 'artist'
+  | 'analyst'
+  | 'guard'
+  | 'janitor'
+  | 'pilot'
+  | 'helper'
+
+// The rule that settled a role; `stated` and `remembered` have no source yet.
+export type RoleSource = 'stated' | 'remembered' | 'type' | 'name' | 'keywords' | 'tools' | 'fallback'
+
+export type Role = { id: RoleId; source: RoleSource }
+
 // One agent's life, as its row shows it. Any plugin can read `runs`, so it holds what a row needs and no more.
 export type Run = {
   // Absent until the spawn's result names it.
@@ -24,6 +49,10 @@ export type Run = {
   round: number
   isTeammate: boolean
   state: StateId
+  // Absent until a rule settles it, so the row draws plain; never changed after (I-07).
+  role?: Role
+  // Reads and searches seen while the role is unsettled.
+  weakCalls?: number
   model?: string
   effort?: string
   startedAt: number
@@ -40,6 +69,9 @@ export type Run = {
 
 // What a loop's events said before any row claimed its agent id; drawn nowhere. Its turn has begun.
 export type Pending = {
+  // What its calls settled, or the reads and searches among them, for the row that claims it.
+  role?: Role
+  weakCalls?: number
   model?: string
   effort?: string
   tokens: Tokens

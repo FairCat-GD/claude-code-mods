@@ -5,10 +5,12 @@ their live numbers and state; in the desktop app each one is drawn as a small an
 opossum dressed for its job. It only watches: it changes nothing Claude does and adds nothing
 to what Claude is sent.
 
-This is 0.5.0: `/possums` opens the pane. The main session heads it, with its context and the
+This is 0.6.0: `/possums` opens the pane. The main session heads it, with its context and the
 session's tokens and work time; under it, every subagent Claude starts is a row in Needs you,
-Running or Finished, with its state, model, activity, context, tokens and a time that ticks.
-`/possums set` keeps its settings. The opossums arrive in the releases that follow.
+Running or Finished, with its state, its role (such as Builder, Scout or Researcher,
+worked out from its type, its task's words and its first tool calls), model, activity,
+context, tokens and a time that ticks. `/possums set` keeps its settings. The opossums arrive in
+the releases that follow.
 
 ## Install
 

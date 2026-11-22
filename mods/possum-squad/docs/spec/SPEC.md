@@ -138,6 +138,7 @@ the prompt; anything stored from a session's content.
 | Appendix C item 11 | Settings in the store, revisited after M0 | Decided | Decision 6 |
 | Appendix C item 5 | Submit to the plugin directory | Backlog | Decision 23 |
 | Part 13 M7; Part 12 *Release gate* | Ukrainian strings and a preview GIF | Neither | Decisions 4, 23 |
+| Part 5 F-06; Part 6 *Role detection*, rule 7 | Helper at T-04 with no rule fired | Also Helper at a run's end with no rule fired, except a teammate's; T-04 holds whether or not the pane is open | **Amended 2026-11-22 by the owner,** at Session 8's plan |
 
 ## 5. Traceability
 
@@ -185,7 +186,7 @@ Session 4. N-07 and I-08 are review rules in every session.
 | I-06 | 4, standing |
 | I-07 the outfit never changes | 8 |
 | I-08 nothing from another mod or character | Every session (review rule) |
-| H1 role accuracy | The owner's week of use after Session 8's release |
+| H1 role accuracy | The owner's week of use after Session 8's release. **Amended 2026-11-22 by the owner:** after Session 9's release, whose picker counts each miss |
 | H2 a pane animates a dozen sprites | 2 |
 | H4 a permission wait is visible | 2 |
 | H6 outfits distinct at panel size | The art review after Session 7a |

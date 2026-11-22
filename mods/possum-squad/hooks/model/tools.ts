@@ -33,14 +33,22 @@ function targetOf(tool: string, input: unknown): string | undefined {
   return line.length > TARGET_CHARS ? line.slice(0, TARGET_CHARS) : line
 }
 
-// The calls a model request asked for, as a row's activity: the last shown one, and how many are shown.
-export function callsOf(uses: unknown): { activity?: Activity; count: number } {
-  if (!Array.isArray(uses)) return { count: 0 }
+// A call as the role rules read it: the tool's name, and a shell command after it. Read, never stored.
+function clueOf(use: { name: string; input?: unknown }): string {
+  if (use.name !== 'Bash' || typeof use.input !== 'object' || use.input === null) return use.name
+  const command = (use.input as Record<string, unknown>).command
+  return typeof command === 'string' ? `Bash:${command}` : use.name
+}
+
+// The calls a model request asked for: the last shown one as a row's activity, how many are shown, and each as a clue
+// to the role.
+export function callsOf(uses: unknown): { activity?: Activity; count: number; clues: string[] } {
+  if (!Array.isArray(uses)) return { count: 0, clues: [] }
   const shown = uses.filter(
     (use): use is { name: string; input?: unknown } => typeof use === 'object' && use !== null && typeof use.name === 'string' && !UNSHOWN.has(use.name),
   )
   const last = shown[shown.length - 1]
-  if (last === undefined) return { count: 0 }
+  if (last === undefined) return { count: 0, clues: [] }
   const target = targetOf(last.name, last.input)
-  return { activity: target === undefined ? { tool: last.name } : { tool: last.name, target }, count: shown.length }
+  return { activity: target === undefined ? { tool: last.name } : { tool: last.name, target }, count: shown.length, clues: shown.map(clueOf) }
 }

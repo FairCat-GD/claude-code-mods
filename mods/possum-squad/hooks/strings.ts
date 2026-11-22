@@ -1,4 +1,4 @@
-import type { StateId } from '../types/index'
+import type { RoleId, StateId } from '../types/index'
 
 // "a, b and c", or "a, b or c".
 const list = (items: readonly string[], joiner: 'and' | 'or') =>
@@ -36,6 +36,26 @@ export const STRINGS = {
     failed: 'failed',
     stopped: 'stopped',
   } satisfies Record<StateId, string>,
+  // Role names never change with the set.
+  roles: {
+    lead: 'Lead',
+    scout: 'Scout',
+    planner: 'Planner',
+    builder: 'Builder',
+    tester: 'Tester',
+    bugcatcher: 'Bug catcher',
+    reviewer: 'Reviewer',
+    researcher: 'Researcher',
+    operator: 'Operator',
+    courier: 'Courier',
+    writer: 'Writer',
+    artist: 'Artist',
+    analyst: 'Analyst',
+    guard: 'Guard',
+    janitor: 'Janitor',
+    pilot: 'Pilot',
+    helper: 'Helper',
+  } satisfies Record<RoleId, string>,
   row: {
     mark: '●',
     separator: ' · ',

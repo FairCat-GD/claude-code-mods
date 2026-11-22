@@ -6,6 +6,31 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-11-22
+
+Every agent gets a role, worked out from what it is doing; the outfits that show it arrive with
+the opossums.
+
+### Added
+
+- **Roles.** Each agent's row names its role, such as Builder, Scout or Bug catcher, at the start
+  of its second line, before the model and effort. There are seventeen; the main session is the
+  Lead.
+- **How a role is chosen:** from the agent's type (an Explore agent is a Scout), then the words
+  of its task (its first word first: "Review the migration plan" is a Reviewer's), then its
+  first tool calls (an edit makes a Builder; six reads and searches with nothing else, a
+  Scout). The details are in the user guide.
+- **Helper** is the role of an agent nothing has settled a minute after it started, or when it
+  ends first. A teammate whose turn ends keeps its role open for its next turn. The minute
+  counts whether or not the pane is open.
+- **A role never changes** once it is settled, whatever the agent does afterwards. Until then
+  the row names none.
+
+### Changed
+
+- **A session that loads 0.6.0 while it runs** (a reload of the mod mid-session) starts its list
+  of agents over: the list's stored shape changed.
+
 ## [0.5.0] — 2026-11-20
 
 The pane gets its shape: the main session on top, the session's totals, and the agents sorted
