@@ -194,4 +194,9 @@ test('a role no art knows, as a newer version might have stored, draws the plain
   const plain: Sprite = sprite({ set: 'classic', pose: 'working', motion: 'off' })
   expect(sprite({ set: 'classic', role: 'mime', pose: 'working', motion: 'off' })).toEqual(plain)
   expect(sprite({ set: 'gone', role: 'scout', pose: 'idle', motion: 'off' })).toEqual(sprite({ set: 'classic', role: 'scout', pose: 'idle', motion: 'off' }))
+  // Names every object inherits are no role, set or pose either.
+  const idle = sprite({ set: 'classic', pose: 'idle', motion: 'off' })
+  for (const inherited of ['constructor', 'toString', '__proto__']) {
+    expect([inherited, sprite({ set: inherited, role: inherited, pose: inherited as Pose, motion: 'off' })]).toEqual([inherited, idle])
+  }
 })

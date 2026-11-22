@@ -1,7 +1,7 @@
 // The sprite converter: reads the art's source in `art/` and writes `hooks/sprites/data.ts`, which the engine loads.
 // Usage, from anywhere: node mods/possum-squad/tools/art.ts
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { decodePng, type Image } from './png.ts'
@@ -50,8 +50,15 @@ function record(value: Json, place: string): Record<string, Json> {
   return isRecord(value) ? value : refuse(place, 'is not an object')
 }
 
+// A line break or control character would end the quoted string it is written into.
+const isControl = (character: string) => {
+  const code = character.charCodeAt(0)
+  return code < 0x20 || code === 0x7f || code === 0x2028 || code === 0x2029
+}
+
 function text(value: Json, place: string): string {
-  return typeof value === 'string' && value !== '' ? value : refuse(place, 'is not a word or phrase')
+  if (typeof value !== 'string' || value === '') return refuse(place, 'is not a word or phrase')
+  return [...value].some(isControl) ? refuse(place, 'holds a line break or control character') : value
 }
 
 function integer(value: Json, place: string): number {
@@ -93,12 +100,17 @@ function readPalette(dir: string): Model['palette'] {
   return palette
 }
 
-function readLayer(dir: string, path: string, palette: Model['palette'], size?: Model['canvas']): Layer {
-  const file = join(dir, path)
+// A layer is the canvas's size; an extra may be smaller, never larger.
+function readLayer(dir: string, path: string, palette: Model['palette'], canvas: Model['canvas'], fit: 'exact' | 'within'): Layer {
+  const file = resolve(dir, path)
+  const inside = relative(resolve(dir), file)
+  if (inside.startsWith('..') || isAbsolute(inside)) refuse(path, 'leaves the art folder')
   if (!existsSync(file)) refuse(path, 'is missing')
   const image: Image = decodePng(readFileSync(file), path)
-  if (size !== undefined && (image.width !== size.width || image.height !== size.height)) {
-    refuse(path, `is ${image.width}×${image.height}, not ${size.width}×${size.height}`)
+  const isExact = image.width === canvas.width && image.height === canvas.height
+  if (fit === 'exact' && !isExact) refuse(path, `is ${image.width}×${image.height}, not ${canvas.width}×${canvas.height}`)
+  if (fit === 'within' && (image.width > canvas.width || image.height > canvas.height)) {
+    refuse(path, `is ${image.width}×${image.height}, larger than ${canvas.width}×${canvas.height}`)
   }
   const keys = new Map(Object.entries(palette).map(([key, hex]) => [hex, key]))
   const grid: string[] = []
@@ -136,7 +148,8 @@ function readFrame(value: Json, place: string, model: Pick<Model, 'canvas' | 'pa
           ? { top: Number(flip[1]), bottom: Number(flip[2]), down: Number(flip[3]) }
           : refuse(`${place}.body`, `"${body}" is not none, bob or a flip`),
   }
-  if (typeof frame.body === 'object' && (frame.body.top > frame.body.bottom || frame.body.bottom >= model.canvas.height)) {
+  // Row `top` lands on `bottom + down`, the lowest any row reaches.
+  if (typeof frame.body === 'object' && (frame.body.top > frame.body.bottom || frame.body.bottom + frame.body.down >= model.canvas.height)) {
     refuse(`${place}.body`, 'flips rows off the canvas')
   }
   if (raw.eyes !== undefined) frame.eyes = raw.eyes === 'closed' ? 'closed' : refuse(`${place}.eyes`, 'is not closed')
@@ -178,7 +191,7 @@ export function readArt(dir: string): Model {
     .filter(name => name.endsWith('.png'))
     .sort()) {
     const id = /^([a-z]+)\.png$/.exec(file)?.[1] ?? refuse(`extras/${file}`, 'is not named in lowercase letters')
-    extras[id] = readLayer(dir, `extras/${file}`, palette)
+    extras[id] = readLayer(dir, `extras/${file}`, palette, canvas, 'within')
   }
 
   const recipes: Model['recipes'] = {}
@@ -208,8 +221,8 @@ export function readArt(dir: string): Model {
       if (given.has(roleId)) refuse(`${rolePlace}.id`, `"${roleId}" comes twice`)
       given.set(roleId, {
         costume: text(role.costume, `${rolePlace}.costume`),
-        outfit: readLayer(dir, text(role.outfit, `${rolePlace}.outfit`), palette, canvas),
-        prop: readLayer(dir, text(role.prop, `${rolePlace}.prop`), palette, canvas),
+        outfit: readLayer(dir, text(role.outfit, `${rolePlace}.outfit`), palette, canvas, 'exact'),
+        prop: readLayer(dir, text(role.prop, `${rolePlace}.prop`), palette, canvas, 'exact'),
         propWorkDy: integer(role.propWorkDy, `${rolePlace}.propWorkDy`),
       })
     }
@@ -232,7 +245,7 @@ export function readArt(dir: string): Model {
       bottom: integer(bobBottom, `${place} bob.shiftDownRows`),
       by: integer(bob.by, `${place} bob.by`),
     },
-    base: readLayer(dir, 'base.png', palette, canvas),
+    base: readLayer(dir, 'base.png', palette, canvas, 'exact'),
     extras,
     recipes,
     sets,

@@ -146,6 +146,22 @@ const BROKEN: [string, (folder: Folder) => void, RegExp][] = [
     f => restFrames(f).splice(0, 1, { body: 'none', marks: '3 red pixels' }),
     /recipes\.rest\.frames\[0\]\.marks: is described in words with no leading word/,
   ],
+  [
+    'a flip whose move leaves the canvas',
+    f => restFrames(f).splice(0, 1, { body: 'flip-vertical rows 1..6, then down 2' }),
+    /recipes\.rest\.frames\[0\]\.body: flips rows off the canvas/,
+  ],
+  [
+    'an extra larger than the canvas',
+    f => Object.assign(f.layers, { 'extras/mark.png': ['ABABABABA', 'BABABABAB'] }),
+    /extras\/mark\.png: is 9×2, larger than 8×8/,
+  ],
+  [
+    'a costume with a line break',
+    f => Object.assign(oddCook(f), { costume: 'Odd\nchef' }),
+    /sets\.odd\.roles\[0\]\.costume: holds a line break or control character/,
+  ],
+  ['a layer outside the art folder', f => Object.assign(oddCook(f), { prop: '../outside.png' }), /\.\.\/outside\.png: leaves the art folder/],
   ['a default set that is no set', f => Object.assign(f.manifest, { defaultSet: 'gone' }), /manifest\.json defaultSet: "gone" is not a set/],
 ]
 

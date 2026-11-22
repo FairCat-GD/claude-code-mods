@@ -15,9 +15,11 @@ Release 0.8.0.
 
 - **Round 1 is the agents panel:** Sessions 0–6 and 8 are done; Sessions 7, 7a and 9–13
   remain. Sessions 7 and 7a release 0.8.0 and 0.9.0.
-- **Push status:** `origin/main` holds everything through Session 8's review commit and repo
-  round 2's close. Session 6's commits are local until the user approves a push. List
-  `origin/main..HEAD` before any push, and name any commit that is not the session's.
+- **Push status:** pushed on 2026-11-22 with the user's approval: `origin/main` holds everything
+  through Session 6's review commit. Nothing waits locally. List `origin/main..HEAD` before any
+  push, and name any commit that is not the session's.
+- **0.7.0 waits for the owner's install and desktop look** (`docs/BACKLOG.md`, *Not yet checked
+  by hand*): ask at the start whether it was seen, and record it in Session 7's done-note.
 - **What Session 6 left for Session 7:**
   - **`data.ts` already holds all four sets,** with their costume names, as Session 6's gate
     required. `dressOf` (`hooks/sprites/index.ts`) already falls back to the default set's role

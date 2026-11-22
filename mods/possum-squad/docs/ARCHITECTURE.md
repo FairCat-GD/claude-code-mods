@@ -781,9 +781,10 @@ in `data.ts` but not drawn (Session 7), and the other states' animations are Ses
   pupils and their closed colour, the bob's rows, the base, every PNG in `extras/` (the joey
   included), the recipes and the sets. It refuses, naming the place: a palette over 40 colours
   or with a key that is not one letter or a colour twice; a layer not 32×32 (an extra may be
-  smaller), partly transparent, or with a colour outside the palette; a default set lacking a
-  role, a role outside `roleNames` or twice; a recipe field or body it does not know. Another
-  set may lack a role. A field the manifest gives in words is carried as its first word
+  smaller, never larger), outside `art/`, partly transparent, or with a colour outside the
+  palette; a default set lacking a role, a role outside `roleNames` or twice; a title or costume
+  with a line break or control character; a recipe field or body it does not know, or a flip
+  that moves a row off the canvas. Another set may lack a role. A field the manifest gives in words is carried as its first word
   (`tongue`, `greyed`), so none of the kit's prose ships.
   - **Its output** is in Biome's own shape with nothing the line width decides: every object
     expanded, a layer's rows a template literal of palette keys (`.` for none), one row a line,
@@ -809,7 +810,8 @@ in `data.ts` but not drawn (Session 7), and the other states' animations are Ses
 - **The cache** (`index.ts`): one string per set, role, pose and motion, in module memory, so a
   redraw hands the app the same string and a running loop is never restarted. An unknown set
   draws `classic`, a role a set lacks the default set's, an unknown role plain, an unknown pose
-  idle. The empty panel's squad is three plain asleep opossums, 24 px apart, cached once.
+  idle; a name every object inherits (`constructor`) is unknown too, since sets, roles and poses
+  are looked up by their own keys. The empty panel's squad is three plain asleep opossums, 24 px apart, cached once.
 - **Sizes** (all four sets): a still pose 1.6k–3.4k characters, the work loop at most 8.7k, the
   squad 5.0k. Composing all 288 classic looks from a cold cache took 167 ms in the kit, one
   work loop 3.5 ms (CLI 2.1.330).

@@ -11,16 +11,20 @@ export type Look = { set: string; role?: string; pose: Pose; motion: 'auto' | 'o
 // Its size in the art's pixels.
 export type Sprite = { source: string; isAnimated: boolean; width: number; height: number }
 
+// A value's own key only: a stored id such as "constructor" must not find what every object inherits.
+const own = <T>(record: Readonly<Record<string, T>> | undefined, key: string): T | undefined =>
+  record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined
+
 // What the role wears in the set, or the default set's when the set lacks it; an unknown role is the plain opossum.
 export function dressOf(art: Art, set: string, role: string | undefined): Dress | undefined {
   if (role === undefined) return undefined
-  const pick = (id: string) => (art.sets[id]?.roles as Record<string, Dress | undefined> | undefined)?.[role]
+  const pick = (id: string) => own<Dress>(own(art.sets, id)?.roles as Record<string, Dress> | undefined, role)
   return pick(set) ?? pick(art.defaultSet)
 }
 
-// Only the work loop moves for now, and only with motion on.
+// The work loop is the one animation; every other pose, and every pose with motion off, is still.
 export function drawSprite(art: Art, look: Look): Sprite {
-  const pose: Pose = look.pose in STILL ? look.pose : 'idle'
+  const pose: Pose = own(STILL, look.pose) === undefined ? 'idle' : look.pose
   const dress = dressOf(art, look.set, look.role)
   const colourOf = (key: string) => art.palette[key] ?? '#000000'
   const still = frameGrid(art, dress, stillFrame(art, pose))

@@ -1049,6 +1049,22 @@ recipes' reference); `ARCHITECTURE.md` *Layout and boundaries*, *Sprites and set
     sprites 8 (new);
   - the tools' specs: 10 in 2 files (new), art 6, png 4;
   - `validate` unchanged; the gate green on CLI 2.1.330.
+- **Review (`/code-review high`), 7 findings, all minor: 7 fixed and 0 skipped.** The user chose
+  to fix all seven.
+  - **The converter** now refuses a flip whose move puts a row off the canvas, an extra larger
+    than the canvas, a title or costume with a line break or control character (it would end
+    the quoted string in `data.ts`), and a layer path that leaves `art/`.
+  - **Sets, roles and poses are looked up by their own keys,** so a stored `constructor` draws
+    plain instead of throwing in the drawing.
+  - **A comment said "for now":** it states the present.
+  - **The pane tests loop over both surfaces,** as the root `CLAUDE.md` asks; the empty-`Box`
+    stand-in is counted on the terminal only, since the desktop draws real empty `Box`es.
+  - **Falsified,** each failing at its own case or test: each of the four converter checks
+    removed; `in` for the own-key lookup; a sprite on the terminal, no row sprite and motion off
+    animating, against the reworked pane tests.
+  - **Numbers after the review:** 141 tests in 14 files, unchanged (the inherited names join
+    `sprites.test.ts`'s plain-opossum test); the tools' specs 10 in 2 files, with four more broken
+    inputs; `validate` unchanged.
 
 ---
 
