@@ -85,7 +85,8 @@ possum-squad sees anyway, never from asking a model, by the first of these that 
    one that commits, pushes, tags or opens a pull request a Courier. Six reads and searches with
    nothing else make a Scout. Any other shell command says nothing.
 4. **Helper,** when nothing has settled it a minute after it started, or when it ends first. A
-   teammate whose turn ends keeps its role open for its next turn.
+   teammate whose turn ends, or an agent whose turn left work running in the background, keeps
+   its role open for its next turn, or the minute.
 
 Until its role settles, a row shows none. Once settled, a run's role never changes. A wrong
 role costs nothing but the outfit; choosing one yourself comes in a later version.

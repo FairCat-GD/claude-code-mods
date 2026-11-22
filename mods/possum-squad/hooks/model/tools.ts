@@ -40,15 +40,23 @@ function clueOf(use: { name: string; input?: unknown }): string {
   return typeof command === 'string' ? `Bash:${command}` : use.name
 }
 
-// The calls a model request asked for: the last shown one as a row's activity, how many are shown, and each as a clue
-// to the role.
-export function callsOf(uses: unknown): { activity?: Activity; count: number; clues: string[] } {
-  if (!Array.isArray(uses)) return { count: 0, clues: [] }
+const isBackground = (use: { input?: unknown }) =>
+  typeof use.input === 'object' && use.input !== null && (use.input as Record<string, unknown>).run_in_background === true
+
+// The calls a model request asked for: the last shown one as a row's activity, how many are shown, each as a clue to
+// the role, and whether any went to the background.
+export function callsOf(uses: unknown): { activity?: Activity; count: number; clues: string[]; hasBackground: boolean } {
+  if (!Array.isArray(uses)) return { count: 0, clues: [], hasBackground: false }
   const shown = uses.filter(
     (use): use is { name: string; input?: unknown } => typeof use === 'object' && use !== null && typeof use.name === 'string' && !UNSHOWN.has(use.name),
   )
   const last = shown[shown.length - 1]
-  if (last === undefined) return { count: 0, clues: [] }
+  if (last === undefined) return { count: 0, clues: [], hasBackground: false }
   const target = targetOf(last.name, last.input)
-  return { activity: target === undefined ? { tool: last.name } : { tool: last.name, target }, count: shown.length, clues: shown.map(clueOf) }
+  return {
+    activity: target === undefined ? { tool: last.name } : { tool: last.name, target },
+    count: shown.length,
+    clues: shown.map(clueOf),
+    hasBackground: shown.some(isBackground),
+  }
 }

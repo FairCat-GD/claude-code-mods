@@ -33,7 +33,7 @@ export type RoleId =
   | 'pilot'
   | 'helper'
 
-// The rule that settled a role; `stated` and `remembered` have no source yet.
+// The rule that settled a role; nothing calls `stated` or `remembered`.
 export type RoleSource = 'stated' | 'remembered' | 'type' | 'name' | 'keywords' | 'tools' | 'fallback'
 
 export type Role = { id: RoleId; source: RoleSource }
@@ -53,6 +53,8 @@ export type Run = {
   role?: Role
   // Reads and searches seen while the role is unsettled.
   weakCalls?: number
+  // A call of this turn went to the background, so the turn's end may not be the run's.
+  hasBackgroundWork?: boolean
   model?: string
   effort?: string
   startedAt: number
@@ -72,6 +74,7 @@ export type Pending = {
   // What its calls settled, or the reads and searches among them, for the row that claims it.
   role?: Role
   weakCalls?: number
+  hasBackgroundWork?: boolean
   model?: string
   effort?: string
   tokens: Tokens

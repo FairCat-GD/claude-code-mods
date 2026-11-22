@@ -8,7 +8,7 @@ import {
   cleared,
   fellBack,
   figures,
-  isLive,
+  keepsClock,
   NO_RUNS,
   type Spawn,
   shownRuns,
@@ -80,7 +80,7 @@ function stopClock(own = generation) {
   ticking = undefined
 }
 
-// A closed pane or no live run stops the clock. A pane open behind another keeps it, undrawn, so its times are right
+// A closed pane, or no run that is live or may still fall back to Helper, stops the clock. A pane open behind another keeps it, undrawn, so its times are right
 // the moment it shows. A role settled here redraws the pane by its write.
 async function tick($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>, own: number) {
   if (own !== generation) return
@@ -90,7 +90,7 @@ async function tick($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>, own: num
     isPaneOpen = pane !== undefined
     if (pane === undefined) return stopClock(own)
     const held = await read($, runs)
-    if (!shownRuns(held).some(isLive)) return stopClock(own)
+    if (!shownRuns(held).some(keepsClock)) return stopClock(own)
     const hasSettled = await settleHelpers($, held)
     if (pane.isShown && !hasSettled) $.ui.invalidate('ui.render')
   } catch {
@@ -124,7 +124,7 @@ function keepTime($: Pick<EngineInterface, 'clock' | 'ui' | 'state'>) {
 }
 
 async function armIfLive($: Pick<EngineInterface, 'clock' | 'ui' | 'state'>, isFresh = false) {
-  if (!shownRuns(await read($, runs)).some(isLive)) return
+  if (!shownRuns(await read($, runs)).some(keepsClock)) return
   // The person asking for the pane starts a fresh timer, in case the engine ended the last one.
   if (isFresh) stopClock()
   armClock($)
@@ -205,7 +205,16 @@ async function recordLead($: Pick<EngineInterface, 'state'>, change: (held: Lead
   }
 }
 
-// The same, for the records that need the time: a spawn, a subagent's step and an end.
+// The clock's time, or nothing when it cannot be read.
+async function timeOrNone($: Pick<EngineInterface, 'clock'>): Promise<number | undefined> {
+  try {
+    return await $.clock.now()
+  } catch {
+    return undefined
+  }
+}
+
+// The same, for the records that need the time: a spawn and an end.
 async function recordAt($: Pick<EngineInterface, 'state' | 'clock'>, change: (held: Runs, at: number) => Runs) {
   try {
     const at = await $.clock.now()
@@ -267,7 +276,7 @@ async function drawPane(
   const prefs = await prefsWhileDrawing($)
   const now = await $.clock.now().catch(() => Number.NaN)
   const shown = shownRuns(held)
-  if (shown.some(isLive)) noteBeat(now)
+  if (shown.some(keepsClock)) noteBeat(now)
   // A refused read says nothing of the runs, so it leaves the clock alone.
   else if (readRuns !== undefined) stopClock()
   const keyOf = (run: (typeof shown)[number]) => run.agentId ?? `spawn-${run.order}`
@@ -397,11 +406,13 @@ export const register: Register = on => {
     const result = yield* next(e)
     const { agentId } = e
     if (agentId !== undefined) {
-      // The clock settles Helper at T-04 before the step's calls count, whether or not the pane is open.
-      await recordAt($, (held, at) => {
+      // The clock settles Helper at T-04 before the step's calls count, whether or not the pane is open; a clock that
+      // cannot be read loses only that, never the step's record.
+      const at = await timeOrNone($)
+      await record($, held => {
         const calls = callsOf(result.toolUses)
         const effort = e.effort === undefined ? undefined : String(e.effort)
-        const due = fellBack(held, at, HELPER)
+        const due = at === undefined ? held : fellBack(held, at, HELPER)
         return stepped(due, agentId, {
           model: result.usage?.model ?? e.model,
           effort,
@@ -409,6 +420,7 @@ export const register: Register = on => {
           activity: calls.activity,
           calls: calls.count,
           tools: toolsSeen(weakOf(due, agentId), calls.clues),
+          hasBackground: calls.hasBackground,
         })
       })
       keepTime($)

@@ -41,7 +41,8 @@ art's source is the PNG layers in `art/`, which a Node script in `tools/` turns 
 - settles each run's role from its type, its description and its first calls, and Helper at
   T-04 or at its end;
 - keeps the main session's context, tokens and time in `lead`;
-- runs the one-second clock while the pane is open and a run is live;
+- runs the one-second clock while the pane is open and a run is live, or a run's role may still
+  fall back to Helper;
 - empties `runs` and `lead` when the session is cleared, resumed or forked;
 - keeps the settings and Finished's flag in the store under `prefs`, and records a close by the
   person in `view`;
@@ -450,8 +451,9 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   only the flag. It returns what `next` gave.
 - **The recording hooks** each return what `next` gave, and write through the reading guard
   (I-05): `record` makes the change through `update` inside `try`, and `recordAt` reads
-  `$.clock.now()` first, inside the same `try`. A spawn, a subagent's step and an end need the
-  time, so they use `recordAt`; `turn.start` uses `record`.
+  `$.clock.now()` first, inside the same `try`. A spawn and an end need the time, so they use
+  `recordAt`; `turn.start` uses `record`. A subagent's step reads the time apart, so a clock
+  that cannot be read loses only its Helper check, and records it with `record`.
   - `agent.spawn` records its row's opening before `next`, then its settling after, each with
     the role its type and description settle (`atSpawn`), worked out inside the guard. If
     `next` rejects, it records a settling with no agent, which removes the row, and throws on.
@@ -466,7 +468,7 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     the pane is open (*The panel*): `$.clock.every` is synchronous, and a no-op while a timer
     is armed.
   - `turn.complete` with `agentId` ends its row, and settles Helper on it if no rule has, unless
-    it is a teammate's (`fellBack`); without, it is the main session's, and
+    it is a teammate's or its turn left work in the background (`fellBack`); without, it is the main session's, and
     `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`). A malformed
     one never gets that far: the engine refuses its `next(e)` first (*Context*).
   - `session.measure` awaits `next(e)`, then records the Lead's context through `recordLead`
@@ -625,7 +627,10 @@ each returning the same object when the record changes nothing.
   step's evidence, and `claimed` a pending entry's, both through `withEvidence`, which leaves a
   run with a role as it is (I-07). `weakOf` gives the reads and searches a run or entry has
   seen. `fellBack` settles Helper on every run with no role that is T-04 past its start, or
-  has ended and is not a teammate's.
+  has ended and is neither a teammate's nor one whose turn left work in the background
+  (`hasBackgroundWork`, set by a step with a call whose input has `run_in_background`, and
+  cleared when its next turn starts). `keepsClock` is true for a live run, or one with no
+  role.
 - **Numbers:** `figures` gives fresh tokens (input, cache writes and output), the elapsed time
   (to the end, or now) and the context percent, the last request over `windowOf` its model.
   `hooks/data/models.ts` holds the windows measured on 2026-11-20 (Haiku, Opus and Sonnet 5.5,
@@ -668,8 +673,9 @@ Not yet: Session 12 (nesting).
      that commits, pushes, tags or opens a pull request `courier`; reads and searches are weak,
      and T-03 (6) of them with nothing decisive settle `scout`; any other shell command is no
      evidence;
-  7. *`helper`*, at T-04 (60 s) with no rule fired, or at the run's end with none fired; a
-     teammate's end is not its last, so it waits for T-04 or its next turn's calls. T-04
+  7. *`helper`*, at T-04 (60 s) with no rule fired, or at the run's end with none fired; the
+     end of a teammate's turn, or of a turn that left work in the background, may not be the
+     run's last, so it waits for T-04 or its next turn's calls. T-04
      holds whether or not the pane is open: a subagent's step past it settles Helper before
      its calls count.
 - **Settled once.** A run whose role is not settled at spawn draws plain in `starting`, and gets
@@ -775,8 +781,8 @@ sprite was removed in 0.3.0; what the desktop showed of it is in *Context*.
   owner's look after Session 7a finds 136 not smooth, the choice returns to the owner.
 - **The terminal** draws the same sections and numbers as text rows, a coloured mark per state
   and block-character bars, with no element the terminal lacks.
-- **The clock.** The only timer is `$.clock.every(1000)`, armed while a run is live and the
-  pane is open, cancelled otherwise (N-03); it redraws the pane only while it is shown, so a
+- **The clock.** The only timer is `$.clock.every(1000)`, armed while the pane is open and a
+  run is live or its role may still fall back to Helper, cancelled otherwise (N-03); it redraws the pane only while it is shown, so a
   pane behind another's tab keeps its times. A reload cancels it, so `session.start` re-arms
   it.
 - **The empty panel:** the squad asleep and "No agents yet. They show up here when Claude starts
@@ -821,11 +827,11 @@ refusal never puts the engine's error in the pane's place. The drawing writes no
   role's name from `STRINGS.roles`, and the activity line from `STRINGS.activity`. The line reads "Reading notes.md", or "Using
   <tool>" for a tool it has no verb for (an MCP tool by its own last name).
 
-The clock (0.5.0), in module memory in `hooks/register.tsx`: a reload drops it, and the engine
+The clock (0.5.0; roles 0.6.0), in module memory in `hooks/register.tsx`: a reload drops it, and the engine
 cancels its timer.
 - **Arming:** `armClock` creates the timer only when none is set, so arming is idempotent. It is
   armed only from dispatches that are not drawings, since a drawing's `$` may not serve a later
-  beat:
+  beat. "A run is live" below means `keepsClock`: live, or with no role yet.
   - `/possums` or `/possums open`, when a run is live, whether it opened, raised or left the
     pane: it stops any timer first, so the person can always start a fresh one;
   - a subagent's spawn, turn start or step, when the pane is open (`keepTime`);
@@ -1000,7 +1006,7 @@ starts; disabling the plugin is its kill switch. Every tracked file ships, so `a
 and, until round 1 closes, `docs/spec/research/` are in each installed copy.
 
 **Built.** 0.1.0 to 0.3.0 were pushed on 2026-11-17, 0.4.0 and 0.5.0 on 2026-11-20; the owner
-installed each. 0.6.0 waits for its push. The manifest declares no settings: 0.2.0's throwaway `userConfig` field
+installed each. 0.6.0 was pushed on 2026-11-22. The manifest declares no settings: 0.2.0's throwaway `userConfig` field
 was removed in 0.3.0, and a value the owner set for it stays in their Claude Code settings,
 unread.
 
@@ -1042,16 +1048,16 @@ unread.
   claims that agent reads its role from its later calls alone.
 - **With the pane closed and an agent silent past T-04,** Helper waits for its next step, its
   end or the first beat after the pane opens; the role is the same, only when it shows differs.
-- **A run that ends its turn to wait on its own background shell** is Helper at that end when
-  no rule has fired, and keeps it if it comes back: its turn's end is how a run ends here (seen
-  by hand in Session 8; `docs/BACKLOG.md`).
+- **After the last live run, the clock may beat up to T-04 more** for a run whose role may still
+  fall back (a teammate's, or one waiting on background work), redrawing a pane whose times no
+  longer move.
 
 ## Baseline (v0.6.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad |
-| `claude plugin test mods/possum-squad` | 115 pass, in 11 files: clock 13, command 11, header 8, model 25, panel 8, pass-through 5, prefs 4, roles 9, row 7, runs 17, settle 8 |
+| `claude plugin test mods/possum-squad` | 122 pass, in 11 files: clock 13, command 11, header 8, model 28, panel 8, pass-through 5, prefs 4, roles 9, row 7, runs 17, settle 12 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
@@ -1120,3 +1126,8 @@ one moves, that is the finding.
 - 2026-11-20, *The panel*: the clock runs while the pane is open, and redraws only while it is
   shown. No event says a hidden pane is shown again, so a clock stopped while hidden would leave
   its times frozen. The owner's choice at Session 5's plan, after its review.
+- 2026-11-22, *Roles*: the end of a turn that left work in the background is not Helper either,
+  like a teammate's: the run may come back. The owner's choice at Session 8's review, after the
+  hand check saw such a run kept as Helper.
+- 2026-11-22, *The panel*: the clock also runs while a run's role may still fall back to Helper,
+  so a teammate resting with no role gets it at T-04. The owner's choice at Session 8's review.

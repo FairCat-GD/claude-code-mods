@@ -24,9 +24,10 @@ up, it moves out of this file.
   how a run ends (Session 4). Claude Code still lists it as waiting on a shell. Seen in
   Session 5's hand check (CLI 2.1.329). Needs the owner's decision: whether such a run reads
   something other than finished, and from which signal. Not seen: whether a new turn puts the
-  row back to working when the shell ends, as `turnStarted` would. Since 0.6.0 such a run with
-  no role is Helper at that first end, and keeps it when it comes back: seen in Session 8's
-  hand check, where an agent refused a foreground `sleep 70` started it in the background.
+  row back to working when the shell ends, as `turnStarted` would. Since 0.6.0 such a turn's
+  end leaves a role no rule settled open, as a teammate's does: Session 8's hand check saw an
+  agent refused a foreground `sleep 70` start it in the background, and the review kept it
+  from being Helper at that end.
 
 ## Not yet checked by hand
 

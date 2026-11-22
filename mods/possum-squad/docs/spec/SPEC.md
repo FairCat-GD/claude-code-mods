@@ -138,7 +138,7 @@ the prompt; anything stored from a session's content.
 | Appendix C item 11 | Settings in the store, revisited after M0 | Decided | Decision 6 |
 | Appendix C item 5 | Submit to the plugin directory | Backlog | Decision 23 |
 | Part 13 M7; Part 12 *Release gate* | Ukrainian strings and a preview GIF | Neither | Decisions 4, 23 |
-| Part 5 F-06; Part 6 *Role detection*, rule 7 | Helper at T-04 with no rule fired | Also Helper at a run's end with no rule fired, except a teammate's; T-04 holds whether or not the pane is open | **Amended 2026-11-22 by the owner,** at Session 8's plan |
+| Part 5 F-06; Part 6 *Role detection*, rule 7 | Helper at T-04 with no rule fired | Also Helper at a run's end with no rule fired, except a teammate's; T-04 holds whether or not the pane is open | **Amended 2026-11-22 by the owner,** at Session 8's plan; and not at the end of a turn that left work in the background, at its review |
 
 ## 5. Traceability
 

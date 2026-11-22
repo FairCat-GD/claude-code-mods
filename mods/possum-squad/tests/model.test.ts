@@ -8,6 +8,7 @@ import {
   endingOf,
   fellBack,
   figures,
+  keepsClock,
   NO_RUNS,
   PENDING_KEPT,
   type Spawn,
@@ -197,14 +198,15 @@ test("a step's activity is its last shown call, with what it names, cut to one l
     activity: { tool: 'Read', target: 'shed/rack.txt' },
     count: 2,
     clues: ['Grep', 'Read'],
+    hasBackground: false,
   })
   expect(callsOf([{ name: 'Bash', input: { command: `count shovels\n${long}` } }]).activity?.target).toBe('count shovels')
   expect(callsOf([{ name: 'Bash', input: { command: long } }]).activity?.target).toHaveLength(TARGET_CHARS)
   expect(callsOf([{ name: 'mcp__garden__water', input: { bed: 3 } }]).activity).toEqual({ tool: 'mcp__garden__water' })
   // The hand-back of a report is no work to show, and odd input is no call.
-  expect(callsOf([{ name: 'SubagentHandback', input: {} }])).toEqual({ count: 0, clues: [] })
-  expect(callsOf(undefined)).toEqual({ count: 0, clues: [] })
-  expect(callsOf([null, 7, { input: {} }])).toEqual({ count: 0, clues: [] })
+  expect(callsOf([{ name: 'SubagentHandback', input: {} }])).toEqual({ count: 0, clues: [], hasBackground: false })
+  expect(callsOf(undefined)).toEqual({ count: 0, clues: [], hasBackground: false })
+  expect(callsOf([null, 7, { input: {} }])).toEqual({ count: 0, clues: [], hasBackground: false })
 })
 
 test("a step's calls read as the role rules' clues: the tool's name, and a shell command whole after it", () => {
@@ -218,6 +220,17 @@ test("a step's calls read as the role rules' clues: the tool's name, and a shell
       { name: 'Read', input: {} },
     ]).clues,
   ).toEqual(['Read'])
+})
+
+test('a step tells whether any of its calls went to the background', () => {
+  expect(
+    callsOf([
+      { name: 'Read', input: {} },
+      { name: 'Bash', input: { command: 'sleep 70', run_in_background: true } },
+    ]).hasBackground,
+  ).toBe(true)
+  expect(callsOf([{ name: 'Bash', input: { command: 'sleep 70', run_in_background: 'yes' } }]).hasBackground).toBe(false)
+  expect(callsOf([{ name: 'Bash', input: { command: 'sleep 70' } }]).hasBackground).toBe(false)
 })
 
 test('an event it cannot place changes nothing', () => {
@@ -352,4 +365,26 @@ test("the fallback settles a run past T-04 or ended, but not a teammate's end, a
 
   const dressed = turnEnded(turnStarted(spawned(NO_RUNS, { ...RAKES, role: BUILDER }, 'agent-3', 0), 'agent-3'), 'agent-3', ANSWERED, 10)
   expect(fellBack(dressed, ROLE_SETTLES_MS * 2, HELPER)).toBe(dressed)
+})
+
+test('a run whose turn left work in the background is not Helper at that end, and its next turn starts clean', () => {
+  const started = turnStarted(spawned(NO_RUNS, RAKES, 'agent-1', 0), 'agent-1')
+  const waiting = turnEnded(stepped(started, 'agent-1', { ...STEP, hasBackground: true }), 'agent-1', ANSWERED, 10)
+  expect(waiting.rows['agent-1']?.hasBackgroundWork).toBe(true)
+  expect(fellBack(waiting, 10, HELPER)).toBe(waiting)
+  expect(fellBack(waiting, ROLE_SETTLES_MS, HELPER).rows['agent-1']?.role).toEqual(HELPER)
+  const back = turnStarted(waiting, 'agent-1')
+  expect(back.rows['agent-1']?.hasBackgroundWork).toBeUndefined()
+  expect(fellBack(turnEnded(back, 'agent-1', ANSWERED, 20), 20, HELPER).rows['agent-1']?.role).toEqual(HELPER)
+
+  const early = stepped(turnStarted(NO_RUNS, 'agent-2'), 'agent-2', { ...STEP, hasBackground: true })
+  expect(spawned(early, RAKES, 'agent-2').rows['agent-2']?.hasBackgroundWork).toBe(true)
+})
+
+test('the clock is kept for a live run, and for an ended one whose role may still fall back', () => {
+  const rowOf = (runs: Runs) => runs.rows['agent-1'] as NonNullable<Runs['rows'][string]>
+  expect(keepsClock(rowOf(turnStarted(spawned(NO_RUNS, RAKES, 'agent-1', 0), 'agent-1')))).toBe(true)
+  const teammate = turnEnded(turnStarted(spawned(NO_RUNS, { ...RAKES, isTeammate: true }, 'agent-1', 0), 'agent-1'), 'agent-1', ANSWERED, 10)
+  expect(keepsClock(rowOf(teammate))).toBe(true)
+  expect(keepsClock(rowOf(fellBack(teammate, ROLE_SETTLES_MS, HELPER)))).toBe(false)
 })

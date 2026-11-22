@@ -21,8 +21,9 @@ the opossums.
   first tool calls (an edit makes a Builder; six reads and searches with nothing else, a
   Scout). The details are in the user guide.
 - **Helper** is the role of an agent nothing has settled a minute after it started, or when it
-  ends first. A teammate whose turn ends keeps its role open for its next turn. The minute
-  counts whether or not the pane is open.
+  ends first. A teammate whose turn ends, or an agent whose turn left work running in the
+  background, keeps its role open for its next turn, or the minute. The minute counts whether
+  or not the pane is open.
 - **A role never changes** once it is settled, whatever the agent does afterwards. Until then
   the row names none.
 

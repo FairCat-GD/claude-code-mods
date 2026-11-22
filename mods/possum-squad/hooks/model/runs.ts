@@ -29,13 +29,24 @@ export type Spawn = {
 export type Settled = { agentId?: string; model?: string; isDenied: boolean }
 
 // `tools` is what the step's calls say of the role, read on from the run's earlier reads and searches.
-export type Step = { model?: string; effort?: string; usage?: Tokens; activity?: Activity; calls: number; tools?: { weak: number; role?: Role } }
+export type Step = {
+  model?: string
+  effort?: string
+  usage?: Tokens
+  activity?: Activity
+  calls: number
+  tools?: { weak: number; role?: Role }
+  // A call went to the background.
+  hasBackground?: boolean
+}
 
 export type Ending = { reason: string; hasText: boolean }
 
 const ENDED: readonly StateId[] = ['finished', 'failed', 'stopped']
 export const hasEnded = (run: Run) => ENDED.includes(run.state)
 export const isLive = (run: Run) => !hasEnded(run)
+// The one-second clock runs for a live run, and for a run whose role may still fall back to Helper.
+export const keepsClock = (run: Run) => isLive(run) || run.role === undefined
 
 // An answer with text is Finished; aborted is Stopped; an error, a refusal or an empty answer is Failed. A teammate's
 // turn that ends without text (it answered with a message) rests as Finished until its next turn.
@@ -104,6 +115,7 @@ function withStep<T extends Run | Pending>(held: T, step: Step): T {
   if (step.model !== undefined) next.model = step.model
   if (step.effort !== undefined) next.effort = step.effort
   if (step.activity !== undefined) next.activity = step.activity
+  if (step.hasBackground === true) next.hasBackgroundWork = true
   return step.tools === undefined ? next : withEvidence(next, step.tools)
 }
 
@@ -114,6 +126,7 @@ function claimed(run: Run, pending: Pending | undefined): Run {
   if (pending.model !== undefined) next.model = pending.model
   if (pending.effort !== undefined) next.effort = pending.effort
   if (pending.activity !== undefined) next.activity = pending.activity
+  if (pending.hasBackgroundWork === true) next.hasBackgroundWork = true
   return withEvidence(next, {
     ...(pending.weakCalls === undefined ? {} : { weak: pending.weakCalls }),
     ...(pending.role === undefined ? {} : { role: pending.role }),
@@ -181,7 +194,7 @@ export function turnStarted(runs: Runs, agentId: string): Runs {
   const held = runs.rows[agentId]
   if (held !== undefined) {
     if (held.state === 'working' && held.endedAt === undefined) return runs
-    const { endedAt: _, ...run } = held
+    const { endedAt: _, hasBackgroundWork: __, ...run } = held
     return { ...runs, rows: { ...runs.rows, [agentId]: { ...run, state: 'working' } } }
   }
   return runs.pending[agentId] === undefined ? withPending(runs, agentId, NO_PENDING) : runs
@@ -205,10 +218,10 @@ export function turnEnded(runs: Runs, agentId: string, ending: Ending, at: numbe
 }
 
 // A run no rule settled is Helper once T-04 has passed since its start, or once it ends: no rule can fire after. A
-// teammate's end is not its last, so it waits for its next turn or T-04.
+// teammate's end, or one with work left in the background, may not be its last, so it waits for its next turn or T-04.
 export function fellBack(runs: Runs, now: number, fallback: Role): Runs {
   const due = Object.entries(runs.rows).filter(
-    ([, run]) => run.role === undefined && (now - run.startedAt >= ROLE_SETTLES_MS || (hasEnded(run) && !run.isTeammate)),
+    ([, run]) => run.role === undefined && (now - run.startedAt >= ROLE_SETTLES_MS || (hasEnded(run) && !run.isTeammate && run.hasBackgroundWork !== true)),
   )
   if (due.length === 0) return runs
   const rows = { ...runs.rows }

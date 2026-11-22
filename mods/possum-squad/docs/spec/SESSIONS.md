@@ -1141,6 +1141,28 @@ examples*, Part 5 F-05, F-06, I-07, T-03, T-04; `research/roles/`; `ARCHITECTURE
   - `validate`: 11 hooks, 4 gating, each with a `.catch`; 3 state keys; calls unchanged, with
     `settleHelpers` among the clock's helpers;
   - the gate green on CLI 2.1.330, its declarations laid by `npm run types` in this session.
+- **Review (`/code-review high`), 5 findings: 5 fixed and 0 skipped.** The user chose to fix all
+  five.
+  - **A refused clock read lost a step's whole record,** since steps had moved to `recordAt`.
+    A step now reads the time in its own guard and records with `record`; only the Helper check
+    waits on the time.
+  - **A teammate resting with no role never reached Helper** when nothing else ran: the clock
+    stopped with the last live run. The owner's choice: the clock also runs while a run's role
+    may still fall back (`keepsClock`), the pane open only. Logged in *The panel*.
+  - **A turn that left work in the background was Helper at its end,** and stayed so when the
+    run came back (the hand check's find). A step whose call has `run_in_background` marks the
+    run (`hasBackgroundWork`), whose end then waits like a teammate's; its next turn clears the
+    mark. The owner's choice, logged in *Roles* and `SPEC.md` §4.
+  - **The beat's failure paths had no test:** a refused write of Helper now has one, which
+    checks the clock keeps beating and redrawing.
+  - **A comment said "yet":** it states the present now.
+  - **Falsified,** each failing at its own test: the step's clock unguarded; the clock kept for
+    live runs only; the end rule ignoring background work; the next turn keeping the mark; the
+    claim dropping it; background calls never seen; a failed settle stopping the clock; a failed
+    settle skipping the redraw.
+  - **Numbers after the review:** 122 tests (+7) in 11 files: clock 13, command 11, header 8,
+    model 28 (+3), panel 8, pass-through 5, prefs 4, roles 9, row 7, runs 17, settle 12 (+4).
+    `validate` is unchanged.
 ---
 
 ## 9: Role picker, states and auto-open

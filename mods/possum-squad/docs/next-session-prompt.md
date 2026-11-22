@@ -28,9 +28,9 @@ Release 0.7.0.
   > `tools/` from `hooks/` or `tests/`; `tools/` should be type-checked against Node's types;
   > and the round should say how a tool's own behaviour is tested. possum-squad's sprite
   > converter is the first user.
-- **Push status:** `origin/main` holds everything through Session 5's review commit. Session 8's
-  commits wait locally for the user's approval. List `origin/main..HEAD` before any push, and
-  name any commit that is not the session's.
+- **Push status:** pushed on 2026-11-22 with the user's approval: `origin/main` holds everything
+  through Session 8's review commit. Nothing waits locally. List `origin/main..HEAD` before any
+  push, and name any commit that is not the session's.
 - **Ask at the start:** whether the user has installed 0.6.0, and whether roles showed in the
   desktop app (`docs/BACKLOG.md`, *Roles in the desktop app*).
 - **The engines:** the CLI is 2.1.330, and every folder's declarations were laid by it. The
@@ -43,18 +43,18 @@ Release 0.7.0.
   - **The Lead's sprite** is the `lead` role's; no run ever gets `lead`.
   - **Role names** are `STRINGS.roles`, the art manifest's `roleNames`; costume names come with
     `data.ts`.
-  - **The clock's beat now writes `runs`** when Helper is due; a redraw must not restart a
-    sprite's animation (N-04).
+  - **The clock's beat now writes `runs`** when Helper is due, and runs while a role may still
+    fall back (`keepsClock`); a redraw must not restart a sprite's animation (N-04).
 - **For Session 7a:** the dressing hop needs the moment a role settled. Every settle has the
   time now (a spawn, a step, an end, a beat), so 7a adds it to `Role`, with a shape bump.
 - **For the user to decide, when they choose:** a subagent waiting on its own background shell
-  reads "finished", and since 0.6.0 is Helper at that end if no rule fired, kept when it comes
-  back (`docs/BACKLOG.md`, *Deferred*). It touches *The run model*, so it is not Session 6's.
+  reads "finished" (`docs/BACKLOG.md`, *Deferred*); since 0.6.0 its role stays open there, as
+  a teammate's does. It touches *The run model*, so it is not Session 6's.
 - **Decisions written down nowhere else:**
   - Whether `/possums` opening the pane again should clear `view.isClosedByPerson` is still
     undecided: today the flag stays set for the session. It matters at Session 9 (auto-open).
 - **Baseline** (ARCHITECTURE's table, v0.6.0, CLI 2.1.330):
-  - 115 tests in 11 files;
+  - 122 tests in 11 files;
   - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys;
   - calls: `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`,
     `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`,

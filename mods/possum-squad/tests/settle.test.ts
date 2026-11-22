@@ -24,6 +24,23 @@ const WRITES = {
 }
 const writes = async ($: Engine) => Number((await $.command.run({ ...POSSUMS, command: 'writes' })).text)
 
+// Another plugin, refusing the clock's time, or the mod's writes to `runs`, while the test says so.
+const REFUSER = {
+  name: 'refuser',
+  register: (on: On) => {
+    let refusing = ''
+    on('clock.now', (_, e, next) => (refusing === 'clock' ? ({ deny: 'the fixture refuses the time' } as never) : next(e)))
+    on('state.set', (_, e, next) =>
+      refusing === 'runs' && e.plugin === 'possum-squad' && e.key === 'runs' ? ({ deny: 'the fixture refuses the write' } as never) : next(e),
+    )
+    on('command.run', { command: 'refuse' }, async (_, e) => {
+      refusing = e.args
+      return { text: refusing }
+    })
+  },
+}
+const refuse = ($: Engine, what: '' | 'clock' | 'runs') => $.command.run({ ...POSSUMS, command: 'refuse', args: what })
+
 // The engine beneath the mod: its panes, a pinned clock, the next agent id for each spawn (held back while `hold` is
 // pending), and each model request answering with the calls queued for it.
 function world(on: On, hold?: Promise<void>) {
@@ -196,4 +213,63 @@ test('every corpus case with calls, raised as events, settles as the rules read 
       drawn: both(STRINGS.roles[item.role]),
     })
   }
+})
+
+test("a step whose clock cannot be read still records its numbers and its calls' evidence", { plugins: [REFUSER] }, async ($, on) => {
+  const { queue } = world(on)
+  await $.agent.spawn(GENERIC)
+  await start($, 'agent-1')
+  await refuse($, 'clock')
+  queue([{ name: 'Edit', input: { file_path: 'shed/rack.txt' } }])
+  await step($, 'agent-1')
+  await refuse($, '')
+  expect(await roleDrawn($, GENERIC.description)).toEqual(both(STRINGS.roles.builder))
+})
+
+test('a teammate resting with no role gets Helper from the clock at T-04, nothing else running', async ($, on) => {
+  const { clock } = world(on)
+  await $.command.run(POSSUMS)
+  await $.agent.spawn({ ...GENERIC, description: 'Next part', isTeammate: true })
+  await start($, 'agent-1')
+  await complete($, 'agent-1', '')
+  await clock.advance(ROLE_SETTLES_MS - 2_000)
+  expect(await roleDrawn($, 'Next part')).toEqual(both(undefined))
+  await clock.advance(3_000)
+  expect(await roleDrawn($, 'Next part')).toEqual(both(STRINGS.roles.helper))
+})
+
+test("a turn that left work in the background ends with no role, and the next turn's calls settle it", async ($, on) => {
+  const { queue } = world(on)
+  await $.agent.spawn({ ...GENERIC, description: 'Continue' })
+  await start($, 'agent-1')
+  queue([{ name: 'Bash', input: { command: 'sleep 70', run_in_background: true } }])
+  await step($, 'agent-1')
+  await complete($, 'agent-1')
+  expect(await roleDrawn($, 'Continue')).toEqual(both(undefined))
+  await start($, 'agent-1')
+  queue([{ name: 'Edit', input: { file_path: 'shed/rack.txt' } }])
+  await step($, 'agent-1')
+  await complete($, 'agent-1')
+  expect(await roleDrawn($, 'Continue')).toEqual(both(STRINGS.roles.builder))
+})
+
+test('a refused write of Helper leaves the clock beating and redrawing, and the next beat settles it', { plugins: [REFUSER] }, async ($, on) => {
+  const { clock } = world(on)
+  let redraws = 0
+  on('ui.invalidate', (_, e, next) => {
+    redraws++
+    return next(e)
+  })
+  await $.command.run(POSSUMS)
+  await $.agent.spawn(GENERIC)
+  await start($, 'agent-1')
+  await refuse($, 'runs')
+  await clock.advance(ROLE_SETTLES_MS + 1_000)
+  const before = redraws
+  await clock.advance(3_000)
+  expect(redraws).toBeGreaterThanOrEqual(before + 3)
+  await refuse($, '')
+  expect(await roleDrawn($, GENERIC.description)).toEqual(both(undefined))
+  await clock.advance(1_000)
+  expect(await roleDrawn($, GENERIC.description)).toEqual(both(STRINGS.roles.helper))
 })
