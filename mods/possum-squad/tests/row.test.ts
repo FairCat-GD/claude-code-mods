@@ -1,10 +1,14 @@
 import type { On } from 'claude-code'
 import { type Engine, expect, test } from 'claude-code/testing'
 
+import type { Run, StateId } from '../types/index'
+import { NO_TOKENS } from '../hooks/model/runs'
+
 import { sprite } from '../hooks/sprites/index'
 import { STRINGS } from '../hooks/strings'
 import { BAR_CELLS, bar, elapsed, fill, percent, tokens } from '../hooks/view/format'
 import { desktopRow, type RowData, terminalRow } from '../hooks/view/row'
+import { momentOf } from '../hooks/view/runs'
 import { spriteElement } from '../hooks/view/sprite'
 import { MOUNT, SURFACES } from './engine'
 import { LONG_ROW, MARKUP_ROW, ROWS } from './fixtures/rows'
@@ -139,4 +143,38 @@ test('a number that is not finite reads as unknown, never as NaN', () => {
     expect(bar(wrong)).toBe('░'.repeat(BAR_CELLS))
     expect(fill(wrong)).toBe(0)
   }
+})
+
+test("a row's moment is its arrival, a later role's hop or its ending, each for its one-off and one beat more", () => {
+  const run: Run = {
+    type: 'Explore',
+    description: 'Count the shovels',
+    round: 1,
+    isTeammate: false,
+    state: 'working',
+    startedAt: 10_000,
+    tokens: NO_TOKENS,
+    inFlight: 0,
+    order: 0,
+  }
+  // The arrival: three steps of the slide, a rest and a hop, 1 s at T-01, then a beat.
+  expect([momentOf(run, 10_000), momentOf(run, 11_999), momentOf(run, 12_000), momentOf(run, 9_999)]).toEqual(['arrival', 'arrival', undefined, undefined])
+  expect(momentOf({ ...run, state: 'starting' }, 10_000)).toBe('arrival')
+  // A role settled while it arrived is dressed by the arrival; one settled after hops on its own, for one step and a beat.
+  expect(momentOf({ ...run, role: { id: 'scout', source: 'type', at: 10_500 } }, 10_600)).toBe('arrival')
+  const later: Run = { ...run, role: { id: 'builder', source: 'tools', at: 11_000 } }
+  expect([momentOf(later, 11_000), momentOf(later, 12_199), momentOf(later, 12_200)]).toEqual(['dressing', 'dressing', undefined])
+  // A role with no time plays no hop.
+  expect(momentOf({ ...run, role: { id: 'builder', source: 'tools' } }, 15_000)).toBeUndefined()
+  // The cheer lasts 3 s and the startle 1 s, the role settled at the end riding them; a failed run plays none.
+  const ended = (state: StateId): Run => ({ ...run, state, endedAt: 20_000, role: { id: 'helper', source: 'fallback', at: 20_000 } })
+  expect([momentOf(ended('finished'), 20_000), momentOf(ended('finished'), 23_999), momentOf(ended('finished'), 24_000)]).toEqual([
+    'ending',
+    'ending',
+    undefined,
+  ])
+  expect([momentOf(ended('stopped'), 21_999), momentOf(ended('stopped'), 22_000)]).toEqual(['ending', undefined])
+  expect(momentOf(ended('failed'), 20_000)).toBeUndefined()
+  // A time that cannot be read plays none.
+  expect(momentOf(run, Number.NaN)).toBeUndefined()
 })

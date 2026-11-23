@@ -34,7 +34,7 @@ up, it moves out of this file.
 Checks that need a person at the machine. Each has an automated check covering most of it;
 these are the parts only a person can see.
 
-- **The opossums in the desktop app (0.7.0, 0.8.0).** The kit checks each sprite's SVG, its
+- **The opossums in the desktop app (0.7.0, 0.8.0, 0.9.0).** The kit checks each sprite's SVG, its
   size, its outline and its animation's frames, but not how the app paints them, and a
   terminal shows none. Not yet looked at as of Session 7. To check after the push, with three
   agents running: each row's opossum in its role's outfit, plain before; a working one bobbing
@@ -43,8 +43,15 @@ these are the parts only a person can see.
   with reduced motion on in the system, and with `/possums set motion off`, every opossum
   still. These sprites use `<path>` and an `opacity` animation, which the other mod in this
   repository draws on the desktop but this one has not yet.
+  - **From 0.9.0:** a new row's opossum sliding in, then hopping into its outfit; a role
+    worked out later hopping once; a finished one's cheer, its "z" rising, then still; a
+    stopped one startled, then standing; the needs-you sign and the quiet doze bobbing; each
+    one-off drawn still once it is over, with no flash when it turns into a still image; the
+    gallery's 102 moving sprites smooth or not while scrolling (if not, the choice returns to
+    the owner, *The panel*); its one-offs playing again after their rest. These use
+    `fill="freeze"` and a `begin` time, which the app has not drawn for this mod yet.
   - **From 0.8.0:** `/possums set theme horror` (and the other two) redressing every opossum
-    at once; `/possums roles` showing 17 roles in eight still poses, wrapped to the pane's
+    at once; `/possums roles` showing 17 roles in eight poses, wrapped to the pane's
     width, each with its state word, and scrolling smoothly; `planned`'s first column greyed
     and faded on both themes, its outline only on the light one (a group `opacity`, which the
     app has not drawn for this mod yet); the gallery's `close` button bringing the list back.

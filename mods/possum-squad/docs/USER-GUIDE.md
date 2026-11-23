@@ -57,22 +57,27 @@ each state word.
 
 In the desktop app, and any app that draws pictures, every row starts with its opossum, and
 the main session has its own, in the Lead's crown and robe. A row's opossum is plain until its
-role is settled, then wears that role's outfit for good. Its pose says its state:
+role is settled, then hops once and lands wearing that role's outfit for good. When its row
+appears it slides in from the left, plain, and hops into its outfit if the role is already
+known; for that first moment it stands, even if its agent has started work. Its pose says its
+state:
 
 - **starting:** standing;
 - **working:** bobbing, its tool moving against it, blinking every few seconds;
-- **quiet:** dozing on its feet, eyes closed;
-- **needs you:** holding up a "?" sign;
-- **finished:** asleep, with a "z";
-- **stopped:** startled, with a "!";
-- **failed:** on its back, tongue out.
+- **quiet:** dozing on its feet, eyes closed, bobbing slowly;
+- **needs you:** holding up a "?" sign, bobbing;
+- **finished:** two hops in a cheer, then asleep as a "z" rises; still after 3 seconds;
+- **stopped:** startled, with a "!", for a second, then standing;
+- **failed:** on its back, tongue out, still.
 
-For now only a working opossum moves; the others hold their pose. The state is always written
+The arrival, the hop, the cheer and the startle play once, when they happen: a row drawn again
+later, such as Finished's when you press `show`, is drawn still. The state is always written
 beside it too, so the picture never has to be read alone.
 
 On the app's light theme each opossum's pale edges get a thin dark outline; on the dark theme
-it has none. With `motion` at `off`, every opossum keeps still; at `auto` they move, unless your
-system asks for reduced motion, which keeps them still too.
+it has none. With `motion` at `off`, every opossum keeps still in its state's pose (a stopped one
+startled); at `auto` they move, unless your system asks for reduced motion, which keeps them
+still too.
 
 **Sets.** The opossums all wear one set of costumes, chosen with `/possums set theme`:
 `classic` (the default, a storybook mix: a hard hat for a Builder, a pith helmet for a Scout),
@@ -83,7 +88,8 @@ or a stone hard hat in `prehistoric`.
 **The gallery.** `/possums roles` replaces the list with every role of the current set, each
 with its role name and its costume's name, over its pose in each of the eight states: the
 seven above, and **planned**, standing greyed and faded, which no agent uses yet. The poses are
-still for now. In a terminal the gallery is text: each state's mark and word, then each role
+moving: the arrival, the cheer and the startle play again every few seconds, so you can watch
+any of them after scrolling to it; with `motion` at `off` they are still. In a terminal the gallery is text: each state's mark and word, then each role
 and its costume. Its `close` button brings the list back, and so does closing the pane: the
 next `/possums` opens on the list. While the gallery is open the pane is not redrawn every
 second, so the session line's time moves only when an agent does something.

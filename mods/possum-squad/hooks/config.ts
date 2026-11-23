@@ -13,5 +13,9 @@ export const ROLE_SETTLES_MS = 60_000
 // T-01: one frame of a sprite's loop.
 export const ANIMATION_STEP_MS = 200
 
+// A sprite's one-off is drawn while its moment is this much past its own length, one beat of the clock: the first
+// drawing after the moment plays it whole, and the next one past it draws where it ends.
+export const MOMENT_GRACE_MS = 1000
+
 // T-02: a sprite's pixel drawn this many CSS pixels wide.
 export const SPRITE_SCALE = 2

@@ -1226,6 +1226,80 @@ sets*, *The panel*, *Testing strategy*.
   once-a-second redraw neither restarting nor stuttering a running bob; a one-shot that has
   settled is still checked by hand.
 
+
+**Done (2026-11-23, 0.9.0).**
+- **Decided with the user:**
+  - **At the start:** 0.7.0 and 0.8.0 were not yet looked at in the desktop app; the backlog
+    item stays, and 0.9.0 joins it.
+  - **`stopped` with `motion` `off`** (and the reduced-motion copy) stays the startled frame, the
+    art's own pose; its animation settles idle, as the recipe says. Set aside: idle in both.
+  - **The gallery's one-offs repeat:** each plays, rests 10 steps (2 s) and plays again. Set
+    aside: once when the gallery opens.
+  - **The arrival plays in a row's first moments whatever its state,** cued by its start time:
+    `starting` lasts milliseconds. Set aside: only while starting.
+  - **Readings at the plan:** `failed` stays still (its recipe); in rows a one-off plays only
+    around its moment, never on a remount; the ending carries the outfit when the role settles
+    at the end, so no hop precedes a cheer.
+  - **Confirms:** *Sprites and sets* confirmed as built.
+- **Shipped:**
+  - **The moment a role settles:** `Role.at` (`types/index.d.ts`), stamped at the spawn, a step
+    (`Step.at`, passed by the `turn.step` hook) and the fallback; a pending role keeps its
+    step's; `runs` at `runs-4`.
+  - **The recipes** (`recipes.ts`): `Moment`; `HOP`, `SLIDE`, `CHEER_HOPS`, `Z_RISE`,
+    `STARTLE_STEPS`, `REST_STEPS`, `BOB_PACE`, `MOMENT_STEPS`; `bobLoop`, `arrival`,
+    `dressing`, `cheer`, `startle`, `then`, `repeated`, `playable`, `animationOf`; `SETTLED`
+    and `settledFrame` (`stopped` stands once its startle is over). `Loop` gains `once`.
+  - **The writer** (`svg.ts`): `animated` writes each attribute's steps played once, then held
+    (`fill="freeze"`) or looped (`begin`, `repeatCount="indefinite"`); `once` 0 is byte for
+    byte 0.8.0's output (all 360 looks it drew, compared).
+  - **The cache** (`index.ts`): `Look` gains `moment` and `isRepeated`; `normalised` keys a
+    look as it is drawn, an arrival as `starting`.
+  - **The view:** `momentOf` and `rowData`'s `now` (`hooks/view/runs.ts`), `RowData.moment`,
+    `MOMENT_GRACE_MS` (1 s) in `config.ts`; `panel` passes the moment; `desktopGallery` takes
+    the look's motion and `GALLERY_MOMENTS`, repeated.
+  - **Docs:** `CHANGELOG.md` 0.9.0; `ARCHITECTURE.md` Built for *Overview*, *Values*, *Roles*,
+    *Sprites and sets*, *The panel*, four known-debt lines, the baseline and four Decision log
+    lines; `USER-GUIDE.md`; `README.md`; the mod's `CLAUDE.md` (`runs-4`); `docs/BACKLOG.md`.
+- **Amendments:**
+  - **The gallery repeats its one-offs,** where the block said only that it animates, framed:
+    the owner's choice at the start.
+- **Measured** (CLI 2.1.330):
+  - **N-02:** every look of every set, moments included, at most 13,952 characters (the
+    gallery's repeating cheer); a cheer 13.6k, a dressing 10.8k, an arrival 10.6k, a startle
+    10.4k, quiet 8.3k, needs-you 8.1k.
+  - **The gallery's first draw of a set** in the kit, from a scratch copy: 0.19–0.24 s (43 ms at
+    0.8.0), then 7–10 ms a mount; 137 sprites, 102 framed, about 875k characters.
+  - **The test run** grew from 4.1 s to about 10 s: the frame check plays every step of every
+    moving look of every set (5.2 s, given 30 s).
+  - **N-04:** three working runs, a fourth arriving and the first ending: one invalidation per
+    mock second.
+  - `validate` unchanged: 11 hooks, 4 gating each with a `.catch`, 3 state keys, the same calls.
+- **Checked by hand:**
+  - **in a browser,** a scratch page of every set's moving looks for five roles, on dark and
+    light: the slide, the hop, the cheer's hops and rising "z", the startle settling, the sign
+    and the doze bobbing; the outline on light only;
+  - **in the terminal,** `claude --plugin-dir mods/possum-squad` driven through `screen`:
+    `/possums roles` drew the text gallery (its copy's stored set `horror`, left as found); an
+    Explore agent's row read Scout, finished, with its numbers, as before;
+  - not seen: the desktop (after the push; `docs/BACKLOG.md`).
+- **Falsified,** each failing at its own test, 25 breaks: the spawn's, a step's and the
+  fallback's moment dropped; the hook not passing the step's time; a step with no time given
+  one; no grace; a dressing inside the arrival; a moment before its time; endings always fresh;
+  an arrival keeping its pose; motion `off` keeping the moment; a dressing with no role;
+  no freeze; the loop beginning at 0; the "z" rising otherwise; a shorter startle; a shorter
+  rest; a slower sign; no settling idle; a slide from elsewhere; a failed run cheering; the
+  gallery not repeating; the gallery still; the row playing no moment; moments asking for
+  redraws.
+  - **One check could not fail as first written:** with `motion` `off`, keeping the moment
+    changed nothing an arrival asked in `starting` shows; the F-21 test now asks it in every
+    live pose.
+- **Numbers:**
+  - 166 tests (+9) in 16 files: clock 13, command 11, compose 8, gallery 9 (+1), header 8, model
+    29 (+1), pane-sprites 5 (+2), panel 9, pass-through 5, prefs 4, roles 9, row 8 (+1), runs
+    17, sets 6, settle 12, sprites 13 (+4);
+  - the tools' specs unchanged: 10 in 2 files;
+  - `validate` unchanged; the gate green on CLI 2.1.330.
+
 ---
 
 ## 8: Roles

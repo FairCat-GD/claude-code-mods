@@ -1,7 +1,7 @@
 import type { ButtonProps, ElementConstructor, RenderElement, SvgProps } from 'claude-code'
 
 import type { StateId } from '../../types/index'
-import { type Gallery, sprite } from '../sprites'
+import { type Gallery, type Moment, sprite } from '../sprites'
 import { STRINGS } from '../strings'
 import type { Shared } from './empty'
 import { COLOURS } from './row'
@@ -11,6 +11,9 @@ export type GalleryState = StateId | 'planned'
 
 // Every state a sprite has a pose for, in the order the motion table lists them.
 export const GALLERY_STATES: readonly GalleryState[] = ['planned', 'starting', 'working', 'needs-you', 'quiet', 'finished', 'failed', 'stopped']
+
+// The one-off each state shows, played again after a rest: arriving in starting, the ending in finished and stopped.
+export const GALLERY_MOMENTS: Readonly<Partial<Record<GalleryState, Moment>>> = { starting: 'arrival', finished: 'ending', stopped: 'ending' }
 
 export type GalleryTable = Shared & { Button: ElementConstructor<ButtonProps> }
 
@@ -52,22 +55,22 @@ export function terminalGallery(table: GalleryTable, gallery: Gallery, onClose: 
   )
 }
 
-// Each role's name and costume over its eight poses in the set, still, each with its state's word; the state's mark
-// where the surface draws no sprite.
+// Each role's name and costume over its eight poses in the set, moving as the motion setting lets them, each with its
+// state's word; the state's mark where the surface draws no sprite.
 export function desktopGallery(
   table: GalleryTable,
   gallery: Gallery,
-  set: string,
+  look: { set: string; motion: 'auto' | 'off' },
   Svg: ElementConstructor<SvgProps> | undefined,
   onClose: () => void,
 ): RenderElement {
   const { Box, Text } = table
-  const pose = (role: Gallery['roles'][number]['id'], state: GalleryState) =>
-    Svg === undefined ? (
-      <Text color={COLOURS[state]}>{STRINGS.row.mark}</Text>
-    ) : (
-      spriteElement(Svg, sprite({ set, role, pose: state, motion: 'off' }), STRINGS.sprite.alt(STRINGS.roles[role], STRINGS.states[state]))
-    )
+  const pose = (role: Gallery['roles'][number]['id'], state: GalleryState) => {
+    if (Svg === undefined) return <Text color={COLOURS[state]}>{STRINGS.row.mark}</Text>
+    const moment = Object.hasOwn(GALLERY_MOMENTS, state) ? GALLERY_MOMENTS[state] : undefined
+    const drawn = sprite({ ...look, role, pose: state, ...(moment === undefined ? {} : { moment, isRepeated: true }) })
+    return spriteElement(Svg, drawn, STRINGS.sprite.alt(STRINGS.roles[role], STRINGS.states[state]))
+  }
   return (
     <Box key="gallery" flexDirection="column" gap={1}>
       {heading(table, gallery, onClose)}

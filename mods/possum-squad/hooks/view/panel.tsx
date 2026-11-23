@@ -46,7 +46,7 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
     Svg &&
     spriteElement(
       Svg,
-      sprite({ set, role: one.roleId, pose: one.state, motion }),
+      sprite({ set, role: one.roleId, pose: one.state, motion, ...(one.moment === undefined ? {} : { moment: one.moment }) }),
       STRINGS.sprite.alt(one.role ?? STRINGS.sprite.plain, STRINGS.states[one.state]),
     )
   const leadSprite = Svg && spriteElement(Svg, sprite({ set, role: 'lead', pose: 'idle', motion }), STRINGS.roles.lead)
@@ -69,7 +69,7 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
   }
   const list = () => {
     if (data.gallery !== undefined) {
-      return asText ? terminalGallery(table, data.gallery, actions.onCloseGallery) : desktopGallery(table, data.gallery, set, Svg, actions.onCloseGallery)
+      return asText ? terminalGallery(table, data.gallery, actions.onCloseGallery) : desktopGallery(table, data.gallery, data.look, Svg, actions.onCloseGallery)
     }
     return data.rows.length === 0 ? emptyPanel(table, Svg && spriteElement(Svg, squad(), STRINGS.sprite.squad)) : sections.map(drawSection)
   }

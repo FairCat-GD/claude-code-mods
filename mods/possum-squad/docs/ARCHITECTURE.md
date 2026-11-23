@@ -32,7 +32,8 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.8.0). The Lead, header, sections, roles, sprites in every set, and the gallery.
+**Built** (0.9.0). The Lead, header, sections, roles, sprites in every set with every state's
+animation, and the gallery.
 `hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `roles`, `set` and `settings`;
 - toggles and draws the pane: the Lead row and the session line, then the sections of subagent
@@ -558,8 +559,9 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
   which sets `isGalleryOpen`, and the gallery's close button, which clears it. The pane reads
   it while drawing, so each write redraws it; a refused read draws the list. Nothing reads
   `isClosedByPerson` yet (auto-open, Session 9).
-- `runs` (0.4.0; `past` 0.5.0; roles 0.6.0) is `Runs`, `{ rows, pending, next, past }`, the
-  atom `runs` with the shape tag `runs-3`, starting as `NO_RUNS`. *The run model*'s Built part
+- `runs` (0.4.0; `past` 0.5.0; roles 0.6.0; a role's moment 0.9.0) is `Runs`,
+  `{ rows, pending, next, past }`, the atom `runs` with the shape tag `runs-4`, starting as
+  `NO_RUNS`. *The run model*'s Built part
   has its fields and rules. The recording hooks write it, and the clock's beat when it settles
   Helper, each through `update`, so concurrent writes retry rather than lose one another; the
   pane reads it while drawing, which redraws it on every write. The beat reads it too, outside
@@ -734,6 +736,10 @@ Not yet: Session 12 (nesting).
   Helper (`HELPER`, source `fallback`) from `fellBack` at a subagent's step, at its end and at
   the clock's beat. Words outrank calls: a role settled at the spawn stands over any evidence
   its pending entry carried.
+- **The moment it settled** (0.9.0): `Role.at`, the clock's time, which cues the hop into the
+  outfit (*Sprites and sets*). The spawn stamps its own time, a step its time (`Step.at`), the
+  fallback its `now`; a pending entry's role keeps its step's time when the row claims it. A step
+  whose clock was refused settles with no `at`, and its role plays no hop.
 - **The corpus,** `tests/fixtures/role-corpus.ts`: all 102 `dev` cases right, and 39 of 42
   `holdout`, whose three misses are the reference's own, with its answers.
 - **The names** are `STRINGS.roles`, the art manifest's; `rowData` puts the role's name first on
@@ -780,8 +786,14 @@ Not yet: Session 12 (nesting).
   `@media (prefers-reduced-motion: reduce)`, under which its animation is hidden and its still
   pose shown. With `motion` at `off`, no animation element is written at all (F-21).
 
-**Built** (0.7.0; every set and `planned` 0.8.0): every set in every state's still pose and the
-work loop, in the set `prefs.theme` names; the other states' animations are Session 7a's.
+- **Moments** (decided with the owner at Session 7a): `stopped`'s still form, with `motion`
+  `off` and under reduced motion, is the startled frame, though its animation settles idle; a
+  row's arrival plays in its first moments whatever its state, since `starting` lasts
+  milliseconds; the gallery plays each one-off again after a rest. Confirmed as built with the
+  owner at Session 7a.
+
+**Built** (0.7.0; every set and `planned` 0.8.0; every state's animation 0.9.0): every set in
+every state's recipe, in the set `prefs.theme` names.
 - **The converter,** `tools/art.ts`, run by hand (`node mods/possum-squad/tools/art.ts`). It
   reads `art/`'s palette, manifest and PNGs (through `tools/png.ts`, which takes 8-bit RGBA,
   non-interlaced only) and writes `hooks/sprites/data.ts`, `ART`: the canvas, the palette, the
@@ -807,6 +819,33 @@ work loop, in the set `prefs.theme` names; the other states' animations are Sess
   T-01: even steps the still frame, odd the bob with the prop at its `propWorkDy`, step 18 the
   blink. It is drawn as parts placed per step: the body above the seam row, the seam row, the
   rows below the bob, the eyelids (the pupils the outfit leaves bare) and the prop.
+- **The recipes as they move** (0.9.0, `recipes.ts`), each in steps of T-01; a hop is up 2 for
+  one step:
+  - *arrival* (a live run): the plain opossum at x −24, −16, −8, then in place; with a role it
+    rests a step, hops plain and lands dressed; then it stands (5 steps, 3 plain);
+  - *dressing* (a live run whose role came after its arrival): the plain opossum hops, then the
+    dressed pose's own loop or still begins;
+  - *working*: the work loop above;
+  - *needs-you*: the whole still, sign included, bobs (`bobLoop`): 2 steps in place, 2 down;
+  - *quiet*: the doze, eyes closed and prop held, bobs slowly: 4 and 4;
+  - *finished*, its ending (`cheer`): standing, hop, land, hop, land; then asleep with the "z"
+    2 px low for 6 steps and 1 px for 5, in place from 3.0 s, where it holds;
+  - *stopped*, its ending (`startle`): startled for 5 steps (1 s), then standing (`SETTLED`);
+  - *failed*, *planned*, the Lead and the empty squad: still.
+
+  A one-off is a `Loop` whose first `once` steps play once before a tail that loops, or holds
+  when it is one step (`then`); a held tail drawn like an intro part is that part. `repeated`
+  (the gallery's) turns one into a loop: the one-off, then its last frame for 10 steps.
+  `animationOf` picks the moment's one-off or the pose's own loop; `playable` says which moment
+  a pose can play (arrival and dressing while live, ending when finished or stopped).
+- **Which moment a row plays** (`momentOf`, `hooks/view/runs.ts`): a moment is fresh while the
+  drawing's time is past it by less than its one-off's length and one beat (`MOMENT_GRACE_MS`,
+  1 s), so the first drawing after it catches it whole, and the next drawing past it draws the
+  still it ends on. An ending while `endedAt` is fresh; a dressing while `role.at` is fresh and
+  came at least the arrival's length after the start; else an arrival while `startedAt` is
+  fresh; a failed run none; a time that cannot be read none. A one-off never plays on a
+  remount: Finished's `show` draws its rows still. The ending carries the outfit when the role
+  settles at the end (Helper there), so no hop precedes a cheer.
 - **`planned`** is the idle frame, with the recipe's `colour` word, `greyed`, drawn from
   `COLOURINGS` in `recipes.ts` (decided with the owner at Session 7): each fill is greyed, 70%
   luma (`0.3r + 0.59g + 0.11b`, as the art's reference computes it) and 30% the colour, and the
@@ -821,20 +860,31 @@ work loop, in the set `prefs.theme` names; the other states' animations are Sess
   discrete `animateTransform` and/or `animate opacity` over its shortest period, with step 0 in
   its attributes; its outline is each step's own, one path per distinct outline with its
   opacity schedule, so it is exact at every step. The still pose follows in `<g class="s">`.
-- **The cache** (`index.ts`): one string per set, role, pose and motion, in module memory, so a
-  redraw hands the app the same string and a running loop is never restarted. An unknown set
+  With `once` steps played first (0.9.0, `animated`): a one-off before a held tail is one
+  animation with `fill="freeze"`; before a loop, it is one played once, then the loop with
+  `begin` at its end and `repeatCount="indefinite"`; an intro equal to step 0's attributes
+  writes none. With `once` 0 the output is byte for byte what 0.8.0 wrote.
+- **The cache** (`index.ts`): one string per set, role, pose, motion, moment and repeat, in
+  module memory, so a redraw hands the app the same string and a running loop is never
+  restarted. A look is normalised first: with `motion` `off` no moment; a moment its pose cannot
+  play, or a dressing with no role, none; an arrival as `starting` whatever the run's state, so
+  a row that starts working inside its arrival draws the same string. With `motion` `auto` a
+  still pose is drawn where its one-off settles: `stopped` standing. An unknown set
   draws `classic`, a role a set lacks the default set's, an unknown role plain, an unknown pose
   idle; a name every object inherits (`constructor`) is unknown too, since sets, roles and poses
   are looked up by their own keys. `costumeOf` falls back with the outfit, and `galleryOf` gives a
   set's title and the default set's 17 roles in order, each with its costume there; an unknown
   set's is the default set's. The empty panel's squad is three plain asleep opossums, 24 px apart, cached once.
-- **Sizes** (all four sets): a still pose 1.6k–3.4k characters, the work loop at most 8.7k, the
-  squad 5.0k; `tests/sprites.test.ts` holds every role and pose of every set under 16,000.
-  Composing all 288 classic looks from a cold cache took 167 ms in the kit, one work loop
-  3.5 ms (CLI 2.1.330).
+- **Sizes** (all four sets): a still pose 1.6k–3.4k characters, `planned` 4.0k, the work loop at
+  most 8.7k, needs-you 8.1k, quiet 8.3k, an arrival 10.6k, a dressing 10.8k, a startle 10.4k, a
+  cheer 13.6k and the gallery's repeating cheer 14.0k; the squad 5.0k. `tests/sprites.test.ts`
+  holds every look of every set, moments included, under 16,000. Composing all 288 classic looks
+  from a cold cache took 167 ms in the kit, one work loop 3.5 ms (CLI 2.1.330); every look of
+  every set with its moments, 5,184 asked, 2.3 s under Node.
 - **Seen:** every classic pose, still and animated, on dark and light, drawn by Quick Look from
-  a scratch page; at 0.8.0 every set's gallery poses, `planned` included, the same way. Not yet
-  in the desktop app (`docs/BACKLOG.md`).
+  a scratch page; at 0.8.0 every set's gallery poses, `planned` included, the same way; at 0.9.0
+  every set's moving looks for five roles, played in a browser on dark and light. Not yet in the
+  desktop app (`docs/BACKLOG.md`).
 
 ## The panel
 
@@ -928,7 +978,7 @@ cancels its timer.
   clock and settles Helper on any run past T-04 (`settleHelpers`), writing `runs` through
   `update` only when one is due; that write redraws the pane, so it skips its own
   invalidation, and a fault there leaves the clock running. While `view.isGalleryOpen` is
-  set it skips the invalidation too: the gallery holds still, and a redraw would send its 136
+  set it skips the invalidation too: the gallery's sprites move inside themselves, and a redraw would send its 136
   sprite sources again for the header's time alone, so the header's time moves only on
   events until the gallery closes. A real session showed it: a
   subagent whose only call was a foreground `ping` of 70 s read Helper at about 1:00 while
@@ -959,8 +1009,10 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
 - **`desktopRow`** draws the sprite it is given in the leading slot, or the coloured mark where
   the surface draws no `Svg`. `panel` gives it the sprite of the row's role (`RowData.roleId`,
   plain while unsettled) in its state's pose, in `prefs.theme`'s set, with `prefs.motion`; its alt is
-  "Builder, working", or "Opossum, starting" while plain. A working sprite with `motion` `auto`
-  is framed (`isInteractive`); every other one is an image. The terminal's table answers `Svg`
+  "Builder, working", or "Opossum, starting" while plain. With its moment (`RowData.moment`,
+  0.9.0), a moving sprite with `motion` `auto` is framed (`isInteractive`): a working,
+  needs-you or quiet one, and any row inside its arrival, hop or ending; every other one is an
+  image. The terminal's table answers `Svg`
   in the kit too, so `panel` asks for it only off the terminal. Beside it are the same lines,
   the second and third in footnote
   size. The fourth is the app's own `Progress`, labelled "Context", its value text the
@@ -988,18 +1040,21 @@ sections' or the empty panel's place.
 - **`desktopGallery`:** each of the 17 roles in the default set's order, its role name
   (semibold) beside its costume name (dim), over a wrapping row of eight cells in
   `GALLERY_STATES`' order: planned, starting, working, needs-you, quiet, finished, failed,
-  stopped. Each cell is the role's still sprite in that pose (`motion` `off`, so an image, never
-  framed), alt "Builder, planned", over its state word in footnote size; where the surface
-  draws no `Svg`, the state's mark.
+  stopped. Each cell is the role's sprite in that pose with `prefs.motion` (0.9.0), alt
+  "Builder, planned", over its state word in footnote size; where the surface draws no `Svg`,
+  the state's mark. `GALLERY_MOMENTS` gives starting its arrival and finished and stopped their
+  ending, each repeated: with `motion` `auto`, 102 cells are framed and move, `planned` and
+  `failed` are images; with `off`, all 136 are images.
 - **`terminalGallery`:** "States", then each state's coloured mark and word (`planned` in
   `inactive`); then "Roles", each role's name, a dim `·`, then its costume name (dim), so the
   two never run together where dimming does not show.
 - **Timing** (N-05, in the kit, CLI 2.1.330): building the pane's tree for 20 rows took
   0.21 ms (median of 200, max 1.0 ms) with the sprites cached; the first build, writing its
   20 sprites, about 32 ms. The gallery's first draw of a set, writing 136 sprites, about
-  43 ms; then 0.33 ms.
+  43 ms; then 0.33 ms. At 0.9.0, with its 102 moving sprites, the first draw of a set took
+  0.19–0.24 s in the kit, then 7–10 ms a mount; its sources are about 875k characters.
 
-Not yet: Session 7a (the gallery animated, framed), Session 11 (Peek, the collapsed view, the
+Not yet: Session 11 (Peek, the collapsed view, the
 `widget` seat).
 
 ## Attention
@@ -1167,7 +1222,8 @@ unread.
 - **With the pane closed and an agent silent past T-04,** Helper waits for its next step, its
   end or the first beat after the pane opens; the role is the same, only when it shows differs.
 - **The sprites are unseen in the desktop app** until 0.7.0 or later is installed and looked at
-  (`docs/BACKLOG.md`); the gallery's 136 images and `planned`'s group `opacity` too; `<path>` and a discrete `opacity` animation are drawn there by another
+  (`docs/BACKLOG.md`); the gallery's 102 framed sprites, the one-offs' `fill="freeze"` and
+  `begin`, and `planned`'s group `opacity` too; `<path>` and a discrete `opacity` animation are drawn there by another
   mod of this repository, not yet by this one.
 - **`data.ts` is about 87k characters,** loaded on every start; the kit loads it, and whether
   the engine caps a module's size is not in the declarations.
@@ -1176,16 +1232,25 @@ unread.
 - **A pane's first draw writes its sprites:** about 32 ms for 20 new looks, against N-05's
   10 ms for the tree, which the cached builds meet at 0.21 ms. Each look is written once per
   session; a new row's costs about 1–3.5 ms.
+- **A moment's string changes if its look does inside it:** a role settled during the arrival
+  (not at the spawn) starts the slide again, dressed; a pose that changes inside a hop starts
+  the hop again. Decisive calls in a run's first second were not seen.
+- **A moment whose first drawing comes late is cut:** a pane shown again just before a moment's
+  window ends plays it from the start, and the next beat draws the still it ends on.
+- **The swap from a one-off to its still image** changes the element from framed to an image;
+  whether the desktop flashes there is unseen (`docs/BACKLOG.md`).
+- **While the gallery is open, each event's redraw sends its sources again,** about 875k
+  characters at 0.9.0 (400k at 0.8.0); the beat leaves it undrawn.
 - **After the last live run, the clock may beat up to T-04 more** for a run whose role may still
   fall back (a teammate's, or one waiting on background work), redrawing a pane whose times no
   longer move.
 
-## Baseline (v0.8.0)
+## Baseline (v0.9.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 157 pass, in 16 files: clock 13, command 11, compose 8, gallery 8, header 8, model 28, pane-sprites 3, panel 9, pass-through 5, prefs 4, roles 9, row 7, runs 17, sets 6, settle 12, sprites 9 |
+| `claude plugin test mods/possum-squad` | 166 pass, in 16 files: clock 13, command 11, compose 8, gallery 9, header 8, model 29, pane-sprites 5, panel 9, pass-through 5, prefs 4, roles 9, row 8, runs 17, sets 6, settle 12, sprites 13; about 10 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
@@ -1272,6 +1337,15 @@ one moves, that is the finding.
   Session 6, beside the rows'. The owner's choice at Session 6's plan.
 - 2026-11-22, *Sprites and sets* and *Layout and boundaries*: confirmed as built, with the owner,
   at Session 6.
+- 2026-11-23, *Sprites and sets*: `stopped`'s still form, with `motion` `off` and under reduced
+  motion, stays the startled frame, the art's own pose; its animation settles idle, as the
+  design's recipe says. The owner's choice at Session 7a's start.
+- 2026-11-23, *Sprites and sets*: a row's arrival plays in its first moments whatever its state,
+  cued by its start time: `starting` lasts milliseconds in practice. The owner's choice at
+  Session 7a's start.
+- 2026-11-23, *The panel*: in the gallery each one-off plays, rests about 2 s and plays again,
+  so any role can be looked at after scrolling to it. The owner's choice at Session 7a's start.
+- 2026-11-23, *Sprites and sets*: confirmed as built, with the owner, at Session 7a.
 - 2026-11-23, *Sprites and sets*: `planned` is greyed and faded by an `opacity` on its fills
   alone; its light-theme outline is drawn outside them, at full strength, around the colours
   faint as they are seen faded. The owner's choice at Session 7's start: it keeps the

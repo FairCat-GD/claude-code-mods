@@ -104,66 +104,76 @@ function period<T>(values: readonly T[], same: (a: T, b: T) => boolean): number 
 }
 
 const timing = (count: number, stepMs: number) => `dur="${count * stepMs}ms" calcMode="discrete" repeatCount="indefinite"`
-const shown = (visible: readonly boolean[], stepMs: number) =>
-  `<animate attributeName="opacity" values="${visible.map(is => (is ? 1 : 0)).join(';')}" ${timing(visible.length, stepMs)}/>`
 
-// A part's placement over the loop: a translate where it moves, an opacity where it hides. Before SMIL runs, the
-// attributes hold step 0, so an image that never animates still shows the first frame.
-function partSvg(content: string, at: readonly (Offset | undefined)[], stepMs: number): string {
-  const steps = at.slice(
+// An attribute's value at each step as SMIL: the first `once` steps played once, then the rest over its shortest
+// period, looping, or held when one value is left. Nothing where it never changes, since the attributes hold step 0;
+// nor for an intro that keeps step 0's value.
+function animated(values: readonly string[], once: number, stepMs: number, element: (values: string, timing: string) => string): string {
+  if (values.every(value => value === values[0])) return ''
+  const intro = values.slice(0, once)
+  const loop = values.slice(once)
+  const cycle = loop.slice(
     0,
-    period(at, (a, b) => a?.x === b?.x && a?.y === b?.y),
+    period(loop, (a, b) => a === b),
   )
-  if (steps.every(offset => offset === undefined)) return ''
-  const first = steps.find(offset => offset !== undefined) as Offset
+  if (once === 0) return element(cycle.join(';'), timing(cycle.length, stepMs))
+  if (cycle.length === 1) return element([...intro, ...cycle].join(';'), `dur="${(once + 1) * stepMs}ms" calcMode="discrete" fill="freeze"`)
+  const head = intro.every(value => value === values[0]) ? '' : element(intro.join(';'), `dur="${once * stepMs}ms" calcMode="discrete"`)
+  return `${head}${element(cycle.join(';'), `begin="${once * stepMs}ms" ${timing(cycle.length, stepMs)}`)}`
+}
+
+const opacityOver = (values: string, timing: string) => `<animate attributeName="opacity" values="${values}" ${timing}/>`
+
+// A part's placement over the steps: a translate where it moves, an opacity where it hides. Before SMIL runs, the
+// attributes hold step 0, so an image that never animates still shows the first frame.
+function partSvg(content: string, at: readonly (Offset | undefined)[], once: number, stepMs: number): string {
+  if (at.every(offset => offset === undefined)) return ''
+  const first = at.find(offset => offset !== undefined) as Offset
   // A hidden step keeps the last place it was shown, so a part that only hides never moves.
-  const places = steps.map(
-    (offset, at) =>
+  const places = at.map(
+    (offset, step) =>
       offset ??
-      steps
-        .slice(0, at)
+      at
+        .slice(0, step)
         .reverse()
         .find(one => one !== undefined) ??
       first,
   )
-  const isMoving = places.some(offset => offset.x !== first.x || offset.y !== first.y)
-  const isHiding = steps.some(offset => offset === undefined)
   const start = places[0] as Offset
-  const attributes = `${start.x !== 0 || start.y !== 0 ? ` transform="translate(${start.x} ${start.y})"` : ''}${steps[0] === undefined ? ' opacity="0"' : ''}`
-  const moves = isMoving
-    ? `<animateTransform attributeName="transform" type="translate" values="${places.map(offset => `${offset.x} ${offset.y}`).join(';')}" ${timing(places.length, stepMs)}/>`
-    : ''
-  const hides = isHiding
-    ? shown(
-        steps.map(offset => offset !== undefined),
-        stepMs,
-      )
-    : ''
+  const attributes = `${start.x !== 0 || start.y !== 0 ? ` transform="translate(${start.x} ${start.y})"` : ''}${at[0] === undefined ? ' opacity="0"' : ''}`
+  const moves = animated(
+    places.map(offset => `${offset.x} ${offset.y}`),
+    once,
+    stepMs,
+    (values, timing) => `<animateTransform attributeName="transform" type="translate" values="${values}" ${timing}/>`,
+  )
+  const hides = animated(
+    at.map(offset => (offset === undefined ? '0' : '1')),
+    once,
+    stepMs,
+    opacityOver,
+  )
   return moves === '' && hides === '' && attributes === '' ? content : `<g${attributes}>${moves}${hides}${content}</g>`
 }
 
-// The loop's outline is each step's own, exactly: one path per distinct outline, shown on the steps it belongs to.
+// The outline is each step's own, exactly: one path per distinct outline, shown on the steps it belongs to.
 function loopOutline(loop: Loop, width: number, height: number, colourOf: (key: string) => string, stepMs: number): string {
   const byStep = Array.from({ length: loop.steps }, (_, step) => runsByKey(outlineOf(placed(loop, step, width, height), colourOf)).get('o') ?? '')
   const distinct = [...new Set(byStep)].filter(d => d !== '')
   return distinct
     .map(d => {
-      const visible = byStep.map(one => one === d)
-      if (visible.every(Boolean)) return `<path d="${d}"/>`
-      const steps = visible.slice(
-        0,
-        period(visible, (a, b) => a === b),
-      )
-      return `<path d="${d}"${steps[0] ? '' : ' opacity="0"'}>${shown(steps, stepMs)}</path>`
+      const visible = byStep.map(one => (one === d ? '1' : '0'))
+      const shows = animated(visible, loop.once ?? 0, stepMs, opacityOver)
+      return shows === '' ? `<path d="${d}"/>` : `<path d="${d}"${visible[0] === '1' ? '' : ' opacity="0"'}>${shows}</path>`
     })
     .join('')
 }
 
-// A looping sprite: the parts with their SMIL, then its still pose, which reduced motion shows instead.
+// A moving sprite: the parts with their SMIL, then its still pose, which reduced motion shows instead.
 export function loopSvg(loop: Loop, still: Grid, colourOf: (key: string) => string, stepMs: number): string {
   const width = still[0]?.length ?? 0
   const height = still.length
-  const parts = loop.parts.map(part => partSvg(fills(part.grid, colourOf), part.at, stepMs)).join('')
+  const parts = loop.parts.map(part => partSvg(fills(part.grid, colourOf), part.at, loop.once ?? 0, stepMs)).join('')
   const moving = `<g class="m"><g class="o" fill="${OUTLINE}">${loopOutline(loop, width, height, colourOf, stepMs)}</g>${parts}</g>`
   return `${open(still)}<style>${MOVING_STYLE}</style>${moving}<g class="s">${stillBody(still, colourOf)}</g></svg>`
 }

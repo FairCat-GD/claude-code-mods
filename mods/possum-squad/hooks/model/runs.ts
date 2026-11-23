@@ -38,6 +38,8 @@ export type Step = {
   tools?: { weak: number; role?: Role }
   // A call went to the background.
   hasBackground?: boolean
+  // The step's time, when the clock could be read: a role its calls settle settled then.
+  at?: number
 }
 
 export type Ending = { reason: string; hasText: boolean }
@@ -90,16 +92,17 @@ function opened(runs: Runs, spawn: Spawn, at: number, agentId?: string): Run {
   }
   if (agentId !== undefined) run.agentId = agentId
   if (spawn.parentId !== undefined) run.parentId = spawn.parentId
-  if (spawn.role !== undefined) run.role = spawn.role
+  if (spawn.role !== undefined) run.role = { ...spawn.role, at }
   return run
 }
 
-// The one guard of I-07: evidence reaches only a run or entry whose role is unsettled.
-function withEvidence<T extends Run | Pending>(next: T, evidence: { weak?: number; role?: Role }): T {
+// The one guard of I-07: evidence reaches only a run or entry whose role is unsettled. A role settled at a known time
+// keeps it.
+function withEvidence<T extends Run | Pending>(next: T, evidence: { weak?: number; role?: Role }, at?: number): T {
   if (next.role !== undefined) return next
   if (evidence.role !== undefined) {
     const { weakCalls: _, ...settled } = next
-    return { ...settled, role: evidence.role } as T
+    return { ...settled, role: at === undefined ? evidence.role : { ...evidence.role, at } } as T
   }
   if (evidence.weak !== undefined && evidence.weak > 0) next.weakCalls = evidence.weak
   return next
@@ -116,7 +119,7 @@ function withStep<T extends Run | Pending>(held: T, step: Step): T {
   if (step.effort !== undefined) next.effort = step.effort
   if (step.activity !== undefined) next.activity = step.activity
   if (step.hasBackground === true) next.hasBackgroundWork = true
-  return step.tools === undefined ? next : withEvidence(next, step.tools)
+  return step.tools === undefined ? next : withEvidence(next, step.tools, step.at)
 }
 
 function claimed(run: Run, pending: Pending | undefined): Run {
@@ -227,7 +230,7 @@ export function fellBack(runs: Runs, now: number, fallback: Role): Runs {
   const rows = { ...runs.rows }
   for (const [key, run] of due) {
     const { weakCalls: _, ...settled } = run
-    rows[key] = { ...settled, role: fallback }
+    rows[key] = { ...settled, role: { ...fallback, at: now } }
   }
   return { ...runs, rows }
 }

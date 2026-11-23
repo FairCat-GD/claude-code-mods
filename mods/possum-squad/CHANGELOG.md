@@ -6,6 +6,33 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-11-23
+
+Every state moves.
+
+### Added
+
+- **A new agent's opossum slides in** from the left, plain, when its row appears; if its role is
+  already known it hops and lands in its outfit, then stands for a moment before it starts work.
+- **The hop into the outfit:** when an agent's role is worked out later, its plain opossum
+  hops once and lands dressed.
+- **Each state's animation:** an opossum that needs you bobs with its "?" sign held up; a quiet
+  one dozes, bobbing slowly with its eyes closed; a finished one hops twice in a cheer, then
+  falls asleep as its "z" rises, and is still after 3 seconds; a stopped one is startled with
+  a "!" for a second, then stands. A failed one lies still on its back, as before.
+- **The gallery moves:** `/possums roles` shows each state's animation, and plays the arrival,
+  the cheer and the startle again every few seconds, so each can be watched after scrolling to
+  it.
+
+### Changed
+
+- **A cheer, a startle or a hop plays only when it happens,** not each time a row is drawn
+  again: showing Finished's rows, or opening the pane later, draws them still.
+- **With `motion` at `off`,** or with your system asking for reduced motion, every opossum still
+  holds its state's pose, the gallery's included; a stopped one stays startled.
+- The pane forgets its rows once when this version is installed mid-session; they come back as
+  agents do something.
+
 ## [0.8.0] — 2026-11-23
 
 The four sets, and a gallery of every role.

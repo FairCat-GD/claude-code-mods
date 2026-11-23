@@ -12,9 +12,10 @@ export type Dress = { outfit: Layer; prop: Layer; propWorkDy: number }
 // A frame whose marks are all pixels: `recipes.ts` turns marks given in words into these.
 export type Frame = Omit<RecipeFrame, 'marks'> & { marks?: Readonly<Record<string, string>> }
 
-// Parts drawn in order, each at its offset on every step of a loop, or hidden there.
+// Parts drawn in order, each at its offset on every step, or hidden there. The first `once` steps play once and the
+// rest loop; a single step left holds.
 export type Part = { grid: Grid; at: readonly (Offset | undefined)[] }
-export type Loop = { parts: readonly Part[]; steps: number }
+export type Loop = { parts: readonly Part[]; steps: number; once?: number }
 
 export const blank = (width: number, height: number): Grid => Array.from({ length: height }, () => Array<string>(width).fill(NONE))
 

@@ -5,15 +5,16 @@ their live numbers and state; in the desktop app each one is drawn as a small an
 opossum dressed for its job. It only watches: it changes nothing Claude does and adds nothing
 to what Claude is sent.
 
-This is 0.8.0: `/possums` opens the pane. The main session heads it, with its context and the
+This is 0.9.0: `/possums` opens the pane. The main session heads it, with its context and the
 session's tokens and work time; under it, every subagent Claude starts is a row in Needs you,
 Running or Finished, with its state, its role (such as Builder, Scout or Researcher,
 worked out from its type, its task's words and its first tool calls), model, activity,
 context, tokens and a time that ticks. In the desktop app each row has its opossum, dressed for
 its role in the set the `theme` setting picks (`classic`, `steampunk`, `horror` or
-`prehistoric`) and posed for its state; a working one bobs and blinks. In a terminal the rows
-are text. `/possums roles` shows every role of the set in every state. `/possums set` keeps its
-settings. The other states' animations arrive in the release that follows.
+`prehistoric`) and moving for its state: it slides in when it arrives, hops into its outfit,
+bobs and blinks while it works, waves a sign when it needs you, dozes when quiet, cheers then
+falls asleep when it finishes. In a terminal the rows are text. `/possums roles` shows every
+role of the set in every state. `/possums set` keeps its settings.
 
 ## Install
 

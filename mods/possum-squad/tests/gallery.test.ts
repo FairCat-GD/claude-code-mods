@@ -38,6 +38,13 @@ async function drawnOn($: Engine, surface: (typeof SURFACES)[number]): Promise<S
 }
 
 const altOf = (role: RoleId, state: (typeof STATES)[number]) => STRINGS.sprite.alt(STRINGS.roles[role], STRINGS.states[state])
+// Each state's one-off in the gallery, played again after a rest; planned and failed are still.
+const MOMENTS = { starting: 'arrival', finished: 'ending', stopped: 'ending' } as const
+const STILL_STATES: readonly string[] = ['planned', 'failed']
+const cellOf = (set: string, role: RoleId, state: (typeof STATES)[number], motion: 'auto' | 'off') => {
+  const moment = state in MOMENTS ? MOMENTS[state as keyof typeof MOMENTS] : undefined
+  return sprite({ set, role, pose: state, motion, ...(moment === undefined ? {} : { moment, isRepeated: true }) })
+}
 const costumes = (set: string) => ROLE_IDS.map(role => ART.sets[set]?.roles[role]?.costume ?? '')
 const count = (texts: readonly string[], text: string) => texts.filter(one => one === text).length
 
@@ -68,18 +75,16 @@ test('/possums roles opens the pane on the gallery: 17 roles in 8 states, with r
       }
       continue
     }
-    // The Lead's sprite heads the pane; then each role in each state, still.
+    // The Lead's sprite heads the pane; then each role in each state, moving and framed but for planned and failed.
     const gallery = drawn.sprites.slice(1)
     expect(drawn.sprites[0]?.alt).toBe(STRINGS.roles.lead)
     expect(gallery.map(one => one.alt)).toEqual(ROLE_IDS.flatMap(role => STATES.map(state => altOf(role, state))))
     for (const [at, one] of gallery.entries()) {
-      const role = ROLE_IDS[Math.floor(at / STATES.length)]
+      const role = ROLE_IDS[Math.floor(at / STATES.length)] ?? 'lead'
       const state = STATES[at % STATES.length] ?? 'planned'
-      expect([one.alt, one.source === sprite({ set: 'classic', role, pose: state, motion: 'off' }).source, one.isInteractive]).toEqual([
-        one.alt,
-        true,
-        undefined,
-      ])
+      const isStill = STILL_STATES.includes(state)
+      expect([one.alt, one.source === cellOf('classic', role, state, 'auto').source, one.isInteractive]).toEqual([one.alt, true, isStill ? undefined : true])
+      expect([one.alt, one.source.includes('<animate')]).toEqual([one.alt, !isStill])
     }
     for (const state of STATES) expect([state, count(drawn.texts, STRINGS.states[state])]).toEqual([state, ROLE_IDS.length])
   }
@@ -107,8 +112,25 @@ test('the gallery wears the theme: its costume names and sprites follow the set,
       for (const costume of costumes(set)) expect([set, costume, seen.texts.includes(costume)]).toEqual([set, costume, true])
       if (surface === 'terminal') continue
       const builder = seen.sprites.find(one => one.alt === altOf('builder', 'working'))
-      expect([set, builder?.source]).toEqual([set, sprite({ set, role: 'builder', pose: 'working', motion: 'off' }).source])
+      expect([set, builder?.source]).toEqual([set, sprite({ set, role: 'builder', pose: 'working', motion: 'auto' }).source])
     }
+  }
+})
+
+test('with motion off every cell of the gallery is a still image, its one-offs not played', async ($, on) => {
+  world(on, { motion: 'off' })
+  await $.command.run(ROLES)
+  const gallery = (await drawnOn($, 'desktop')).sprites.slice(1)
+  expect(gallery).toHaveLength(ROLE_IDS.length * STATES.length)
+  for (const [at, one] of gallery.entries()) {
+    const role = ROLE_IDS[Math.floor(at / STATES.length)] ?? 'lead'
+    const state = STATES[at % STATES.length] ?? 'planned'
+    expect([one.alt, one.source === cellOf('classic', role, state, 'off').source, one.isInteractive, one.source.includes('<animate')]).toEqual([
+      one.alt,
+      true,
+      undefined,
+      false,
+    ])
   }
 })
 
@@ -184,7 +206,7 @@ test('a pane that cannot be shown takes the gallery back, so the next drawing is
   }
 })
 
-test("the clock's beat redraws the list each second but leaves the still gallery undrawn", async ($, on) => {
+test("the clock's beat redraws the list each second but leaves the gallery undrawn: its sprites move by themselves", async ($, on) => {
   const { clock } = world(on)
   let redraws = 0
   on('ui.invalidate', (_, e, next) => {

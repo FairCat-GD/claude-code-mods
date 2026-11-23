@@ -38,7 +38,8 @@ export type RoleId =
 // The rule that settled a role; nothing calls `stated` or `remembered`.
 export type RoleSource = 'stated' | 'remembered' | 'type' | 'name' | 'keywords' | 'tools' | 'fallback'
 
-export type Role = { id: RoleId; source: RoleSource }
+// `at`: the clock's time it settled, which cues the hop into its outfit; absent when the clock could not be read.
+export type Role = { id: RoleId; source: RoleSource; at?: number }
 
 // One agent's life, as its row shows it. Any plugin can read `runs`, so it holds what a row needs and no more.
 export type Run = {

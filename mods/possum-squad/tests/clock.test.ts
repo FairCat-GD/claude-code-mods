@@ -159,13 +159,19 @@ test('after a session start with a run live and the pane closed, one beat finds 
   expect(redraws()).toBe(0)
 })
 
-test('three working runs redraw the pane once a second (N-04)', async ($, on) => {
+test('three working runs redraw the pane once a second, their arrivals and an ending asking for no redraw of their own (N-04)', async ($, on) => {
   const { clock, redraws } = world(on)
   await $.command.run(POSSUMS)
   for (const n of [1, 2, 3]) await working($, n)
   const before = redraws()
   await clock.advance(3_000)
   expect(redraws() - before).toBe(3)
+  // A fourth arrives and the first ends: the arrival and the cheer play inside their sprites.
+  await working($, 4)
+  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-1' })
+  const after = redraws()
+  await clock.advance(3_000)
+  expect(redraws() - after).toBe(3)
 })
 
 test('two session starts with a run live arm one timer, not two', { plugins: [PERIODS] }, async ($, on) => {

@@ -1,6 +1,7 @@
 import type { Color, ElementConstructor, ProgressProps, RenderElement } from 'claude-code'
 
 import type { RoleId, StateId } from '../../types/index'
+import type { Moment } from '../sprites'
 import { STRINGS } from '../strings'
 import type { Shared } from './empty'
 import { bar, elapsed, fill, percent, tokens } from './format'
@@ -21,6 +22,8 @@ export type RowData = {
   contextPercent?: number
   // Drawn from 2: the same task again after a finished run.
   round?: number
+  // The one-off its sprite plays, around its moment.
+  moment?: Moment
 }
 
 export type DesktopTable = Shared & { Progress: ElementConstructor<ProgressProps> }

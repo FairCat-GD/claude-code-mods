@@ -309,21 +309,23 @@ const BUILDER: Role = { id: 'builder', source: 'keywords' }
 const SCOUT: Role = { id: 'scout', source: 'tools' }
 const HELPER: Role = { id: 'helper', source: 'fallback' }
 const RESEARCHER: Role = { id: 'researcher', source: 'tools' }
+// A role as a run keeps it: with the time it settled.
+const settledAt = (role: Role, at: number): Role => ({ ...role, at })
 
 test("a spawn's role from its words is its row's from the start, and a resume keeps the row's", () => {
-  const runs = spawned(NO_RUNS, { ...RAKES, role: BUILDER }, 'agent-1')
-  expect(runs.rows['agent-1']?.role).toEqual(BUILDER)
+  const runs = spawned(NO_RUNS, { ...RAKES, role: BUILDER }, 'agent-1', 5)
+  expect(runs.rows['agent-1']?.role).toEqual(settledAt(BUILDER, 5))
   const ended = turnEnded(turnStarted(runs, 'agent-1'), 'agent-1', ANSWERED, 10)
   const resumed = spawnSettled(ended, { ...RAKES, key: 'toolu_again', resumes: 'agent-1', role: SCOUT }, { agentId: 'agent-1', isDenied: false }, 20)
-  expect(resumed.rows['agent-1']?.role).toEqual(BUILDER)
+  expect(resumed.rows['agent-1']?.role).toEqual(settledAt(BUILDER, 5))
 })
 
 test('a settled role never changes on later calls, whatever settled it (I-07)', () => {
   for (const role of [BUILDER, SCOUT, HELPER]) {
     const runs = turnStarted(spawned(NO_RUNS, { ...RAKES, role }, 'agent-1'), 'agent-1')
-    const later = stepped(runs, 'agent-1', { ...STEP, tools: { weak: 0, role: RESEARCHER } })
-    expect(later.rows['agent-1']?.role).toEqual(role)
-    expect(fellBack(later, 1_000_000, HELPER).rows['agent-1']?.role).toEqual(role)
+    const later = stepped(runs, 'agent-1', { ...STEP, tools: { weak: 0, role: RESEARCHER }, at: 40 })
+    expect(later.rows['agent-1']?.role).toEqual(settledAt(role, 0))
+    expect(fellBack(later, 1_000_000, HELPER).rows['agent-1']?.role).toEqual(settledAt(role, 0))
   }
 })
 
@@ -333,16 +335,17 @@ test("an unsettled run counts its weak calls until a step's calls settle it", ()
   const searched = stepped(runs, 'agent-1', { ...STEP, tools: { weak: 3 } })
   expect(searched.rows['agent-1']?.role).toBeUndefined()
   expect(weakOf(searched, 'agent-1')).toBe(3)
-  const settled = stepped(searched, 'agent-1', { ...STEP, tools: { weak: 6, role: SCOUT } })
-  expect(settled.rows['agent-1']?.role).toEqual(SCOUT)
+  const settled = stepped(searched, 'agent-1', { ...STEP, tools: { weak: 6, role: SCOUT }, at: 30 })
+  expect(settled.rows['agent-1']?.role).toEqual(settledAt(SCOUT, 30))
   expect(settled.rows['agent-1']?.weakCalls).toBeUndefined()
 })
 
 test("a loop's calls before the re-key settle its row only when the row's words did not", () => {
-  const early = stepped(turnStarted(NO_RUNS, 'agent-1'), 'agent-1', { ...STEP, tools: { weak: 0, role: RESEARCHER } })
+  const early = stepped(turnStarted(NO_RUNS, 'agent-1'), 'agent-1', { ...STEP, tools: { weak: 0, role: RESEARCHER }, at: 3 })
   expect(weakOf(early, 'agent-1')).toBe(0)
-  expect(spawned(early, RAKES, 'agent-1').rows['agent-1']?.role).toEqual(RESEARCHER)
-  expect(spawned(early, { ...RAKES, role: BUILDER }, 'agent-1').rows['agent-1']?.role).toEqual(BUILDER)
+  // The pending entry's role keeps the time its calls settled it.
+  expect(spawned(early, RAKES, 'agent-1', 7).rows['agent-1']?.role).toEqual(settledAt(RESEARCHER, 3))
+  expect(spawned(early, { ...RAKES, role: BUILDER }, 'agent-1', 7).rows['agent-1']?.role).toEqual(settledAt(BUILDER, 7))
 
   const weak = stepped(turnStarted(NO_RUNS, 'agent-1'), 'agent-1', { ...STEP, tools: { weak: 2 } })
   expect(weakOf(weak, 'agent-1')).toBe(2)
@@ -354,14 +357,14 @@ test("a loop's calls before the re-key settle its row only when the row's words 
 test("the fallback settles a run past T-04 or ended, but not a teammate's end, and leaves the rest alone", () => {
   const young = turnStarted(spawned(NO_RUNS, RAKES, 'agent-1', 0), 'agent-1')
   expect(fellBack(young, ROLE_SETTLES_MS - 1, HELPER)).toBe(young)
-  expect(fellBack(young, ROLE_SETTLES_MS, HELPER).rows['agent-1']?.role).toEqual(HELPER)
+  expect(fellBack(young, ROLE_SETTLES_MS, HELPER).rows['agent-1']?.role).toEqual(settledAt(HELPER, ROLE_SETTLES_MS))
 
   const ended = turnEnded(young, 'agent-1', ANSWERED, 10)
-  expect(fellBack(ended, 10, HELPER).rows['agent-1']?.role).toEqual(HELPER)
+  expect(fellBack(ended, 10, HELPER).rows['agent-1']?.role).toEqual(settledAt(HELPER, 10))
 
   const teammate = turnEnded(turnStarted(spawned(NO_RUNS, { ...RAKES, isTeammate: true }, 'agent-2', 0), 'agent-2'), 'agent-2', ANSWERED, 10)
   expect(fellBack(teammate, 10, HELPER)).toBe(teammate)
-  expect(fellBack(teammate, ROLE_SETTLES_MS, HELPER).rows['agent-2']?.role).toEqual(HELPER)
+  expect(fellBack(teammate, ROLE_SETTLES_MS, HELPER).rows['agent-2']?.role).toEqual(settledAt(HELPER, ROLE_SETTLES_MS))
 
   const dressed = turnEnded(turnStarted(spawned(NO_RUNS, { ...RAKES, role: BUILDER }, 'agent-3', 0), 'agent-3'), 'agent-3', ANSWERED, 10)
   expect(fellBack(dressed, ROLE_SETTLES_MS * 2, HELPER)).toBe(dressed)
@@ -372,13 +375,20 @@ test('a run whose turn left work in the background is not Helper at that end, an
   const waiting = turnEnded(stepped(started, 'agent-1', { ...STEP, hasBackground: true }), 'agent-1', ANSWERED, 10)
   expect(waiting.rows['agent-1']?.hasBackgroundWork).toBe(true)
   expect(fellBack(waiting, 10, HELPER)).toBe(waiting)
-  expect(fellBack(waiting, ROLE_SETTLES_MS, HELPER).rows['agent-1']?.role).toEqual(HELPER)
+  expect(fellBack(waiting, ROLE_SETTLES_MS, HELPER).rows['agent-1']?.role).toEqual(settledAt(HELPER, ROLE_SETTLES_MS))
   const back = turnStarted(waiting, 'agent-1')
   expect(back.rows['agent-1']?.hasBackgroundWork).toBeUndefined()
-  expect(fellBack(turnEnded(back, 'agent-1', ANSWERED, 20), 20, HELPER).rows['agent-1']?.role).toEqual(HELPER)
+  expect(fellBack(turnEnded(back, 'agent-1', ANSWERED, 20), 20, HELPER).rows['agent-1']?.role).toEqual(settledAt(HELPER, 20))
 
   const early = stepped(turnStarted(NO_RUNS, 'agent-2'), 'agent-2', { ...STEP, hasBackground: true })
   expect(spawned(early, RAKES, 'agent-2').rows['agent-2']?.hasBackgroundWork).toBe(true)
+})
+
+test('a step whose time could not be read settles its role with no moment, so no hop plays for it', () => {
+  const runs = turnStarted(spawned(NO_RUNS, RAKES, 'agent-1'), 'agent-1')
+  expect(stepped(runs, 'agent-1', { ...STEP, tools: { weak: 0, role: SCOUT } }).rows['agent-1']?.role).toEqual(SCOUT)
+  const early = stepped(turnStarted(NO_RUNS, 'agent-2'), 'agent-2', { ...STEP, tools: { weak: 0, role: SCOUT } })
+  expect(spawned(early, RAKES, 'agent-2', 7).rows['agent-2']?.role).toEqual(SCOUT)
 })
 
 test('the clock is kept for a live run, and for an ended one whose role may still fall back', () => {

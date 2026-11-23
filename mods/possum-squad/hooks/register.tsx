@@ -33,7 +33,7 @@ export const PANE = 'possum-squad'
 export const NO_FLAGS: View = { isClosedByPerson: false, isGalleryOpen: false }
 export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-2' })
 // Bump the shape when Runs or Run change their fields.
-export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-3' })
+export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-4' })
 // Bump the shape when Lead changes its fields.
 export const lead = atom({ plugin: 'possum-squad', key: 'lead' } as const, NO_LEAD, { shape: 'lead-1' })
 
@@ -84,8 +84,8 @@ function stopClock(own = generation) {
 }
 
 // A closed pane, or no run that is live or may still fall back to Helper, stops the clock. A pane open behind another keeps it, undrawn, so its times are right
-// the moment it shows. A role settled here redraws the pane by its write. The gallery holds still, so a beat leaves it
-// undrawn: a redraw would send every one of its sprites again for the header's time alone.
+// the moment it shows. A role settled here redraws the pane by its write. The gallery's sprites move inside themselves,
+// so a beat leaves it undrawn: a redraw would send every one of its sprites again for the header's time alone.
 async function tick($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>, own: number) {
   if (own !== generation) return
   beats++
@@ -314,7 +314,7 @@ async function drawPane(
     {
       lead: leadFigures(main),
       session: totals(main, held, now),
-      rows: shown.map(run => rowData(run, keyOf(run), figures(run, now))),
+      rows: shown.map(run => rowData(run, keyOf(run), figures(run, now), now)),
       isFinishedOpen: prefs.finishedOpen,
       look: { set: prefs.theme, motion: prefs.motion },
       ...(flags.isGalleryOpen ? { gallery: galleryOf(ART, prefs.theme) } : {}),
@@ -457,6 +457,7 @@ export const register: Register = on => {
           calls: calls.count,
           tools: toolsSeen(weakOf(due, agentId), calls.clues),
           hasBackground: calls.hasBackground,
+          ...(at === undefined ? {} : { at }),
         })
       })
       keepTime($)

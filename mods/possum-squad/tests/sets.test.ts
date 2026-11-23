@@ -13,6 +13,7 @@ import { SPAWN } from './fixtures/events'
 const ROLE_IDS = Object.keys(STRINGS.roles) as RoleId[]
 const POSES = Object.keys(STILL) as Pose[]
 const MOTIONS = ['auto', 'off'] as const
+const MOMENTS = [undefined, 'arrival', 'dressing', 'ending'] as const
 const OTHER_SETS = SETTINGS.theme.values.filter(set => set !== ART.defaultSet)
 const isDrawn = (layer: Layer) => /[^.\s]/.test(layer.rows)
 
@@ -27,13 +28,15 @@ test('the art holds the four sets the theme setting names, each with 17 outfits,
   }
 })
 
-test('switching the set changes every dressed sprite, in every pose and either motion (F-27)', () => {
+test('switching the set changes every dressed sprite, in every pose, moment and either motion (F-27)', () => {
   for (const set of OTHER_SETS) {
     for (const role of ROLE_IDS) {
       for (const pose of POSES) {
         for (const motion of MOTIONS) {
-          const look: Look = { set, role, pose, motion }
-          expect([look, sprite(look).source === sprite({ ...look, set: ART.defaultSet }).source]).toEqual([look, false])
+          for (const moment of MOMENTS) {
+            const look: Look = { set, role, pose, motion, ...(moment === undefined ? {} : { moment }) }
+            expect([look, sprite(look).source === sprite({ ...look, set: ART.defaultSet }).source]).toEqual([look, false])
+          }
         }
       }
     }
@@ -66,9 +69,11 @@ test('a fictional set of two roles draws those two and falls back to classic for
   for (const role of ROLE_IDS) {
     for (const pose of POSES) {
       for (const motion of MOTIONS) {
-        const look: Look = { set: 'tiny', role, pose, motion }
-        const isSame = drawSprite(TINY, look).source === drawSprite(TINY, { ...look, set: ART.defaultSet }).source
-        expect([look, isSame]).toEqual([look, !own.includes(role)])
+        for (const moment of MOMENTS) {
+          const look: Look = { set: 'tiny', role, pose, motion, ...(moment === undefined ? {} : { moment }) }
+          const isSame = drawSprite(TINY, look).source === drawSprite(TINY, { ...look, set: ART.defaultSet }).source
+          expect([look, isSame]).toEqual([look, !own.includes(role)])
+        }
       }
     }
   }
@@ -101,10 +106,11 @@ async function drawnOn($: Engine, surface: (typeof SURFACES)[number]): Promise<S
 test('/possums set theme redraws the pane in that set: every sprite changes, and no role name or other text (F-27)', async ($, on) => {
   engine(on)
   store(on)
-  mock.clock(on, { now: 1_000 })
+  const clock = mock.clock(on, { now: 1_000 })
   on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: 'agent-1' }))
-  // An Explore agent is a Scout from its spawn.
+  // An Explore agent is a Scout from its spawn; past its arrival it stands still.
   await $.agent.spawn(SPAWN)
+  await clock.advance(5_000)
   const looks = (set: string) => [
     sprite({ set, role: 'lead', pose: 'idle', motion: 'auto' }).source,
     sprite({ set, role: 'scout', pose: 'starting', motion: 'auto' }).source,

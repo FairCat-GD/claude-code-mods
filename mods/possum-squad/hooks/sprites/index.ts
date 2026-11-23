@@ -2,13 +2,14 @@ import type { RoleId } from '../../types/index'
 import { ANIMATION_STEP_MS } from '../config'
 import { blank, type Dress, frameGrid, over } from './compose'
 import { ART } from './data'
-import { COLOURINGS, type Pose, STILL, stillFrame, workLoop } from './recipes'
+import { animationOf, COLOURINGS, type Moment, type Pose, playable, STILL, settledFrame, stillFrame } from './recipes'
 import { greyed, loopSvg, stillSvg } from './svg'
 import type { Art, ArtRole } from './types'
 
-export type { Pose } from './recipes'
+export type { Moment, Pose } from './recipes'
 
-export type Look = { set: string; role?: string; pose: Pose; motion: 'auto' | 'off' }
+// `moment` is a one-off to play, around its time; `isRepeated` plays it again after a rest, as the gallery does.
+export type Look = { set: string; role?: string; pose: Pose; motion: 'auto' | 'off'; moment?: Moment; isRepeated?: boolean }
 // Its size in the art's pixels.
 export type Sprite = { source: string; isAnimated: boolean; width: number; height: number }
 
@@ -39,10 +40,23 @@ export function galleryOf(art: Art, set: string): Gallery {
   return { title: shown?.title ?? set, roles: ids.map(id => ({ id, costume: costumeOf(art, set, id) ?? '' })) }
 }
 
-// The work loop is the one animation; every other pose, and every pose with motion off, is still. A pose whose recipe
-// colours it in words is drawn so, faded by its opacity.
-export function drawSprite(art: Art, look: Look): Sprite {
-  const pose: Pose = own(STILL, look.pose) === undefined ? 'idle' : look.pose
+// A look as it is drawn: an unknown pose idle; with motion off no moment; a moment its pose has no one-off for, or a
+// dressing with no role, none; an arrival standing as starting does, whatever the run's state.
+function normalised(look: Look): Look {
+  const asked: Pose = own(STILL, look.pose) === undefined ? 'idle' : look.pose
+  const moment = look.motion === 'off' || (look.moment === 'dressing' && look.role === undefined) ? undefined : playable(asked, look.moment)
+  const shown: Look = { set: look.set, pose: moment === 'arrival' ? 'starting' : asked, motion: look.motion }
+  if (look.role !== undefined) shown.role = look.role
+  if (moment !== undefined) shown.moment = moment
+  if (moment !== undefined && look.isRepeated === true) shown.isRepeated = true
+  return shown
+}
+
+// With motion on, a moment's one-off or the pose's own loop moves; a still pose is drawn where its one-off settles.
+// With motion off every pose is its still. A pose whose recipe colours it in words is drawn so, faded by its opacity.
+export function drawSprite(art: Art, asked: Look): Sprite {
+  const look = normalised(asked)
+  const { pose } = look
   const dress = dressOf(art, look.set, look.role)
   const colourOf = (key: string) => art.palette[key] ?? '#000000'
   const still = frameGrid(art, dress, stillFrame(art, pose))
@@ -53,17 +67,18 @@ export function drawSprite(art: Art, look: Look): Sprite {
     const opacity = Math.round((1 - colouring.fade) * 100) / 100
     return { source: stillSvg(still, key => greyed(colourOf(key), colouring.grey), opacity), isAnimated: false, ...size }
   }
-  if (look.motion === 'auto' && pose === 'working') {
-    return { source: loopSvg(workLoop(art, dress), still, colourOf, ANIMATION_STEP_MS), isAnimated: true, ...size }
-  }
-  return { source: stillSvg(still, colourOf), isAnimated: false, ...size }
+  if (look.motion === 'off') return { source: stillSvg(still, colourOf), isAnimated: false, ...size }
+  const moving = animationOf(art, dress, pose, look.moment, look.isRepeated === true)
+  if (moving !== undefined) return { source: loopSvg(moving, still, colourOf, ANIMATION_STEP_MS), isAnimated: true, ...size }
+  return { source: stillSvg(frameGrid(art, dress, settledFrame(art, pose)), colourOf), isAnimated: false, ...size }
 }
 
 // Each look's sprite is written once: the strings stay the same between redraws, so a running loop is never restarted.
 const cache = new Map<string, Sprite>()
 
-export function sprite(look: Look): Sprite {
-  const key = [look.set, look.role ?? '', look.pose, look.motion].join('|')
+export function sprite(asked: Look): Sprite {
+  const look = normalised(asked)
+  const key = [look.set, look.role ?? '', look.pose, look.motion, look.moment ?? '', look.isRepeated === true ? 'again' : ''].join('|')
   const known = cache.get(key)
   if (known !== undefined) return known
   const drawn = drawSprite(ART, look)
