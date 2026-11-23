@@ -134,6 +134,16 @@ test("any close the engine does not refuse ends an open gallery; only the person
   expect(await readView()).toEqual({ isClosedByPerson: false, isGalleryOpen: true })
 })
 
+test('any close the engine does not refuse ends an open role picker, so the pane opens on the list', async () => {
+  const hook = closeHook()
+  for (const kind of ['plugin', 'unload', 'person'] as const) {
+    const { $, read: readView } = stateOnly()
+    await update($ as never, view, flags => ({ ...flags, pickerFor: 3 }))
+    await hook($, { id: PANE, origin: { kind } }, async () => ({ value: undefined }))
+    expect([kind, await readView()]).toEqual([kind, { isClosedByPerson: kind === 'person', isGalleryOpen: false }])
+  }
+})
+
 test('a close by the person whose flag cannot be written still goes on as the engine gave it', async () => {
   const hook = closeHook()
   const failing = {

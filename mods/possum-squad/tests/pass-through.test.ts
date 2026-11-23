@@ -94,7 +94,8 @@ test('watching leaves every tool call alone: the mod hooks neither tool.call nor
   expect(hooks.has('tool.run')).toBe(false)
 })
 
-// The hooks run here on their own, with a `$` whose state and clock refuse every call, and a `next` standing for the engine.
+// The hooks run here on their own, with a `$` whose state, store, clock and panes refuse every call, and a `next` standing
+// for the engine.
 test('a fault in reading or recording an event never changes what the engine gave (I-05)', async () => {
   const { hooks } = hooksOf()
   const refusing = {
@@ -104,6 +105,14 @@ test('a fault in reading or recording an event never changes what the engine gav
       get: async () => Promise.reject(new Error('the fixture state refuses reads')),
       set: async () => Promise.reject(new Error('the fixture state refuses writes')),
     },
+    store: {
+      get: async () => Promise.reject(new Error('the fixture store refuses reads')),
+      set: async () => Promise.reject(new Error('the fixture store refuses writes')),
+    },
+    ui: {
+      panes: async () => Promise.reject(new Error('the fixture refuses the panes')),
+      open: async () => Promise.reject(new Error('the fixture refuses an open')),
+    },
   }
   type Plain = ($: unknown, e: unknown, next: (e: unknown) => Promise<unknown>) => Promise<unknown>
   const plain = (event: string) => hooks.get(event) as unknown as Plain
@@ -111,6 +120,8 @@ test('a fault in reading or recording an event never changes what the engine gav
   const cases: [string, unknown, unknown][] = [
     ['session.start', SESSION_START, STARTED],
     ['agent.spawn', SPAWN, SPAWNED],
+    // A custom type reads its remembered pick from the store first.
+    ['agent.spawn', { ...SPAWN, subagentType: 'shed-keeper' }, SPAWNED],
     ['turn.start', TURN_START, TURN_STARTED],
     ['turn.complete', TURN_COMPLETE, TURN_COMPLETED],
     ['turn.complete', mainEnd, TURN_COMPLETED],

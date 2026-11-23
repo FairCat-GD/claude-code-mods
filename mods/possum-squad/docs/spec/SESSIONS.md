@@ -1494,6 +1494,99 @@ and `$.store`* (`role:<agent type>`), *Roles*, *The run model*, *The panel*, *At
 **Watch for:**
 - **An `Svg` takes no press;** a press goes on an enclosing element.
 
+
+**Done (2026-11-23, 0.10.0).**
+- **Decided with the user:**
+  - **At the start:** 0.7.0 to 0.9.0 were not looked at in the desktop app; the user asked the
+    session to check everything itself. It could not: computer use never grants control of, or
+    a picture of, Claude's own window. The backlog item stays, and 0.10.0 joins it.
+  - **What opens the picker:** the row's role name, a `Button`, "Pick a role" while plain, on
+    both surfaces. Nothing can press a sprite on 2.1.330.
+  - **A pick hops:** `Role.at` is the pick's time, so a live row plays the dressing.
+  - **Reopening resets the close:** `/possums`, `open` or `roles` opening or raising the pane
+    clears `view.isClosedByPerson`. This settles what Session 1 left open.
+  - **At the plan, approved:**
+    - the picker offers sixteen roles, without Lead;
+    - only a close with the close mark or key is the person's;
+    - no stored miss counter for H1.
+  - **Confirms:** *Values* (`role:<agent type>`, one key per type) and *Attention*
+    (auto-open), confirmed as built.
+- **Shipped:**
+  - **The model and roles.**
+    - `RoleSource` gains `manual`;
+    - `reassigned` and `runOf` (`hooks/model/runs.ts`), and `isEmpty` for the first agent;
+    - `PICKABLE`, `isPickable`, `rememberedOf` and `isCustomType` (`hooks/roles/rules.ts`), with
+      `atSpawn` taking the remembered pick, which `detect` takes for a custom type only;
+    - `runs` stays `runs-4`.
+  - **The adapter** (`hooks/register.tsx`):
+    - `writeStore` takes `role:<agent type>` with a role id;
+    - the spawn reads the remembered pick (`rememberedFor`), and starts `autoOpen` unawaited,
+      knowing from inside its write whether its row starts the list;
+    - `forgetClose` runs on an open or a raise;
+    - the picker's `toggleRole`, `closePicker` and `pickRole`;
+    - `ui.close` drops the picker;
+    - `view` is `view-3`, with `pickerFor`.
+  - **The view:**
+    - line 2 is the role's `Button` (`role-<row id>`), then the model and effort;
+    - while the row's picker is open, a `Select` (`role-pick`) and `cancel` (`role-cancel`);
+    - `RowData.order`, `RolePicker`, and `panel` binding each row's closures;
+    - `STRINGS.picker`.
+  - **Docs:**
+    - `CHANGELOG.md` 0.10.0; `USER-GUIDE.md` (*Changing a role*, when the pane opens);
+      `README.md`; the mod's `CLAUDE.md` (`view-3`, `role:<agent type>`);
+    - `ARCHITECTURE.md`: Built for *Overview*, *The hooks*, *Values*, *Roles*, *The panel* and
+      *Attention*; I-03's, I-07's and N-07's lines; four known-debt lines; the baseline; six
+      Decision log lines;
+    - `docs/BACKLOG.md`: forgetting a remembered role, and the desktop items for 0.10.0.
+- **Amendments:**
+  - **The role's name opens the picker, not the sprite:** an `Svg` takes no press, and a
+    `Button` holds only text. Decided with the user at the start.
+  - **Sixteen roles, not seventeen:** Lead is the main session's alone (*Roles*). Approved
+    with the plan.
+  - **F-10's "close by the person" runs over a stand-in `$`,** through the mod's own hooks: the
+    kit's `$` has no `ui.close`. The session's finding, as `tests/panel.test.ts` already does
+    for the close.
+  - **F-08's needs-you and quiet are drawn through `panel` from fixture rows:** no event
+    reaches them until Session 10. The other five states are driven by events.
+- **Measured** (CLI 2.1.330, in the kit):
+  - the unawaited open lands before the spawn's call returns; three agents spawned at once
+    opened the pane once;
+  - the kit's `$.ui` holds `focus`, `input`, `mount`, `press`, `render`, `scroll` and `select`,
+    with no `close`;
+  - the kit refuses a pick that is not among a `Select`'s options before the mod hears it.
+    Another plugin's `ui.select` hook, matched to the mod's elements, does rewrite the value;
+  - `validate` unchanged: 11 hooks, 4 gating each with a `.catch`, 3 state keys, the same
+    calls (`$.store.get` now also via `autoOpen` and `rememberedFor`, `$.ui.open` and
+    `$.ui.panes` via `autoOpen`).
+- **Checked by hand:**
+  - **In the terminal,** `claude --plugin-dir mods/possum-squad` driven through `screen` at
+    120 columns, the `@inline` copy at `autoOpen` `first` and `theme` `horror`, left as found:
+    - `/possums` opened and hid the pane;
+    - the session's first agent, an Explore "Find the strings table", opened it by itself,
+      docked;
+    - the row read `[ Scout ] claude-opus-5-5 · medium`, finished;
+    - hidden again with `/possums`, a second Explore agent opened nothing.
+  - **The terminal's picker was not pressed:** ctrl+x, tab through `screen` did not visibly move
+    the focus, as in Session 7. The kit presses it on both surfaces.
+  - **Not seen:** the desktop (`docs/BACKLOG.md`).
+- **Falsified,** each failing at its own test, 23 breaks:
+  - the pick: a pick doing nothing; no remembered read; the remembered rule after the
+    description; a generic type remembered; the guard on pickable values gone; no hop;
+    Lead offered; a second press reopening; a refused store blocking the pick; agent text
+    stored; the remembered read unguarded;
+  - auto-open: `first` opening on every agent; the first decided outside the write; the first
+    judged by spawn count; the person's close ignored; an open pane opened again; the open
+    asking for the keys; no forgetting the close; a resume opening; `never` ignored;
+  - the view: a close keeping the picker; a row drawing another state's frame (twice, by the
+    panel and by the row data).
+- **Numbers:**
+  - 192 tests (+26) in 18 files (+2): auto-open 9 (new), clock 13, command 11, compose 8,
+    gallery 9, header 8, model 31 (+2), pane-sprites 8 (+3), panel 10 (+1), pass-through 5,
+    picker 10 (new), prefs 5 (+1), roles 9, row 8, runs 17, sets 6, settle 12, sprites 13;
+    about 13 s;
+  - the tools' specs unchanged: 10 in 2 files;
+  - the gate green on CLI 2.1.330.
+
 ---
 
 ## 10: Attention

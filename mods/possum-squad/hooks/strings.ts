@@ -93,6 +93,12 @@ export const STRINGS = {
     states: 'States',
     roles: 'Roles',
   },
+  // A row's role picker: its button while the row is plain, the picker's label, and its way out.
+  picker: {
+    pick: 'Pick a role',
+    label: 'Role',
+    cancel: 'cancel',
+  },
   // What a sprite shows, for a reader that cannot see it.
   sprite: {
     plain: 'Opossum',

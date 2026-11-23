@@ -26,7 +26,7 @@ export function momentOf(run: Run, now: number): Moment | undefined {
 
 // A run as its row shows it, given the figures the model worked out for it and the time it is drawn at.
 export function rowData(run: Run, key: string, figures: { tokens: number; elapsedMs: number; contextPercent?: number }, now: number): RowData {
-  const row: RowData = { id: key, state: run.state, description: run.description, ...figures }
+  const row: RowData = { id: key, order: run.order, state: run.state, description: run.description, ...figures }
   const moment = momentOf(run, now)
   if (moment !== undefined) row.moment = moment
   if (run.role !== undefined) {

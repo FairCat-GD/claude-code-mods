@@ -1,15 +1,15 @@
-import type { ButtonProps, ElementConstructor, RenderElement, SvgProps } from 'claude-code'
+import type { ElementConstructor, RenderElement, SvgProps } from 'claude-code'
 
 import type { StateId } from '../../types/index'
 import { type Gallery, sprite, squad } from '../sprites'
 import { STRINGS } from '../strings'
-import { emptyPanel, type Shared } from './empty'
+import { emptyPanel } from './empty'
 import { desktopGallery, terminalGallery } from './gallery'
 import { desktopLead, type LeadData, type SessionData, sessionLine, terminalLead } from './lead'
-import { type DesktopTable, desktopRow, type RowData, terminalRow } from './row'
+import { type DesktopTable, desktopRow, type RolePicker, type RowData, type RowTable, terminalRow } from './row'
 import { spriteElement } from './sprite'
 
-export type PanelTable = Shared & { Button: ElementConstructor<ButtonProps> }
+export type PanelTable = RowTable
 
 export type PanelData = {
   lead: LeadData
@@ -21,9 +21,18 @@ export type PanelData = {
   look: { set: string; motion: 'auto' | 'off' }
   // Drawn in the list's place while `/possums roles` has it open.
   gallery?: Gallery
+  // The run whose role picker is open, by its spawn order.
+  pickerFor?: number
 }
 
-export type PanelActions = { onToggleFinished: () => void; onCloseGallery: () => void }
+export type PanelActions = {
+  onToggleFinished: () => void
+  onCloseGallery: () => void
+  // A row's role button, a pick from its picker, and the picker's way out; each names the run by its spawn order.
+  onToggleRole: (order: number) => void
+  onPickRole: (order: number, value: string) => void
+  onCancelRole: () => void
+}
 
 export type SectionId = keyof typeof STRINGS.sections
 
@@ -51,7 +60,13 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
       STRINGS.sprite.alt(one.role ?? STRINGS.sprite.plain, STRINGS.states[one.moment === 'arrival' ? 'starting' : one.state]),
     )
   const leadSprite = Svg && spriteElement(Svg, sprite({ set, role: 'lead', pose: 'idle', motion }), STRINGS.roles.lead)
-  const row = (one: RowData) => (asText ? terminalRow(table, one) : desktopRow(table, one, rowSprite(one)))
+  const pickerOf = (one: RowData): RolePicker => ({
+    isOpen: data.pickerFor === one.order,
+    onToggle: () => actions.onToggleRole(one.order),
+    onPick: value => actions.onPickRole(one.order, value),
+    onCancel: actions.onCancelRole,
+  })
+  const row = (one: RowData) => (asText ? terminalRow(table, one, pickerOf(one)) : desktopRow(table, one, pickerOf(one), rowSprite(one)))
   const sections = SECTIONS.map(section => ({ ...section, rows: data.rows.filter(one => section.states.includes(one.state)) })).filter(
     section => section.id === 'running' || section.rows.length > 0,
   )

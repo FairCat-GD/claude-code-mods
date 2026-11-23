@@ -90,9 +90,9 @@ test('a set the art does not hold draws, names and titles as the default set', (
   expect(costumeOf(ART, 'classic', 'mime')).toBeUndefined()
 })
 
-type Seen = { sprites: { alt: string; source: string }[]; texts: string[] }
+type Seen = { sprites: { alt: string; source: string }[]; texts: string[]; labels: string[] }
 
-// What the pane draws on a surface: its sprites and its text.
+// What the pane draws on a surface: its sprites, its text and its buttons' labels.
 async function drawnOn($: Engine, surface: (typeof SURFACES)[number]): Promise<Seen> {
   const pane = await $.ui.mount({ ...MOUNT, surface })
   const elements = await pane.findAll({})
@@ -100,6 +100,7 @@ async function drawnOn($: Engine, surface: (typeof SURFACES)[number]): Promise<S
   return {
     sprites: elements.filter(element => element.type === 'Svg').map(element => element.props as Seen['sprites'][number]),
     texts: elements.filter(element => element.type === 'Text').map(element => element.text),
+    labels: elements.filter(element => element.type === 'Button').map(element => String(element.props.label)),
   }
 }
 
@@ -120,8 +121,8 @@ test('/possums set theme redraws the pane in that set: every sprite changes, and
     await $.command.run(possums('set theme horror'))
     const after = await drawnOn($, surface)
     await $.command.run(possums('set theme classic'))
-    expect([surface, after.texts]).toEqual([surface, before.texts])
-    expect(before.texts.some(text => text.includes(STRINGS.roles.scout))).toBe(true)
+    expect([surface, after.texts, after.labels]).toEqual([surface, before.texts, before.labels])
+    expect(before.labels).toContain(STRINGS.roles.scout)
     if (surface === 'terminal') {
       expect([before.sprites, after.sprites]).toEqual([[], []])
       continue

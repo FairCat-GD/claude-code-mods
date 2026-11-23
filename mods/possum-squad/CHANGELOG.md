@@ -6,6 +6,32 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-11-23
+
+Pick a role, and the pane opens by itself.
+
+### Added
+
+- **Pick an agent's role:** each row's role name, or "Pick a role" while it has none, is a
+  button. Press it and choose from the sixteen roles; the row takes the role at once, and a
+  working opossum hops into its new outfit. `cancel` or a second press closes the list without
+  a change. A role you pick is never changed by what the agent does next.
+- **Picks are remembered for your own agent types:** pick a role for an agent of a custom type
+  and every later agent of that type starts in it. Picks for the built-in and general-purpose
+  agents apply to that one run only, since every such agent shares the type.
+- **The pane opens by itself** as `autoOpen` says: with `first`, the default, when the
+  session's first agent starts, and again after `/clear`; with `always`, whenever a new agent
+  starts and the pane is closed; with `never`, only through `/possums`. It never takes the
+  keyboard, and never brings forward a pane that is already open behind another.
+
+### Changed
+
+- **A pane you close with its close mark stays closed** for the rest of the session: no agent
+  opens it again. Opening it yourself with `/possums` takes that back.
+- **On a terminal, a row's role is drawn as a button,** `[ Builder ]`, before the model and
+  effort.
+- A close you made this session is forgotten once when this version is installed mid-session.
+
 ## [0.9.0] — 2026-11-23
 
 Every state moves.

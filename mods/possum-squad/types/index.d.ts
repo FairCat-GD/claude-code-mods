@@ -4,6 +4,8 @@ export type View = {
   isClosedByPerson: boolean
   // `/possums roles` drew the gallery in the list's place; its close button or any close of the pane ends it.
   isGalleryOpen: boolean
+  // The run whose role picker is open, by its spawn order, which its re-key leaves alone.
+  pickerFor?: number
 }
 
 // A run's state, by its id; `planned` is reserved.
@@ -35,8 +37,8 @@ export type RoleId =
   | 'pilot'
   | 'helper'
 
-// The rule that settled a role; nothing calls `stated` or `remembered`.
-export type RoleSource = 'stated' | 'remembered' | 'type' | 'name' | 'keywords' | 'tools' | 'fallback'
+// The rule that settled a role, or the person's pick (`manual`); nothing calls `stated`.
+export type RoleSource = 'stated' | 'remembered' | 'type' | 'name' | 'keywords' | 'tools' | 'fallback' | 'manual'
 
 // `at`: the clock's time it settled, which cues the hop into its outfit; absent when the clock could not be read.
 export type Role = { id: RoleId; source: RoleSource; at?: number }
@@ -52,7 +54,7 @@ export type Run = {
   round: number
   isTeammate: boolean
   state: StateId
-  // Absent until a rule settles it, so the row draws plain; never changed after (I-07).
+  // Absent until a rule settles it, so the row draws plain; after, only the person's pick changes it (I-07).
   role?: Role
   // Reads and searches seen while the role is unsettled.
   weakCalls?: number

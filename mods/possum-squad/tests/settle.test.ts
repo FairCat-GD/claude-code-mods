@@ -4,7 +4,7 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 import { ROLE_SETTLES_MS } from '../hooks/config'
 import { detect } from '../hooks/roles/rules'
 import { STRINGS } from '../hooks/strings'
-import { engine, MOUNT, POSSUMS, SURFACES, store } from './engine'
+import { engine, MOUNT, POSSUMS, possums, SURFACES, store } from './engine'
 import { CORPUS } from './fixtures/role-corpus'
 import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 
@@ -71,19 +71,19 @@ const step = ($: Engine, agentId: string) => drain($.turn.step({ ...STEP, agentI
 const start = ($: Engine, agentId: string) => $.turn.start({ ...TURN_START, agentId })
 const complete = ($: Engine, agentId: string, answer: string = TURN_COMPLETE.answer) => $.turn.complete({ ...TURN_COMPLETE, agentId, answer } as never)
 
-// On each surface, the role name the row with this description draws on its second line, which follows its
-// description and state word; undefined while it draws plain.
+// On each surface, the role name the row with this description draws on its second line, its role button, which is
+// the first button after its description; undefined while it draws plain.
 async function roleDrawn($: Engine, description: string) {
-  const names = Object.values(STRINGS.roles)
+  const names: readonly string[] = Object.values(STRINGS.roles)
   const drawn: (string | undefined)[] = []
   for (const surface of SURFACES) {
     const pane = await $.ui.mount({ ...MOUNT, surface })
-    const texts = (await pane.findAll({ type: 'Text' })).map(text => text.text ?? '')
+    const elements = await pane.findAll({})
     await pane.unmount()
-    const at = texts.indexOf(description)
+    const at = elements.findIndex(element => element.type === 'Text' && element.text === description)
     expect(at).toBeGreaterThanOrEqual(0)
-    const details = texts[at + 2] ?? ''
-    drawn.push(names.find(name => details === name || details.startsWith(`${name}${STRINGS.row.separator}`)))
+    const label = elements.slice(at).find(element => element.type === 'Button')?.props.label
+    drawn.push(names.find(name => name === label))
   }
   return drawn
 }
@@ -115,6 +115,8 @@ test('with the pane open and no call at all, the clock settles Helper at T-04 (F
 
 test('with the pane closed, a step past T-04 settles Helper before its calls count', async ($, on) => {
   const { clock, queue } = world(on)
+  // The pane stays closed: nothing opens it by itself.
+  await $.command.run(possums('set autoOpen never'))
   await $.agent.spawn(GENERIC)
   await start($, 'agent-1')
   await clock.advance(ROLE_SETTLES_MS + 5_000)

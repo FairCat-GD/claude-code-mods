@@ -15,7 +15,7 @@ const SESSION = { tokens: 254_000, workedMs: 252_000 }
 const stateOf = (states: readonly string[]) => ROWS.filter(row => states.includes(row.state))
 const ENDED = ['finished', 'failed', 'stopped']
 const LOOK = { set: 'classic', motion: 'auto' } as const
-const NO_ACTIONS = { onToggleFinished: () => {}, onCloseGallery: () => {} }
+const NO_ACTIONS = { onToggleFinished: () => {}, onCloseGallery: () => {}, onToggleRole: () => {}, onPickRole: () => {}, onCancelRole: () => {} }
 
 // The panels a fixture draws, by request id.
 const PANELS: Record<string, PanelData> = {
@@ -44,7 +44,7 @@ async function drawn($: Engine, surface: Surface, requestId: string = MOUNT.requ
   const pane = await $.ui.mount({ ...MOUNT, requestId, surface })
   const elements = await pane.findAll({})
   const texts = (await pane.findAll({ type: 'Text' })).map(text => text.text)
-  const button = await pane.find({ type: 'Button' })
+  const button = await pane.find({ type: 'Button', key: 'finished' })
   await pane.unmount()
   return { elements, texts, button }
 }

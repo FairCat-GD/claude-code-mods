@@ -8,9 +8,12 @@ import {
   endingOf,
   fellBack,
   figures,
+  isEmpty,
   keepsClock,
   NO_RUNS,
   PENDING_KEPT,
+  reassigned,
+  runOf,
   type Spawn,
   type Step,
   shownRuns,
@@ -327,6 +330,36 @@ test('a settled role never changes on later calls, whatever settled it (I-07)', 
     expect(later.rows['agent-1']?.role).toEqual(settledAt(role, 0))
     expect(fellBack(later, 1_000_000, HELPER).rows['agent-1']?.role).toEqual(settledAt(role, 0))
   }
+})
+
+test("the person's pick replaces a settled role or settles a plain one, and stands against later calls and the fallback (I-07)", () => {
+  const PICKED: Role = { id: 'tester', source: 'manual', at: 50 }
+  for (const role of [BUILDER, undefined]) {
+    const searched = stepped(turnStarted(spawned(NO_RUNS, { ...RAKES, ...(role === undefined ? {} : { role }) }, 'agent-1'), 'agent-1'), 'agent-1', {
+      ...STEP,
+      tools: { weak: 3 },
+    })
+    const order = searched.rows['agent-1']?.order as number
+    const picked = reassigned(searched, order, PICKED)
+    expect([picked.rows['agent-1']?.role, picked.rows['agent-1']?.weakCalls]).toEqual([PICKED, undefined])
+    expect(runOf(picked, order)?.description).toBe(RAKES.description)
+    const later = stepped(picked, 'agent-1', { ...STEP, tools: { weak: 0, role: RESEARCHER }, at: 60 })
+    expect(later.rows['agent-1']?.role).toEqual(PICKED)
+    expect(fellBack(turnEnded(later, 'agent-1', ANSWERED, 70), 1_000_000, HELPER).rows['agent-1']?.role).toEqual(PICKED)
+  }
+  // A run that is gone, or never was, changes nothing.
+  expect(reassigned(NO_RUNS, 0, PICKED)).toBe(NO_RUNS)
+  // Before its re-key, a row is found by its spawn order all the same.
+  const opened = spawnOpened(NO_RUNS, RAKES, 0)
+  expect(reassigned(opened, 0, PICKED).rows[RAKES.key]?.role).toEqual(PICKED)
+})
+
+test('the list is empty until an agent has a row, and stays so for a run that was refused', () => {
+  expect(isEmpty(NO_RUNS)).toBe(true)
+  const opened = spawnOpened(NO_RUNS, RAKES, 0)
+  expect(isEmpty(opened)).toBe(false)
+  expect(isEmpty(spawnSettled(opened, RAKES, { isDenied: true }, 1))).toBe(true)
+  expect(isEmpty(cleared(spawned(NO_RUNS, RAKES, 'agent-1')))).toBe(true)
 })
 
 test("an unsettled run counts its weak calls until a step's calls settle it", () => {

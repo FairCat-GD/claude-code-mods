@@ -32,22 +32,26 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.9.0). The Lead, header, sections, roles, sprites in every set with every state's
-animation, and the gallery.
+**Built** (0.10.0). The Lead, header, sections, roles with the person's picker, sprites in every
+set with every state's animation, the gallery, and auto-open.
 `hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `roles`, `set` and `settings`;
 - toggles and draws the pane: the Lead row and the session line, then the sections of subagent
   runs, the empty panel's line, or the gallery; on every surface but the terminal, each with
   its sprite, in the set `prefs.theme` names;
 - turns subagents' spawns, turns and steps into records, and keeps the runs in `runs`;
-- settles each run's role from its type, its description and its first calls, and Helper at
-  T-04 or at its end;
+- settles each run's role from the person's pick remembered for its custom type, its type, its
+  description and its first calls, and Helper at T-04 or at its end; a row's role button opens
+  a picker whose choice reassigns that run, and is remembered for a custom type;
+- opens the pane by itself when an agent starts, as `prefs.autoOpen` says, unless the person
+  closed it;
 - keeps the main session's context, tokens and time in `lead`;
 - runs the one-second clock while the pane is open and a run is live, or a run's role may still
   fall back to Helper;
 - empties `runs` and `lead` when the session is cleared, resumed or forked;
-- keeps the settings and Finished's flag in the store under `prefs`, and in `view` a close by the
-  person and whether the gallery is open;
+- keeps the settings and Finished's flag in the store under `prefs`, and each custom type's
+  picked role under `role:<agent type>`; in `view`, a close by the person, whether the gallery
+  is open, and which row's picker is;
 - passes every event on unchanged.
 
 Of the pure modules:
@@ -379,10 +383,12 @@ How it is held:
 6. **I-03: no text from a brief, an answer, a file path or a tool argument is written to the
    store or to a log.** *Why:* that text is the owner's work, and the panel has no need to keep
    it. *Enforced by* `writeStore` in `hooks/register.tsx`, the one function that writes the
-   store: its payload type holds only setting values and panel flags (role ids and agent type
-   names join it at Session 9). And by `tests/prefs.test.ts`: after fixture agent events, a
-   press of Finished's show button on each surface and a change of every setting, every write
-   holds only those fields, and no fixture brief, description, answer or path.
+   store: its payload type holds only setting values and panel flags, or an agent type's name
+   in the key `role:<agent type>` and a role id as its value. And by `tests/prefs.test.ts`:
+   after fixture agent events, a press of Finished's show button on each surface and a change
+   of every setting, every write holds only those fields, and no fixture brief, description,
+   answer or path; a pick on each surface for a custom type writes only its key and the role
+   id, and neither the agent's brief nor its description.
 7. **I-04: agent-supplied text is drawn only as plain `Text`,** never inside an `Svg`, never as
    `Markdown`. *Why:* it may carry markup or links. *Enforced by* `tests/row.test.ts`, on both
    surfaces. Every fixture row's description and activity is drawn whole, in a `Text` of its
@@ -408,9 +414,11 @@ How it is held:
 10. **I-07: a run's outfit never changes once its role is settled,** except by the person's own
     reassignment. *Why:* a changing outfit misleads. *Enforced by* the model: evidence reaches a
     run only through `withEvidence` in `hooks/model/runs.ts`, which leaves a run with a role as
-    it is, and `fellBack` settles only a run with none. `tests/model.test.ts` checks a role
-    settled by words, by calls and by the fallback against a later decisive call and the
-    fallback; `tests/settle.test.ts` checks it by events, past T-04 and at the run's end.
+    it is, and `fellBack` settles only a run with none. The person's pick reaches it only
+    through `reassigned`, called from the picker alone. `tests/model.test.ts` checks a role
+    settled by words, by calls and by the fallback, and one the person picked, against a later
+    decisive call and the fallback; `tests/settle.test.ts` checks it by events, past T-04 and at
+    the run's end; `tests/picker.test.ts` checks a pick on each surface.
 11. **I-08: no art or code from another mod, and no likeness of another party's mascot or of a
     film, game or cartoon character.** *Why:* the mod and its art are published under MIT.
     *Enforced by* review; every sprite originates from `art/`.
@@ -423,6 +431,8 @@ How it is held:
 13. **N-07: the mod's own work per event stays under 5 ms, and it awaits nothing but `next`, state,
     store and the clock's time in event hooks.** *Why:* every event of every session passes through it. *Enforced
     by* review. Arming the clock calls `$.clock.every`, which is synchronous: nothing waits on it.
+    Auto-open asks for the panes and opens one, which N-07 does not allow a hook to await, so
+    the spawn's hook starts it unawaited (`void autoOpen`), its every fault caught inside.
     The role rules read a shell command whole: a subagent's step whose call ran a 1 MB command
     took 2.0 to 2.6 ms in the kit, and the rules alone 3.8 ms on it (CLI 2.1.329).
 14. **Nothing private enters the repository.** *Why:* the repository's whole history will be
@@ -482,9 +492,14 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   `$.clock.now()` first, inside the same `try`. A spawn and an end need the time, so they use
   `recordAt`; `turn.start` uses `record`. A subagent's step reads the time apart, so a clock
   that cannot be read loses only its Helper check, and records it with `record`.
-  - `agent.spawn` records its row's opening before `next`, then its settling after, each with
-    the role its type and description settle (`atSpawn`), worked out inside the guard. If
-    `next` rejects, it records a settling with no agent, which removes the row, and throws on.
+  - `agent.spawn` first reads, for a custom type only, the role the person picked for it
+    (`rememberedFor`, `role:<agent type>`, guarded). It records its row's opening before `next`,
+    then its settling after, each with the role that pick, its type and its description settle
+    (`atSpawn`), worked out inside the guard. If `next` rejects, it records a settling with no
+    agent, which removes the row, and throws on. A new agent (no resume) then starts
+    `autoOpen` unawaited (*Attention*): at the opening, or at the settling for a fork no tool
+    call starts. Whether its row starts the list is set inside the write's change, so the try
+    the engine keeps decides it, and agents spawned together open the pane once.
   - `turn.start` and `turn.step` record only an event that carries `agentId`: the main loop's
     make no `$` call.
   - `turn.step` delegates every chunk (`const result = yield* next(e)`), then records the
@@ -551,14 +566,22 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 `PluginState['possum-squad']` with `view` as `Shaped<View>`, `runs` as `Shaped<Runs>` and `lead`
 as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `types`, and
 `validate` holds the module's state keys to it.
-- `view` (gallery 0.8.0) is `{ isClosedByPerson, isGalleryOpen }`, both booleans, default
-  false (`NO_FLAGS`), the atom in `hooks/register.tsx` with the shape tag `view-2`. A reload of
-  the mod's code that names another tag reads the value as absent, so the tag changes whenever
-  `View`'s fields do. Peek's run joins it in Session 11.
-- Three writers, each through `update`: the `ui.close` hook (*The hooks*), `/possums roles`,
-  which sets `isGalleryOpen`, and the gallery's close button, which clears it. The pane reads
-  it while drawing, so each write redraws it; a refused read draws the list. Nothing reads
-  `isClosedByPerson` yet (auto-open, Session 9).
+- `view` (gallery 0.8.0; the picker 0.10.0) is `{ isClosedByPerson, isGalleryOpen,
+  pickerFor? }`: two booleans, default false (`NO_FLAGS`), and the spawn order of the run whose
+  role picker is open, absent while none is. It is the atom in `hooks/register.tsx` with the
+  shape tag `view-3`. A reload of the mod's code that names another tag reads the value as
+  absent, so the tag changes whenever `View`'s fields do. Peek's run joins it in Session 11.
+- Its writers, each through `update`:
+  - the `ui.close` hook (*The hooks*), which also drops `pickerFor`;
+  - `/possums roles`, which sets `isGalleryOpen`, and the gallery's close button, which clears
+    it;
+  - an open or a raise by `/possums`, `open` or `roles`, which clears `isClosedByPerson` when it
+    is set (`forgetClose`);
+  - a row's role button, which sets `pickerFor` to its run or, pressed again, drops it; and the
+    picker's pick and `cancel`, which drop it.
+
+  The pane reads it while drawing, so each write redraws it; a refused read draws the list.
+  `autoOpen` reads `isClosedByPerson`.
 - `runs` (0.4.0; `past` 0.5.0; roles 0.6.0; a role's moment 0.9.0) is `Runs`,
   `{ rows, pending, next, past }`, the atom `runs` with the shape tag `runs-4`, starting as
   `NO_RUNS`. *The run model*'s Built part
@@ -586,12 +609,19 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
 - **Writing** goes through `writeStore` alone (I-03). It reads `prefs` just before it writes,
   then sets the change over that value (`mergePrefs`), so a key or value this version does not
   know is kept. A stored value that is not an object is replaced: no version writes one.
+  `autoOpen` reads `prefs` at each new agent.
 - **Changes** come from `/possums set` and from Finished's show button, which writes
   `finishedOpen`; `collapsed` has no writer until its button (Session 11).
 - **The pane reads `prefs` while drawing** (`finishedOpen`), so each change calls
   `$.ui.invalidate('ui.render')` after its write, since the store is not reactive. A change
   another session makes shows at this pane's next redraw. A store that refuses a read while
   drawing draws the defaults.
+
+`role:<agent type>` (0.10.0), in `$.store`: the role id the person picked for a custom type
+(`isCustomType` in `hooks/roles/rules.ts`: neither a generic type nor a built-in one, compared
+lowercased), keyed by the type as the engine spells it, the value the bare id. The picker
+writes it through `writeStore`; a spawn of that type reads it (`rememberedOf`), and a value
+that is not a pickable role id reads as none. Nothing deletes one.
 
 ## The run model
 
@@ -719,11 +749,13 @@ Not yet: Session 12 (nesting).
   of the `holdout` items get their label. Labels are never changed; the table is never tuned on
   `holdout`; cases may be added to `dev`.
 
-**Built** (0.6.0). Detection; Session 9 adds the picker and memory.
+**Built** (0.6.0; the picker and memory 0.10.0). Detection, the person's picks, and their memory
+for custom types.
 - **The port,** `hooks/roles/`: `words.ts` holds the reference's lists in its order; `rules.ts`
   holds `words` (the tokenizer), `hit` (whole words, stems, phrases), `fromText`, `toolsSeen`,
   `fromTools` and `detect`, which returns the role and its rule, or nothing while unsettled.
-  `stated` and `remembered` are taken and have no caller yet.
+  `stated` is taken and has no caller; `remembered` comes from the store at the spawn
+  (`atSpawn`'s third argument), and `detect` takes it only for a custom type (`isCustomType`).
 - **Where it matches the reference exactly:** a custom type's every hyphen is a space; a call is
   split at its first colon; the test-runner and git patterns use Unicode word boundaries, as
   Python's `\b` does. Letters Unicode added after the reference's Python (Unicode 13) may read
@@ -744,6 +776,21 @@ Not yet: Session 12 (nesting).
   `holdout`, whose three misses are the reference's own, with its answers.
 - **The names** are `STRINGS.roles`, the art manifest's; `rowData` puts the role's name first on
   the row's second line.
+- **The picker** (0.10.0). Nothing can press a sprite (an `Svg` takes no press, and a `Button`
+  holds only text), so the row's role name, or "Pick a role" while it is plain, is the
+  `Button` that opens it, on both surfaces (*The panel*). It offers `PICKABLE`, the sixteen
+  roles in the art's order without Lead, which is the main session's alone. A pick
+  (`pickRole` in `hooks/register.tsx`):
+  - checks the value is pickable, since another plugin's `ui.select` hook may rewrite it;
+  - reads the clock, and writes `reassigned` (`hooks/model/runs.ts`), which sets `{ id,
+    source: 'manual', at }` on the run with that spawn order and drops its weak calls. `at`
+    cues the hop: a live row plays the dressing, an ended one changes still;
+  - for a custom type, taken from the run inside that write, stores `role:<agent type>`; a
+    refused store loses only the memory;
+  - closes the picker.
+
+  The same run's later evidence and the fallback leave the pick alone (I-07). A pick applies
+  to that run only: other live rows of the type keep theirs.
 
 ## Sprites and sets
 
@@ -1008,7 +1055,8 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
     state word.
 - **`terminalRow`** draws four lines:
   - a coloured `●`, the description and the state word;
-  - then, indented, the role, model and effort that are known, joined by " · " and dim;
+  - then, indented, the role's button (`[ Builder ]`, dim; "Pick a role" while plain), then the
+    model and effort that are known, joined by " · " and dim;
   - the activity, or "No tool calls yet";
   - a 10-cell block bar of context fill, then `ctx 9% · 18k · 0:42`. An unknown context draws
     an empty bar and `–`.
@@ -1024,8 +1072,15 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
   size. The fourth is the app's own `Progress`, labelled "Context", its value text the
   percent, tokens and time. The engine draws a `Progress` as its label and figure above a thin
   fill the width of the row (*Context*), so nothing goes beside it.
-- **Lines cut to one:** the description, the details and the activity carry `wrap="end"`, so a
-  long one ends in an ellipsis.
+- **The role's button and the picker** (0.10.0): line 2 on both surfaces is a row `Box`: a dim
+  `Button` keyed `role-<row id>`, labelled with the role's name, then the model and effort as
+  dim `Text` (footnote size on the desktop). While `view.pickerFor` is the row's spawn order
+  (`RowData.order`), a line below it holds a `Select` keyed `role-pick`, labelled "Role", over
+  `PICKABLE`, valued the row's role when it is one, and a dim `Button` keyed `role-cancel`,
+  "cancel". The builders take a `RolePicker` of closures from `panel`, which binds each to the
+  row's order; one picker is open at a time.
+- **Lines cut to one:** the description, the model and effort, and the activity carry
+  `wrap="end"`, so a long one ends in an ellipsis.
 - **Colours** are theme keys, the same for the mark and the word: working `success`, needs-you
   `permission`, quiet `warning`, failed `error`, finished `subtle`, starting and stopped
   `inactive`.
@@ -1084,7 +1139,22 @@ Not yet: Session 11 (Peek, the collapsed view, the
   `always` on every new agent; `never` leaves it to `/possums`. A pane the person closed stays
   closed for the rest of the session (`view`).
 
-**Built.** Not yet: Session 9 (auto-open), Session 10 (Needs you, quiet, toasts).
+**Built** (auto-open 0.10.0). `autoOpen` in `hooks/register.tsx`, started unawaited by a new
+agent's spawn (*The hooks*):
+- reads `prefs.autoOpen`: `never` opens nothing, and `first` only for the agent whose row starts
+  the list (`isEmpty` before its opening: no row, nothing in `past`), so after a clear the next
+  agent opens it again. `always` is every new agent; a resume is never new;
+- reads `view`: a person's close (`origin.kind` `person`, the close mark or key) opens nothing
+  until the person opens the pane again with `/possums`, `open` or `roles`, which clears it
+  (`forgetClose`). A `/possums` close is the plugin's, so with `always` the next agent opens a
+  pane hidden that way;
+- asks `$.ui.panes()`, and opens nothing while the pane is there, shown or behind another tab;
+- opens `{ id, title, columns }` with no `focus`, then marks the pane open and arms the clock.
+  Made unasked, the open is placed from 144 terminal columns (110 for an id the person has
+  opened), and waits undrawn below that (*Context*).
+
+Every fault ends it quietly; the spawn has already returned. Not yet: Session 10 (Needs you,
+quiet, toasts).
 
 ## The command and settings
 
@@ -1250,13 +1320,23 @@ unread.
 - **After the last live run, the clock may beat up to T-04 more** for a run whose role may still
   fall back (a teammate's, or one waiting on background work), redrawing a pane whose times no
   longer move.
+- **The picker and auto-open are unseen on the desktop:** the role's native `Button` in the
+  second line's footnote type, the `Select` under the row, and an unasked open there. A
+  session cannot look for the owner: computer use refuses Claude's own window (`docs/BACKLOG.md`).
+- **The kit's `$` cannot close a pane as the person:** it has no `ui.close`. So the person's
+  close and auto-open after it run the mod's own hooks over a stand-in `$`
+  (`tests/auto-open.test.ts`), as the close's own tests do in `tests/panel.test.ts`.
+- **Auto-open is not awaited,** so whether its open lands before or after the spawn's result is
+  the engine's affair; in the kit it lands before the spawn's call returns.
+- **A remembered pick is never deleted:** a type goes back to detection only through another
+  pick (`docs/BACKLOG.md`).
 
-## Baseline (v0.9.0)
+## Baseline (v0.10.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 166 pass, in 16 files: clock 13, command 11, compose 8, gallery 9, header 8, model 29, pane-sprites 5, panel 9, pass-through 5, prefs 4, roles 9, row 8, runs 17, sets 6, settle 12, sprites 13; about 12 s |
+| `claude plugin test mods/possum-squad` | 192 pass, in 18 files: auto-open 9, clock 13, command 11, compose 8, gallery 9, header 8, model 31, pane-sprites 8, panel 10, pass-through 5, picker 10, prefs 5, roles 9, row 8, runs 17, sets 6, settle 12, sprites 13; about 13 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
@@ -1352,6 +1432,22 @@ one moves, that is the finding.
 - 2026-11-23, *The panel*: in the gallery each one-off plays, rests about 2 s and plays again,
   so any role can be looked at after scrolling to it. The owner's choice at Session 7a's start.
 - 2026-11-23, *Sprites and sets*: confirmed as built, with the owner, at Session 7a.
+- 2026-11-23, *Roles* and *The panel*: the row's role name, a `Button` on both surfaces,
+  opens the picker, not its sprite: the 2.1.330 declarations give an `Svg` no press, and a
+  `Button` holds only text. The owner's choice at Session 9's start.
+- 2026-11-23, *Roles*: the picker offers sixteen roles, every one but Lead, which is the main
+  session's alone. The owner's approval of Session 9's plan.
+- 2026-11-23, *Roles* and *Sprites and sets*: a pick sets `Role.at` to its time, so a live row
+  hops into the new outfit; an ended row changes still. The owner's choice at Session 9's
+  start.
+- 2026-11-23, *Attention*: the person opening the pane with `/possums`, `open` or `roles` takes
+  back their own close, so auto-open follows the setting again. The owner's choice at Session
+  9's start, settling what Session 1 left open.
+- 2026-11-23, *Attention*: only a close with the pane's close mark or key is the person's; a
+  `/possums` close is the plugin's, so with `always` the next agent opens it again. The owner's
+  approval of Session 9's plan.
+- 2026-11-23, *Values* (`role:<agent type>`, one key per type) and *Attention* (auto-open):
+  confirmed as built, with the owner, at Session 9.
 - 2026-11-23, *Sprites and sets*: `planned` is greyed and faded by an `opacity` on its fills
   alone; its light-theme outline is drawn outside them, at full strength, around the colours
   faint as they are seen faded. The owner's choice at Session 7's start: it keeps the

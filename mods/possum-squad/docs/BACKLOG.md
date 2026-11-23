@@ -28,15 +28,20 @@ up, it moves out of this file.
   end leaves a role no rule settled open, as a teammate's does: Session 8's hand check saw an
   agent refused a foreground `sleep 70` start it in the background, and the review kept it
   from being Helper at that end.
+- **Forgetting a remembered role.** A role picked for a custom agent type is kept under
+  `role:<agent type>` until another pick replaces it; nothing removes one, so going back to
+  detection for that type has no way in v1. `$.store.delete` is on the allow-list. Named at
+  Session 9.
 
 ## Not yet checked by hand
 
 Checks that need a person at the machine. Each has an automated check covering most of it;
 these are the parts only a person can see.
 
-- **The opossums in the desktop app (0.7.0, 0.8.0, 0.9.0).** The kit checks each sprite's SVG, its
+- **The opossums in the desktop app (0.7.0 to 0.10.0).** The kit checks each sprite's SVG, its
   size, its outline and its animation's frames, but not how the app paints them, and a
-  terminal shows none. Not yet looked at as of Session 7. To check after the push, with three
+  terminal shows none. Not yet looked at as of Session 9. A session cannot look for the owner:
+  computer use never grants control of, or a picture of, Claude's own window (Session 9). To check after the push, with three
   agents running: each row's opossum in its role's outfit, plain before; a working one bobbing
   and blinking smoothly, and not restarting each second; the Lead's crown; the empty pane's
   sleeping three; on the light theme the dark outline round pale edges, and none on the dark;
@@ -50,6 +55,12 @@ these are the parts only a person can see.
     gallery's 102 moving sprites smooth or not while scrolling (if not, the choice returns to
     the owner, *The panel*); its one-offs playing again after their rest. These use
     `fill="freeze"` and a `begin` time, which the app has not drawn for this mod yet.
+  - **From 0.10.0:** each row's role name as a button beside the model and effort, in the
+    second line's small type; pressing it opens a list of sixteen roles under the row, the
+    current one selected; a pick dressing a working opossum with one hop; `cancel` and a second
+    press closing the list. The pane opening by itself when a session's first agent starts,
+    without taking the keyboard; after a close with its close mark, a new agent opening
+    nothing; `/possums` then taking that back.
   - **From 0.8.0:** `/possums set theme horror` (and the other two) redressing every opossum
     at once; `/possums roles` showing 17 roles in eight poses, wrapped to the pane's
     width, each with its state word, and scrolling smoothly; `planned`'s first column greyed

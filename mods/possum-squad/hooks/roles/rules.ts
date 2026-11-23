@@ -7,6 +7,31 @@ import { BUILTIN_TYPES, DESIGN_AS_PLANNING, DESIGN_VERBS, GENERIC_TYPES, GIT_SHI
 
 export const HELPER: Role = { id: 'helper', source: 'fallback' }
 
+// The roles the person can pick for a run, in the art's order; Lead is the main session's alone.
+export const PICKABLE: readonly RoleId[] = [
+  'scout',
+  'planner',
+  'builder',
+  'tester',
+  'bugcatcher',
+  'reviewer',
+  'researcher',
+  'operator',
+  'courier',
+  'writer',
+  'artist',
+  'analyst',
+  'guard',
+  'janitor',
+  'pilot',
+  'helper',
+]
+
+export const isPickable = (value: unknown): value is RoleId => typeof value === 'string' && (PICKABLE as readonly string[]).includes(value)
+
+// A remembered pick as stored: one of the pickable ids, else nothing, so an unknown value is ignored.
+export const rememberedOf = (stored: unknown): RoleId | undefined => (isPickable(stored) ? stored : undefined)
+
 const textOf = (value: unknown) => (typeof value === 'string' ? value : '')
 
 export const words = (text: unknown): string[] =>
@@ -75,6 +100,12 @@ export function toolsSeen(weak: number, calls: readonly unknown[]): ToolsSeen {
 
 export const fromTools = (calls: readonly unknown[]): RoleId | undefined => toolsSeen(0, calls).role?.id
 
+// A type of the person's or a plugin's own: neither the generic types nor the built-in ones. Only these remember a pick.
+export function isCustomType(type: unknown): boolean {
+  const name = textOf(type).toLowerCase()
+  return !GENERIC_TYPES.has(name) && !BUILTIN_TYPES.has(name)
+}
+
 export type Detection = {
   description: unknown
   // The agent type as the engine spells it (`Explore`, `general-purpose`, a plugin's agent).
@@ -91,7 +122,7 @@ export type Detection = {
 export function detect(detection: Detection): Role | undefined {
   const type = textOf(detection.type).toLowerCase()
   if (detection.stated) return { id: detection.stated, source: 'stated' }
-  if (detection.remembered && !GENERIC_TYPES.has(type) && !BUILTIN_TYPES.has(type)) return { id: detection.remembered, source: 'remembered' }
+  if (detection.remembered && isCustomType(type)) return { id: detection.remembered, source: 'remembered' }
   const builtin = BUILTIN_TYPES.get(type)
   if (builtin !== undefined) return { id: builtin, source: 'type' }
   if (!GENERIC_TYPES.has(type)) {
@@ -105,5 +136,6 @@ export function detect(detection: Detection): Role | undefined {
   return detection.timedOut ? HELPER : undefined
 }
 
-// What a spawn's type and description settle, before any call.
-export const atSpawn = (type: unknown, description: unknown): Role | undefined => detect({ description, type, timedOut: false })
+// What a spawn's type, the person's pick remembered for it, and its description settle, before any call.
+export const atSpawn = (type: unknown, description: unknown, remembered?: RoleId): Role | undefined =>
+  detect({ description, type, timedOut: false, ...(remembered === undefined ? {} : { remembered }) })

@@ -4,8 +4,10 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 import { SPRITE_SCALE } from '../hooks/config'
 import { sprite, squad } from '../hooks/sprites/index'
 import { STRINGS } from '../hooks/strings'
+import { panel } from '../hooks/view/panel'
 import { engine, MOUNT, possums, SURFACES, store } from './engine'
 import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
+import { ROWS } from './fixtures/rows'
 
 type Use = { name: string; input: unknown }
 
@@ -171,4 +173,88 @@ test("the Lead's sprite heads the pane off the terminal, and the empty pane draw
     expect(drawn[0]?.source).toBe(sprite({ set: 'classic', role: 'lead', pose: 'idle', motion: 'auto' }).source)
     expect([drawn[0]?.isInteractive, drawn[1]?.source, drawn[1]?.width]).toEqual([undefined, squad().source, squad().width * SPRITE_SCALE])
   }
+})
+
+test('each state a run reaches by its events draws that state in its row, past its moments (F-08)', async ($, on) => {
+  const { clock } = world(on)
+  // Explore agents are Scouts from their spawn: one starting, one working, then three ended each its own way.
+  for (let i = 1; i <= 5; i++) await $.agent.spawn({ ...SPAWN, tool_use_id: `toolu-${i}`, description: `Tend bed ${i}` })
+  for (let i = 2; i <= 5; i++) await $.turn.start({ ...TURN_START, agentId: `agent-${i}` })
+  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-3' })
+  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-4', reason: 'error' } as never)
+  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-5', reason: 'aborted', isAborted: true })
+  await clock.advance(SETTLED_MS)
+  const states = ['starting', 'working', 'finished', 'failed', 'stopped'] as const
+  const drawn = (await spritesOn($, 'desktop')).slice(1)
+  expect(drawn.map(one => one.alt)).toEqual(states.map(state => STRINGS.sprite.alt(STRINGS.roles.scout, STRINGS.states[state])))
+  expect(drawn.map(one => one.source)).toEqual(states.map(pose => sprite({ set: 'classic', role: 'scout', pose, motion: 'auto' }).source))
+})
+
+// The panel as the mod draws it, over fixture rows in every state: needs-you and quiet have no event that reaches them
+// yet, so the test's own drawing hands the rows to the module's builder.
+const EVERY_STATE = 'every-state'
+const NO_ACTIONS = { onToggleFinished: () => {}, onCloseGallery: () => {}, onToggleRole: () => {}, onPickRole: () => {}, onCancelRole: () => {} }
+
+test('every state draws its own frame in its row, on every surface that draws sprites (F-08)', async ($, on) => {
+  on('ui.render', { plugin: '*' }, ($, e) =>
+    panel(
+      $.ui.resolve(e),
+      e.surface === 'terminal',
+      {
+        lead: { tokens: 0 },
+        session: { tokens: 0, workedMs: 0 },
+        rows: ROWS,
+        isFinishedOpen: true,
+        look: { set: 'classic', motion: 'auto' },
+      },
+      NO_ACTIONS,
+    ),
+  )
+  for (const surface of SURFACES) {
+    const pane = await $.ui.mount({ ...MOUNT, requestId: EVERY_STATE, surface })
+    const elements = await pane.findAll({})
+    const words = (await pane.findAll({ type: 'Text' })).map(text => text.text)
+    await pane.unmount()
+    // The state word on every row (I-06); sprites only where the surface draws them.
+    for (const row of ROWS) expect(words).toContain(STRINGS.states[row.state])
+    const drawn = elements.filter(element => element.type === 'Svg').map(element => element.props as Drawn)
+    if (surface === 'terminal') {
+      expect(drawn).toEqual([])
+      continue
+    }
+    const bySection = [
+      ...ROWS.filter(row => row.state === 'needs-you'),
+      ...ROWS.filter(row => ['starting', 'working', 'quiet'].includes(row.state)),
+      ...ROWS.filter(row => ['finished', 'failed', 'stopped'].includes(row.state)),
+    ]
+    expect(drawn.slice(1).map(one => one.source)).toEqual(
+      bySection.map(row => sprite({ set: 'classic', role: row.roleId, pose: row.state, motion: 'auto' }).source),
+    )
+  }
+})
+
+test('a role the person picks dresses a live row with a hop, then stands in it; an ended row changes still', async ($, on) => {
+  const { clock } = world(on)
+  await $.agent.spawn(GENERIC)
+  await $.turn.start({ ...TURN_START, agentId: 'agent-1' })
+  await $.agent.spawn({ ...GENERIC, tool_use_id: 'toolu_done', description: 'Stack the pots' })
+  await $.turn.start({ ...TURN_START, agentId: 'agent-2' })
+  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-2' })
+  await clock.advance(SETTLED_MS)
+  const pane = await $.ui.mount({ ...MOUNT, surface: 'desktop' })
+  for (const agentId of ['agent-1', 'agent-2']) {
+    await pane.press({ key: `role-${agentId}` })
+    await clock.advance(100)
+    await pane.select({ key: 'role-pick', value: 'tester' })
+    await clock.advance(100)
+  }
+  await pane.unmount()
+  const tester = (pose: 'working' | 'finished') => ({ set: 'classic', role: 'tester', pose, motion: 'auto' }) as const
+  const picked = (await spritesOn($, 'desktop')).slice(1)
+  expect(picked.map(one => [one.alt, one.source, one.isInteractive])).toEqual([
+    [STRINGS.sprite.alt(STRINGS.roles.tester, STRINGS.states.working), sprite({ ...tester('working'), moment: 'dressing' }).source, true],
+    [STRINGS.sprite.alt(STRINGS.roles.tester, STRINGS.states.finished), sprite(tester('finished')).source, undefined],
+  ])
+  await clock.advance(SETTLED_MS)
+  expect((await spritesOn($, 'desktop'))[1]?.source).toBe(sprite(tester('working')).source)
 })

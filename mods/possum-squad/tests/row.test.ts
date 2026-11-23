@@ -7,13 +7,14 @@ import { NO_TOKENS } from '../hooks/model/runs'
 import { sprite } from '../hooks/sprites/index'
 import { STRINGS } from '../hooks/strings'
 import { BAR_CELLS, bar, elapsed, fill, percent, tokens } from '../hooks/view/format'
-import { desktopRow, type RowData, terminalRow } from '../hooks/view/row'
+import { desktopRow, type RolePicker, type RowData, terminalRow } from '../hooks/view/row'
 import { momentOf } from '../hooks/view/runs'
 import { spriteElement } from '../hooks/view/sprite'
 import { MOUNT, SURFACES } from './engine'
 import { LONG_ROW, MARKUP_ROW, ROWS } from './fixtures/rows'
 
 const EVERY_ROW = [...ROWS, MARKUP_ROW, LONG_ROW]
+const CLOSED: RolePicker = { isOpen: false, onToggle: () => {}, onPick: () => {}, onCancel: () => {} }
 
 // A row's sprite as the panel draws it.
 const spriteOf = (row: RowData) => sprite({ set: 'classic', role: row.roleId, pose: row.state, motion: 'auto' })
@@ -25,9 +26,9 @@ function drawRows(on: On) {
     const row = EVERY_ROW.find(one => one.id === e.requestId)
     if (row === undefined) throw new Error(`no fixture row ${e.requestId}`)
     const table = $.ui.resolve(e)
-    if (e.surface === 'terminal') return terminalRow(table, row)
+    if (e.surface === 'terminal') return terminalRow(table, row, CLOSED)
     const alt = STRINGS.sprite.alt(row.role ?? STRINGS.sprite.plain, STRINGS.states[row.state])
-    return desktopRow(table, row, 'Svg' in table ? spriteElement(table.Svg, spriteOf(row), alt) : undefined)
+    return desktopRow(table, row, CLOSED, 'Svg' in table ? spriteElement(table.Svg, spriteOf(row), alt) : undefined)
   })
 }
 
@@ -79,13 +80,17 @@ test("a row's four lines: description, then role, model and effort, the activity
   const working = ROWS.find(row => row.state === 'working') as RowData
   const starting = ROWS.find(row => row.state === 'starting') as RowData
   for (const surface of SURFACES) {
-    const full = (await drawn($, surface, working)).texts
-    expect(full).toContain('Scout · claude-haiku-5-5 · medium')
+    const { elements, texts: full } = await drawn($, surface, working)
+    // The role's name is its picker's button; the model and effort follow it as text.
+    expect(elements.find(element => element.type === 'Button')?.props.label).toBe('Scout')
+    expect(full).toContain('claude-haiku-5-5 · medium')
     expect(full).toContain('Reading shed/rack.txt')
     expect(full.some(text => text.includes('9%') && text.includes('18k') && text.includes('0:42'))).toBe(true)
 
-    // Nothing known yet: no details, no activity, an unknown context.
-    const bare = (await drawn($, surface, starting)).texts
+    // Nothing known yet: a button to pick a role, no activity, an unknown context.
+    const plain = await drawn($, surface, starting)
+    expect(plain.elements.find(element => element.type === 'Button')?.props.label).toBe(STRINGS.picker.pick)
+    const bare = plain.texts
     expect(bare).toContain(STRINGS.row.noActivity)
     expect(bare.some(text => text.includes(STRINGS.row.unknown) && text.includes('0:02'))).toBe(true)
   }
@@ -99,7 +104,7 @@ test('the description, details and activity are cut to one line, never wrapped',
     expect(description?.props.wrap).toBe('end')
     const activity = (await pane.findAll({ type: 'Text', text: STRINGS.row.noActivity }))[0]
     expect(activity?.props.wrap).toBe('end')
-    const details = (await pane.findAll({ type: 'Text', text: [LONG_ROW.role, LONG_ROW.model].join(STRINGS.row.separator) }))[0]
+    const details = (await pane.findAll({ type: 'Text', text: LONG_ROW.model }))[0]
     expect(details?.props.wrap).toBe('end')
     await pane.unmount()
   }
@@ -110,7 +115,7 @@ test('the terminal draws the context bar in block characters, with no element it
   const working = ROWS.find(row => row.state === 'working') as RowData
   const { elements, texts } = await drawn($, 'terminal', working)
   expect(texts.some(text => text.startsWith(bar(working.contextPercent)))).toBe(true)
-  expect(elements.map(element => element.type).filter(type => type !== 'Box' && type !== 'Text')).toEqual([])
+  expect(elements.map(element => element.type).filter(type => type !== 'Box' && type !== 'Text')).toEqual(['Button'])
 })
 
 test('token counts, times, percents and bars read as the row shows them', () => {

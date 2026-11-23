@@ -1,15 +1,18 @@
 import type { AgentSpawnInput, AgentSpawnResult, CommandRunResult, EngineInterface, Register, Timer, TurnStepResult } from 'claude-code'
 import { atom, read, update } from 'claude-code'
 
-import type { Lead, Runs, Tokens, View } from '../types/index'
+import type { Lead, RoleId, Runs, Tokens, View } from '../types/index'
 import { PANE_COLUMNS } from './config'
 import { leadFigures, measured, NO_LEAD, totals, turnCounted } from './model/lead'
 import {
   cleared,
   fellBack,
   figures,
+  isEmpty,
   keepsClock,
   NO_RUNS,
+  reassigned,
+  runOf,
   type Spawn,
   shownRuns,
   spawnOpened,
@@ -20,7 +23,7 @@ import {
   weakOf,
 } from './model/runs'
 import { callsOf } from './model/tools'
-import { atSpawn, HELPER, toolsSeen } from './roles/rules'
+import { atSpawn, HELPER, isCustomType, isPickable, rememberedOf, toolsSeen } from './roles/rules'
 import { changeOf, mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES, SETTINGS, settingsText } from './settings'
 import { galleryOf } from './sprites'
 import { ART } from './sprites/data'
@@ -31,7 +34,7 @@ import { rowData } from './view/runs'
 export const PANE = 'possum-squad'
 // Bump the shape when View's fields change: an older value then reads as absent.
 export const NO_FLAGS: View = { isClosedByPerson: false, isGalleryOpen: false }
-export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-2' })
+export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-3' })
 // Bump the shape when Runs or Run change their fields.
 export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-4' })
 // Bump the shape when Lead changes its fields.
@@ -43,10 +46,16 @@ const STARTS_OVER = new Set(['clear', 'resume', 'fork'])
 // The person's answer, kept out of every request the engine lets it be.
 const say = (text: string): CommandRunResult => ({ text, isTextDisplayOnly: true })
 
-// The one door to the store (I-03): a write holds only setting values and panel flags. `prefs` is read
-// just before it is written, since another session may have changed it meanwhile.
-async function writeStore($: Pick<EngineInterface, 'store'>, write: { key: 'prefs'; change: Partial<Prefs> }) {
-  await $.store.set(write.key, mergePrefs(await $.store.get(write.key), write.change))
+// The key a custom agent type's remembered pick is kept under.
+const roleKey = (type: string) => `role:${type}` as const
+
+type StoreWrite = { key: 'prefs'; change: Partial<Prefs> } | { key: ReturnType<typeof roleKey>; role: RoleId }
+
+// The one door to the store (I-03): a write holds only setting values, panel flags, agent type names and role ids.
+// `prefs` is read just before it is written, since another session may have changed it meanwhile.
+async function writeStore($: Pick<EngineInterface, 'store'>, write: StoreWrite) {
+  if ('change' in write) await $.store.set(write.key, mergePrefs(await $.store.get(write.key), write.change))
+  else await $.store.set(write.key, write.role)
 }
 
 // The store is not reactive, so a change the pane draws from redraws it by hand.
@@ -155,12 +164,82 @@ async function showPane($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>, mayC
   } catch {
     return say(STRINGS.cannotToggle)
   }
+  await forgetClose($)
   try {
     await armIfLive($, true)
   } catch {
     // the times move on events alone
   }
   return {}
+}
+
+// The person opening the pane takes back their own close, so the pane opens by itself again as `autoOpen` says.
+async function forgetClose($: Pick<EngineInterface, 'state'>) {
+  try {
+    if ((await read($, view)).isClosedByPerson) await update($, view, flags => ({ ...flags, isClosedByPerson: false }))
+  } catch {
+    // the close stands until the next open
+  }
+}
+
+// The pane opens by itself as `autoOpen` says: never over the person's own close, never raising a pane already open,
+// never taking the keys. The spawn does not wait for it (N-07), so every fault here ends quietly.
+async function autoOpen($: Pick<EngineInterface, 'store' | 'state' | 'ui' | 'clock'>, isFirst: boolean) {
+  try {
+    const { autoOpen: when } = readPrefs(await $.store.get('prefs'))
+    if (when === 'never' || (when === 'first' && !isFirst)) return
+    if ((await read($, view)).isClosedByPerson) return
+    if ((await $.ui.panes()).some(one => one.id === PANE)) return
+    await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS })
+    isPaneOpen = true
+    await armIfLive($)
+  } catch {
+    // the pane waits for /possums
+  }
+}
+
+const withoutPicker = ({ pickerFor: _, ...flags }: View): View => flags
+
+// A row's role button opens its picker, or closes it when it is that row's already.
+async function toggleRole($: Pick<EngineInterface, 'state'>, order: number) {
+  try {
+    await update($, view, flags => (flags.pickerFor === order ? withoutPicker(flags) : { ...flags, pickerFor: order }))
+  } catch {
+    // the picker stays as it was
+  }
+}
+
+async function closePicker($: Pick<EngineInterface, 'state'>) {
+  try {
+    await update($, view, flags => (flags.pickerFor === undefined ? flags : withoutPicker(flags)))
+  } catch {
+    // the picker stays until the pane closes
+  }
+}
+
+// The person's pick applies to that run at once, timed so a live row hops into it, and is remembered for a custom type
+// only. A store that refuses loses only the memory.
+async function pickRole($: Pick<EngineInterface, 'state' | 'store' | 'clock'>, order: number, value: string) {
+  if (isPickable(value)) {
+    const at = await timeOrNone($)
+    let type: string | undefined
+    try {
+      await update($, runs, held => {
+        type = runOf(held, order)?.type
+        return reassigned(held, order, { id: value, source: 'manual', ...(at === undefined ? {} : { at }) })
+      })
+    } catch {
+      type = undefined
+    }
+    if (type !== undefined && isCustomType(type)) {
+      try {
+        await writeStore($, { key: roleKey(type), role: value })
+      } catch {
+        // the run keeps its pick; the next spawn of its type is detected as usual
+      }
+    }
+  }
+  await closePicker($)
 }
 
 async function listSettings($: Pick<EngineInterface, 'store'>): Promise<CommandRunResult> {
@@ -251,10 +330,20 @@ async function recordAt($: Pick<EngineInterface, 'state' | 'clock'>, change: (he
   }
 }
 
-// The role the spawn's type and description settle, worked out inside the record's guard.
-function dressed(spawn: Spawn): Spawn {
-  const role = atSpawn(spawn.type, spawn.description)
+// The role the spawn's type, its remembered pick and its description settle, worked out inside the record's guard.
+function dressed(spawn: Spawn, remembered?: RoleId): Spawn {
+  const role = atSpawn(spawn.type, spawn.description, remembered)
   return role === undefined ? spawn : { ...spawn, role }
+}
+
+// The person's pick remembered for a custom type; the generic and built-in types read nothing.
+async function rememberedFor($: Pick<EngineInterface, 'store'>, type: unknown): Promise<RoleId | undefined> {
+  if (typeof type !== 'string' || !isCustomType(type)) return undefined
+  try {
+    return rememberedOf(await $.store.get(roleKey(type)))
+  } catch {
+    return undefined
+  }
 }
 
 function spawnOf(e: AgentSpawnInput): Spawn {
@@ -318,8 +407,15 @@ async function drawPane(
       isFinishedOpen: prefs.finishedOpen,
       look: { set: prefs.theme, motion: prefs.motion },
       ...(flags.isGalleryOpen ? { gallery: galleryOf(ART, prefs.theme) } : {}),
+      ...(flags.pickerFor === undefined ? {} : { pickerFor: flags.pickerFor }),
     },
-    { onToggleFinished: () => void showFinished($, !prefs.finishedOpen), onCloseGallery: () => void closeGallery($) },
+    {
+      onToggleFinished: () => void showFinished($, !prefs.finishedOpen),
+      onCloseGallery: () => void closeGallery($),
+      onToggleRole: order => void toggleRole($, order),
+      onPickRole: (order, value) => void pickRole($, order, value),
+      onCancelRole: () => void closePicker($),
+    },
   )
 }
 
@@ -367,12 +463,13 @@ export const register: Register = on => {
     if (closed.deny !== undefined) return closed
     isPaneOpen = false
     stopClock()
-    // Any close ends the gallery, so the pane opens on the list; the person's is also kept. A close that changes
-    // neither writes nothing.
+    // Any close ends the gallery and the role picker, so the pane opens on the list; the person's is also kept. A close
+    // that changes none of them writes nothing.
     const isPerson = e.origin.kind === 'person'
     try {
-      if (isPerson || (await read($, view)).isGalleryOpen) {
-        await update($, view, flags => ({ ...flags, isGalleryOpen: false, ...(isPerson ? { isClosedByPerson: true } : {}) }))
+      const held = isPerson ? undefined : await read($, view)
+      if (held === undefined || held.isGalleryOpen || held.pickerFor !== undefined) {
+        await update($, view, flags => ({ ...withoutPicker(flags), isGalleryOpen: false, ...(isPerson ? { isClosedByPerson: true } : {}) }))
       }
     } catch {
       // the close stands; only the flags are lost
@@ -383,18 +480,33 @@ export const register: Register = on => {
   // Each event passes on exactly what the engine gave; only subagents' events are recorded, the main loop's never
   // call `$`. A tool call's start is read from its step's result: `tool.call` and `tool.run` stay unhooked, since
   // the declarations say a hook there turns off a tool's move to the background, even as a pass-through.
+  // A new agent's row may open the pane (`autoOpen`), unawaited. Whether its row starts the list is learnt inside the
+  // write, whose last try is the one kept, so agents spawned together open it once.
   on('agent.spawn', async ($, e, next) => {
     const spawn = spawnOf(e)
-    await recordAt($, (held, at) => spawnOpened(held, dressed(spawn), at))
+    const remembered = await rememberedFor($, spawn.type)
+    let isFirst = false
+    await recordAt($, (held, at) => {
+      const opened = spawnOpened(held, dressed(spawn, remembered), at)
+      isFirst = opened !== held && isEmpty(held)
+      return opened
+    })
     keepTime($)
+    if (spawn.resumes === undefined && spawn.key !== '') void autoOpen($, isFirst)
     let result: AgentSpawnResult
     try {
       result = await next(e)
     } catch (error) {
-      await recordAt($, (held, at) => spawnSettled(held, dressed(spawn), { isDenied: true }, at))
+      await recordAt($, (held, at) => spawnSettled(held, dressed(spawn, remembered), { isDenied: true }, at))
       throw error
     }
-    await recordAt($, (held, at) => spawnSettled(held, dressed(spawn), settledOf(result), at))
+    // A fork no tool call starts opens its row only here.
+    await recordAt($, (held, at) => {
+      const settled = spawnSettled(held, dressed(spawn, remembered), settledOf(result), at)
+      isFirst = spawn.key === '' && settled !== held && isEmpty(held)
+      return settled
+    })
+    if (spawn.resumes === undefined && spawn.key === '' && result.agentId !== undefined) void autoOpen($, isFirst)
     return result
   }).catch((_$, e, next) => next(e))
 

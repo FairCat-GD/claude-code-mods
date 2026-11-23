@@ -235,11 +235,26 @@ export function fellBack(runs: Runs, now: number, fallback: Role): Runs {
   return { ...runs, rows }
 }
 
+// The row with that spawn order, under whichever key it is kept.
+export const runOf = (runs: Runs, order: number): Run | undefined => Object.values(runs.rows).find(run => run.order === order)
+
+// The person's pick: the one change to a settled role I-07 allows. Its time cues the hop into the new outfit.
+export function reassigned(runs: Runs, order: number, role: Role): Runs {
+  const entry = Object.entries(runs.rows).find(([, run]) => run.order === order)
+  if (entry === undefined) return runs
+  const [key, run] = entry
+  const { weakCalls: _, ...picked } = run
+  return { ...runs, rows: { ...runs.rows, [key]: { ...picked, role } } }
+}
+
 // A clear, a resume or a fork of the session starts the list and its totals over.
 export const cleared = (runs: Runs): Runs =>
   Object.keys(runs.rows).length === 0 && Object.keys(runs.pending).length === 0 && runs.past.tokens === 0 && runs.past.workedMs === 0
     ? runs
     : { ...NO_RUNS, next: runs.next }
+
+// No agent has had a row since the session began or was cleared.
+export const isEmpty = (runs: Runs) => Object.keys(runs.rows).length === 0 && runs.past.tokens === 0 && runs.past.workedMs === 0
 
 // The rows to draw, in spawn order.
 export const shownRuns = (runs: Runs): Run[] => Object.values(runs.rows).sort((a, b) => a.order - b.order)

@@ -2,9 +2,10 @@ import type { RowData } from '../../hooks/view/row'
 
 // Fictional rows, one in each state.
 export const ROWS: readonly RowData[] = [
-  { id: 'row-starting', state: 'starting', description: 'Map the orchard paths', tokens: 0, elapsedMs: 2_000 },
+  { id: 'row-starting', order: 0, state: 'starting', description: 'Map the orchard paths', tokens: 0, elapsedMs: 2_000 },
   {
     id: 'row-working',
+    order: 1,
     state: 'working',
     description: 'Count the shovels',
     role: 'Scout',
@@ -18,6 +19,7 @@ export const ROWS: readonly RowData[] = [
   },
   {
     id: 'row-needs-you',
+    order: 2,
     state: 'needs-you',
     description: 'Paint the garden fence green',
     role: 'Builder',
@@ -30,6 +32,7 @@ export const ROWS: readonly RowData[] = [
   },
   {
     id: 'row-quiet',
+    order: 3,
     state: 'quiet',
     description: 'Weigh the pumpkins',
     model: 'claude-sonnet-5-5',
@@ -40,6 +43,7 @@ export const ROWS: readonly RowData[] = [
   },
   {
     id: 'row-finished',
+    order: 4,
     state: 'finished',
     description: 'List the seed packets by colour',
     role: 'Writer',
@@ -53,6 +57,7 @@ export const ROWS: readonly RowData[] = [
   },
   {
     id: 'row-failed',
+    order: 5,
     state: 'failed',
     description: 'Fix the wheelbarrow',
     role: 'Helper',
@@ -61,12 +66,13 @@ export const ROWS: readonly RowData[] = [
     tokens: 38_400,
     elapsedMs: 600_000,
   },
-  { id: 'row-stopped', state: 'stopped', description: 'Rake the leaves', tokens: 120, elapsedMs: 5_000 },
+  { id: 'row-stopped', order: 6, state: 'stopped', description: 'Rake the leaves', tokens: 120, elapsedMs: 5_000 },
 ]
 
 // A description carrying markdown, a link and a tag, which must draw as the same plain text.
 export const MARKUP_ROW: RowData = {
   id: 'row-markup',
+  order: 7,
   state: 'working',
   description: '**Prune** the [hedge](https://example.test/hedge) <b>today</b>',
   activity: '_Trimming_ `hedge.txt`',
@@ -77,6 +83,7 @@ export const MARKUP_ROW: RowData = {
 // A description too long for one line of the pane.
 export const LONG_ROW: RowData = {
   id: 'row-long',
+  order: 8,
   state: 'working',
   description: 'Sort every flower pot in the greenhouse by size, colour, age and the plant it held last spring',
   role: 'Analyst',

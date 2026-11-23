@@ -13,6 +13,21 @@ works while Claude is in the middle of a turn, and prints nothing in the convers
 terminal the pane docks beside the conversation in fullscreen at 110 columns or more, and
 otherwise sits above the prompt.
 
+**The pane opens by itself** when an agent starts, as the `autoOpen` setting says:
+- `first` (the default): when the session's first agent starts, and again after a `/clear`;
+- `always`: whenever a new agent starts and the pane is closed (an agent Claude resumes is not
+  new);
+- `never`: only when you ask, with `/possums`.
+
+It never takes the keyboard from you, and never brings forward a pane that is open behind
+another. In a terminal narrower than 144 columns, a pane that opens by itself waits, undrawn,
+until you widen the terminal or type `/possums` (110 columns once you have opened it yourself).
+
+**Closing the pane yourself,** with its close mark or key, keeps it closed for the rest of the
+session: no agent opens it again. Opening it yourself with `/possums`, `/possums open` or
+`/possums roles` takes that back. Hiding it with `/possums` is not such a close: with `always`,
+the next agent opens it again.
+
 `/possums open` does the same, except that it never hides the pane: use it when you want the
 pane in view whatever its state.
 
@@ -102,8 +117,9 @@ Each subagent Claude starts gets a row the moment it starts, in the order they s
 
 1. its task in a few words, and its state: starting, working, finished, failed or stopped;
    "round 2" when a run with the same task already finished;
-2. its role, such as Builder or Scout, once it is settled (*How roles are chosen*, below); then
-   the model it runs on and its effort, once its first request names them;
+2. its role, such as Builder or Scout, once it is settled (*How roles are chosen*, below), or
+   "Pick a role" until then, as a button (*Changing a role*); then the model it runs on and its
+   effort, once its first request names them;
 3. what it is doing: the last tool it asked for and what that names, such as "Reading
    notes.md", "Running npm test" or "Searching for TODO", cut to one line; "No tool calls yet"
    before its first;
@@ -135,8 +151,25 @@ possum-squad sees anyway, never from asking a model, by the first of these that 
    teammate whose turn ends, or an agent whose turn left work running in the background, keeps
    its role open for its next turn, or the minute.
 
-Until its role settles, a row shows none. Once settled, a run's role never changes. A wrong
-role costs nothing but the outfit; choosing one yourself comes in a later version.
+Until its role settles, a row shows none. Once settled, a run's role changes only when you
+change it.
+
+## Changing a role
+
+A row's role name, or "Pick a role" while it has none, is a button (`[ Builder ]` in a
+terminal). Press it and a list of the sixteen roles opens under the row, the current one
+selected; Lead stays the main session's. Choose one and the row takes it at once: a working
+opossum hops into the new outfit, and a finished one simply wears it. `cancel`, a second press
+of the button, or closing the pane closes the list without a change. Nothing the agent does
+afterwards changes a role you chose.
+
+**For an agent type of your own,** such as one a plugin or your settings define, the choice is
+also remembered: every later agent of that type starts in the role you chose, before anything
+else is read, in this session and the next. The type's name and the role are all that is
+kept. For the built-in types and the general-purpose one, which most agents share, the choice
+applies to that run alone, and the next agent's role is worked out as usual.
+
+The opossum itself cannot be pressed: Claude Code draws it as a picture that takes no click.
 
 ## How a run ends
 
@@ -154,9 +187,6 @@ one empties it. The engine's own helpers (compacting, memory) never get a row.
 If the pane cannot be shown or hidden (another plugin holds a pane of the same name), `/possums`
 says so in one line.
 
-Closing the pane yourself, with its close mark or key, is remembered for the rest of the
-session. Later versions use that to leave it closed instead of opening it again on their own.
-
 ## Settings
 
 `/possums settings` lists every setting, its value, and the values it takes.
@@ -166,13 +196,13 @@ nothing; `/possums set` alone names the settings. Names and values can be typed 
 
 | Setting | Values | Default | What it will do |
 |---|---|---|---|
-| `autoOpen` | `never`, `first`, `always` | `first` | Open the pane by itself never, when a session's first agent starts, or on every new agent. |
+| `autoOpen` | `never`, `first`, `always` | `first` | Open the pane by itself never, when a session's first agent starts, or on every new agent. Works now. |
 | `cost` | `off`, `estimate` | `off` | Show an estimated dollar figure beside the plan-limit percent. |
 | `motion` | `auto`, `off` | `auto` | Animate the opossums, following your system's reduced-motion setting, or keep them still. Works now. |
 | `theme` | `classic`, `steampunk`, `horror`, `prehistoric` | `classic` | The set of costumes the opossums wear, in the rows and the gallery. Works now. |
 
-The settings are kept between sessions and shared by every session you have open. `motion`
-and `theme` take effect at once; the others when the part of the pane they control arrives. If two
+The settings are kept between sessions and shared by every session you have open. `autoOpen`,
+`motion` and `theme` take effect at once; the others when the part of the pane they control arrives. If two
 sessions change a setting at the same moment, one change may be lost: set it again.
 
 Answers in words are marked as yours alone. Claude Code keeps such an answer out of what

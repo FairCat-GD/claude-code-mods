@@ -95,3 +95,28 @@ test('every store write holds only setting values and panel flags, never what an
     for (const text of agentText) expect(JSON.stringify(write)).not.toContain(text)
   }
 })
+
+test("a remembered pick is stored under its agent type's key as a role id, never what the agent was asked (I-03)", async ($, on) => {
+  engine(on)
+  on('agent.spawn', () => SPAWNED)
+  const clock = mock.clock(on)
+  const kept = store(on)
+  const keeper = { ...SPAWN, subagentType: 'shed-keeper' }
+  await $.agent.spawn(keeper)
+  for (const [surface, role] of [
+    ['terminal', 'tester'],
+    ['desktop', 'guard'],
+  ] as const) {
+    const pane = await $.ui.mount({ ...MOUNT, surface })
+    await pane.press({ key: `role-${SPAWNED.agentId}` })
+    await clock.advance(100)
+    await pane.select({ key: 'role-pick', value: role })
+    await clock.advance(100)
+    await pane.unmount()
+  }
+  expect(kept.writes).toEqual([
+    { key: 'role:shed-keeper', value: 'tester' },
+    { key: 'role:shed-keeper', value: 'guard' },
+  ])
+  for (const text of [keeper.prompt, keeper.description]) expect(JSON.stringify(kept.writes)).not.toContain(text)
+})
