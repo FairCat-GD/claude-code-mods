@@ -6,6 +6,22 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-11-23
+
+The four sets, and a gallery of every role.
+
+### Added
+
+- **The `theme` setting works:** `/possums set theme steampunk`, `horror` or `prehistoric`
+  dresses every opossum in that set at once, the main session's included; `classic` is the
+  default. Role names stay the same in every set; only the costumes change.
+- **`/possums roles`** shows the gallery in the pane, in place of the list: every role of the
+  current set in each of its eight states, with its role name and its costume's name (a
+  Builder is a Boilermaker in `steampunk`). In a terminal it lists the states and the roles as
+  text. Its `close` button, or closing the pane, brings the list back.
+- **A planned pose,** sitting greyed and faded, shown in the gallery. Nothing is planned yet,
+  so no row uses it.
+
 ## [0.7.0] — 2026-11-22
 
 The opossums arrive: in the desktop app each agent is a small pixel opossum, dressed for its

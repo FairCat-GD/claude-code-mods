@@ -41,6 +41,7 @@ export function mergePrefs(stored: unknown, change: Partial<Prefs>): Record<stri
 export type Words =
   | { kind: 'toggle' }
   | { kind: 'open' }
+  | { kind: 'roles' }
   | { kind: 'settings' }
   | { kind: 'set'; name: SettingName; value: SettingValue }
   | { kind: 'noName' }
@@ -64,6 +65,7 @@ export function parseWords(args: string): Words {
   }
   if (name !== undefined) return { kind: 'unknown' }
   if (same(word, 'open')) return { kind: 'open' }
+  if (same(word, 'roles')) return { kind: 'roles' }
   if (same(word, 'settings')) return { kind: 'settings' }
   return { kind: 'unknown' }
 }

@@ -1098,6 +1098,77 @@ gallery), *The command and settings*, *Testing strategy*.
   - the gallery holds 17 roles and 8 states on both surfaces (F-26).
 - N-05 timed by hand: building the tree for 20 rows, recorded in the done-note.
 
+
+**Done (2026-11-23, 0.8.0).**
+- **Decided with the user:**
+  - **At the start:** 0.7.0 was not yet looked at in the desktop app; the backlog item stays,
+    and 0.8.0's sets and gallery join it.
+  - **`planned`'s greying** (the amendment's question): faded with the outline outside. The
+    fills are greyed (70% luma, 30% colour) inside one `<g opacity="0.55">`; the light theme's
+    outline is drawn outside it at full strength, around every colour faint as it is seen
+    faded over `#f8f6f0` (29 of 32). The manifest's recipe stands. Set aside: greyed only (it
+    drops the fade), and a fade baked per theme (exact only on the reference's panels, twice
+    the size).
+  - **At the plan, as readings within scope:** the gallery shows still poses (`motion` `off`,
+    so 136 images, none framed), since the block says Session 6's still poses and 7a animates
+    it; it replaces the sections, not the header; `planned` is a pose, not a run state
+    (`StateId` unchanged); a `close` button ends it, and so does any close of the pane;
+    `/possums roles` opens or raises, never closes; a costume name falls back with its outfit.
+- **Shipped:**
+  - **Sprites:** `Pose` gains `planned`; `COLOURINGS` in `recipes.ts` draws the manifest's
+    `greyed`; `svg.ts` gains `greyed`, `seenOver` and a faded still; `index.ts` gains
+    `costumeOf` and `galleryOf`, with `dressOf`'s fallback.
+  - **The theme drawn:** `drawPane` passes `prefs.theme`; `/possums set theme` already redrew.
+  - **The gallery:** `/possums roles` (`parseWords`, `showGallery`), `view` at `view-2` with
+    `isGalleryOpen`, `hooks/view/gallery.tsx` (one builder per surface), `panel`'s
+    `PanelActions`, `COLOURS` exported with `planned`, and the strings (hint, usage, `planned`,
+    the gallery's).
+  - **Docs:** `CHANGELOG.md` 0.8.0; `ARCHITECTURE.md` Built for *Overview*, *Layout*, *The
+    hooks*, *Values*, *Sprites and sets*, *The panel*, *The command and settings*, *Reach*,
+    the testing table, a known-debt line, the baseline and a Decision log line;
+    `USER-GUIDE.md` (sets, the gallery, `roles`, the `theme` row); `README.md`; the mod's
+    `CLAUDE.md` (`roles`, `view-2`); `docs/BACKLOG.md`.
+- **Readings settled within scope:**
+  - a close of the pane writes `view` only when it changes it (the gallery open, or the
+    person's close), so the standing test that the mod's own close writes nothing holds;
+  - a refused write of the gallery's flag answers `cannotToggle` and opens nothing;
+  - a surface that draws no `Svg` gets the state's mark in each gallery cell.
+- **Measured** (CLI 2.1.330):
+  - **N-05,** in the kit from a scratch copy of the mod: the pane's tree for 20 rows, desktop,
+    0.21 ms median of 200 (max 1.0 ms) with the sprites cached; the first build, writing its
+    20 sprites, about 32 ms (known debt); the terminal's 0.18 ms. The gallery's first draw of a
+    set, writing 136 sprites, about 43 ms, then 0.33 ms;
+  - the test run grew from 1.7 s to 4.1 s with the sprite checks over all four sets;
+  - `validate` unchanged: 11 hooks, 4 gating each with a `.catch`, 3 state keys, the same calls.
+- **Checked by hand:**
+  - **in the terminal,** `claude --plugin-dir mods/possum-squad` driven through `screen`:
+    `/possums roles` drew the text gallery (its copy's stored theme was `horror`: "Roles ·
+    Horror", "Lead Vampire count"); `/possums set theme prehistoric` redrew it at once ("Tribe
+    chief"); `/possums` twice closed the pane and opened it on the list. The copy's theme was
+    set back as found. Not done: pressing `close` from the keyboard, since ctrl+x then tab
+    through `screen` did not move the focus (`docs/BACKLOG.md`);
+  - **by Quick Look,** every set's gallery poses on dark and on a forced light theme; steampunk
+    dark, horror light, prehistoric dark and classic light looked at in full: eight states a
+    role, `planned` greyed and faded, outlined on light alone;
+  - not seen: the desktop (after the push; `docs/BACKLOG.md`).
+- **Falsified,** each failing at its own test, 21 breaks: the pane drawing the default set;
+  a costume with no fallback; the outline inside the fade; faintness judged unfaded; a gallery
+  lacking `quiet`; gallery sprites animated and framed; a close keeping the gallery; `roles`
+  toggling; a row's role name changing with the set; a gallery's role name changing with it; a
+  refused flag ignored; `planned` not greyed; no fallback to the default set; a set lacking a
+  role (a key renamed in a copy of `data.ts`, put back); the cache ignoring the set; a `close`
+  that does nothing; the terminal drawing the desktop's gallery; an unknown set's own title; the
+  colouring's word renamed; the terminal's gallery without costumes; `roles` not parsed.
+  - **One check could not fail as first written:** the gallery test built its expectations
+    from the module's own `GALLERY_STATES`, so a state missing there would have gone unseen;
+    it now names the motion table's eight states itself.
+- **Numbers:**
+  - 154 tests (+13) in 16 files (+2): clock 13, command 11, compose 8, gallery 6 (new), header
+    8, model 28, pane-sprites 3, panel 8, pass-through 5, prefs 4, roles 9, row 7, runs 17, sets
+    6 (new), settle 12, sprites 9 (+1);
+  - the tools' specs unchanged: 10 in 2 files;
+  - `validate` unchanged; the gate green on CLI 2.1.330.
+
 ---
 
 ## 7a: State animations

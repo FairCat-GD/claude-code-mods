@@ -88,7 +88,7 @@ test('/possums settings lists every setting with its value: the defaults, then w
 test('/possums with words it does not know answers how to use it, and leaves the pane alone', async ($, on) => {
   const seen = engine(on)
   const kept = store(on)
-  for (const args of ['dance', 'roles', 'open now', 'settings please', 'theme horror']) {
+  for (const args of ['dance', 'roles now', 'open now', 'settings please', 'theme horror']) {
     expect((await $.command.run(possums(args))).text).toBe(STRINGS.usage)
   }
   expect(seen.opens).toEqual([])

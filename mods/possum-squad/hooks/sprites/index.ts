@@ -1,9 +1,10 @@
+import type { RoleId } from '../../types/index'
 import { ANIMATION_STEP_MS } from '../config'
 import { blank, type Dress, frameGrid, over } from './compose'
 import { ART } from './data'
-import { type Pose, STILL, stillFrame, workLoop } from './recipes'
-import { loopSvg, stillSvg } from './svg'
-import type { Art } from './types'
+import { COLOURINGS, type Pose, STILL, stillFrame, workLoop } from './recipes'
+import { greyed, loopSvg, stillSvg } from './svg'
+import type { Art, ArtRole } from './types'
 
 export type { Pose } from './recipes'
 
@@ -15,20 +16,43 @@ export type Sprite = { source: string; isAnimated: boolean; width: number; heigh
 const own = <T>(record: Readonly<Record<string, T>> | undefined, key: string): T | undefined =>
   record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined
 
-// What the role wears in the set, or the default set's when the set lacks it; an unknown role is the plain opossum.
-export function dressOf(art: Art, set: string, role: string | undefined): Dress | undefined {
-  if (role === undefined) return undefined
-  const pick = (id: string) => own<Dress>(own(art.sets, id)?.roles as Record<string, Dress> | undefined, role)
+// The role as the set draws it, or as the default set does when the set lacks it.
+function artRoleOf(art: Art, set: string, role: string): ArtRole | undefined {
+  const pick = (id: string) => own<ArtRole>(own(art.sets, id)?.roles as Record<string, ArtRole> | undefined, role)
   return pick(set) ?? pick(art.defaultSet)
 }
 
-// The work loop is the one animation; every other pose, and every pose with motion off, is still.
+// What the role wears in the set; an unknown role is the plain opossum.
+export function dressOf(art: Art, set: string, role: string | undefined): Dress | undefined {
+  return role === undefined ? undefined : artRoleOf(art, set, role)
+}
+
+// The role's costume name in the set, falling back with its outfit.
+export const costumeOf = (art: Art, set: string, role: string): string | undefined => artRoleOf(art, set, role)?.costume
+
+// The gallery's set: its title, and every role the default set dresses, in its order, with its costume here.
+export type Gallery = { title: string; roles: readonly { id: RoleId; costume: string }[] }
+
+export function galleryOf(art: Art, set: string): Gallery {
+  const shown = own(art.sets, set) ?? own(art.sets, art.defaultSet)
+  const ids = Object.keys(own(art.sets, art.defaultSet)?.roles ?? {}) as RoleId[]
+  return { title: shown?.title ?? set, roles: ids.map(id => ({ id, costume: costumeOf(art, set, id) ?? '' })) }
+}
+
+// The work loop is the one animation; every other pose, and every pose with motion off, is still. A pose whose recipe
+// colours it in words is drawn so, faded by its opacity.
 export function drawSprite(art: Art, look: Look): Sprite {
   const pose: Pose = own(STILL, look.pose) === undefined ? 'idle' : look.pose
   const dress = dressOf(art, look.set, look.role)
   const colourOf = (key: string) => art.palette[key] ?? '#000000'
   const still = frameGrid(art, dress, stillFrame(art, pose))
   const size = { width: art.canvas.width, height: art.canvas.height }
+  const word = own(art.recipes, STILL[pose])?.colour
+  const colouring = word === undefined ? undefined : own(COLOURINGS, word)
+  if (colouring !== undefined) {
+    const opacity = Math.round((1 - colouring.fade) * 100) / 100
+    return { source: stillSvg(still, key => greyed(colourOf(key), colouring.grey), opacity), isAnimated: false, ...size }
+  }
   if (look.motion === 'auto' && pose === 'working') {
     return { source: loopSvg(workLoop(art, dress), still, colourOf, ANIMATION_STEP_MS), isAnimated: true, ...size }
   }

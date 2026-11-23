@@ -26,7 +26,8 @@ export type RowData = {
 export type DesktopTable = Shared & { Progress: ElementConstructor<ProgressProps> }
 
 // Each state's colour, from the app's theme; the word beside it says the same (I-06).
-const COLOURS: Record<StateId, Color> = {
+export const COLOURS: Record<StateId | 'planned', Color> = {
+  planned: 'inactive',
   starting: 'inactive',
   working: 'success',
   'needs-you': 'permission',

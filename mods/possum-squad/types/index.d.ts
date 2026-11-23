@@ -2,6 +2,8 @@
 export type View = {
   // The person closed the pane this session, with its close mark or key.
   isClosedByPerson: boolean
+  // `/possums roles` drew the gallery in the list's place; its close button or any close of the pane ends it.
+  isGalleryOpen: boolean
 }
 
 // A run's state, by its id; `planned` is reserved.

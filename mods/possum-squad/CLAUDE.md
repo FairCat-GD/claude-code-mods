@@ -18,12 +18,12 @@ behaviour from the user's side.
 These keep their spelling, because installs and stored data live under them:
 - the mod's name, `possum-squad`: its folder, its `plugin.json` `name` and its install id,
   `possum-squad@claude-code-mods`;
-- its slash command, `/possums`, with the words `open`, `set`, `settings` (built) and `roles`
-  (to come); its pane id, `possum-squad`;
+- its slash command, `/possums`, with the words `open`, `set`, `settings` and `roles`; its pane
+  id, `possum-squad`;
 - its settings and their values, its set ids, role ids and state ids (`docs/ARCHITECTURE.md`,
   *Values*);
 - its `$.state` keys, `runs`, `lead`, `view`, declared in `types/index.d.ts` (`view` under the
-  shape tag `view-1`, `runs` under `runs-3` and `lead` under `lead-1`, each changing with its
+  shape tag `view-2`, `runs` under `runs-3` and `lead` under `lead-1`, each changing with its
   fields);
   its `$.store` keys, `prefs` (built) and `role:<agent type>`;
 - reserved for a later round: the tools `step` and `plan`, the setting `stepReports`, the state

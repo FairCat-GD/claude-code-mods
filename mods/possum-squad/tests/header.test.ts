@@ -15,6 +15,7 @@ const SESSION = { tokens: 254_000, workedMs: 252_000 }
 const stateOf = (states: readonly string[]) => ROWS.filter(row => states.includes(row.state))
 const ENDED = ['finished', 'failed', 'stopped']
 const LOOK = { set: 'classic', motion: 'auto' } as const
+const NO_ACTIONS = { onToggleFinished: () => {}, onCloseGallery: () => {} }
 
 // The panels a fixture draws, by request id.
 const PANELS: Record<string, PanelData> = {
@@ -33,9 +34,9 @@ function drawPanels(on: On) {
     const data = PANELS[isBare ? e.requestId.slice('bare-'.length) : e.requestId]
     if (data === undefined) throw new Error(`no fixture panel ${e.requestId}`)
     const table = $.ui.resolve(e)
-    if (!isBare) return panel(table, e.surface === 'terminal', data, () => {})
+    if (!isBare) return panel(table, e.surface === 'terminal', data, NO_ACTIONS)
     const { Svg: _, ...bare } = table as unknown as Record<string, unknown>
-    return panel(bare as never, true, data, () => {})
+    return panel(bare as never, true, data, NO_ACTIONS)
   })
 }
 

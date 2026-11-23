@@ -8,10 +8,10 @@ const list = (items: readonly string[], joiner: 'and' | 'or') =>
 export const STRINGS = {
   title: 'Possum Squad',
   commandDescription: 'Show or hide the Possum Squad pane',
-  commandHint: '[open | settings | set <name> <value>]',
+  commandHint: '[open | roles | settings | set <name> <value>]',
   empty: 'No agents yet. They show up here when Claude starts one.',
   cannotToggle: 'The Possum Squad pane could not be shown or hidden here.',
-  usage: 'Use /possums, /possums open, /possums settings or /possums set <name> <value>.',
+  usage: 'Use /possums, /possums open, /possums roles, /possums settings or /possums set <name> <value>.',
   settingsHeading: 'Possum Squad settings:',
   setting: (name: string, value: string, values: readonly string[]) => `${name}: ${value} (${values.join(', ')})`,
   howToChange: 'Change one with /possums set <name> <value>.',
@@ -27,7 +27,9 @@ export const STRINGS = {
   heading: (name: string, count: number) => `${name} · ${count}`,
   show: 'show',
   hide: 'hide',
+  // A run's state, and `planned`, which only the gallery draws yet.
   states: {
+    planned: 'planned',
     starting: 'starting',
     working: 'working',
     'needs-you': 'needs you',
@@ -35,7 +37,7 @@ export const STRINGS = {
     finished: 'finished',
     failed: 'failed',
     stopped: 'stopped',
-  } satisfies Record<StateId, string>,
+  } satisfies Record<StateId | 'planned', string>,
   // Role names never change with the set.
   roles: {
     lead: 'Lead',
@@ -82,6 +84,13 @@ export const STRINGS = {
     Skill: 'Using',
   } as Record<string, string | undefined>,
   using: (tool: string) => `Using ${tool}`,
+  // `/possums roles`: every role of the set in every state.
+  gallery: {
+    heading: (set: string) => `Roles · ${set}`,
+    close: 'close',
+    states: 'States',
+    roles: 'Roles',
+  },
   // What a sprite shows, for a reader that cannot see it.
   sprite: {
     plain: 'Opossum',

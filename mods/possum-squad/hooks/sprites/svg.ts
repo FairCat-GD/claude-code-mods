@@ -15,6 +15,22 @@ const channel = (hex: string, at: number) => {
 }
 const luminance = (hex: string) => 0.2126 * channel(hex, 1) + 0.7152 * channel(hex, 3) + 0.0722 * channel(hex, 5)
 
+const rgb = (hex: string) => [1, 3, 5].map(at => Number.parseInt(hex.slice(at, at + 2), 16)) as [number, number, number]
+const toHex = (channels: readonly number[]) => `#${channels.map(value => Math.round(value).toString(16).padStart(2, '0')).join('')}`
+
+// A colour greyed, as the art's reference computes it: its luma, mixed with the colour itself.
+export function greyed(hex: string, grey: number): string {
+  const [r, g, b] = rgb(hex)
+  const luma = Math.trunc(0.3 * r + 0.59 * g + 0.11 * b)
+  return toHex([r, g, b].map(value => grey * luma + (1 - grey) * value))
+}
+
+// A colour drawn at an opacity over a background, as it is seen.
+export function seenOver(hex: string, background: string, opacity: number): string {
+  const under = rgb(background)
+  return toHex(rgb(hex).map((value, at) => value * opacity + (under[at] ?? 0) * (1 - opacity)))
+}
+
 export function contrast(one: string, other: string): number {
   const [light, dark] = [luminance(one), luminance(other)].sort((a, b) => b - a) as [number, number]
   return (light + 0.05) / (dark + 0.05)
@@ -66,13 +82,18 @@ const outlinePath = (grid: Grid, colourOf: (key: string) => string, inside = '')
   return d === undefined ? '' : `<path d="${d}"${inside === '' ? '/>' : `>${inside}</path>`}`
 }
 
-// A still pose: its outline, then its colours.
-export const stillBody = (grid: Grid, colourOf: (key: string) => string) =>
-  `<g class="o" fill="${OUTLINE}">${outlinePath(grid, colourOf)}</g>${fills(grid, colourOf)}`
+// A still pose: its outline, then its colours. A faded pose fades its colours alone, so the outline keeps its contrast,
+// and is drawn round the colours that are faint as they are seen faded on the light panel.
+export function stillBody(grid: Grid, colourOf: (key: string) => string, opacity = 1): string {
+  if (opacity === 1) return `<g class="o" fill="${OUTLINE}">${outlinePath(grid, colourOf)}</g>${fills(grid, colourOf)}`
+  const seen = (key: string) => seenOver(colourOf(key), LIGHT_BACKGROUND, opacity)
+  return `<g class="o" fill="${OUTLINE}">${outlinePath(grid, seen)}</g><g opacity="${opacity}">${fills(grid, colourOf)}</g>`
+}
 
 const open = (grid: Grid) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${grid[0]?.length ?? 0} ${grid.length}" shape-rendering="crispEdges">`
 
-export const stillSvg = (grid: Grid, colourOf: (key: string) => string) => `${open(grid)}<style>${STILL_STYLE}</style>${stillBody(grid, colourOf)}</svg>`
+export const stillSvg = (grid: Grid, colourOf: (key: string) => string, opacity = 1) =>
+  `${open(grid)}<style>${STILL_STYLE}</style>${stillBody(grid, colourOf, opacity)}</svg>`
 
 // The shortest run of steps that repeats through the whole loop.
 function period<T>(values: readonly T[], same: (a: T, b: T) => boolean): number {

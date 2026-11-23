@@ -2,13 +2,15 @@ import type { StateId } from '../../types/index'
 import { blank, type Dress, dressed, type Frame, flippedRow, type Loop, layerGrid, NONE, type Offset, painted, propOffset, rowsOf } from './compose'
 import type { Art, RecipeFrame } from './types'
 
-// What a sprite shows: a run's state, or `idle` for the Lead, who has none.
-export type Pose = StateId | 'idle'
+// What a sprite shows: a run's state, `planned` (no run is planned yet, so only the gallery draws it), or `idle` for
+// the Lead, who has none.
+export type Pose = StateId | 'planned' | 'idle'
 
 // Each pose's still frame, from the art's recipes. A state the art has no recipe for takes the nearest:
 // arriving is idle, and dozing is the blink, eyes closed.
 export const STILL: Readonly<Record<Pose, string>> = {
   idle: 'idle',
+  planned: 'planned',
   starting: 'idle',
   working: 'working',
   'needs-you': 'needs-you',
@@ -29,6 +31,10 @@ export const WORDED_MARKS: Readonly<Record<string, (frame: RecipeFrame) => Recor
     return { R: at(TONGUE.marks.R), r: at(TONGUE.marks.r) }
   },
 }
+
+// Colourings the art gives in words: `greyed` is 70% luminance grey and 30% colour, then 45% toward the background.
+export type Colouring = { grey: number; fade: number }
+export const COLOURINGS: Readonly<Record<string, Colouring>> = { greyed: { grey: 0.7, fade: 0.45 } }
 
 // The work loop: 20 steps of T-01, the bob on every other one, and a blink on one still step.
 export const LOOP_STEPS = 20

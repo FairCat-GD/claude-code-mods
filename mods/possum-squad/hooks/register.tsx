@@ -1,7 +1,7 @@
 import type { AgentSpawnInput, AgentSpawnResult, CommandRunResult, EngineInterface, Register, Timer, TurnStepResult } from 'claude-code'
 import { atom, read, update } from 'claude-code'
 
-import type { Lead, Runs, Tokens } from '../types/index'
+import type { Lead, Runs, Tokens, View } from '../types/index'
 import { PANE_COLUMNS } from './config'
 import { leadFigures, measured, NO_LEAD, totals, turnCounted } from './model/lead'
 import {
@@ -22,6 +22,7 @@ import {
 import { callsOf } from './model/tools'
 import { atSpawn, HELPER, toolsSeen } from './roles/rules'
 import { changeOf, mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES, SETTINGS, settingsText } from './settings'
+import { galleryOf } from './sprites'
 import { ART } from './sprites/data'
 import { STRINGS } from './strings'
 import { panel } from './view/panel'
@@ -29,7 +30,8 @@ import { rowData } from './view/runs'
 
 export const PANE = 'possum-squad'
 // Bump the shape when View's fields change: an older value then reads as absent.
-export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, { isClosedByPerson: false }, { shape: 'view-1' })
+export const NO_FLAGS: View = { isClosedByPerson: false, isGalleryOpen: false }
+export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-2' })
 // Bump the shape when Runs or Run change their fields.
 export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-3' })
 // Bump the shape when Lead changes its fields.
@@ -177,6 +179,25 @@ async function changeSetting($: Pick<EngineInterface, 'store' | 'ui'>, change: P
   return say(answer)
 }
 
+// `/possums roles`: the gallery takes the list's place, in a pane opened or raised, never closed.
+async function showGallery($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>): Promise<CommandRunResult> {
+  try {
+    await update($, view, flags => ({ ...flags, isGalleryOpen: true }))
+  } catch {
+    return say(STRINGS.cannotToggle)
+  }
+  return showPane($, false)
+}
+
+// The gallery's close button; the list is drawn again by the write.
+async function closeGallery($: Pick<EngineInterface, 'state'>) {
+  try {
+    await update($, view, flags => ({ ...flags, isGalleryOpen: false }))
+  } catch {
+    // the gallery stays until the pane closes
+  }
+}
+
 // Finished's show button: the person's choice, kept across sessions.
 async function showFinished($: Pick<EngineInterface, 'store' | 'ui'>, isOpen: boolean) {
   try {
@@ -274,6 +295,7 @@ async function drawPane(
   const readRuns = await read($, runs).catch(() => undefined)
   const held = readRuns ?? NO_RUNS
   const main = await read($, lead).catch(() => NO_LEAD)
+  const flags = await read($, view).catch(() => NO_FLAGS)
   const prefs = await prefsWhileDrawing($)
   const now = await $.clock.now().catch(() => Number.NaN)
   const shown = shownRuns(held)
@@ -289,10 +311,10 @@ async function drawPane(
       session: totals(main, held, now),
       rows: shown.map(run => rowData(run, keyOf(run), figures(run, now))),
       isFinishedOpen: prefs.finishedOpen,
-      // The pane wears the default set; `theme` is kept, not drawn.
-      look: { set: ART.defaultSet, motion: prefs.motion },
+      look: { set: prefs.theme, motion: prefs.motion },
+      ...(flags.isGalleryOpen ? { gallery: galleryOf(ART, prefs.theme) } : {}),
     },
-    () => void showFinished($, !prefs.finishedOpen),
+    { onToggleFinished: () => void showFinished($, !prefs.finishedOpen), onCloseGallery: () => void closeGallery($) },
   )
 }
 
@@ -316,6 +338,8 @@ export const register: Register = on => {
         return showPane($, true)
       case 'open':
         return showPane($, false)
+      case 'roles':
+        return showGallery($)
       case 'settings':
         return listSettings($)
       case 'set':
@@ -338,11 +362,15 @@ export const register: Register = on => {
     if (closed.deny !== undefined) return closed
     isPaneOpen = false
     stopClock()
-    if (e.origin.kind !== 'person') return closed
+    // Any close ends the gallery, so the pane opens on the list; the person's is also kept. A close that changes
+    // neither writes nothing.
+    const isPerson = e.origin.kind === 'person'
     try {
-      await update($, view, flags => ({ ...flags, isClosedByPerson: true }))
+      if (isPerson || (await read($, view)).isGalleryOpen) {
+        await update($, view, flags => ({ ...flags, isGalleryOpen: false, ...(isPerson ? { isClosedByPerson: true } : {}) }))
+      }
     } catch {
-      // the close stands; only the flag is lost
+      // the close stands; only the flags are lost
     }
     return closed
   }).catch((_$, e, next) => next(e))

@@ -16,6 +16,9 @@ otherwise sits above the prompt.
 `/possums open` does the same, except that it never hides the pane: use it when you want the
 pane in view whatever its state.
 
+`/possums roles` shows the gallery (below) in the pane, opening it or bringing it forward; it
+never hides the pane.
+
 ## The pane
 
 From the top:
@@ -70,6 +73,19 @@ beside it too, so the picture never has to be read alone.
 On the app's light theme each opossum's pale edges get a thin dark outline; on the dark theme
 it has none. With `motion` at `off`, every opossum keeps still; at `auto` they move, unless your
 system asks for reduced motion, which keeps them still too.
+
+**Sets.** The opossums all wear one set of costumes, chosen with `/possums set theme`:
+`classic` (the default, a storybook mix: a hard hat for a Builder, a pith helmet for a Scout),
+`steampunk`, `horror` or `prehistoric`. Changing it redraws every opossum at once. A role's name
+never changes with the set: a Builder is a Builder, in a stitched creature's jacket in `horror`
+or a stone hard hat in `prehistoric`.
+
+**The gallery.** `/possums roles` replaces the list with every role of the current set, each
+with its role name and its costume's name, over its pose in each of the eight states: the
+seven above, and **planned**, sitting greyed and faded, which no agent uses yet. The poses are
+still for now. In a terminal the gallery is text: each state's mark and word, then each role
+and its costume. Its `close` button brings the list back, and so does closing the pane: the
+next `/possums` opens on the list.
 
 ## What a row shows
 
@@ -144,10 +160,10 @@ nothing; `/possums set` alone names the settings. Names and values can be typed 
 | `autoOpen` | `never`, `first`, `always` | `first` | Open the pane by itself never, when a session's first agent starts, or on every new agent. |
 | `cost` | `off`, `estimate` | `off` | Show an estimated dollar figure beside the plan-limit percent. |
 | `motion` | `auto`, `off` | `auto` | Animate the opossums, following your system's reduced-motion setting, or keep them still. Works now. |
-| `theme` | `classic`, `steampunk`, `horror`, `prehistoric` | `classic` | The set of outfits the opossums wear. Kept for now: every opossum wears `classic` until 0.8.0. |
+| `theme` | `classic`, `steampunk`, `horror`, `prehistoric` | `classic` | The set of costumes the opossums wear, in the rows and the gallery. Works now. |
 
 The settings are kept between sessions and shared by every session you have open. `motion`
-takes effect at once; the others when the part of the pane they control arrives. If two
+and `theme` take effect at once; the others when the part of the pane they control arrives. If two
 sessions change a setting at the same moment, one change may be lost: set it again.
 
 Answers in words are marked as yours alone. Claude Code keeps such an answer out of what

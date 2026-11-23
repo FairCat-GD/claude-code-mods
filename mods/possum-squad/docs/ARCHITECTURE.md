@@ -32,11 +32,12 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.7.0). The Lead, header, sections, roles and sprites. `hooks/register.tsx`, named by
-`hooks/hooks.json`, does the following:
-- registers `/possums` with its words `open`, `set` and `settings`;
+**Built** (0.8.0). The Lead, header, sections, roles, sprites in every set, and the gallery.
+`hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
+- registers `/possums` with its words `open`, `roles`, `set` and `settings`;
 - toggles and draws the pane: the Lead row and the session line, then the sections of subagent
-  runs, or the empty panel's line; on every surface but the terminal, each with its sprite;
+  runs, the empty panel's line, or the gallery; on every surface but the terminal, each with
+  its sprite, in the set `prefs.theme` names;
 - turns subagents' spawns, turns and steps into records, and keeps the runs in `runs`;
 - settles each run's role from its type, its description and its first calls, and Helper at
   T-04 or at its end;
@@ -44,8 +45,8 @@ art's source is the PNG layers in `art/`, which a Node script in `tools/` turns 
 - runs the one-second clock while the pane is open and a run is live, or a run's role may still
   fall back to Helper;
 - empties `runs` and `lead` when the session is cleared, resumed or forked;
-- keeps the settings and Finished's flag in the store under `prefs`, and records a close by the
-  person in `view`;
+- keeps the settings and Finished's flag in the store under `prefs`, and in `view` a close by the
+  person and whether the gallery is open;
 - passes every event on unchanged.
 
 Of the pure modules:
@@ -53,8 +54,8 @@ Of the pure modules:
   (`lead.ts`), and a step's calls into an activity (`tools.ts`);
 - `hooks/roles/` holds the role rules and their word lists (`rules.ts`, `words.ts`);
 - `hooks/data/models.ts` holds the dated window table;
-- `hooks/view/` holds the panel and its sections (`panel.tsx`), the Lead row and the session line
-  (`lead.tsx`), a run's row data (`runs.ts`), the row builders for both surfaces (`row.tsx`) and
+- `hooks/view/` holds the panel and its sections (`panel.tsx`), the gallery (`gallery.tsx`), the
+  Lead row and the session line (`lead.tsx`), a run's row data (`runs.ts`), the row builders for both surfaces (`row.tsx`) and
   the empty panel's line (`empty.tsx`);
 - `hooks/sprites/` writes each sprite from the generated art data (`data.ts`), by its recipe
   (`recipes.ts`), composed (`compose.ts`), written as SVG (`svg.ts`) and cached (`index.ts`);
@@ -288,7 +289,7 @@ checked on CLI 2.1.330, with Node 26.7.0 for `tools/`.
   - nothing in `hooks/` or `tests/` imports from `tools/`, and `tools/` imports nothing from
     `hooks/`: it reads `art/` and writes `hooks/sprites/data.ts`.
 
-**Built** (0.7.0). In place:
+**Built** (0.8.0). In place:
 - the manifest, `.claude-plugin/plugin.json`, naming `types/index.d.ts`;
 - the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-03, T-04, T-06 and
   T-13) and `hooks/strings.ts`;
@@ -311,7 +312,8 @@ checked on CLI 2.1.330, with Node 26.7.0 for `tools/`.
   `prefs`, the command's words, and the settings list's text. It is not in the Decided layout:
   the settings are neither runs, roles, sprites nor views, and the command and the pane both
   need them. It uses only `strings.ts`;
-- `hooks/view/`: `panel.tsx` (the header and the sections), `lead.tsx` (the Lead row, one
+- `hooks/view/`: `panel.tsx` (the header and the sections), `gallery.tsx` (the gallery, one
+  builder per surface), `lead.tsx` (the Lead row, one
   builder per surface, and the session line), `empty.tsx` (the empty panel's line), `runs.ts`
   (a run's row data and its activity line), `row.tsx` (the row, one builder per surface),
   `sprite.tsx` (a sprite as an `Svg`) and `format.ts` (tokens, time, percent and the block
@@ -332,9 +334,11 @@ checked on CLI 2.1.330, with Node 26.7.0 for `tools/`.
     `tests/settle.test.ts` raises spawns, steps and ends, and reads each row's role from the
     drawn pane;
   - `tests/compose.test.ts` composes `tests/fixtures/art.ts`, a fictional art;
-    `tests/sprites.test.ts` reads every classic sprite with its own SVG reader, playing the
+    `tests/sprites.test.ts` reads every sprite of every set with its own SVG reader, playing the
     loop's SMIL a step at a time; `tests/pane-sprites.test.ts` raises events and reads the
-    pane's `Svg` elements.
+    pane's `Svg` elements;
+  - `tests/sets.test.ts` checks the four sets, the switching, and a fictional two-role set's
+    fallback; `tests/gallery.test.ts` runs `/possums roles` and reads the drawn gallery.
 
 How it is held:
 - *Enforced by* the gate's `imports` stage (the import scan) and `validate`
@@ -468,9 +472,10 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 - `command.run` `{ command: 'possums' }` and `ui.render` `{ component: 'Pane', requestId:
   'possum-squad' }`: *The panel*, *The command and settings*.
 - `ui.close` `{ id: 'possum-squad' }` awaits `next(e)`. Unless the close was refused, it marks
-  the pane closed and stops the clock, whatever the origin; when `origin.kind` is `person`, it
-  also sets `view.isClosedByPerson` through `update`, inside a guard, so a failed write loses
-  only the flag. It returns what `next` gave.
+  the pane closed and stops the clock, whatever the origin. Then, inside a guard, so a failed
+  write loses only the flags, it writes `view` through `update` when the close changes it: it
+  ends the gallery whatever the origin, and when `origin.kind` is `person` it also sets
+  `isClosedByPerson`. A close that changes neither writes nothing. It returns what `next` gave.
 - **The recording hooks** each return what `next` gave, and write through the reading guard
   (I-05): `record` makes the change through `update` inside `try`, and `recordAt` reads
   `$.clock.now()` first, inside the same `try`. A spawn and an end need the time, so they use
@@ -545,12 +550,14 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 `PluginState['possum-squad']` with `view` as `Shaped<View>`, `runs` as `Shaped<Runs>` and `lead`
 as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `types`, and
 `validate` holds the module's state keys to it.
-- `view` is `{ isClosedByPerson: boolean }` (default false), the atom in `hooks/register.tsx`
-  with the shape tag `view-1`. A reload of the mod's code that names another tag reads the
-  value as absent, so the tag changes whenever `View`'s fields do. Peek's run and the gallery's
-  flag join it in Sessions 11 and 7.
-- Only the `ui.close` hook writes it, through `update`; nothing reads it yet (auto-open,
-  Session 9).
+- `view` (gallery 0.8.0) is `{ isClosedByPerson, isGalleryOpen }`, both booleans, default
+  false (`NO_FLAGS`), the atom in `hooks/register.tsx` with the shape tag `view-2`. A reload of
+  the mod's code that names another tag reads the value as absent, so the tag changes whenever
+  `View`'s fields do. Peek's run joins it in Session 11.
+- Three writers, each through `update`: the `ui.close` hook (*The hooks*), `/possums roles`,
+  which sets `isGalleryOpen`, and the gallery's close button, which clears it. The pane reads
+  it while drawing, so each write redraws it; a refused read draws the list. Nothing reads
+  `isClosedByPerson` yet (auto-open, Session 9).
 - `runs` (0.4.0; `past` 0.5.0; roles 0.6.0) is `Runs`, `{ rows, pending, next, past }`, the
   atom `runs` with the shape tag `runs-3`, starting as `NO_RUNS`. *The run model*'s Built part
   has its fields and rules. The recording hooks write it, and the clock's beat when it settles
@@ -773,8 +780,8 @@ Not yet: Session 12 (nesting).
   `@media (prefers-reduced-motion: reduce)`, under which its animation is hidden and its still
   pose shown. With `motion` at `off`, no animation element is written at all (F-21).
 
-**Built** (0.7.0): `classic` in every state's still pose and the work loop; the other sets are
-in `data.ts` but not drawn (Session 7), and the other states' animations are Session 7a's.
+**Built** (0.7.0; every set and `planned` 0.8.0): every set in every state's still pose and the
+work loop, in the set `prefs.theme` names; the other states' animations are Session 7a's.
 - **The converter,** `tools/art.ts`, run by hand (`node mods/possum-squad/tools/art.ts`). It
   reads `art/`'s palette, manifest and PNGs (through `tools/png.ts`, which takes 8-bit RGBA,
   non-interlaced only) and writes `hooks/sprites/data.ts`, `ART`: the canvas, the palette, the
@@ -800,6 +807,13 @@ in `data.ts` but not drawn (Session 7), and the other states' animations are Ses
   T-01: even steps the still frame, odd the bob with the prop at its `propWorkDy`, step 18 the
   blink. It is drawn as parts placed per step: the body above the seam row, the seam row, the
   rows below the bob, the eyelids (the pupils the outfit leaves bare) and the prop.
+- **`planned`** is the idle frame, with the recipe's `colour` word, `greyed`, drawn from
+  `COLOURINGS` in `recipes.ts` (decided with the owner at Session 7): each fill is greyed, 70%
+  luma (`0.3r + 0.59g + 0.11b`, as the art's reference computes it) and 30% the colour, and the
+  fills sit in one `<g opacity="0.55">`, so they fade 45% toward whatever background is behind
+  them. The outline is drawn outside that group, at full strength, around every colour whose
+  faded look over `#f8f6f0` is under 3:1: 29 of the 32 colours, so on the light theme nearly
+  the whole silhouette is outlined. It is always still. The 32 greyed colours stay distinct.
 - **The writer** (`svg.ts`): fills by colour in the order they first appear; the outline, in
   `#464650`, on every empty pixel beside a colour under 3:1 against `#f8f6f0` (the reference's
   light panel; the same colours fall under 3:1 against `#faf9f5` and `#ffffff`), in a
@@ -811,12 +825,16 @@ in `data.ts` but not drawn (Session 7), and the other states' animations are Ses
   redraw hands the app the same string and a running loop is never restarted. An unknown set
   draws `classic`, a role a set lacks the default set's, an unknown role plain, an unknown pose
   idle; a name every object inherits (`constructor`) is unknown too, since sets, roles and poses
-  are looked up by their own keys. The empty panel's squad is three plain asleep opossums, 24 px apart, cached once.
+  are looked up by their own keys. `costumeOf` falls back with the outfit, and `galleryOf` gives a
+  set's title and the default set's 17 roles in order, each with its costume there; an unknown
+  set's is the default set's. The empty panel's squad is three plain asleep opossums, 24 px apart, cached once.
 - **Sizes** (all four sets): a still pose 1.6k–3.4k characters, the work loop at most 8.7k, the
-  squad 5.0k. Composing all 288 classic looks from a cold cache took 167 ms in the kit, one
-  work loop 3.5 ms (CLI 2.1.330).
+  squad 5.0k; `tests/sprites.test.ts` holds every role and pose of every set under 16,000.
+  Composing all 288 classic looks from a cold cache took 167 ms in the kit, one work loop
+  3.5 ms (CLI 2.1.330).
 - **Seen:** every classic pose, still and animated, on dark and light, drawn by Quick Look from
-  a scratch page; not yet in the desktop app (`docs/BACKLOG.md`).
+  a scratch page; at 0.8.0 every set's gallery poses, `planned` included, the same way. Not yet
+  in the desktop app (`docs/BACKLOG.md`).
 
 ## The panel
 
@@ -937,7 +955,7 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
     an empty bar and `–`.
 - **`desktopRow`** draws the sprite it is given in the leading slot, or the coloured mark where
   the surface draws no `Svg`. `panel` gives it the sprite of the row's role (`RowData.roleId`,
-  plain while unsettled) in its state's pose, in `classic`, with `prefs.motion`; its alt is
+  plain while unsettled) in its state's pose, in `prefs.theme`'s set, with `prefs.motion`; its alt is
   "Builder, working", or "Opossum, starting" while plain. A working sprite with `motion` `auto`
   is framed (`isInteractive`); every other one is an image. The terminal's table answers `Svg`
   in the kit too, so `panel` asks for it only off the terminal. Beside it are the same lines,
@@ -959,7 +977,26 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
 - **The desktop row** was seen by the owner with 0.4.0 installed; the terminal's in Session 4's
   check.
 
-Not yet: Session 7 (the gallery), Session 11 (Peek, the collapsed view, the `widget` seat).
+The gallery (0.8.0), in `hooks/view/gallery.tsx`: while `view.isGalleryOpen` is set,
+`drawPane` passes `galleryOf(ART, prefs.theme)` and `panel` draws it below the header, in the
+sections' or the empty panel's place.
+- **Its heading** is `Roles · Steampunk` in bold, beside a dim `Button` keyed `gallery`, labelled
+  "close" (`[ close ]` on the terminal), whose press clears the flag.
+- **`desktopGallery`:** each of the 17 roles in the default set's order, its role name
+  (semibold) beside its costume name (dim), over a wrapping row of eight cells in
+  `GALLERY_STATES`' order: planned, starting, working, needs-you, quiet, finished, failed,
+  stopped. Each cell is the role's still sprite in that pose (`motion` `off`, so an image, never
+  framed), alt "Builder, planned", over its state word in footnote size; where the surface
+  draws no `Svg`, the state's mark.
+- **`terminalGallery`:** "States", then each state's coloured mark and word (`planned` in
+  `inactive`); then "Roles", each role's name beside its costume name.
+- **Timing** (N-05, in the kit, CLI 2.1.330): building the pane's tree for 20 rows took
+  0.21 ms (median of 200, max 1.0 ms) with the sprites cached; the first build, writing its
+  20 sprites, about 32 ms. The gallery's first draw of a set, writing 136 sprites, about
+  43 ms; then 0.33 ms.
+
+Not yet: Session 7a (the gallery animated, framed), Session 11 (Peek, the collapsed view, the
+`widget` seat).
 
 ## Attention
 
@@ -995,7 +1032,7 @@ Not yet: Session 7 (the gallery), Session 11 (Peek, the collapsed view, the `wid
 
 **Built** (0.1.0; the words 0.3.0). `/possums` is registered at `session.start` with
 `immediate`, the description from `hooks/strings.ts`, and the argument hint
-`[open | settings | set <name> <value>]`. Its `command.run` hook reads the words after it
+`[open | roles | settings | set <name> <value>]`. Its `command.run` hook reads the words after it
 (`parseWords` in `hooks/settings.ts`, split on whitespace, case ignored) and hands each case to
 a top-level function:
 - **No words** (or spaces alone) toggles. It finds `possum-squad` in `$.ui.panes()`:
@@ -1008,6 +1045,9 @@ a top-level function:
   An unplaced pane is never shown, so `isShown` alone decides. The answer is `{}`, which
   prints nothing.
 - **`open`** does the same, but leaves a shown pane as it is: it never closes.
+- **`roles`** sets `view.isGalleryOpen` through `update`, then does what `open` does, so it never
+  closes the pane. A refused write answers the plain line a refused open does, and opens
+  nothing.
 - **An open or a raise** marks the pane open and arms the clock when a run is live (*The
   panel*).
 - **`settings`** reads `prefs` and answers a heading, so the engine's `possum-squad:` prefix
@@ -1020,15 +1060,13 @@ a top-level function:
     never repeating the word.
   - A value the setting does not take, or none, answers the setting's values.
   - Neither writes anything.
-- **Any other words**, `roles` included until Session 7, answer the usage line.
+- **Any other words**, or a word after `open`, `roles` or `settings`, answer the usage line.
 - **Every answer in words** carries `isTextDisplayOnly` (N-01).
 - **When something refuses:**
   - if `$.ui.panes`, the open or the close rejects (another plugin holds the id), it answers
     one plain line;
   - if the store refuses a read or a write, it answers another.
 - It reads no `next`, so it is not gating and carries no `.catch`.
-
-Not yet: Session 7 (`roles`).
 
 ## Reach
 
@@ -1039,7 +1077,7 @@ mods API calls allowed (I-02): `$.ui.resolve`, `$.ui.invalidate`, `$.ui.open`, `
 `$.agent.list`. A change to this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
 outside the engine; it is never part of the mod's running code.
 
-**Built** (0.7.0). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
+**Built** (0.8.0). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
 `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`,
 `$.ui.open`, `$.ui.panes`, `$.ui.resolve`; the sprites, being pure, added none. The state calls come through `update` and `read`;
 the clock through `armClock`, `recordAt`, `settleHelpers` and `drawPane`; the store calls through `writeStore`,
@@ -1063,7 +1101,7 @@ that depends on time pins the clock; fixtures are fictional.
 |---|---|---|---|
 | `validate` | `verify` | The manifest, the hooks the module registers, which gate, and the API calls it makes | Behaviour |
 | `types` | `verify` | The module and tests against the CLI build's declarations | Another build's API, the desktop's included |
-| `tests` | `verify` | The hooks against the engine's kit, with the clock and `$` stood in; the pure modules: the run model on fixture event sequences, the role corpus, the compositor on a fictional art, every classic sprite's size, outline and frames as its SMIL plays | What the app actually draws; whether SMIL runs; real timing and order of events |
+| `tests` | `verify` | The hooks against the engine's kit, with the clock and `$` stood in; the pure modules: the run model on fixture event sequences, the role corpus, the compositor on a fictional art, every sprite's size, outline and frames as its SMIL plays, in every set; the sets' switching and fallback; the gallery | What the app actually draws; whether SMIL runs; real timing and order of events |
 | `imports` | `verify` | Every import resolves inside the folder or to a declared module | Anything at run time |
 | Hygiene | `verify`, with the drafted commit message; in full when the term list or the stage changes | Private terms in files, paths and messages; attribution in messages; secrets by their exact shapes; conflict markers | Images and binaries; a term joined inside one lowercase run; attribution in files; a home-directory path; a secret of any other shape |
 | The converter | `verify`: `types` and `tests` take `tools/` | The PNG reader (every filter, an independent Paeth check, each refusal); the converter on a fictional art folder, kept as data in `tools/fixtures/art.ts` and written to a temporary folder as PNG and JSON, since a PNG made by hand could not be read for review; each broken input refused at its place; the committed `data.ts` equal to what `art/` converts to, and holding every layer the manifest names | Whether the art looks right: by eye, in the desktop app |
@@ -1123,23 +1161,26 @@ unread.
   claims that agent reads its role from its later calls alone.
 - **With the pane closed and an agent silent past T-04,** Helper waits for its next step, its
   end or the first beat after the pane opens; the role is the same, only when it shows differs.
-- **The sprites are unseen in the desktop app** until 0.7.0 is pushed and installed
-  (`docs/BACKLOG.md`); `<path>` and a discrete `opacity` animation are drawn there by another
+- **The sprites are unseen in the desktop app** until 0.7.0 or later is installed and looked at
+  (`docs/BACKLOG.md`); the gallery's 136 images and `planned`'s group `opacity` too; `<path>` and a discrete `opacity` animation are drawn there by another
   mod of this repository, not yet by this one.
 - **`data.ts` is about 87k characters,** loaded on every start; the kit loads it, and whether
   the engine caps a module's size is not in the declarations.
 - **The tongue's place is the classic base's:** the nose's row (21) and columns (15, 16) are
   constants in `recipes.ts`, so a base drawn anew must move them too.
+- **A pane's first draw writes its sprites:** about 32 ms for 20 new looks, against N-05's
+  10 ms for the tree, which the cached builds meet at 0.21 ms. Each look is written once per
+  session; a new row's costs about 1–3.5 ms.
 - **After the last live run, the clock may beat up to T-04 more** for a run whose role may still
   fall back (a teammate's, or one waiting on background work), redrawing a pane whose times no
   longer move.
 
-## Baseline (v0.7.0)
+## Baseline (v0.8.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 141 pass, in 14 files: clock 13, command 11, compose 8, header 8, model 28, pane-sprites 3, panel 8, pass-through 5, prefs 4, roles 9, row 7, runs 17, settle 12, sprites 8 |
+| `claude plugin test mods/possum-squad` | 154 pass, in 16 files: clock 13, command 11, compose 8, gallery 6, header 8, model 28, pane-sprites 3, panel 8, pass-through 5, prefs 4, roles 9, row 7, runs 17, sets 6, settle 12, sprites 9 |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
@@ -1226,3 +1267,7 @@ one moves, that is the finding.
   Session 6, beside the rows'. The owner's choice at Session 6's plan.
 - 2026-11-22, *Sprites and sets* and *Layout and boundaries*: confirmed as built, with the owner,
   at Session 6.
+- 2026-11-23, *Sprites and sets*: `planned` is greyed and faded by an `opacity` on its fills
+  alone; its light-theme outline is drawn outside them, at full strength, around the colours
+  faint as they are seen faded. The owner's choice at Session 7's start: it keeps the
+  manifest's recipe on either theme, where an outline inside the fade fell to 2.76:1.
