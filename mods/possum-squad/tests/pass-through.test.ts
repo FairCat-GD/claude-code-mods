@@ -6,6 +6,7 @@ import {
   MEASURE,
   MEASURED,
   PERMISSION,
+  PERMISSION_FROM_AGENT,
   PERMITTED,
   SESSION_START,
   SPAWN,
@@ -18,6 +19,7 @@ import {
   TURN_COMPLETED,
   TURN_START,
   TURN_STARTED,
+  WAITING,
 } from './fixtures/events'
 
 // The stream as its caller reads it: every chunk, then the result it ends with. The kit's own
@@ -48,6 +50,7 @@ test('every hooked event gets back exactly what the engine gave', async ($, on) 
   expect(await $.turn.complete(TURN_COMPLETE)).toEqual(TURN_COMPLETED)
   expect(await $.session.measure(MEASURE)).toEqual(MEASURED)
   expect(await $.classic.PermissionRequest(PERMISSION)).toEqual(PERMITTED)
+  expect(await $.classic.PermissionRequest(PERMISSION_FROM_AGENT as never)).toEqual(PERMITTED)
   expect(await $.classic.SessionStart({ source: 'clear' })).toEqual(CLEARED)
 })
 
@@ -127,6 +130,7 @@ test('a fault in reading or recording an event never changes what the engine gav
     ['turn.complete', mainEnd, TURN_COMPLETED],
     ['session.measure', MEASURE, MEASURED],
     ['classic.SessionStart', { source: 'clear' }, CLEARED],
+    ['classic.PermissionRequest', PERMISSION_FROM_AGENT, WAITING],
   ]
   for (const [event, e, given] of cases) expect(await plain(event)(refusing, e, async () => given)).toEqual(given)
 
@@ -139,4 +143,42 @@ test('a fault in reading or recording an event never changes what the engine gav
   const { chunks, result } = await drain(stepHook(refusing, STEP, engineStep))
   expect(chunks).toEqual(STEP_CHUNKS)
   expect(result).toEqual(STEPPED)
+})
+
+// The same, with a `$` whose state and clock serve, so a toast is due, but whose panes and toast refuse: the toast is not
+// awaited, so its fault must end inside it.
+test('a toast that cannot be shown never changes what the engine gave (I-05)', async () => {
+  const { hooks } = hooksOf()
+  const values = new Map<string, { value: unknown; version: number }>()
+  let now = 1_000
+  const tries = { panes: 0, toasts: 0 }
+  const $ = {
+    clock: { now: async () => now },
+    state: {
+      get: async (ref: object) => values.get(JSON.stringify(ref)) ?? { value: undefined, version: 0 },
+      set: async (ref: object, value: unknown, options?: { ifVersion?: number }) => {
+        const held = values.get(JSON.stringify(ref))?.version ?? 0
+        if (options?.ifVersion !== undefined && options.ifVersion !== held) return { isSet: false, version: held }
+        values.set(JSON.stringify(ref), { value, version: held + 1 })
+        return { isSet: true, version: held + 1 }
+      },
+    },
+    store: { get: async () => Promise.reject(new Error('the fixture store refuses reads')) },
+    ui: {
+      // The first look is refused; the second finds no pane, and the toast then throws.
+      panes: async () => (++tries.panes === 1 ? Promise.reject(new Error('the fixture refuses the panes')) : []),
+      toast: () => {
+        tries.toasts++
+        throw new Error('the fixture refuses the toast')
+      },
+    },
+  }
+  type Plain = ($: unknown, e: unknown, next: (e: unknown) => Promise<unknown>) => Promise<unknown>
+  const plain = (event: string) => hooks.get(event) as unknown as Plain
+  expect(await plain('agent.spawn')($, SPAWN, async () => SPAWNED)).toEqual(SPAWNED)
+  expect(await plain('classic.PermissionRequest')($, PERMISSION_FROM_AGENT, async () => WAITING)).toEqual(WAITING)
+  now += 61_000
+  expect(await plain('turn.complete')($, TURN_COMPLETE, async () => TURN_COMPLETED)).toEqual(TURN_COMPLETED)
+  for (let i = 0; i < 100; i++) await Promise.resolve()
+  expect(tries).toEqual({ panes: 2, toasts: 1 })
 })

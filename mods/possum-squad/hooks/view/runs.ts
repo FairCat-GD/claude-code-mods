@@ -1,5 +1,6 @@
 import type { Activity, Run } from '../../types/index'
 import { ANIMATION_STEP_MS, DESCRIPTION_CHARS, MOMENT_GRACE_MS } from '../config'
+import { quietMs } from '../model/runs'
 import { MOMENT_STEPS, type Moment } from '../sprites/recipes'
 import { STRINGS } from '../strings'
 import type { RowData } from './row'
@@ -26,14 +27,15 @@ export function momentOf(run: Run, now: number): Moment | undefined {
 
 // A description past one line's worth is cut, so one agent's text never takes the pane past what the desktop draws.
 // It is cut by whole characters, so an emoji is never split.
-function shortened(text: string): string {
+export function shortened(text: string): string {
   const characters = Array.from(text)
   return characters.length > DESCRIPTION_CHARS ? `${characters.slice(0, DESCRIPTION_CHARS).join('')}${STRINGS.cut}` : text
 }
 
 // A run as its row shows it, given the figures the model worked out for it and the time it is drawn at.
 export function rowData(run: Run, key: string, figures: { tokens: number; elapsedMs: number; contextPercent?: number }, now: number): RowData {
-  const row: RowData = { id: key, order: run.order, state: run.state, description: shortened(run.description), ...figures }
+  const quiet = quietMs(run, now)
+  const row: RowData = { id: key, order: run.order, state: quiet === undefined ? run.state : 'quiet', description: shortened(run.description), ...figures }
   const moment = momentOf(run, now)
   if (moment !== undefined) row.moment = moment
   if (run.role !== undefined) {
@@ -42,7 +44,8 @@ export function rowData(run: Run, key: string, figures: { tokens: number; elapse
   }
   if (run.model !== undefined) row.model = run.model
   if (run.effort !== undefined) row.effort = run.effort
-  if (run.activity !== undefined) row.activity = activityText(run.activity)
+  if (quiet !== undefined) row.activity = STRINGS.row.quietFor(Math.floor(quiet / 60_000))
+  else if (run.activity !== undefined) row.activity = activityText(run.activity)
   if (run.round > 1) row.round = run.round
   return row
 }

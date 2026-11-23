@@ -70,6 +70,8 @@ export const STRINGS = {
     contextShort: 'ctx',
     unknown: '–',
     round: (round: number) => `round ${round}`,
+    // A quiet row's third line, in whole minutes since its last event.
+    quietFor: (minutes: number) => `Quiet for ${minutes} min`,
   },
   // A call's verb, by tool; a tool not here reads "Using <tool>".
   activity: {
@@ -105,6 +107,15 @@ export const STRINGS = {
     pick: 'Pick a role',
     label: 'Role',
     cancel: 'cancel',
+  },
+  // While the pane is out of view: a run that needs the person, and a long run's end. Each names its run by its
+  // description, or as `someone` before its row has shown.
+  toasts: {
+    someone: 'An agent',
+    needsYou: (who: string) => `${who} · needs you: waiting on a permission prompt`,
+    finished: (who: string, time: string) => `${who} · finished after ${time}`,
+    failed: (who: string) => `${who} · failed: ended without an answer`,
+    stopped: (who: string, time: string) => `${who} · stopped after ${time}`,
   },
   // What a sprite shows, for a reader that cannot see it.
   sprite: {

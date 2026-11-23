@@ -36,3 +36,9 @@ export const ROWS_DRAWN = 60
 
 // A row's description is drawn cut to this many characters: one line shows far fewer.
 export const DESCRIPTION_CHARS = 100
+
+// T-05: a live run with no event this long, and no call in flight, shows as quiet.
+export const QUIET_AFTER_MS = 90_000
+
+// T-10: a run that ends after running longer than this toasts while the pane is out of view.
+export const TOAST_AFTER_MS = 60_000

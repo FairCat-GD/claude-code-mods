@@ -6,6 +6,29 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-11-23
+
+The pane says when an agent needs you, or has gone quiet, and tells you while it is out of sight.
+
+### Added
+
+- **Needs you:** when an agent's tool call waits on a permission prompt, its row moves up to
+  Needs you and its opossum holds up a "?" sign, its third line still naming the call. Once the
+  call has run or been refused and the agent's next reply is in, it goes back to Running. A
+  prompt for the main session, or one another plugin or hook answers, moves no row.
+- **Quiet:** an agent starting or working with no call running and nothing heard from it for a
+  minute and a half shows as quiet: its opossum dozes on its feet, and its third line reads
+  "Quiet for 2 min". The next thing it does wakes it.
+- **Toasts while the pane is out of sight** (closed, behind another pane's tab, or waiting to be
+  drawn): one when an agent comes to need you, and one when an agent that ran for more than a
+  minute finishes, fails or is stopped. Each names the agent by its task, cut at 100
+  characters.
+
+### Changed
+
+- **A session that loads 0.11.0 while it runs** starts its list of agents over: the list's
+  stored shape changed.
+
 ## [0.10.1] — 2026-11-23
 
 The gallery draws in the desktop app.

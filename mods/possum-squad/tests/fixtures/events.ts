@@ -58,3 +58,7 @@ export const STEPPED = {
   stopReason: 'end_turn',
   usage,
 } as const
+
+// A subagent's call waiting on the person, and the engine's answer, which comes back empty while the prompt still waits.
+export const PERMISSION_FROM_AGENT = { ...PERMISSION, agent_id: agentId, agent_type: 'Explore', hook_event_name: 'PermissionRequest' } as const
+export const WAITING = {}

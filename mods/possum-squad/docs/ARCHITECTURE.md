@@ -32,8 +32,9 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.10.1). The Lead, header, sections, roles with the person's picker, sprites in every
-set with every state's animation, the gallery in parts the desktop draws, and auto-open.
+**Built** (0.11.0). The Lead, header, sections, roles with the person's picker, sprites in every
+set with every state's animation, the gallery in parts the desktop draws, auto-open, Needs you,
+quiet and toasts.
 `hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `roles`, `set` and `settings`;
 - toggles and draws the pane: the Lead row and the session line, then the sections of subagent
@@ -45,6 +46,9 @@ set with every state's animation, the gallery in parts the desktop draws, and au
   a picker whose choice reassigns that run, and is remembered for a custom type;
 - opens the pane by itself when an agent starts, as `prefs.autoOpen` says, unless the person
   closed it;
+- moves a subagent's row to Needs you while its call waits on a permission prompt, shows a run
+  quiet past T-05 with no call in flight, and, while the pane is out of view, toasts a run that
+  needs the person and a long run's end;
 - keeps the main session's context, tokens and time in `lead`;
 - runs the one-second clock while the pane is open and a run is live, or a run's role may still
   fall back to Helper;
@@ -61,7 +65,7 @@ Of the pure modules:
 - `hooks/data/models.ts` holds the dated window table;
 - `hooks/view/` holds the panel and its sections (`panel.tsx`), the gallery (`gallery.tsx`), the
   Lead row and the session line (`lead.tsx`), a run's row data (`runs.ts`), the row builders for both surfaces (`row.tsx`) and
-  the empty panel's line (`empty.tsx`);
+  the empty panel's line (`empty.tsx`), and the toasts' texts (`toasts.ts`);
 - `hooks/sprites/` writes each sprite from the generated art data (`data.ts`), by its recipe
   (`recipes.ts`), composed (`compose.ts`), written as SVG (`svg.ts`) and cached (`index.ts`);
 - `hooks/settings.ts` holds the settings and the command's words;
@@ -229,6 +233,16 @@ terminal session that loaded no other plugin; the owner typed the prompts.
 - **The desktop app** (engine 2.1.326) did not load a plugin folder named by
   `CLAUDE_CODE_PLUGIN_DIRS`, so how a subagent ends there was not measured. With 0.4.0
   installed, the owner saw the desktop's rows show and end.
+
+What the terminal showed in Session 10: CLI 2.1.330, `claude --plugin-dir mods/possum-squad
+--permission-mode default`, driven through `screen`, with a scratch probe plugin outside the
+repository toasting each event.
+- **A subagent's asked Bash call** raised `classic.PermissionRequest` with the agent's id as
+  `agent_id`, the same as its loop's `agentId`, while the prompt waited; `next(e)` came back
+  `{}` before the person answered.
+- **The step that asked the call ended after the request:** the step began, the request came
+  in and went out, then that step's stream ended with its one call. The engine checks a call
+  while its step still streams.
 
 What the kit did in Session 5, CLI 2.1.329:
 - **Each test loads the module afresh,** so module memory (the clock's timer and flags) never
@@ -408,13 +422,14 @@ How it is held:
    of every setting, every write holds only those fields, and no fixture brief, description,
    answer or path; a pick on each surface for a custom type writes only its key and the role
    id, and neither the agent's brief nor its description.
-7. **I-04: agent-supplied text is drawn only as plain `Text`,** never inside an `Svg`, never as
-   `Markdown`. *Why:* it may carry markup or links. *Enforced by* `tests/row.test.ts`, on both
-   surfaces. Every fixture row's description and activity is drawn whole, in a `Text` of its
+7. **I-04: agent-supplied text is drawn only as plain `Text`,** or in the engine's plain toast
+   line, never inside an `Svg`, never as `Markdown`. *Why:* it may carry markup or links.
+   *Enforced by* `tests/row.test.ts`, on both surfaces. Every fixture row's description and activity is drawn whole, in a `Text` of its
    own; no other element's props hold agent text; and a description with markdown, a link and a
    tag draws as that plain text, with no `Markdown` or `Link`. The desktop's one `Svg` is the
    row's sprite: its source is what the sprite module writes from the mod's own art, and its
-   other props hold no agent text.
+   other props hold no agent text. A toast carries a run's description, cut as its row's, in
+   `$.ui.toast`'s one line of text (`tests/attention.test.ts`).
 8. **I-05: a fault in the mod never blocks or alters a turn.** *Why:* the mod runs in every
    session the owner starts. *Enforced by* every event hook returning what `next` gave; a
    `.catch` passing the event on, on every hook but the command's and the pane's drawing; a
@@ -451,7 +466,9 @@ How it is held:
     store and the clock's time in event hooks.** *Why:* every event of every session passes through it. *Enforced
     by* review. Arming the clock calls `$.clock.every`, which is synchronous: nothing waits on it.
     Auto-open asks for the panes and opens one, which N-07 does not allow a hook to await, so
-    the spawn's hook starts it unawaited (`void autoOpen`), its every fault caught inside.
+    the spawn's hook starts it unawaited (`void autoOpen`), its every fault caught inside; a
+    toast does the same (`void toastUnseen`). A subagent's `turn.step` awaits the clock's time
+    once before its stream.
     The role rules read a shell command whole: a subagent's step whose call ran a 1 MB command
     took 2.0 to 2.6 ms in the kit, and the rules alone 3.8 ms on it (CLI 2.1.329).
 14. **Nothing private enters the repository.** *Why:* the repository's whole history will be
@@ -472,9 +489,9 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 | `ui.render` `{ component: 'Pane' }`, its `requestId` `possum-squad` | Draws the pane from state; never writes state | 1 |
 | `ui.close` | Stops the clock; when `origin.kind` is `person`, records it in `view` | 1, 5 |
 | `agent.spawn` | Opens a row from the input; re-keys it from the result | 2, 4 |
-| `turn.start` | Marks the loop's row working | 4 |
+| `turn.start` | Marks the loop's row working, heard at its time | 4, 10 |
 | `turn.step` (streaming) | Yields every chunk through untouched; from the input, the model and effort; from the result, the usage and the calls it asks for (`toolUses`): the activity line, the last actions, files touched, calls in flight, the role's tool evidence | 2, 4, 8, 10, 11 |
-| `turn.complete` | Ends the row (*The run model*); the main session's adds its tokens and time to the Lead | 4, 5 |
+| `turn.complete` | Ends the row (*The run model*), and toasts a long run's end (*Attention*); the main session's adds its tokens and time to the Lead | 4, 5, 10 |
 | `session.measure` | The Lead's context and the plan limits | 2, 5, 12 |
 | `classic.SessionStart` | On `clear`, `resume` or `fork`, cancels the clock and redraws from the reset state | 4 |
 | `classic.PermissionRequest` | Needs you begins for the run its `agent_id` names (*Attention*) | 2, 10 |
@@ -521,8 +538,10 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     that opens the row (the opening, or the settling for a fork no tool call starts), so the
     try the engine keeps decides it, and agents spawned together open the pane once.
   - `turn.start` and `turn.step` record only an event that carries `agentId`: the main loop's
-    make no `$` call.
-  - `turn.step` delegates every chunk (`const result = yield* next(e)`), then records the
+    make no `$` call. Each reads the time apart (`timeOrNone`), so a clock that cannot be read
+    loses only when the run was last heard.
+  - `turn.step`, for a subagent, first reads the time (`began`, guarded), then delegates every
+    chunk (`const result = yield* next(e)`), then records the
     step's model (the usage's, else the input's), its effort, its usage and its calls, and
     returns `result`. In the same change it first settles Helper on any run past T-04
     (`fellBack`), then reads the step's calls as role evidence (`toolsSeen`, from the run's
@@ -531,7 +550,8 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     the pane is open (*The panel*): `$.clock.every` is synchronous, and a no-op while a timer
     is armed.
   - `turn.complete` with `agentId` ends its row, and settles Helper on it if no rule has, unless
-    it is a teammate's or its turn left work in the background (`fellBack`); without, it is the main session's, and
+    it is a teammate's or its turn left work in the background (`fellBack`). A run that was live
+    and ran past T-10 starts its toast, unawaited (*Attention*). Without `agentId`, it is the main session's, and
     `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`). A malformed
     one never gets that far: the engine refuses its `next(e)` first (*Context*).
   - `session.measure` awaits `next(e)`, then records the Lead's context through `recordLead`
@@ -539,7 +559,10 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   - `classic.SessionStart` with `source` `clear`, `resume` or `fork` stops the clock, empties
     `runs` and resets `lead`. The engine resets `$.state` on a clear already (*Context*); the
     mod's own reset keeps the list right wherever it does not.
-- `classic.PermissionRequest` is a plain pass-through, `next(e)`, for Session 10.
+- `classic.PermissionRequest` awaits `next(e)`. With `agent_id`, and an answer that carries no
+  `decision`, it reads the time and records `asked` through `record`; the change learns whether
+  the run moved, and a move starts its toast, unawaited (*Attention*). It returns what `next`
+  gave.
 - Every hook but `command.run` and `ui.render` carries `.catch((_$, e, next) => next(e))`
   (`turn.step`'s a generator doing `return yield* next(e)`), gating or not, so the rule is one
   line to check. The engine's `next` there replays what the hook's own call settled to, so
@@ -604,10 +627,10 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
 
   The pane reads it while drawing, so each write redraws it; a refused read draws the list.
   `autoOpen` reads `isClosedByPerson`.
-- `runs` (0.4.0; `past` 0.5.0; roles 0.6.0; a role's moment 0.9.0) is `Runs`,
-  `{ rows, pending, next, past }`, the atom `runs` with the shape tag `runs-4`, starting as
+- `runs` (0.4.0; `past` 0.5.0; roles 0.6.0; a role's moment 0.9.0; attention 0.11.0) is `Runs`,
+  `{ rows, pending, next, past }`, the atom `runs` with the shape tag `runs-5`, starting as
   `NO_RUNS`. *The run model*'s Built part
-  has its fields and rules. The recording hooks write it, and the clock's beat when it settles
+  has its fields and rules; `quiet` is never kept there, only worked out where a row is drawn. The recording hooks write it, `classic.PermissionRequest` among them, and the clock's beat when it settles
   Helper, each through `update`, so concurrent writes retry rather than lose one another; the
   pane reads it while drawing, which redraws it on every write. The beat reads it too, outside
   any drawing.
@@ -686,9 +709,12 @@ each returning the same object when the record changes nothing.
 - **A run** (`Run`, in `types/index.d.ts`) holds what its row needs: its agent id once known,
   its parent's id, its type, description and round, whether it is a teammate, its state, its
   role once settled and its reads and searches until then, its model and effort, its start
-  and end times, its four token counts, its last request's size (input, cache reads and cache
-  writes), its activity (tool and target) and its calls in flight. A pending entry holds the
-  same numbers and role evidence; its loop's turn has begun, so a claimed row is Working. The brief, the answer, past actions and files touched wait for Peek (Session 11).
+  and end times, the time it was last heard (`heardAt`), its four token counts, its last
+  request's size (input, cache reads and cache writes), its activity (tool and target) and its
+  calls in flight, and, while it needs the person, when its call asked (`askedAt`). A pending
+  entry holds the same numbers and role evidence, and `isAsking` with its `askedAt` when a call
+  of its waits on the person; its loop's turn has begun, so a claimed row is
+  Working, or Needs you when it was asking. The brief, the answer, past actions and files touched wait for Peek (Session 11).
 - **Joining:**
   - `spawnOpened` opens a starting row at the spawn's input, keyed by its `tool_use_id`, plus
     `#<agentIndex>` for a workflow's agent, since all of a workflow run's agents share the
@@ -706,6 +732,20 @@ each returning the same object when the record changes nothing.
     or a resumed agent's continues its row, its time counted from its first start.
   - A spawn whose description equals a Finished run's gets that run's round plus one.
 - **Ending:** `turnEnded` applies `endingOf` (Decided above) and clears the calls in flight.
+- **Needs you** (0.11.0): `asked` moves a starting or working row to `needs-you`, heard and
+  asked then (`askedAt`); it leaves a row that needs the person already, one that has ended
+  and an agent nothing holds, and marks a pending entry `isAsking`, with its `askedAt`.
+  `stepped` brings a `needs-you` row back to `working`, and drops an entry's `isAsking`, at a
+  step begun at or after `askedAt` (`movesOn`): a later step is the asked call moved on,
+  allowed or refused; the step that asked it may be recorded after the request. A time that
+  cannot be read moves it on. `turnStarted` and `turnEnded` drop `askedAt`.
+- **Heard** (0.11.0): `heardAt` is the opening's time, then the spawn's result's, each turn
+  start's and each step's, when the clock could be read.
+- **Quiet** (0.11.0): `quietMs` is how long a starting or working run with no call in flight
+  has heard nothing, once that is T-05 (`QUIET_AFTER_MS`, 90 s) or more. `rowData` draws such
+  a run as `quiet`, so its section, colour, word and pose follow; nothing stores it. A step's
+  calls are in flight until the next step's record, so a run is never quiet during a call or
+  the reply after it.
 - **Roles** (*Roles*): `opened` takes the role the spawn's words settled. `stepped` applies a
   step's evidence, and `claimed` a pending entry's, both through `withEvidence`, which leaves a
   run with a role as it is (I-07). `weakOf` gives the reads and searches a run or entry has
@@ -1090,7 +1130,8 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
   - a coloured `●`, the description and the state word;
   - then, indented, the role's button (`[ Builder ]`, dim; "Pick a role" while plain), then the
     model and effort that are known, joined by " · " and dim;
-  - the activity, or "No tool calls yet";
+  - the activity, or "No tool calls yet"; while quiet, "Quiet for 2 min" (`STRINGS.row.quietFor`,
+    whole minutes since it was last heard);
   - a 10-cell block bar of context fill, then `ctx 9% · 18k · 0:42`. An unknown context draws
     an empty bar and `–`.
 - **`desktopRow`** draws the sprite it is given in the leading slot, or the coloured mark where
@@ -1194,6 +1235,9 @@ Within what the desktop draws (0.10.1), in `panel` (`hooks/view/panel.tsx`) and 
   Finished open, a picker open. In any set it came to 1,613 nodes, 8 deep and at most 218,861
   characters (`tests/size.test.ts`).
 
+A quiet row's third line, on both surfaces, is "Quiet for 2 min" in place of its activity
+(`rowData`); a Needs you row keeps its activity, the call it asks about.
+
 Not yet: Session 11 (Peek, the collapsed view, the
 `widget` seat).
 
@@ -1218,7 +1262,7 @@ Not yet: Session 11 (Peek, the collapsed view, the
   `always` on every new agent; `never` leaves it to `/possums`. A pane the person closed stays
   closed for the rest of the session (`view`).
 
-**Built** (auto-open 0.10.0). `autoOpen` in `hooks/register.tsx`, started unawaited by a new
+**Built** (auto-open 0.10.0; Needs you, quiet and toasts 0.11.0). `autoOpen` in `hooks/register.tsx`, started unawaited by a new
 agent's spawn (*The hooks*):
 - reads `prefs.autoOpen`: `never` opens nothing, and `first` only for the agent whose row starts
   the list (`isEmpty` before its opening: no row, nothing in `past`), so after a clear the next
@@ -1236,8 +1280,38 @@ agent's spawn (*The hooks*):
 A clear forgets the person's close: the engine resets `view` with the rest of `$.state`, and
 the list starts over.
 
-Every fault ends it quietly; the spawn has already returned. Not yet: Session 10 (Needs you,
-quiet, toasts).
+Every fault ends it quietly; the spawn has already returned.
+
+Needs you and quiet (0.11.0) are *The run model*'s: `asked` from `classic.PermissionRequest`
+(*The hooks*), ended by `stepped` or `turnEnded`, and `quietMs` where a row is drawn.
+- **The asking step's record comes after the request:** the engine checks a call while the
+  step that asked it still streams (*Context*), so only a step begun after the request moves
+  the call on. A subagent's step reads the time before its stream (`began`), the run keeps the
+  request's (`askedAt`), and `stepped` ends Needs you at a step with `began` at or after it, or
+  where either time is unknown.
+- **Needs you begins only where nobody else answered:** the request's `next(e)` comes back
+  while the person's prompt waits, empty (*Context*); one carrying a `decision` was settled by
+  a hook and showed no prompt, so it moves nothing.
+- **It ends at that later step's record,** after its stream: the row comes back once the call is
+  done and the model's next reply is in. Ending at the step's start would need a write before
+  each asking agent's stream.
+- **The kit raises the request from a subagent's asked call** with its `agent_id`
+  (`$.tool.call` with `agentId`, a `tool.check` answering `ask`); with nobody to answer it, the
+  kit refuses the call.
+
+Toasts (0.11.0), `toastUnseen` in `hooks/register.tsx`, started unawaited (N-07) by the hook
+that decided one, its every fault caught inside:
+- it asks `$.ui.panes()`, and calls `$.ui.toast(text)` unless `possum-squad` is there and
+  `isShown`: a pane closed, behind another's tab or waiting undrawn is out of view (the owner's
+  reading of "closed", Decision log);
+- the texts are `hooks/view/toasts.ts`'s, each from `runs` before and after the record:
+  `askedToast` when a request moved a run, `<description> · needs you: waiting on a permission
+  prompt`, or `An agent` for an entry no row has claimed; `endedToast` when a run that was
+  live ended past T-10 (`TOAST_AFTER_MS`, 60 s): `· finished after 2:14`, `· failed: ended
+  without an answer` or `· stopped after 1:05`;
+- the description is cut as the row's (`shortened`, 100 characters), I-04's toast line;
+- a second request while the run waits moves nothing, so it toasts nothing; the toast's own
+  timeout is the engine's default. No toast arms a timer (N-03).
 
 ## The command and settings
 
@@ -1297,11 +1371,11 @@ mods API calls allowed (I-02): `$.ui.resolve`, `$.ui.invalidate`, `$.ui.open`, `
 `$.agent.list`. A change to this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
 outside the engine; it is never part of the mod's running code.
 
-**Built** (0.8.0). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
+**Built** (0.8.0; the toast 0.11.0). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
 `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`,
-`$.ui.open`, `$.ui.panes`, `$.ui.resolve`; the sprites, being pure, added none. The state calls come through `update` and `read`;
+`$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast`; the sprites, being pure, added none. The state calls come through `update` and `read`;
 the clock through `armClock`, `recordAt`, `settleHelpers` and `drawPane`; the store calls through `writeStore`,
-`listSettings` and `prefsWhileDrawing`; the pane calls through `showPane`, `tick` and `redraw`.
+`listSettings` and `prefsWhileDrawing`; the pane calls through `showPane`, `tick` and `redraw`; the toast through `toastUnseen`.
 Each is on the allow-list; `$.session.usage` is not called. No network, process or file access,
 no model call, no tool registration. `tools/art.ts`, run by hand on Node, reads `art/` (its
 JSON and PNGs) and writes `hooks/sprites/data.ts`, nothing else; its specs write fictional art
@@ -1425,16 +1499,26 @@ unread.
   the engine's affair; in the kit it lands before the spawn's call returns.
 - **A remembered pick is never deleted:** a type goes back to detection only through another
   pick (`docs/BACKLOG.md`).
+- **Needs you lasts through the reply after its call:** the step that ends it is recorded at
+  its end, so the row comes back a reply's time after the call is done, and a long allowed call
+  keeps it for the whole call.
+- **A call in flight is counted until the next step's record,** so a run is not quiet during
+  the reply after a call either: quiet shows mostly for a spawn with no event, or a first
+  request that hangs.
+- **Quiet is seen in the kit only:** no hand check can hold an agent silent for 90 s with no
+  call in flight (`docs/BACKLOG.md`).
+- **A toast reads the panes after its event,** unawaited, so a pane opened or closed in between
+  decides it.
 
-## Baseline (v0.10.1)
+## Baseline (v0.11.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 209 pass, in 19 files: auto-open 11, clock 13, command 11, compose 8, gallery 11, header 8, model 31, pane-sprites 9, panel 10, pass-through 5, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 13; about 13 s |
+| `claude plugin test mods/possum-squad` | 226 pass, in 20 files: attention 11, auto-open 11, clock 13, command 11, compose 8, gallery 11, header 8, model 36, pane-sprites 9, panel 10, pass-through 6, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 13; about 14 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
-| `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
+| `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |
 
@@ -1558,3 +1642,9 @@ one moves, that is the finding.
 - 2026-11-23, *The panel*: the pane draws a bounded number of rows and counts the rest under
   their section. The owner chose the cap at Session 9a's plan, at 80. It became 60 when the kit
   showed a row is about 27 nodes, not 20 (its bar is drawn as boxes), and 80 rows passed 2,000.
+- 2026-11-23, *Attention*: a toast shows whenever the pane is out of view, not only closed:
+  absent from `$.ui.panes()`, or there and not shown (behind another's tab, or waiting
+  undrawn). The owner's choice at Session 10's plan.
+- 2026-11-23, *The invariants* (I-04) and *Attention*: a toast names its run by its
+  description, cut to 100 characters as on its row; I-04 allows agent text in the engine's
+  plain toast line. The owner's choice at Session 10's plan.

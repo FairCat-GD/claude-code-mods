@@ -44,8 +44,9 @@ From the top:
 2. **The session line:** tokens and time over the main session and every agent, such as
    `254k tokens · 4:12`.
 3. **The sections,** each headed with its count, such as `Running · 2`:
-   - **Needs you:** agents waiting on you. It arrives with a later version;
-   - **Running:** agents starting or working. It is always there once an agent has started;
+   - **Needs you:** agents waiting on a permission prompt (*When an agent needs you*, below);
+   - **Running:** agents starting, working or quiet. It is always there once an agent has
+     started;
    - **Finished:** agents that finished, failed or were stopped. It starts folded, with a
      `show` button beside its heading; `hide` folds it again. Your choice is kept between
      sessions, and shared by every session you have open.
@@ -120,14 +121,14 @@ the session line's time moves only when an agent does something.
 
 Each subagent Claude starts gets a row the moment it starts, in the order they started:
 
-1. its task in a few words, and its state: starting, working, finished, failed or stopped;
-   "round 2" when a run with the same task already finished;
+1. its task in a few words, and its state: starting, working, needs you, quiet, finished,
+   failed or stopped; "round 2" when a run with the same task already finished;
 2. its role, such as Builder or Scout, once it is settled (*How roles are chosen*, below), or
    "Pick a role" until then, as a button (*Changing a role*); then the model it runs on and its
    effort, once its first request names them;
 3. what it is doing: the last tool it asked for and what that names, such as "Reading
    notes.md", "Running npm test" or "Searching for TODO", cut to one line; "No tool calls yet"
-   before its first;
+   before its first; while it is quiet, how long, such as "Quiet for 2 min";
 4. how full its context is, as a bar and a percent, then its tokens and its time.
 
 The tokens are what the agent read and wrote fresh; what it read back from the cache is left
@@ -139,6 +140,34 @@ working agents, the later rows' opossums stand still while the first ones keep m
 arriving or finishing never stops another, though its own slide or cheer may be skipped. With many more, the last rows show only
 their state's coloured mark. Past sixty rows, the rest are not drawn: their section ends with a
 line such as `and 12 more`, and its heading still counts every agent.
+
+## When an agent needs you
+
+**Needs you.** When an agent's tool call waits on a permission prompt, its row moves up to
+Needs you and its opossum holds up a "?" sign; its third line still names the call it asks
+about. You answer the app's own prompt, as always: the pane only points at it. Once the call has
+run or been refused, and the agent's next reply is in, the row goes back to Running, so a call
+you allowed that takes a while keeps the row in Needs you until it is done. A prompt for the
+main session moves no row, since you see it already, and neither does a call another plugin or
+hook answers for you, since nobody asks you.
+
+**Quiet.** An agent that is starting or working, with no call running and nothing heard from it
+for a minute and a half, shows as quiet: its opossum dozes on its feet, its state reads "quiet"
+in amber, and its third line says for how long, such as "Quiet for 2 min". A call that is
+running, however long, never makes it quiet, nor does the reply that follows one. The next thing
+the agent does brings it back to working.
+
+**Toasts.** While the pane is out of sight (closed, behind another pane's tab, or waiting to be
+drawn), a small toast tells you instead:
+- when an agent needs you: "Find where reports are built · needs you: waiting on a permission
+  prompt";
+- when an agent that ran for more than a minute ends: "… · finished after 2:14", "… · failed:
+  ended without an answer" or "… · stopped after 1:05".
+
+Each names the agent by its task, cut at 100 characters as on its row; one that asks before its
+row has appeared is "An agent". There is one toast each time an agent comes to need you: a
+second prompt while it still waits adds none. With the pane in view there are none, since the
+row says it.
 
 ## How roles are chosen
 

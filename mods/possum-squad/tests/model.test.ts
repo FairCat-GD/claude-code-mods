@@ -1,9 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Role, Runs } from '../types/index'
-import { FINISHED_KEPT, ROLE_SETTLES_MS } from '../hooks/config'
+import { FINISHED_KEPT, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../hooks/config'
 import { DEFAULT_WINDOW, WINDOWS } from '../hooks/data/models'
 import {
+  asked,
   cleared,
   endingOf,
   fellBack,
@@ -12,6 +13,7 @@ import {
   keepsClock,
   NO_RUNS,
   PENDING_KEPT,
+  quietMs,
   reassigned,
   runOf,
   type Spawn,
@@ -430,4 +432,83 @@ test('the clock is kept for a live run, and for an ended one whose role may stil
   const teammate = turnEnded(turnStarted(spawned(NO_RUNS, { ...RAKES, isTeammate: true }, 'agent-1', 0), 'agent-1'), 'agent-1', ANSWERED, 10)
   expect(keepsClock(rowOf(teammate))).toBe(true)
   expect(keepsClock(rowOf(fellBack(teammate, ROLE_SETTLES_MS, HELPER)))).toBe(false)
+})
+
+test("a live row's asked call moves it to needs-you, and its next step brings it back working; an ended or unknown one stays", () => {
+  const working = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1', 0), 'agent-1', 5)
+  const waiting = asked(working, 'agent-1', 20)
+  expect(waiting.rows['agent-1']).toMatchObject({ state: 'needs-you', heardAt: 20 })
+  // Asked again while it waits, nothing changes.
+  expect(asked(waiting, 'agent-1', 30)).toBe(waiting)
+  expect(stepped(waiting, 'agent-1', { ...STEP, at: 40 }).rows['agent-1']).toMatchObject({ state: 'working', heardAt: 40 })
+  // A step whose time could not be read still ends the wait, and keeps the last time heard.
+  expect(stepped(waiting, 'agent-1', STEP).rows['agent-1']).toMatchObject({ state: 'working', heardAt: 20 })
+  // A starting row may ask too; one that has ended, or an agent no row or entry has, may not.
+  expect(asked(spawned(NO_RUNS, SHOVELS, 'agent-1', 0), 'agent-1').rows['agent-1']?.state).toBe('needs-you')
+  const ended = turnEnded(working, 'agent-1', ANSWERED, 50)
+  expect(asked(ended, 'agent-1', 60)).toBe(ended)
+  expect(asked(working, 'agent-9', 60)).toBe(working)
+})
+
+test("an asked call before the re-key is kept on the loop's entry, and the row that claims it needs the person", () => {
+  const pending = turnStarted(spawnOpened(NO_RUNS, SHOVELS, 0), 'agent-1')
+  const waiting = asked(pending, 'agent-1', 10)
+  expect(waiting.pending['agent-1']?.isAsking).toBe(true)
+  expect(asked(waiting, 'agent-1', 20)).toBe(waiting)
+  const claimed = spawnSettled(waiting, SHOVELS, { agentId: 'agent-1', model: 'claude-sonnet-5-5', isDenied: false }, 30)
+  expect(claimed.rows['agent-1']).toMatchObject({ state: 'needs-you', heardAt: 30 })
+  // A step before the claim moved the call on, so the row works.
+  const movedOn = stepped(waiting, 'agent-1', STEP)
+  expect(movedOn.pending['agent-1']?.isAsking).toBeUndefined()
+  expect(spawnSettled(movedOn, SHOVELS, { agentId: 'agent-1', isDenied: false }, 30).rows['agent-1']?.state).toBe('working')
+})
+
+test('each event of a run is the last time it was heard: its spawn, its result, its turn and its steps', () => {
+  const opened = spawnOpened(NO_RUNS, SHOVELS, 100)
+  expect(opened.rows[SHOVELS.key]?.heardAt).toBe(100)
+  const settled = spawnSettled(opened, SHOVELS, { agentId: 'agent-1', isDenied: false }, 150)
+  expect(settled.rows['agent-1']?.heardAt).toBe(150)
+  const started = turnStarted(settled, 'agent-1', 200)
+  expect(started.rows['agent-1']?.heardAt).toBe(200)
+  // A turn whose time could not be read keeps the last; a working row told nothing new is the same object.
+  expect(turnStarted(started, 'agent-1').rows['agent-1']?.heardAt).toBe(200)
+  expect(turnStarted(started, 'agent-1', 200)).toBe(started)
+  expect(stepped(started, 'agent-1', { ...STEP, at: 250 }).rows['agent-1']?.heardAt).toBe(250)
+  // A resume is heard at its result.
+  const ended = turnEnded(started, 'agent-1', ANSWERED, 300)
+  const resumed = spawnSettled(ended, { ...SHOVELS, resumes: 'agent-1' }, { agentId: 'agent-1', isDenied: false }, 400)
+  expect(resumed.rows['agent-1']).toMatchObject({ state: 'starting', heardAt: 400 })
+})
+
+test('a starting or working run with no call in flight is quiet from T-05 after it was last heard, and no other', () => {
+  const working = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1', 0), 'agent-1', 1_000).rows['agent-1'] as NonNullable<Runs['rows'][string]>
+  expect(quietMs(working, 1_000 + QUIET_AFTER_MS - 1)).toBeUndefined()
+  expect(quietMs(working, 1_000 + QUIET_AFTER_MS)).toBe(QUIET_AFTER_MS)
+  expect(quietMs({ ...working, state: 'starting' }, 1_000 + QUIET_AFTER_MS)).toBe(QUIET_AFTER_MS)
+  expect(quietMs({ ...working, inFlight: 1 }, 1_000 + 10 * QUIET_AFTER_MS)).toBeUndefined()
+  for (const state of ['needs-you', 'finished', 'failed', 'stopped'] as const) {
+    expect(quietMs({ ...working, state }, 1_000 + 10 * QUIET_AFTER_MS)).toBeUndefined()
+  }
+  // A time that cannot be read says nothing of quiet.
+  expect(quietMs(working, Number.NaN)).toBeUndefined()
+})
+
+test('the step that asked a call, recorded after the request, leaves the row needing the person; a step begun after moves it on', () => {
+  const working = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1', 0), 'agent-1', 5)
+  const waiting = asked(working, 'agent-1', 20)
+  // The asking step began before the request and ends after it.
+  const asker = stepped(waiting, 'agent-1', { ...STEP, calls: 1, began: 10, at: 25 })
+  expect(asker.rows['agent-1']).toMatchObject({ state: 'needs-you', askedAt: 20, inFlight: 1 })
+  const next = stepped(asker, 'agent-1', { ...STEP, began: 30, at: 40 })
+  expect(next.rows['agent-1']?.state).toBe('working')
+  expect(next.rows['agent-1']?.askedAt).toBeUndefined()
+  // The same for a loop's entry before the re-key.
+  const entry = asked(turnStarted(spawnOpened(NO_RUNS, SHOVELS, 0), 'agent-1'), 'agent-1', 20)
+  const entryAsker = stepped(entry, 'agent-1', { ...STEP, calls: 1, began: 10 })
+  expect(entryAsker.pending['agent-1']).toMatchObject({ isAsking: true, askedAt: 20 })
+  expect(stepped(entryAsker, 'agent-1', { ...STEP, began: 30 }).pending['agent-1']?.isAsking).toBeUndefined()
+  // A turn's end, or a new turn, leaves nothing of the request behind.
+  expect(turnEnded(asker, 'agent-1', ANSWERED, 50).rows['agent-1']?.askedAt).toBeUndefined()
+  expect(turnStarted(asker, 'agent-1', 50).rows['agent-1']).toMatchObject({ state: 'working' })
+  expect(turnStarted(asker, 'agent-1', 50).rows['agent-1']?.askedAt).toBeUndefined()
 })

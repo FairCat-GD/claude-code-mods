@@ -75,6 +75,13 @@ these are the parts only a person can see.
     at once; the gallery's poses wrapped to the pane's width, each with its state word; `planned`'s first column greyed
     and faded on both themes, its outline only on the light one (a group `opacity`, which the
     app has not drawn for this mod yet); the gallery's `close` button bringing the list back.
+- **Needs you, quiet and toasts (0.11.0).** Seen in the terminal at Session 10 (CLI 2.1.330):
+  a subagent's asked Bash call moved its row to Needs you while the prompt waited; it stayed
+  there through the allowed call, and left it at the agent's next reply; a refused call left it
+  too. With the pane hidden, both toasts drew over the transcript. Unseen: the "?" sign in the
+  desktop app and its toasts there, which the block's gate leaves to the owner after the push;
+  a toast while the pane is open behind another pane's tab; quiet, which no hand check can
+  bring about (an agent silent for 90 s with no call running), so only the kit checks it.
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.

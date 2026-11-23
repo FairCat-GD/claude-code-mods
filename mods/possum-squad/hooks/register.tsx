@@ -5,6 +5,7 @@ import type { Lead, RoleId, Runs, Tokens, View } from '../types/index'
 import { PANE_COLUMNS } from './config'
 import { leadFigures, measured, NO_LEAD, totals, turnCounted } from './model/lead'
 import {
+  asked,
   cleared,
   fellBack,
   figures,
@@ -31,13 +32,14 @@ import { STRINGS } from './strings'
 import { movedPart, partsOf, shownPart } from './view/gallery'
 import { panel } from './view/panel'
 import { rowData } from './view/runs'
+import { askedToast, endedToast } from './view/toasts'
 
 export const PANE = 'possum-squad'
 // Bump the shape when View's fields change: an older value then reads as absent.
 export const NO_FLAGS: View = { isClosedByPerson: false, isGalleryOpen: false }
 export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-4' })
 // Bump the shape when Runs or Run change their fields.
-export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-4' })
+export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-5' })
 // Bump the shape when Lead changes its fields.
 export const lead = atom({ plugin: 'possum-squad', key: 'lead' } as const, NO_LEAD, { shape: 'lead-1' })
 
@@ -198,6 +200,17 @@ async function autoOpen($: Pick<EngineInterface, 'store' | 'state' | 'ui' | 'clo
     await armIfLive($)
   } catch {
     // the pane waits for /possums
+  }
+}
+
+// A toast only where the person cannot see the pane: closed, behind another's tab, or waiting undrawn. The event that
+// raised it does not wait for it (N-07), so every fault here ends quietly.
+async function toastUnseen($: Pick<EngineInterface, 'ui'>, text: string) {
+  try {
+    if ((await $.ui.panes()).some(one => one.id === PANE && one.isShown)) return
+    $.ui.toast(text)
+  } catch {
+    // the row says it when the pane is next seen
   }
 }
 
@@ -535,7 +548,8 @@ export const register: Register = on => {
     const started = await next(e)
     const { agentId } = e
     if (agentId !== undefined) {
-      await record($, held => turnStarted(held, agentId))
+      const at = await timeOrNone($)
+      await record($, held => turnStarted(held, agentId, at))
       keepTime($)
     }
     return started
@@ -546,8 +560,14 @@ export const register: Register = on => {
     const completed = await next(e)
     const { agentId } = e
     if (agentId !== undefined) {
-      // A run no rule settled is Helper at its end.
-      await recordAt($, (held, at) => fellBack(turnEnded(held, agentId, { reason: e.reason, hasText: e.answer.trim() !== '' }, at), at, HELPER))
+      // A run no rule settled is Helper at its end. A long run's end toasts while the pane is out of view.
+      let toast: string | undefined
+      await recordAt($, (held, at) => {
+        const ended = fellBack(turnEnded(held, agentId, { reason: e.reason, hasText: e.answer.trim() !== '' }, at), at, HELPER)
+        toast = endedToast(held, ended, agentId)
+        return ended
+      })
+      if (toast !== undefined) void toastUnseen($, toast)
     } else await recordLead($, held => turnCounted(held, e.usage, e.durationMs))
     return completed
   }).catch((_$, e, next) => next(e))
@@ -568,12 +588,32 @@ export const register: Register = on => {
     await recordLead($, held => measured(held, e.context))
     return echoed
   }).catch((_$, e, next) => next(e))
-  on('classic.PermissionRequest', (_$, e, next) => next(e)).catch((_$, e, next) => next(e))
+
+  // A subagent's call waits on a person's answer: its row needs them until the call moves on, at that agent's next step
+  // or its end. An answer another hook gave shows no prompt; a request without `agent_id` is the main session's, which
+  // the person already sees.
+  on('classic.PermissionRequest', async ($, e, next) => {
+    const answered = await next(e)
+    const { agent_id: agentId } = e
+    if (typeof agentId === 'string' && answered.decision === undefined) {
+      const at = await timeOrNone($)
+      let toast: string | undefined
+      await record($, held => {
+        const moved = asked(held, agentId, at)
+        toast = askedToast(held, moved, agentId)
+        return moved
+      })
+      if (toast !== undefined) void toastUnseen($, toast)
+    }
+    return answered
+  }).catch((_$, e, next) => next(e))
 
   // Every chunk is delegated untouched; the step is read once its stream has ended.
   on('turn.step', async function* ($, e, next) {
-    const result = yield* next(e)
     const { agentId } = e
+    // A subagent's step is timed at its start too: the engine checks its calls before its stream ends.
+    const began = agentId === undefined ? undefined : await timeOrNone($)
+    const result = yield* next(e)
     if (agentId !== undefined) {
       // The clock settles Helper at T-04 before the step's calls count, whether or not the pane is open; a clock that
       // cannot be read loses only that, never the step's record.
@@ -591,6 +631,7 @@ export const register: Register = on => {
           tools: toolsSeen(weakOf(due, agentId), calls.clues),
           hasBackground: calls.hasBackground,
           ...(at === undefined ? {} : { at }),
+          ...(began === undefined ? {} : { began }),
         })
       })
       keepTime($)

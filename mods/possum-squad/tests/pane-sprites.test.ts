@@ -190,8 +190,8 @@ test('each state a run reaches by its events draws that state in its row, past i
   expect(drawn.map(one => one.source)).toEqual(states.map(pose => sprite({ set: 'classic', role: 'scout', pose, motion: 'auto' }).source))
 })
 
-// The panel as the mod draws it, over fixture rows in every state: needs-you and quiet have no event that reaches them
-// yet, so the test's own drawing hands the rows to the module's builder.
+// The panel as the mod draws it, over fixture rows in every state at once, which the test's own drawing hands to the
+// module's builder; `attention.test.ts` reaches needs-you and quiet by events.
 const EVERY_STATE = 'every-state'
 const NO_ACTIONS = {
   onToggleFinished: () => {},

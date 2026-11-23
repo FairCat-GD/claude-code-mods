@@ -66,6 +66,10 @@ export type Run = {
   effort?: string
   startedAt: number
   endedAt?: number
+  // The time of its last event, from which a live run with no call in flight goes quiet.
+  heardAt: number
+  // While it needs the person, the time a call of its asked: only a step begun after it moves the call on.
+  askedAt?: number
   tokens: Tokens
   // The last request's size: its input, cache reads and cache writes.
   lastRequest?: number
@@ -82,6 +86,9 @@ export type Pending = {
   role?: Role
   weakCalls?: number
   hasBackgroundWork?: boolean
+  // A call of its waits on a permission prompt, so the row that claims it needs the person; asked then.
+  isAsking?: true
+  askedAt?: number
   model?: string
   effort?: string
   tokens: Tokens

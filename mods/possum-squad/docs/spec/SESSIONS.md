@@ -1828,6 +1828,102 @@ hooks*, *The run model*, *The panel*.
   - with the pane closed, one toast per case (F-14).
 - After the push, the owner raises a permission prompt inside a subagent.
 
+**Done (2026-11-23, 0.11.0).**
+- **Decided with the user, at the plan:**
+  - **A toast shows whenever the pane is out of view:** closed, behind another pane's tab, or
+    waiting undrawn (`isShown` false), not only when closed.
+  - **A toast names its run by its description,** cut to 100 characters as on the row; I-04
+    allows agent text in the engine's plain toast line.
+  - The plan's own choices, approved with it: Needs you ends at a step's record, with no new
+    write in the stream; only an answer with no `decision` begins it; quiet is worked out where
+    a row is drawn, never stored; a quiet row's third line reads "Quiet for 2 min"; every
+    ending past T-10 toasts; one toast per move into Needs you.
+- **Shipped:**
+  - **Needs you:**
+    - `classic.PermissionRequest` awaits `next(e)`. With `agent_id` and no `decision`, it
+      records `asked`, which moves a starting or working row to `needs-you` (`askedAt`,
+      `heardAt`), or marks a pending entry `isAsking` for the row that claims it;
+    - `stepped` moves the row back at a step begun at or after the request (`movesOn`); the
+      step that asked is recorded after the request;
+    - a subagent's `turn.step` reads the time before its stream (`began`).
+  - **Quiet:**
+    - `Run.heardAt` is set by the opening, the spawn's result, each turn start and each step;
+    - `quietMs` makes a starting or working run with no call in flight quiet from T-05
+      (`QUIET_AFTER_MS`, 90 s);
+    - `rowData` draws it as `quiet`, its third line `STRINGS.row.quietFor`.
+  - **Toasts:**
+    - `toastUnseen` in `hooks/register.tsx`, started unawaited, asks `$.ui.panes()` and calls
+      `$.ui.toast` unless the pane is shown;
+    - `hooks/view/toasts.ts`: `askedToast` and `endedToast` (T-10, `TOAST_AFTER_MS`, 60 s);
+      `STRINGS.toasts`; `shortened` exported from `hooks/view/runs.ts`.
+  - `runs` is `runs-5` (`heardAt`, `askedAt`; `Pending.isAsking`, `askedAt`).
+  - **Tests:**
+    - `tests/attention.test.ts` (11): F-12 through the kit's own request from `$.tool.call`,
+      allowed and refused, the late record of the asking step, the cases that move nothing and
+      the pending window; F-15's edges, a call in flight, a spawn with no event; F-14 closed,
+      shown and behind a tab, every ending's text, the cut, and no timer (N-03);
+    - `tests/model.test.ts` +5; `tests/pass-through.test.ts` +1 (a toast that cannot be shown)
+      and a subagent request in two existing tests.
+  - **Docs:**
+    - `CHANGELOG.md` 0.11.0; `USER-GUIDE.md` (*When an agent needs you*, the sections, the
+      row); `README.md`; the mod's `CLAUDE.md` (`runs-5`); `docs/BACKLOG.md`;
+    - `ARCHITECTURE.md`: *Overview*, *Context* (what the terminal showed), I-04 and N-07,
+      *The hooks*, *Values*, *The run model*, *The panel*, *Attention* (Built), *Reach*, four
+      known-debt lines, the baseline, two Decision log lines.
+- **Amendments:**
+  - **Needs you ends at a step begun after the request, not at the next step recorded.** The
+    terminal showed the engine checking a call while the step that asked it still streams, so
+    that step's record came after the request and moved the row straight back. The block's
+    "next `turn.step`" holds; a subagent's step now awaits one read of the clock's time before
+    its stream, which N-07 allows. Found and decided in the session; the user is told.
+- **Measured** (CLI 2.1.330):
+  - **the terminal,** with a scratch probe plugin outside the repository, loaded beside the mod:
+    the request carried the loop's `agentId` as `agent_id` and came back `{}` while the prompt
+    waited; the asking step began, then the request came in and out, then the step ended with
+    its call;
+  - **the kit** raises the request from `$.tool.call` with `agentId` and a `tool.check`
+    answering `ask`; with nobody to answer, it refuses the call;
+  - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys; the calls line gains
+    `$.ui.toast` (I-02, on the allow-list since the intake).
+- **Checked by hand,** in the terminal: `claude --plugin-dir mods/possum-squad
+  --permission-mode default` driven through `screen`, at 120 columns, its settings unchanged.
+  - **Before the fix,** the row never left "working" while a prompt waited; the probe above
+    found why.
+  - **After it,** with the pane shown:
+    - a Haiku subagent's `ping -c 5` moved its row under `Needs you · 1`, "needs you", its
+      third line `Running ping -c 5 127.0.0.1`;
+    - it held while the prompt waited and through the allowed call, then finished;
+    - a refused call left Needs you, and the run finished.
+  - **With the pane hidden,** the toasts drew over the transcript under "possum-squad":
+    - "Ping for seventy seconds · needs you: waiting on a permission prompt";
+    - "Ping once more · needs you: waiting on a permission prompt";
+    - "Ping once more · finished after 1:11".
+  - No `claude --plugin-dir` was left running; the probe stayed in the scratchpad.
+  - **Not checked by hand:** quiet; a toast with the pane behind another tab; the desktop app,
+    which waits for the push (`docs/BACKLOG.md`).
+- **Falsified,** each failing at its own test:
+  - a request another hook answered moving the row;
+  - an ended row asking;
+  - a step keeping Needs you;
+  - any step moving the call on;
+  - the step's start not read;
+  - the claim ignoring `isAsking`, and a step keeping it;
+  - quiet ignoring a call in flight, or only after T-05;
+  - a step, a turn or the spawn's result not heard;
+  - the quiet line's minutes rounded up;
+  - a toast only when the pane is absent, or even when shown;
+  - a toast arming the clock;
+  - a toast's fault escaping (the kit fails the file);
+  - a second request toasting again;
+  - an end toasting at T-10 itself, or an ended run toasting again;
+  - the toast's description not cut;
+  - the request's answer changed.
+- **Numbers:**
+  - 226 tests (+17) in 20 files (+1): attention 11 (new), model 36 (+5), pass-through 6 (+1),
+    the rest unchanged; about 14 s;
+  - the tools' specs unchanged: 10 in 2 files;
+  - the gate green on CLI 2.1.330.
+
 ---
 
 ## 11: Peek and the collapsed view

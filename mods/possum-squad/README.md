@@ -5,7 +5,7 @@ their live numbers and state; in the desktop app each one is drawn as a small an
 opossum dressed for its job. It only watches: it changes nothing Claude does and adds nothing
 to what Claude is sent.
 
-This is 0.10.1: the pane opens by itself when a session's first agent starts (the `autoOpen`
+This is 0.11.0: the pane opens by itself when a session's first agent starts (the `autoOpen`
 setting says when; a pane you close stays closed), and `/possums` opens or hides it. The main session heads it, with its context and the
 session's tokens and work time; under it, every subagent Claude starts is a row in Needs you,
 Running or Finished, with its state, its role (such as Builder, Scout or Researcher,
@@ -16,8 +16,10 @@ its role in the set the `theme` setting picks (`classic`, `steampunk`, `horror` 
 bobs and blinks while it works, holds up a sign, bobbing, when it needs you, dozes when quiet, cheers then
 falls asleep when it finishes. In a terminal the rows are text. A row's role name is a button: press it to pick another
 role, which the row takes at once and, for an agent type of your own, every later agent of that
-type starts in. `/possums roles` shows every role of the set in every state, three roles at a time. `/possums set`
-keeps its settings.
+type starts in. An agent waiting on a permission prompt moves up to Needs you, and one that has
+gone silent shows as quiet; while the pane is out of sight, a toast says when an agent needs you
+or a long one ends. `/possums roles` shows every role of the set in every state, three roles at
+a time. `/possums set` keeps its settings.
 
 ## Install
 
