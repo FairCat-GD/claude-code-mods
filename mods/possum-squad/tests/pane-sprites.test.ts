@@ -92,10 +92,12 @@ test('a new row slides in, dressed by a hop when its role is known at its spawn,
   const scout = { set: 'classic', role: 'scout', motion: 'auto' } as const
   expect(arriving.map(drawn => drawn.alt)).toEqual([
     STRINGS.roles.lead,
-    STRINGS.sprite.alt(STRINGS.roles.scout, STRINGS.states.working),
+    // Its alt names the arrival's pose, so it stays the same while the row's state moves on beneath it.
+    STRINGS.sprite.alt(STRINGS.roles.scout, STRINGS.states.starting),
     STRINGS.sprite.alt(STRINGS.sprite.plain, STRINGS.states.starting),
   ])
   // An arrival stands as starting does, so the row's state moving on inside it never starts it again.
+  expect(arriving[1]?.source).toBe(sprite({ ...scout, pose: 'working', moment: 'arrival' }).source)
   expect(arriving[1]?.source).toBe(sprite({ ...scout, pose: 'starting', moment: 'arrival' }).source)
   expect(arriving[2]?.source).toBe(sprite({ set: 'classic', pose: 'starting', motion: 'auto', moment: 'arrival' }).source)
   expect(arriving.slice(1).map(drawn => drawn.isInteractive)).toEqual([true, true])

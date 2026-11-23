@@ -71,13 +71,15 @@ state:
 - **failed:** on its back, tongue out, still.
 
 The arrival, the hop, the cheer and the startle play once, when they happen: a row drawn again
-later, such as Finished's when you press `show`, is drawn still. The state is always written
+later, such as Finished's when you press `show`, is drawn still. A finished or stopped row goes
+to Finished, which is collapsed until you press `show`, so its cheer or startle shows only while
+Finished is open. The state is always written
 beside it too, so the picture never has to be read alone.
 
 On the app's light theme each opossum's pale edges get a thin dark outline; on the dark theme
 it has none. With `motion` at `off`, every opossum keeps still in its state's pose (a stopped one
 startled); at `auto` they move, unless your system asks for reduced motion, which keeps them
-still too.
+still too, and a stopped one stands once its startle would be over.
 
 **Sets.** The opossums all wear one set of costumes, chosen with `/possums set theme`:
 `classic` (the default, a storybook mix: a hard hat for a Builder, a pith helmet for a Scout),

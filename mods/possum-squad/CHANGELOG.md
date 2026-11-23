@@ -28,8 +28,11 @@ Every state moves.
 
 - **A cheer, a startle or a hop plays only when it happens,** not each time a row is drawn
   again: showing Finished's rows, or opening the pane later, draws them still.
-- **With `motion` at `off`,** or with your system asking for reduced motion, every opossum still
-  holds its state's pose, the gallery's included; a stopped one stays startled.
+- **With `motion` at `off`,** every opossum holds its state's pose, the gallery's included; a
+  stopped one stays startled. With your system asking for reduced motion, each holds its pose
+  too, and a stopped one stands once its startle would be over.
+- **A cheer or a startle shows only while Finished is open,** since that is where a finished or
+  stopped row goes; Finished is collapsed until you press `show`.
 - The pane forgets its rows once when this version is installed mid-session; they come back as
   agents do something.
 

@@ -17,8 +17,8 @@ Release 0.10.0.
 - **Round 1 is the agents panel:** Sessions 0–8 and 7a are done; Sessions 9–13 remain. 9
   releases 0.10.0.
 - **Push status:** pushed on 2026-11-23 with the user's approval: `origin/main` holds everything
-  through Session 7's review commit. Session 7a's commits wait locally. List `origin/main..HEAD`
-  before any push, and name any commit that is not the session's.
+  through Session 7a's review commit. Nothing waits locally. List `origin/main..HEAD` before any
+  push, and name any commit that is not the session's.
 - **0.7.0 to 0.9.0 wait for the owner's install and desktop look** (`docs/BACKLOG.md`, *Not yet
   checked by hand*): ask at the start whether they were seen, and record it in 9's done-note.
   If the gallery's 102 moving sprites are not smooth, that choice returns to the owner.
@@ -28,7 +28,9 @@ Release 0.10.0.
     No run reaches `needs-you` or `quiet` yet (Session 10); "states wired to runs" is what is
     left of that line, and F-08's kit test can read the row's sprite against `sprite({ … })`.
   - **A row's sprite carries a moment** (`RowData.moment`, `momentOf` in `hooks/view/runs.ts`):
-    its arrival, its hop into the outfit, or its ending, each while its time is fresh. The
+    its arrival, its hop into the outfit, or its ending, each while its time is fresh. An
+    ending shows only while Finished is open, which is collapsed by default; the owner may want
+    that changed once they see it. The
     picker's reassignment changes `Role`; I-07's reassignment should set `Role.at` to the press's
     time if it is to hop, or leave it, which plays none: a choice for the plan.
   - **`Role.at`** is the clock's time a role settled, absent when a step's clock was refused;
@@ -46,7 +48,7 @@ Release 0.10.0.
 - **For the user to decide, when they choose:** a subagent waiting on its own background shell
   reads "finished" (`docs/BACKLOG.md`, *Deferred*).
 - **Baseline** (ARCHITECTURE's table, v0.9.0, CLI 2.1.330):
-  - 166 tests in 16 files, about 10 s, and 10 tool specs in 2 files;
+  - 166 tests in 16 files, about 12 s, and 10 tool specs in 2 files;
   - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys;
   - calls: `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`,
     `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`,

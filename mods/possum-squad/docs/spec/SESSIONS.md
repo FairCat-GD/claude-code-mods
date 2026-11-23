@@ -1299,6 +1299,24 @@ sets*, *The panel*, *Testing strategy*.
     17, sets 6, settle 12, sprites 13 (+4);
   - the tools' specs unchanged: 10 in 2 files;
   - `validate` unchanged; the gate green on CLI 2.1.330.
+- **Review (`/code-review high`), 5 findings, all minor: 5 fixed and 0 skipped.** The user chose
+  to fix all five.
+  - **An arrival's alt changed with the row's state,** "starting" to "working" mid-slide, which
+    could make the app draw the sprite afresh and restart the slide: it now names `starting`
+    throughout the arrival.
+  - **Under reduced motion an arriving needs-you or quiet row showed the standing copy:** an
+    arrival now keeps the asked pose, whose still copy is its own; working stands as starting
+    does, so the row that starts working inside its arrival still draws the same string.
+  - **The docs said a stopped opossum stays startled under reduced motion;** it does with
+    `motion` `off`, and under reduced motion stands once its startle is over. The changelog,
+    the user guide, *Sprites and sets* and its Decision log line now say so.
+  - **Endings play inside Finished, which is collapsed by default:** the changelog, the user
+    guide and *Sprites and sets* say a cheer or a startle shows only while Finished is open.
+  - **The README said the sign waves;** it is held up, bobbing.
+  - **Falsified,** each failing at its own test: the alt following the state; the arrival's
+    copy taken from starting.
+  - **Numbers after the review:** 166 tests in 16 files, about 12 s; the tools' specs and
+    `validate` unchanged.
 
 ---
 

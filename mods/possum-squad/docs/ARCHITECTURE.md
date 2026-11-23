@@ -787,7 +787,7 @@ Not yet: Session 12 (nesting).
   pose shown. With `motion` at `off`, no animation element is written at all (F-21).
 
 - **Moments** (decided with the owner at Session 7a): `stopped`'s still form, with `motion`
-  `off` and under reduced motion, is the startled frame, though its animation settles idle; a
+  `off`, is the startled frame, though its animation settles idle; a
   row's arrival plays in its first moments whatever its state, since `starting` lasts
   milliseconds; the gallery plays each one-off again after a rest. Confirmed as built with the
   owner at Session 7a.
@@ -844,8 +844,12 @@ every state's recipe, in the set `prefs.theme` names.
   still it ends on. An ending while `endedAt` is fresh; a dressing while `role.at` is fresh and
   came at least the arrival's length after the start; else an arrival while `startedAt` is
   fresh; a failed run none; a time that cannot be read none. A one-off never plays on a
-  remount: Finished's `show` draws its rows still. The ending carries the outfit when the role
-  settles at the end (Helper there), so no hop precedes a cheer.
+  remount: Finished's `show` draws its rows still, so an ending shows only while Finished is
+  already open. The ending carries the outfit when the role settles at the end (Helper there),
+  so no hop precedes a cheer.
+- **Under reduced motion** a moving sprite shows its still copy, the pose's motion-off form,
+  while it is drawn framed; once its moment is over the row is drawn as its settled image, so a
+  stopped row shows startled, then stands.
 - **`planned`** is the idle frame, with the recipe's `colour` word, `greyed`, drawn from
   `COLOURINGS` in `recipes.ts` (decided with the owner at Session 7): each fill is greyed, 70%
   luma (`0.3r + 0.59g + 0.11b`, as the art's reference computes it) and 30% the colour, and the
@@ -867,8 +871,10 @@ every state's recipe, in the set `prefs.theme` names.
 - **The cache** (`index.ts`): one string per set, role, pose, motion, moment and repeat, in
   module memory, so a redraw hands the app the same string and a running loop is never
   restarted. A look is normalised first: with `motion` `off` no moment; a moment its pose cannot
-  play, or a dressing with no role, none; an arrival as `starting` whatever the run's state, so
-  a row that starts working inside its arrival draws the same string. With `motion` `auto` a
+  play, or a dressing with no role, none. An arrival moves alike in every live pose, its still
+  copy the pose's own; working stands still as starting does, so a row that starts working
+  inside its arrival draws the same string, and the row's alt names `starting` throughout the
+  arrival. With `motion` `auto` a
   still pose is drawn where its one-off settles: `stopped` standing. An unknown set
   draws `classic`, a role a set lacks the default set's, an unknown role plain, an unknown pose
   idle; a name every object inherits (`constructor`) is unknown too, since sets, roles and poses
@@ -1250,7 +1256,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 166 pass, in 16 files: clock 13, command 11, compose 8, gallery 9, header 8, model 29, pane-sprites 5, panel 9, pass-through 5, prefs 4, roles 9, row 8, runs 17, sets 6, settle 12, sprites 13; about 10 s |
+| `claude plugin test mods/possum-squad` | 166 pass, in 16 files: clock 13, command 11, compose 8, gallery 9, header 8, model 29, pane-sprites 5, panel 9, pass-through 5, prefs 4, roles 9, row 8, runs 17, sets 6, settle 12, sprites 13; about 12 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
@@ -1337,9 +1343,9 @@ one moves, that is the finding.
   Session 6, beside the rows'. The owner's choice at Session 6's plan.
 - 2026-11-22, *Sprites and sets* and *Layout and boundaries*: confirmed as built, with the owner,
   at Session 6.
-- 2026-11-23, *Sprites and sets*: `stopped`'s still form, with `motion` `off` and under reduced
-  motion, stays the startled frame, the art's own pose; its animation settles idle, as the
-  design's recipe says. The owner's choice at Session 7a's start.
+- 2026-11-23, *Sprites and sets*: `stopped`'s still form, with `motion` `off`, stays the
+  startled frame, the art's own pose; its animation settles idle, as the design's recipe says.
+  The owner's choice at Session 7a's start.
 - 2026-11-23, *Sprites and sets*: a row's arrival plays in its first moments whatever its state,
   cued by its start time: `starting` lasts milliseconds in practice. The owner's choice at
   Session 7a's start.

@@ -12,7 +12,7 @@ worked out from its type, its task's words and its first tool calls), model, act
 context, tokens and a time that ticks. In the desktop app each row has its opossum, dressed for
 its role in the set the `theme` setting picks (`classic`, `steampunk`, `horror` or
 `prehistoric`) and moving for its state: it slides in when it arrives, hops into its outfit,
-bobs and blinks while it works, waves a sign when it needs you, dozes when quiet, cheers then
+bobs and blinks while it works, holds up a sign, bobbing, when it needs you, dozes when quiet, cheers then
 falls asleep when it finishes. In a terminal the rows are text. `/possums roles` shows every
 role of the set in every state. `/possums set` keeps its settings.
 

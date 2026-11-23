@@ -14,13 +14,14 @@ const MOTIONS = ['auto', 'off'] as const
 // The motion table's poses: those a live run is in, which arrive and are dressed; those with an ending.
 const LIVE: readonly Pose[] = ['starting', 'working', 'needs-you', 'quiet']
 const ENDINGS: readonly Pose[] = ['finished', 'stopped']
-// Each look a sprite is drawn in: every pose, then the moments it plays, once and again. An arrival stands as starting
-// does in any live pose, so it is asked in starting.
+// Each look a sprite is drawn in: every pose, then the moments it plays, once and again.
 function looksOf(set: string, role: string | undefined, motion: Look['motion']): Look[] {
   const base = { set, motion, ...(role === undefined ? {} : { role }) }
   const moments: { pose: Pose; moment: Moment; isRepeated?: boolean }[] = [
-    { pose: 'starting', moment: 'arrival' },
-    { pose: 'starting', moment: 'arrival', isRepeated: true },
+    ...LIVE.flatMap(pose => [
+      { pose, moment: 'arrival' as const },
+      { pose, moment: 'arrival' as const, isRepeated: true },
+    ]),
     ...(role === undefined ? [] : LIVE.map(pose => ({ pose, moment: 'dressing' as const }))),
     ...ENDINGS.flatMap(pose => [
       { pose, moment: 'ending' as const },
@@ -239,7 +240,7 @@ const frameAt = (script: Script, step: number) => {
 
 test('every look of every set, the moments included, in either motion, is under 16,000 characters (N-02)', () => {
   const sizes = MOTIONS.flatMap(every).map(look => sprite(look).source.length)
-  expect(sizes).toHaveLength(2 * SETS.length * (POSES.length + 6) * ROLES.length + 2 * SETS.length * 4 * (ROLES.length - 1))
+  expect(sizes).toHaveLength(2 * SETS.length * (POSES.length + 12) * ROLES.length + 2 * SETS.length * 4 * (ROLES.length - 1))
   expect(Math.max(...sizes)).toBeLessThan(16_000)
   expect(squad().source.length).toBeLessThan(16_000)
 })
@@ -273,9 +274,13 @@ test('with motion on, a pose with its own loop moves, and so does every moment i
   }
 })
 
-test('an arrival stands as starting does in any live pose, and a moment its pose cannot play is no moment', () => {
+test("an arrival moves alike in every live pose, its still copy the pose's own; a moment its pose cannot play is none", () => {
   const look: Look = { set: 'steampunk', role: 'pilot', pose: 'starting', motion: 'auto', moment: 'arrival' }
-  for (const pose of LIVE) expect([pose, sprite({ ...look, pose })]).toEqual([pose, sprite(look)])
+  const moving = (one: Look) => sprite(one).source.slice(0, sprite(one).source.indexOf('<g class="s">'))
+  // Working stands still as starting does, so a row that starts working inside its arrival draws the same string.
+  expect(sprite({ ...look, pose: 'working' }).source).toBe(sprite(look).source)
+  for (const pose of LIVE) expect([pose, moving({ ...look, pose })]).toEqual([pose, moving(look)])
+  expect(sprite({ ...look, pose: 'needs-you' }).source).not.toBe(sprite(look).source)
   const bare = (pose: Pose, role?: string): Look => ({ set: 'classic', pose, motion: 'auto', ...(role === undefined ? {} : { role }) })
   expect(sprite({ ...bare('working', 'tester'), moment: 'ending' })).toBe(sprite(bare('working', 'tester')))
   expect(sprite({ ...bare('finished', 'tester'), moment: 'arrival' })).toBe(sprite(bare('finished', 'tester')))

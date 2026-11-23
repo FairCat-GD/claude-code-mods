@@ -47,7 +47,8 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
     spriteElement(
       Svg,
       sprite({ set, role: one.roleId, pose: one.state, motion, ...(one.moment === undefined ? {} : { moment: one.moment }) }),
-      STRINGS.sprite.alt(one.role ?? STRINGS.sprite.plain, STRINGS.states[one.state]),
+      // An arrival stands as starting does, so its alt stays the same while the row's state moves on beneath it.
+      STRINGS.sprite.alt(one.role ?? STRINGS.sprite.plain, STRINGS.states[one.moment === 'arrival' ? 'starting' : one.state]),
     )
   const leadSprite = Svg && spriteElement(Svg, sprite({ set, role: 'lead', pose: 'idle', motion }), STRINGS.roles.lead)
   const row = (one: RowData) => (asText ? terminalRow(table, one) : desktopRow(table, one, rowSprite(one)))

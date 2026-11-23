@@ -41,11 +41,11 @@ export function galleryOf(art: Art, set: string): Gallery {
 }
 
 // A look as it is drawn: an unknown pose idle; with motion off no moment; a moment its pose has no one-off for, or a
-// dressing with no role, none; an arrival standing as starting does, whatever the run's state.
+// dressing with no role, none. An arrival moves alike in every live pose, and its still copy is the pose's own.
 function normalised(look: Look): Look {
   const asked: Pose = own(STILL, look.pose) === undefined ? 'idle' : look.pose
   const moment = look.motion === 'off' || (look.moment === 'dressing' && look.role === undefined) ? undefined : playable(asked, look.moment)
-  const shown: Look = { set: look.set, pose: moment === 'arrival' ? 'starting' : asked, motion: look.motion }
+  const shown: Look = { set: look.set, pose: asked, motion: look.motion }
   if (look.role !== undefined) shown.role = look.role
   if (moment !== undefined) shown.moment = moment
   if (moment !== undefined && look.isRepeated === true) shown.isRepeated = true
