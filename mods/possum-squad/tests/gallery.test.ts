@@ -23,18 +23,51 @@ function world(on: On, prefs: Record<string, unknown> = {}) {
 }
 
 type Drawn = { alt: string; source: string; isInteractive?: boolean }
-type Seen = { sprites: Drawn[]; texts: string[]; emptyBoxes: number }
+type Seen = { sprites: Drawn[]; texts: string[]; names: string[]; emptyBoxes: number }
+type Surface = (typeof SURFACES)[number]
+type Clock = ReturnType<typeof mock.clock>
 
-// What the pane draws on a surface. The kit's terminal draws an Svg as an empty Box, so those are counted.
-async function drawnOn($: Engine, surface: (typeof SURFACES)[number]): Promise<Seen> {
-  const pane = await $.ui.mount({ ...MOUNT, surface })
-  const elements = await pane.findAll({})
-  await pane.unmount()
+// The gallery's parts: three roles each, in the default set's order, so six for seventeen roles.
+const PARTS = 6
+const PER_PART = 3
+const partOf = (at: number) => ROLE_IDS.slice(at * PER_PART, at * PER_PART + PER_PART)
+
+const ROLE_NAMES: readonly string[] = Object.values(STRINGS.roles)
+
+// What one drawing holds. A role's name is never dim, its costume's always, and some costumes share their role's name.
+// The kit's terminal draws an Svg as an empty Box, so those are counted.
+function seenOf(elements: readonly { type: string; props: unknown; text: string; children: readonly unknown[] }[]): Seen {
+  const texts = elements.filter(element => element.type === 'Text')
   return {
     sprites: elements.filter(element => element.type === 'Svg').map(element => element.props as Drawn),
-    texts: elements.filter(element => element.type === 'Text').map(element => element.text),
+    texts: texts.map(element => element.text),
+    names: texts
+      .filter(element => (element.props as { dimColor?: boolean }).dimColor !== true && ROLE_NAMES.includes(element.text))
+      .map(element => element.text),
     emptyBoxes: elements.filter(element => element.type === 'Box' && element.children.length === 0).length,
   }
+}
+
+// What the pane draws on a surface.
+async function drawnOn($: Engine, surface: Surface): Promise<Seen> {
+  const pane = await $.ui.mount({ ...MOUNT, surface })
+  const seen = seenOf(await pane.findAll({}))
+  await pane.unmount()
+  return seen
+}
+
+// Each part of the open gallery as a surface draws it, from the one shown, pressing next between them; the last press
+// wraps it back to where it began.
+async function partsOn($: Engine, clock: Clock, surface: Surface): Promise<Seen[]> {
+  const pane = await $.ui.mount({ ...MOUNT, surface })
+  const parts: Seen[] = []
+  for (let at = 0; at < PARTS; at++) {
+    parts.push(seenOf(await pane.findAll({})))
+    await pane.press({ key: 'gallery-next' })
+    await clock.advance(100)
+  }
+  await pane.unmount()
+  return parts
 }
 
 const altOf = (role: RoleId, state: (typeof STATES)[number]) => STRINGS.sprite.alt(STRINGS.roles[role], STRINGS.states[state])
@@ -46,83 +79,86 @@ const cellOf = (set: string, role: RoleId, state: (typeof STATES)[number], motio
   return sprite({ set, role, pose: state, motion, ...(moment === undefined ? {} : { moment, isRepeated: true }) })
 }
 const costumes = (set: string) => ROLE_IDS.map(role => ART.sets[set]?.roles[role]?.costume ?? '')
+const costumeOf = (set: string, role: RoleId) => ART.sets[set]?.roles[role]?.costume ?? ''
 const count = (texts: readonly string[], text: string) => texts.filter(one => one === text).length
+const roleNames = (seen: Seen) => seen.names
 
-test('/possums roles opens the pane on the gallery: 17 roles in 8 states, with role and costume names, on both surfaces (F-26)', async ($, on) => {
-  const { seen } = world(on)
+test('/possums roles opens the pane on the gallery: 17 roles in 8 states, three roles a part, with role and costume names, on both surfaces (F-26)', async ($, on) => {
+  const { seen, clock } = world(on)
   expect((await $.command.run(ROLES)).text).toBeUndefined()
   expect(seen.panes).toEqual(SHOWN)
   expect(ROLE_IDS).toHaveLength(17)
   for (const surface of SURFACES) {
-    const drawn = await drawnOn($, surface)
-    expect(drawn.texts).toContain(STRINGS.gallery.heading('Classic'))
-    expect(drawn.texts).not.toContain(STRINGS.empty)
-    for (const [at, role] of ROLE_IDS.entries()) {
-      expect([surface, role, drawn.texts.includes(STRINGS.roles[role]), drawn.texts.includes(costumes('classic')[at] ?? '')]).toEqual([
-        surface,
-        role,
-        true,
-        true,
-      ])
-    }
-    if (surface === 'terminal') {
-      expect([drawn.sprites, drawn.emptyBoxes]).toEqual([[], 0])
-      for (const state of STATES) expect([state, count(drawn.texts, STRINGS.states[state])]).toEqual([state, 1])
-      // Each role's name, then a dim separator, then its costume, so they never run together.
-      for (const [at, role] of ROLE_IDS.entries()) {
-        const from = drawn.texts.indexOf(STRINGS.roles[role])
-        expect([role, drawn.texts.slice(from, from + 3)]).toEqual([role, [STRINGS.roles[role], STRINGS.gallery.between, costumes('classic')[at]]])
+    const parts = await partsOn($, clock, surface)
+    // Every role once across the parts, in order, and the pressing came round to the first part again.
+    expect([surface, parts.flatMap(roleNames)]).toEqual([surface, ROLE_IDS.map(role => STRINGS.roles[role])])
+    expect((await drawnOn($, surface)).texts).toContain(STRINGS.gallery.part(1, PARTS))
+    for (const [at, drawn] of parts.entries()) {
+      const roles = partOf(at)
+      expect(drawn.texts).toContain(STRINGS.gallery.heading('Classic'))
+      expect(drawn.texts).toContain(STRINGS.gallery.part(at + 1, PARTS))
+      expect(drawn.texts).not.toContain(STRINGS.empty)
+      for (const role of roles) expect([surface, role, drawn.texts.includes(costumeOf('classic', role))]).toEqual([surface, role, true])
+      if (surface === 'terminal') {
+        expect([drawn.sprites, drawn.emptyBoxes]).toEqual([[], 0])
+        for (const state of STATES) expect([state, count(drawn.texts, STRINGS.states[state])]).toEqual([state, 1])
+        // Each role's name, then a dim separator, then its costume, so they never run together.
+        for (const role of roles) {
+          const from = drawn.texts.indexOf(STRINGS.roles[role])
+          expect([role, drawn.texts.slice(from, from + 3)]).toEqual([role, [STRINGS.roles[role], STRINGS.gallery.between, costumeOf('classic', role)]])
+        }
+        continue
       }
-      continue
+      // The Lead's sprite heads the pane; then each of the part's roles in each state, moving and framed but for planned and failed.
+      const gallery = drawn.sprites.slice(1)
+      expect(drawn.sprites[0]?.alt).toBe(STRINGS.roles.lead)
+      expect(gallery.map(one => one.alt)).toEqual(roles.flatMap(role => STATES.map(state => altOf(role, state))))
+      for (const [cell, one] of gallery.entries()) {
+        const role = roles[Math.floor(cell / STATES.length)] ?? 'lead'
+        const state = STATES[cell % STATES.length] ?? 'planned'
+        const isStill = STILL_STATES.includes(state)
+        expect([one.alt, one.source === cellOf('classic', role, state, 'auto').source, one.isInteractive]).toEqual([one.alt, true, isStill ? undefined : true])
+        expect([one.alt, one.source.includes('<animate')]).toEqual([one.alt, !isStill])
+      }
+      for (const state of STATES) expect([state, count(drawn.texts, STRINGS.states[state])]).toEqual([state, roles.length])
     }
-    // The Lead's sprite heads the pane; then each role in each state, moving and framed but for planned and failed.
-    const gallery = drawn.sprites.slice(1)
-    expect(drawn.sprites[0]?.alt).toBe(STRINGS.roles.lead)
-    expect(gallery.map(one => one.alt)).toEqual(ROLE_IDS.flatMap(role => STATES.map(state => altOf(role, state))))
-    for (const [at, one] of gallery.entries()) {
-      const role = ROLE_IDS[Math.floor(at / STATES.length)] ?? 'lead'
-      const state = STATES[at % STATES.length] ?? 'planned'
-      const isStill = STILL_STATES.includes(state)
-      expect([one.alt, one.source === cellOf('classic', role, state, 'auto').source, one.isInteractive]).toEqual([one.alt, true, isStill ? undefined : true])
-      expect([one.alt, one.source.includes('<animate')]).toEqual([one.alt, !isStill])
-    }
-    for (const state of STATES) expect([state, count(drawn.texts, STRINGS.states[state])]).toEqual([state, ROLE_IDS.length])
   }
 })
 
 test('the gallery wears the theme: its costume names and sprites follow the set, its role names never', async ($, on) => {
-  world(on, { theme: 'steampunk' })
+  const { clock } = world(on, { theme: 'steampunk' })
   await $.command.run(ROLES)
   for (const surface of SURFACES) {
-    const steampunk = await drawnOn($, surface)
+    const steampunk = await partsOn($, clock, surface)
     await $.command.run(possums('set theme prehistoric'))
-    const prehistoric = await drawnOn($, surface)
+    const prehistoric = await partsOn($, clock, surface)
     await $.command.run(possums('set theme steampunk'))
-    expect([steampunk.texts.includes(STRINGS.gallery.heading('Steampunk')), prehistoric.texts.includes(STRINGS.gallery.heading('Prehistoric'))]).toEqual([
-      true,
-      true,
-    ])
-    const names = (seen: Seen) => seen.texts.filter(text => Object.values(STRINGS.roles).includes(text as never))
-    expect(names(prehistoric)).toEqual(names(steampunk))
-    expect(names(steampunk)).toEqual(expect.arrayContaining(Object.values(STRINGS.roles)))
-    for (const [set, seen] of [
+    expect([
+      steampunk[0]?.texts.includes(STRINGS.gallery.heading('Steampunk')),
+      prehistoric[0]?.texts.includes(STRINGS.gallery.heading('Prehistoric')),
+    ]).toEqual([true, true])
+    expect(prehistoric.flatMap(roleNames)).toEqual(steampunk.flatMap(roleNames))
+    expect(steampunk.flatMap(roleNames)).toEqual(Object.values(STRINGS.roles))
+    for (const [set, parts] of [
       ['steampunk', steampunk],
       ['prehistoric', prehistoric],
     ] as const) {
-      for (const costume of costumes(set)) expect([set, costume, seen.texts.includes(costume)]).toEqual([set, costume, true])
+      const texts = parts.flatMap(part => part.texts)
+      for (const costume of costumes(set)) expect([set, costume, texts.includes(costume)]).toEqual([set, costume, true])
       if (surface === 'terminal') continue
-      const builder = seen.sprites.find(one => one.alt === altOf('builder', 'working'))
+      const builder = parts.flatMap(part => part.sprites).find(one => one.alt === altOf('builder', 'working'))
       expect([set, builder?.source]).toEqual([set, sprite({ set, role: 'builder', pose: 'working', motion: 'auto' }).source])
     }
   }
 })
 
 test('with motion off every cell of the gallery is a still image, its one-offs not played', async ($, on) => {
-  world(on, { motion: 'off' })
+  const { clock } = world(on, { motion: 'off' })
   await $.command.run(ROLES)
-  const gallery = (await drawnOn($, 'desktop')).sprites.slice(1)
-  expect(gallery).toHaveLength(ROLE_IDS.length * STATES.length)
-  for (const [at, one] of gallery.entries()) {
+  const parts = await partsOn($, clock, 'desktop')
+  const cells = parts.flatMap(part => part.sprites.slice(1))
+  expect(cells).toHaveLength(ROLE_IDS.length * STATES.length)
+  for (const [at, one] of cells.entries()) {
     const role = ROLE_IDS[Math.floor(at / STATES.length)] ?? 'lead'
     const state = STATES[at % STATES.length] ?? 'planned'
     expect([one.alt, one.source === cellOf('classic', role, state, 'off').source, one.isInteractive, one.source.includes('<animate')]).toEqual([
@@ -130,6 +166,59 @@ test('with motion off every cell of the gallery is a still image, its one-offs n
       true,
       undefined,
       false,
+    ])
+  }
+})
+
+test("the gallery's previous and next move one part either way and wrap at the ends, on both surfaces", async ($, on) => {
+  const { clock } = world(on)
+  await $.command.run(ROLES)
+  for (const surface of SURFACES) {
+    const pane = await $.ui.mount({ ...MOUNT, surface })
+    const shown = async () => {
+      const seen = seenOf(await pane.findAll({}))
+      return [seen.texts.find(text => /^\d+ of \d+$/.test(text)), roleNames(seen)]
+    }
+    const press = async (key: string) => {
+      await pane.press({ key })
+      await clock.advance(100)
+    }
+    const names = (at: number) => partOf(at).map(role => STRINGS.roles[role])
+    expect([surface, await shown()]).toEqual([surface, [STRINGS.gallery.part(1, PARTS), names(0)]])
+    await press('gallery-next')
+    expect([surface, await shown()]).toEqual([surface, [STRINGS.gallery.part(2, PARTS), names(1)]])
+    await press('gallery-previous')
+    await press('gallery-previous')
+    expect([surface, await shown()]).toEqual([surface, [STRINGS.gallery.part(6, PARTS), [STRINGS.roles.pilot, STRINGS.roles.helper]]])
+    await press('gallery-next')
+    expect([surface, await shown()]).toEqual([surface, [STRINGS.gallery.part(1, PARTS), names(0)]])
+    await pane.unmount()
+  }
+})
+
+test('the part stays through a change of set and a second /possums roles, and a gallery opened again starts on the first', async ($, on) => {
+  const { clock } = world(on)
+  await $.command.run(ROLES)
+  const pane = await $.ui.mount({ ...MOUNT, surface: 'desktop' })
+  await pane.press({ key: 'gallery-next' })
+  await clock.advance(100)
+  await pane.press({ key: 'gallery-next' })
+  await clock.advance(100)
+  await $.command.run(possums('set theme horror'))
+  await $.command.run(ROLES)
+  await clock.advance(100)
+  const third = seenOf(await pane.findAll({}))
+  expect([third.texts.includes(STRINGS.gallery.part(3, PARTS)), roleNames(third)]).toEqual([true, partOf(2).map(role => STRINGS.roles[role])])
+  await pane.press({ key: 'gallery' })
+  await clock.advance(100)
+  await pane.unmount()
+  await $.command.run(ROLES)
+  for (const surface of SURFACES) {
+    const again = await drawnOn($, surface)
+    expect([surface, again.texts.includes(STRINGS.gallery.part(1, PARTS)), roleNames(again)]).toEqual([
+      surface,
+      true,
+      partOf(0).map(role => STRINGS.roles[role]),
     ])
   }
 })

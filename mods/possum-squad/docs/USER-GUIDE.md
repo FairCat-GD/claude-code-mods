@@ -102,14 +102,19 @@ still too, and a stopped one stands once its startle would be over.
 never changes with the set: a Builder is a Builder, in a stitched creature's jacket in `horror`
 or a stone hard hat in `prehistoric`.
 
-**The gallery.** `/possums roles` replaces the list with every role of the current set, each
-with its role name and its costume's name, over its pose in each of the eight states: the
-seven above, and **planned**, standing greyed and faded, which no agent uses yet. The poses are
-moving: the arrival, the cheer and the startle play again every few seconds, so you can watch
-any of them after scrolling to it; with `motion` at `off` they are still. In a terminal the gallery is text: each state's mark and word, then each role
-and its costume. Its `close` button brings the list back, and so does closing the pane: the
-next `/possums` opens on the list. While the gallery is open the pane is not redrawn every
-second, so the session line's time moves only when an agent does something.
+**The gallery.** `/possums roles` replaces the list with every role of the current set, three
+roles at a time. Each role shows its name and its costume's name, over its pose in each of the
+eight states: the seven above, and **planned**, standing greyed and faded, which no agent uses
+yet. The poses are moving: the arrival, the cheer and the startle play again every few seconds,
+so you can watch any of them; with `motion` at `off` they are still.
+
+Under the gallery's heading, `previous` and `next` move between its six parts, and `2 of 6` says
+where you are. Going past the last part brings you back to the first. The gallery opens on its
+first part, keeps its part while you change the set, and starts again from the first once
+closed. In a terminal the gallery is text: each state's mark and word, then the part's roles and
+their costumes. Its `close` button brings the list back, and so does closing the pane: the next
+`/possums` opens on the list. While the gallery is open the pane is not redrawn every second, so
+the session line's time moves only when an agent does something.
 
 ## What a row shows
 
@@ -127,7 +132,12 @@ Each subagent Claude starts gets a row the moment it starts, in the order they s
 
 The tokens are what the agent read and wrote fresh; what it read back from the cache is left
 out. The time ticks while it runs, and stops when it ends. A long line is cut
-with an ellipsis. The state is always written out as a word, beside its colour.
+with an ellipsis, and a task longer than 100 characters is cut there. The state is always written out as a word, beside its colour.
+
+**With many agents,** the pane keeps within what the desktop app can draw. From about twenty
+working agents, the later rows' opossums stand still while the first ones keep moving. With many more, the last rows show only
+their state's coloured mark. Past sixty rows, the rest are not drawn: their section ends with a
+line such as `and 12 more`, and its heading still counts every agent.
 
 ## How roles are chosen
 

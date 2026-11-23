@@ -6,6 +6,29 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-11-23
+
+The gallery draws in the desktop app.
+
+### Fixed
+
+- **`/possums roles` shows the gallery in the desktop app,** three roles at a time: each in its
+  eight poses, with `previous` and `next` to move through the six parts (`2 of 6`), going round
+  from the last to the first. Before, the desktop app drew nothing for it, and the pane looked
+  frozen until you closed it. A terminal pages the same way, under the states' marks and words.
+  The gallery opens on its first part, keeps its part while you change the set, and closing it
+  forgets the part.
+
+### Changed
+
+- **With many agents, the pane keeps drawing:** past what one pane can hold, the later rows'
+  opossums stand still, and after those, each row shows its state's coloured mark instead.
+  Rows past sixty are not drawn: their section ends with a line such as `and 12 more`, and its
+  heading still counts every row.
+- **A task description longer than 100 characters** is cut there, with `…`; a row showed only
+  one line of it anyway.
+- A close you made this session is forgotten once when this version is installed mid-session.
+
 ## [0.10.0] — 2026-11-23
 
 Pick a role, and the pane opens by itself.

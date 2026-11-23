@@ -19,3 +19,17 @@ export const MOMENT_GRACE_MS = 1000
 
 // T-02: a sprite's pixel drawn this many CSS pixels wide.
 export const SPRITE_SCALE = 2
+
+// The desktop refuses a pane's tree past 262,144 characters or 2,000 nodes, so the gallery is drawn a few roles at
+// a time: three roles in their eight poses come to at most about 180k characters of sprites.
+export const GALLERY_ROLES_PER_PART = 3
+
+// The sprites' sources a pane spends, the Lead's included: past it, rows draw still, then their state's mark.
+export const SPRITE_BUDGET = 160_000
+
+// The rows a pane draws, about 28 nodes each with the bar drawn as boxes and text; the rest are counted in a line under
+// their section.
+export const ROWS_DRAWN = 60
+
+// A row's description is drawn cut to this many characters: one line shows far fewer.
+export const DESCRIPTION_CHARS = 100

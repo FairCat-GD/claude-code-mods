@@ -15,7 +15,14 @@ const SESSION = { tokens: 254_000, workedMs: 252_000 }
 const stateOf = (states: readonly string[]) => ROWS.filter(row => states.includes(row.state))
 const ENDED = ['finished', 'failed', 'stopped']
 const LOOK = { set: 'classic', motion: 'auto' } as const
-const NO_ACTIONS = { onToggleFinished: () => {}, onCloseGallery: () => {}, onToggleRole: () => {}, onPickRole: () => {}, onCancelRole: () => {} }
+const NO_ACTIONS = {
+  onToggleFinished: () => {},
+  onCloseGallery: () => {},
+  onMoveGallery: () => {},
+  onToggleRole: () => {},
+  onPickRole: () => {},
+  onCancelRole: () => {},
+}
 
 // The panels a fixture draws, by request id.
 const PANELS: Record<string, PanelData> = {

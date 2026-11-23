@@ -4,6 +4,8 @@ export type View = {
   isClosedByPerson: boolean
   // `/possums roles` drew the gallery in the list's place; its close button or any close of the pane ends it.
   isGalleryOpen: boolean
+  // The gallery's part shown, from 0; absent is the first. Its close drops it.
+  galleryPart?: number
   // The run whose role picker is open, by its spawn order, which its re-key leaves alone.
   pickerFor?: number
 }

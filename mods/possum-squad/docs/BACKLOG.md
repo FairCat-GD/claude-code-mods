@@ -38,13 +38,14 @@ up, it moves out of this file.
 Checks that need a person at the machine. Each has an automated check covering most of it;
 these are the parts only a person can see.
 
-- **The opossums in the desktop app (0.7.0 to 0.10.0).** The kit checks each sprite's SVG, its
+- **The opossums in the desktop app (0.7.0 to 0.10.1).** The kit checks each sprite's SVG, its
   size, its outline and its animation's frames, but not how the app paints them, and a
   terminal shows none. A session cannot look for the owner: computer use never grants control
   of, or a picture of, Claude's own window. **Seen at Session 9, installed 0.9.0, dark theme:**
   working rows' opossums, six and then fourteen at once, each moving in its role's outfit,
   plain before; the Lead's crown, still; `set motion off` and `auto` stopping and restarting
-  them at once. **The gallery draws nothing there:** Session 9a. The rest below is unseen. To check after the push, with three
+  them at once. **The 0.9.0 gallery drew nothing there,** past the bound the app holds a pane's
+  tree to; 0.10.1 draws it in parts. The rest below is unseen. To check after the push, with three
   agents running: each row's opossum in its role's outfit, plain before; a working one bobbing
   and blinking smoothly, and not restarting each second; the Lead's crown; the empty pane's
   sleeping three; on the light theme the dark outline round pale edges, and none on the dark;
@@ -57,24 +58,25 @@ these are the parts only a person can see.
     one-off drawn still once it is over, with no flash when it turns into a still image; the
     gallery's 102 moving sprites smooth or not while scrolling (if not, the choice returns to
     the owner, *The panel*); its one-offs playing again after their rest. These use
-    `fill="freeze"` and a `begin` time, which the app has not drawn for this mod yet.
+    `fill="freeze"` and a `begin` time, which the app has not drawn for this mod yet. A gallery
+    part's 18 moving sprites replace the 102 this item first named.
   - **From 0.10.0:** each row's role name as a button beside the model and effort, in the
     second line's small type; pressing it opens a list of sixteen roles under the row, the
     current one selected; a pick dressing a working opossum with one hop; `cancel` and a second
     press closing the list. The pane opening by itself when a session's first agent starts,
     without taking the keyboard; after a close with its close mark, a new agent opening
     nothing; `/possums` then taking that back.
+  - **From 0.10.1:** `/possums roles` drawing its first part, three roles in eight poses;
+    `next` and `previous` moving through the six parts and round from the last to the first,
+    with `motion` `auto` and `off`, and in `prehistoric`, the heaviest set; `close` bringing
+    the list back. Rows past the sprite budget (about twenty working agents) standing still,
+    then showing their mark, and rows past sixty counted as `and N more`: the kit checks these,
+    and the desktop would need twenty or more agents running, so they are left to a session
+    that has them anyway.
   - **From 0.8.0:** `/possums set theme horror` (and the other two) redressing every opossum
-    at once; `/possums roles` showing 17 roles in eight poses, wrapped to the pane's
-    width, each with its state word, and scrolling smoothly; `planned`'s first column greyed
+    at once; the gallery's poses wrapped to the pane's width, each with its state word; `planned`'s first column greyed
     and faded on both themes, its outline only on the light one (a group `opacity`, which the
     app has not drawn for this mod yet); the gallery's `close` button bringing the list back.
-- **Pressing the gallery's `close` in a terminal.** The driven terminal check (Session 7) could
-  not move the focus to the pane through `screen` (ctrl+x, then tab), so the button was not
-  pressed by hand there; the kit presses it on both surfaces. To check: in a
-  `claude --plugin-dir mods/possum-squad` session, `/possums roles`, focus the pane, press
-  `close`.
-
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.

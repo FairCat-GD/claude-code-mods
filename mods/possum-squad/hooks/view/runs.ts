@@ -1,5 +1,5 @@
 import type { Activity, Run } from '../../types/index'
-import { ANIMATION_STEP_MS, MOMENT_GRACE_MS } from '../config'
+import { ANIMATION_STEP_MS, DESCRIPTION_CHARS, MOMENT_GRACE_MS } from '../config'
 import { MOMENT_STEPS, type Moment } from '../sprites/recipes'
 import { STRINGS } from '../strings'
 import type { RowData } from './row'
@@ -24,9 +24,12 @@ export function momentOf(run: Run, now: number): Moment | undefined {
   return isFresh(run.startedAt, MOMENT_STEPS.arrival) ? 'arrival' : undefined
 }
 
+// A description past one line's worth is cut, so one agent's text never takes the pane past what the desktop draws.
+const shortened = (text: string) => (text.length > DESCRIPTION_CHARS ? `${text.slice(0, DESCRIPTION_CHARS)}${STRINGS.cut}` : text)
+
 // A run as its row shows it, given the figures the model worked out for it and the time it is drawn at.
 export function rowData(run: Run, key: string, figures: { tokens: number; elapsedMs: number; contextPercent?: number }, now: number): RowData {
-  const row: RowData = { id: key, order: run.order, state: run.state, description: run.description, ...figures }
+  const row: RowData = { id: key, order: run.order, state: run.state, description: shortened(run.description), ...figures }
   const moment = momentOf(run, now)
   if (moment !== undefined) row.moment = moment
   if (run.role !== undefined) {

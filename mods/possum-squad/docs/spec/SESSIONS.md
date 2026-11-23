@@ -1674,6 +1674,100 @@ feedback*; `ARCHITECTURE.md` *The panel* (the gallery), *Sprites and sets*, *Tes
 - **The desktop keeps the last tree it accepted** when it refuses one, and the kit refuses
   nothing; only the desktop can say what draws.
 
+**Done (2026-11-23, 0.10.1).**
+- **Decided with the user, at the plan:**
+  - **The limit is taken from the desktop app's own render code,** with no probe build. The
+    app's bundle (6.28899.6, running engine 2.1.330) holds the check: a hook's answer draws
+    only with fewer than 2,000 nodes, 32 levels and 262,144 characters by its count. A refused
+    one is dropped silently and the last tree stays. The declarations bound only a `Client`'s
+    tree, and the app's logs held no refusal for the 0.9.0 gallery.
+  - **The gallery in parts of three roles,** six parts.
+  - **A cap on the rows drawn,** the rest counted under their section, at 80.
+- **Shipped:**
+  - **The gallery in parts:**
+    - `GALLERY_ROLES_PER_PART` (3);
+    - `partsOf`, `movedPart` and `shownPart` in `hooks/view/gallery.tsx`, which draws the part
+      and, on both surfaces, the line `[ previous ] 2 of 6 [ next ]` (`gallery-previous`,
+      `gallery-next`) under the heading;
+    - `moveGallery` in `hooks/register.tsx`, wrapping at both ends;
+    - `view` is `view-4`, with `galleryPart`, which the gallery's close and every pane close
+      drop; `/possums roles` on an open gallery keeps it;
+    - `STRINGS.gallery.previous`, `next` and `part`.
+  - **The rows within the bound,** in `hooks/view/panel.tsx`:
+    - `ROWS_DRAWN` (60) in drawing order, and a dim `and N more` (`STRINGS.more`) under a
+      section that loses rows;
+    - `SPRITE_BUDGET` (160,000) through `withinBudget`: a row's own sprite while all fit;
+      past it a still, then the mark, then moving again in order while the total fits;
+    - `DESCRIPTION_CHARS` (100) with `…` in `rowData`.
+  - **Tests:**
+    - `tests/size.ts` ports the desktop's count;
+    - `tests/size.test.ts` holds it to Session 9's sight, every gallery part in every set and
+      either motion under the bound, the fullest list, the budget's order, the ladder, and the
+      cap;
+    - the gallery's tests walk the parts and press its controls;
+    - the close test drops the part;
+    - a long description is cut.
+  - **Docs:**
+    - `CHANGELOG.md` 0.10.1; `USER-GUIDE.md` (the gallery, many agents); `README.md`; the mod's
+      `CLAUDE.md` (`view-4`); `docs/BACKLOG.md`;
+    - `ARCHITECTURE.md`: *Overview*, the bound in *Context*, *Values*, *The panel* (Decided
+      and Built), *The command and settings*, *Sprites and sets*, *Testing strategy*, three
+      known-debt lines, the baseline, three Decision log lines.
+- **Amendments:**
+  - **The limit was found with no push,** from the app's code rather than a probe on the
+    desktop. The user's choice at the plan.
+  - **The cap and the description cut** go beyond the block's "rows draw still or smaller".
+    Sprites alone could not keep a long list under the node bound, nor one long description
+    under the character bound. The cap was agreed at the plan; the cut is the plan's own.
+  - **The cap is 60, not the 80 agreed.** The kit draws a row's `Progress` as about 8 nodes,
+    so a row is 25 to 28 nodes, not the plan's 20, and 80 rows came to over 2,000. Decided in
+    the session, to keep the agreed intent; the user is told.
+  - **The terminal pages too,** as the block's gate says, under its States key.
+- **Measured** (CLI 2.1.330, in the kit, by the desktop's count):
+  - **The heaviest gallery part** is 186,618 characters, 145 nodes and 8 deep
+    (prehistoric's first, `auto`); with `off` at most 77,267. Under Node, the sources alone
+    of a part of three come to at most 180,186, a role's eight cells to 67,426.
+  - **The fullest list,** 60 drawn of 90 with every extra, is 1,613 nodes and at most 198,479
+    characters.
+  - **Working rows:** fourteen come to 102,480 characters; forty draw 14 moving and 26 still,
+    184,295.
+  - **The 0.9.0 gallery as one tree** is past the bound with either motion.
+  - `validate` is unchanged: 11 hooks, 4 gating each with a `.catch`, 3 state keys, the same
+    calls.
+- **Checked by hand,** in the terminal: `claude --plugin-dir mods/possum-squad` driven
+  through `screen`, at 120 columns, with the `@inline` copy's `theme` `horror`, its settings
+  unchanged.
+  - `/possums roles` drew `Roles · Horror [ close ]`, `[ previous ] 1 of 6 [ next ]`, the
+    States key and Lead, Scout and Planner with their costumes.
+  - **The buttons could be pressed this time:** ctrl+x, then tab to the button, then Enter.
+    `close` brought the list back; `next` went to `2 of 6` (Builder, Tester, Bug catcher),
+    on to `6 of 6` (Pilot, Helper), then round to `1 of 6`. Reopened after the close, the
+    gallery started on the first part.
+  - No `claude --plugin-dir` was left running.
+  - The desktop waits for the push and `claude plugin update possum-squad`, each with the
+    user's OK.
+- **Falsified,** each failing at its own test:
+  - the count not reading `Svg` sources;
+  - overlapping parts of five that keep their `k of 6`: over the bound at classic `auto`;
+  - parts of five;
+  - no still tier;
+  - a budget of 400k;
+  - no cap;
+  - no wrapping;
+  - `next` doing nothing;
+  - the description not cut;
+  - a second `roles` resetting the part;
+  - the close button keeping the part;
+  - a pane close keeping the part.
+
+  A reset on opening, kept besides the closes' drop, failed no test: it was redundant and was
+  removed.
+- **Numbers:**
+  - 206 tests (+9) in 19 files (+1): gallery 11 (+2), runs 18 (+1), size 6 (new), the rest
+    unchanged; about 13 s;
+  - the tools' specs unchanged: 10 in 2 files;
+  - the gate green on CLI 2.1.330.
+
 ---
 
 ## 10: Attention

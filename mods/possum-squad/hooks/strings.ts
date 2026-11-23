@@ -27,6 +27,10 @@ export const STRINGS = {
   heading: (name: string, count: number) => `${name} · ${count}`,
   show: 'show',
   hide: 'hide',
+  // Under a section whose last rows are not drawn.
+  more: (count: number) => `and ${count} more`,
+  // Where a description is cut.
+  cut: '…',
   // A run's state, and `planned`, which only the gallery draws yet.
   states: {
     planned: 'planned',
@@ -84,10 +88,13 @@ export const STRINGS = {
     Skill: 'Using',
   } as Record<string, string | undefined>,
   using: (tool: string) => `Using ${tool}`,
-  // `/possums roles`: every role of the set in every state.
+  // `/possums roles`: every role of the set in every state, a few roles at a time.
   gallery: {
     heading: (set: string) => `Roles · ${set}`,
     close: 'close',
+    previous: 'previous',
+    next: 'next',
+    part: (at: number, of: number) => `${at} of ${of}`,
     // Between a role's name and its costume's, where only dimming tells them apart.
     between: '·',
     states: 'States',

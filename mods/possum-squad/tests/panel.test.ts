@@ -120,18 +120,18 @@ test('a close by the person is kept in the view, and the close goes on as the en
   expect((await readView()).isClosedByPerson).toBe(false)
 })
 
-test("any close the engine does not refuse ends an open gallery; only the person's is kept as theirs", async () => {
+test("any close the engine does not refuse ends an open gallery and drops its part; only the person's is kept as theirs", async () => {
   const hook = closeHook()
   for (const kind of ['plugin', 'unload', 'person'] as const) {
     const { $, read: readView } = stateOnly()
-    await update($ as never, view, flags => ({ ...flags, isGalleryOpen: true }))
+    await update($ as never, view, flags => ({ ...flags, isGalleryOpen: true, galleryPart: 2 }))
     await hook($, { id: PANE, origin: { kind } }, async () => ({ value: undefined }))
     expect([kind, await readView()]).toEqual([kind, { isClosedByPerson: kind === 'person', isGalleryOpen: false }])
   }
   const { $, read: readView } = stateOnly()
-  await update($ as never, view, flags => ({ ...flags, isGalleryOpen: true }))
+  await update($ as never, view, flags => ({ ...flags, isGalleryOpen: true, galleryPart: 2 }))
   await hook($, { id: PANE, origin: { kind: 'person' } }, async () => ({ deny: 'a hook keeps it open' }))
-  expect(await readView()).toEqual({ isClosedByPerson: false, isGalleryOpen: true })
+  expect(await readView()).toEqual({ isClosedByPerson: false, isGalleryOpen: true, galleryPart: 2 })
 })
 
 test('any close the engine does not refuse ends an open role picker, so the pane opens on the list', async () => {

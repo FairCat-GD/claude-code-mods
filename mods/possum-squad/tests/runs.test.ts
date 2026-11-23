@@ -231,6 +231,22 @@ test("a call's arguments draw as plain Text in the activity line, never as marku
   }
 })
 
+test('a long description is drawn cut at 100 characters with an ellipsis, as plain Text; one of 100 is drawn whole', async ($, on) => {
+  world(on)
+  const description = 'Count every shovel, rake and hoe in the long shed, then sort them by the colour of their handles. '.repeat(3)
+  await $.agent.spawn({ ...SPAWN, description })
+  for (const surface of SURFACES) {
+    const { texts } = await drawn($, surface)
+    expect([surface, texts.includes(`${description.slice(0, 100)}…`), texts.some(text => text.includes(description.slice(0, 101)))]).toEqual([
+      surface,
+      true,
+      false,
+    ])
+  }
+  await $.agent.spawn({ ...SPAWN, tool_use_id: 'toolu_short', description: 'x'.repeat(100) })
+  expect((await drawn($, 'desktop')).texts).toContain('x'.repeat(100))
+})
+
 // Another plugin, beside the mod, that shows the versions `runs` and `lead` stand at: 0 while never written.
 const STATE_READER = {
   name: 'state-reader',

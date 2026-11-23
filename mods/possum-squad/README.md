@@ -5,7 +5,7 @@ their live numbers and state; in the desktop app each one is drawn as a small an
 opossum dressed for its job. It only watches: it changes nothing Claude does and adds nothing
 to what Claude is sent.
 
-This is 0.10.0: the pane opens by itself when a session's first agent starts (the `autoOpen`
+This is 0.10.1: the pane opens by itself when a session's first agent starts (the `autoOpen`
 setting says when; a pane you close stays closed), and `/possums` opens or hides it. The main session heads it, with its context and the
 session's tokens and work time; under it, every subagent Claude starts is a row in Needs you,
 Running or Finished, with its state, its role (such as Builder, Scout or Researcher,
@@ -16,7 +16,7 @@ its role in the set the `theme` setting picks (`classic`, `steampunk`, `horror` 
 bobs and blinks while it works, holds up a sign, bobbing, when it needs you, dozes when quiet, cheers then
 falls asleep when it finishes. In a terminal the rows are text. A row's role name is a button: press it to pick another
 role, which the row takes at once and, for an agent type of your own, every later agent of that
-type starts in. `/possums roles` shows every role of the set in every state. `/possums set`
+type starts in. `/possums roles` shows every role of the set in every state, three roles at a time. `/possums set`
 keeps its settings.
 
 ## Install
@@ -35,7 +35,7 @@ In the desktop app: + beside the prompt, then Plugins, then Add marketplace.
 |---|---|
 | `/possums` | Shows the Possum Squad pane, or hides it when it is showing. Works mid-turn. |
 | `/possums open` | Shows the pane, or brings it forward; never hides it. |
-| `/possums roles` | Shows the gallery: every role of the current set in every state, with its costume's name. |
+| `/possums roles` | Shows the gallery: every role of the current set in every state, with its costume's name, three roles at a time. |
 | `/possums settings` | Lists the settings and their values. |
 | `/possums set <name> <value>` | Changes a setting: `autoOpen`, `cost`, `motion` or `theme`. |
 

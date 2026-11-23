@@ -28,13 +28,14 @@ import { changeOf, mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES,
 import { galleryOf } from './sprites'
 import { ART } from './sprites/data'
 import { STRINGS } from './strings'
+import { movedPart, partsOf, shownPart } from './view/gallery'
 import { panel } from './view/panel'
 import { rowData } from './view/runs'
 
 export const PANE = 'possum-squad'
 // Bump the shape when View's fields change: an older value then reads as absent.
 export const NO_FLAGS: View = { isClosedByPerson: false, isGalleryOpen: false }
-export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-3' })
+export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-4' })
 // Bump the shape when Runs or Run change their fields.
 export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-4' })
 // Bump the shape when Lead changes its fields.
@@ -201,6 +202,7 @@ async function autoOpen($: Pick<EngineInterface, 'store' | 'state' | 'ui' | 'clo
 }
 
 const withoutPicker = ({ pickerFor: _, ...flags }: View): View => flags
+const withoutGallery = ({ galleryPart: _, ...flags }: View): View => ({ ...flags, isGalleryOpen: false })
 
 // A row's role button opens its picker, or closes it when it is that row's already.
 async function toggleRole($: Pick<EngineInterface, 'state'>, order: number) {
@@ -266,7 +268,8 @@ async function changeSetting($: Pick<EngineInterface, 'store' | 'ui'>, change: P
 }
 
 // `/possums roles`: the gallery takes the list's place, in a pane opened or raised, never closed. The flag is set first,
-// so the pane's first drawing is the gallery; a pane that cannot be shown takes it back.
+// so the pane's first drawing is the gallery; a pane that cannot be shown takes it back. A gallery already open keeps
+// its part; every close drops it, so one opening starts on the first.
 async function showGallery($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>): Promise<CommandRunResult> {
   try {
     await update($, view, flags => ({ ...flags, isGalleryOpen: true }))
@@ -281,9 +284,21 @@ async function showGallery($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>): 
 // The gallery's close button; the list is drawn again by the write.
 async function closeGallery($: Pick<EngineInterface, 'state'>) {
   try {
-    await update($, view, flags => ({ ...flags, isGalleryOpen: false }))
+    await update($, view, withoutGallery)
   } catch {
     // the gallery stays until the pane closes
+  }
+}
+
+// The gallery's previous and next, one part either way, wrapping at the ends.
+async function moveGallery($: Pick<EngineInterface, 'state'>, step: 1 | -1) {
+  const gallery = galleryOf(ART, ART.defaultSet)
+  try {
+    await update($, view, flags =>
+      flags.isGalleryOpen ? { ...flags, galleryPart: movedPart(shownPart(gallery, flags.galleryPart ?? 0), step, partsOf(gallery)) } : flags,
+    )
+  } catch {
+    // the part stays as it was
   }
 }
 
@@ -411,12 +426,13 @@ async function drawPane(
       rows: shown.map(run => rowData(run, keyOf(run), figures(run, now), now)),
       isFinishedOpen: prefs.finishedOpen,
       look: { set: prefs.theme, motion: prefs.motion },
-      ...(flags.isGalleryOpen ? { gallery: galleryOf(ART, prefs.theme) } : {}),
+      ...(flags.isGalleryOpen ? { gallery: galleryOf(ART, prefs.theme), galleryPart: flags.galleryPart ?? 0 } : {}),
       ...(flags.pickerFor === undefined ? {} : { pickerFor: flags.pickerFor }),
     },
     {
       onToggleFinished: () => void showFinished($, !prefs.finishedOpen),
       onCloseGallery: () => void closeGallery($),
+      onMoveGallery: step => void moveGallery($, step),
       onToggleRole: order => void toggleRole($, order),
       onPickRole: (order, value) => void pickRole($, order, value),
       onCancelRole: () => void closePicker($),
@@ -474,7 +490,7 @@ export const register: Register = on => {
     try {
       const held = isPerson ? undefined : await read($, view)
       if (held === undefined || held.isGalleryOpen || held.pickerFor !== undefined) {
-        await update($, view, flags => ({ ...withoutPicker(flags), isGalleryOpen: false, ...(isPerson ? { isClosedByPerson: true } : {}) }))
+        await update($, view, flags => ({ ...withoutGallery(withoutPicker(flags)), ...(isPerson ? { isClosedByPerson: true } : {}) }))
       }
     } catch {
       // the close stands; only the flags are lost

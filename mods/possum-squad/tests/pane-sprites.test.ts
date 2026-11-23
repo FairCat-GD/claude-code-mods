@@ -193,7 +193,14 @@ test('each state a run reaches by its events draws that state in its row, past i
 // The panel as the mod draws it, over fixture rows in every state: needs-you and quiet have no event that reaches them
 // yet, so the test's own drawing hands the rows to the module's builder.
 const EVERY_STATE = 'every-state'
-const NO_ACTIONS = { onToggleFinished: () => {}, onCloseGallery: () => {}, onToggleRole: () => {}, onPickRole: () => {}, onCancelRole: () => {} }
+const NO_ACTIONS = {
+  onToggleFinished: () => {},
+  onCloseGallery: () => {},
+  onMoveGallery: () => {},
+  onToggleRole: () => {},
+  onPickRole: () => {},
+  onCancelRole: () => {},
+}
 
 test('every state draws its own frame in its row, on every surface that draws sprites (F-08)', async ($, on) => {
   on('ui.render', { plugin: '*' }, ($, e) =>

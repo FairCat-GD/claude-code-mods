@@ -32,13 +32,13 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.10.0). The Lead, header, sections, roles with the person's picker, sprites in every
-set with every state's animation, the gallery, and auto-open.
+**Built** (0.10.1). The Lead, header, sections, roles with the person's picker, sprites in every
+set with every state's animation, the gallery in parts the desktop draws, and auto-open.
 `hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `roles`, `set` and `settings`;
 - toggles and draws the pane: the Lead row and the session line, then the sections of subagent
-  runs, the empty panel's line, or the gallery; on every surface but the terminal, each with
-  its sprite, in the set `prefs.theme` names;
+  runs, the empty panel's line, or a part of the gallery; on every surface but the terminal,
+  each with its sprite, in the set `prefs.theme` names, within what the desktop app draws;
 - turns subagents' spawns, turns and steps into records, and keeps the runs in `runs`;
 - settles each run's role from the person's pick remembered for its custom type, its type, its
   description and its first calls, and Helper at T-04 or at its end; a row's role button opens
@@ -51,7 +51,7 @@ set with every state's animation, the gallery, and auto-open.
 - empties `runs` and `lead` when the session is cleared, resumed or forked;
 - keeps the settings and Finished's flag in the store under `prefs`, and each custom type's
   picked role under `role:<agent type>`; in `view`, a close by the person, whether the gallery
-  is open, and which row's picker is;
+  is open and on which part, and which row's picker is;
 - passes every event on unchanged.
 
 Of the pure modules:
@@ -244,6 +244,25 @@ What the kit did in Session 5, CLI 2.1.329:
 - **A state value's version is numbered across the test file:** a value never written reads
   0, and a written one some later number, not 1.
 - **What a plugin's module logs is not shown** under `claude plugin test`.
+
+What the desktop app holds a pane's tree to: read from the app's own render code (app
+6.28899.6, running engine 2.1.330), in Session 9a. The declarations bound only a `Client`'s tree.
+- **The bound.** The app draws a hook's answer only when its count has fewer than **2,000
+  nodes**, **32 levels** and **262,144 characters**:
+  - a string child is one node, and its length;
+  - an `Svg` counts its `source` and `alt`;
+  - a `Button` its `key`, `label`, `hotkey`, `action` and plugin's name;
+  - a `Select` its `key`, `label`, `value`, plugin's name and every option's value and label,
+    and one node more per option;
+  - any other element its props' names and string values.
+- **A refused answer is dropped,** with nothing logged and nothing sent back to the mod. The
+  app keeps the last tree it drew, and draws the next answer that fits.
+- **What Session 9 saw fits it.** Fourteen working rows drew, about 102k by this count. The
+  0.9.0 gallery did not: about 875k of sprite sources with `motion` `auto`, and 335k to 355k
+  with `off`.
+- **The kit draws a `Progress` as boxes and text** (*Built* above), about 8 nodes. Whether the
+  app gets the element itself depends on what it names on attaching, which a hook cannot tell,
+  so the mod counts the boxes.
 
 ## Stack and pins
 
@@ -567,15 +586,17 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 `PluginState['possum-squad']` with `view` as `Shaped<View>`, `runs` as `Shaped<Runs>` and `lead`
 as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `types`, and
 `validate` holds the module's state keys to it.
-- `view` (gallery 0.8.0; the picker 0.10.0) is `{ isClosedByPerson, isGalleryOpen,
-  pickerFor? }`: two booleans, default false (`NO_FLAGS`), and the spawn order of the run whose
-  role picker is open, absent while none is. It is the atom in `hooks/register.tsx` with the
-  shape tag `view-3`. A reload of the mod's code that names another tag reads the value as
+- `view` (gallery 0.8.0; the picker 0.10.0; the gallery's part 0.10.1) is `{ isClosedByPerson,
+  isGalleryOpen, galleryPart?, pickerFor? }`: two booleans, default false (`NO_FLAGS`); the
+  gallery's part from 0, absent for the first; and the spawn order of the run whose role
+  picker is open, absent while none is. It is the atom in `hooks/register.tsx` with the shape
+  tag `view-4`. A reload of the mod's code that names another tag reads the value as
   absent, so the tag changes whenever `View`'s fields do. Peek's run joins it in Session 11.
 - Its writers, each through `update`:
-  - the `ui.close` hook (*The hooks*), which also drops `pickerFor`;
+  - the `ui.close` hook (*The hooks*), which also drops `pickerFor` and `galleryPart`;
   - `/possums roles`, which sets `isGalleryOpen`, and the gallery's close button, which clears
-    it;
+    it and drops `galleryPart`;
+  - the gallery's `previous` and `next`, which set `galleryPart` (`moveGallery`);
   - an open or a raise by `/possums`, `open` or `roles`, which clears `isClosedByPerson` when it
     is set (`forgetClose`);
   - a row's role button, which sets `pickerFor` to its run or, pressed again, drops it; and the
@@ -932,7 +953,9 @@ every state's recipe, in the set `prefs.theme` names.
   set's is the default set's. The empty panel's squad is three plain asleep opossums, 24 px apart, cached once.
 - **Sizes** (all four sets): a still pose 1.6k–3.4k characters, `planned` 4.0k, the work loop at
   most 8.7k, needs-you 8.1k, quiet 8.3k, an arrival 10.6k, a dressing 10.8k, a startle 10.4k, a
-  cheer 13.6k and the gallery's repeating cheer 14.0k; the squad 5.0k. `tests/sprites.test.ts`
+  cheer 13.6k and the gallery's repeating cheer 14.0k; the squad 5.0k. A role's eight gallery
+  cells with `motion` `auto` come to at most 67.4k (prehistoric's Lead), a part of three to
+  180,186 characters of sources, measured under Node; with `off`, 27.0k and 70,835. `tests/sprites.test.ts`
   holds every look of every set, moments included, under 16,000. Composing all 288 classic looks
   from a cold cache took 167 ms in the kit, one work loop 3.5 ms (CLI 2.1.330); every look of
   every set with its moments, 5,184 asked, 2.3 s under Node.
@@ -940,8 +963,8 @@ every state's recipe, in the set `prefs.theme` names.
   a scratch page; at 0.8.0 every set's gallery poses, `planned` included, the same way; at 0.9.0
   every set's moving looks for five roles, played in a browser on dark and light. In the desktop
   app at Session 9, installed 0.9.0 on the dark theme: fourteen working rows' opossums moving in
-  their outfits and the Lead's; the gallery drew nothing (*Known debt*). The rest is unseen
-  (`docs/BACKLOG.md`).
+  their outfits and the Lead's; the 0.9.0 gallery drew nothing, past the desktop's bound
+  (*Context*). The rest is unseen (`docs/BACKLOG.md`).
 
 ## The panel
 
@@ -967,9 +990,14 @@ every state's recipe, in the set `prefs.theme` names.
 - **Peek:** clicking a row opens, under it, the brief, the last T-07 (5) actions, the files
   touched and the answer's first T-09 (600) characters; clicking again closes it.
 - **The gallery** (`/possums roles`) replaces the list while open: every role of the current set
-  in every state, each with its role name and costume name. Its sprites animate, framed like
-  the rows', so they follow reduced motion. Only twenty frames were measured at once; if the
-  owner's look after Session 7a finds 136 not smooth, the choice returns to the owner.
+  in every state, each with its role name and costume name, three roles at a time, with
+  `previous` and `next` between the parts on every surface. Its sprites animate, framed like the
+  rows', so they follow reduced motion. A part frames at most 18; if the owner's look finds them
+  not smooth, the choice returns to the owner.
+- **Within what the desktop draws** (*Context*): every tree the pane answers fits the app's
+  bound. The gallery's parts are sized for it. Past a budget, the rows' sprites stand still,
+  then give way to the state's mark. At most 60 rows are drawn, the rest counted under their
+  section.
 - **The terminal** draws the same sections and numbers as text rows, a coloured mark per state
   and block-character bars, with no element the terminal lacks.
 - **The clock.** The only timer is `$.clock.every(1000)`, armed while the pane is open and a
@@ -1035,8 +1063,8 @@ cancels its timer.
   clock and settles Helper on any run past T-04 (`settleHelpers`), writing `runs` through
   `update` only when one is due; that write redraws the pane, so it skips its own
   invalidation, and a fault there leaves the clock running. While `view.isGalleryOpen` is
-  set it skips the invalidation too: the gallery's sprites move inside themselves, and a redraw would send its 136
-  sprite sources again for the header's time alone, so the header's time moves only on
+  set it skips the invalidation too: the gallery's sprites move inside themselves, and a redraw would send a part's
+  24 sprite sources again for the header's time alone, so the header's time moves only on
   events until the gallery closes. A real session showed it: a
   subagent whose only call was a foreground `ping` of 70 s read Helper at about 1:00 while
   still working (CLI 2.1.330). Otherwise it invalidates the
@@ -1097,27 +1125,65 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
 - **The desktop row** was seen by the owner with 0.4.0 installed; the terminal's in Session 4's
   check.
 
-The gallery (0.8.0), in `hooks/view/gallery.tsx`: while `view.isGalleryOpen` is set,
-`drawPane` passes `galleryOf(ART, prefs.theme)` and `panel` draws it below the header, in the
-sections' or the empty panel's place.
+The gallery (0.8.0; in parts 0.10.1), in `hooks/view/gallery.tsx`: while `view.isGalleryOpen`
+is set, `drawPane` passes `galleryOf(ART, prefs.theme)` and `view.galleryPart`, and `panel`
+draws that part below the header, in the sections' or the empty panel's place.
+- **Its parts:** `GALLERY_ROLES_PER_PART` (3, `hooks/config.ts`) roles each, in the default
+  set's order, so six for 17 roles: Lead, Scout, Planner first; Pilot, Helper last
+  (`partsOf`). A part that is not one of them draws the first (`shownPart`).
 - **Its heading** is `Roles · Steampunk` in bold, beside a dim `Button` keyed `gallery`, labelled
-  "close" (`[ close ]` on the terminal), whose press clears the flag.
-- **`desktopGallery`:** each of the 17 roles in the default set's order, its role name
+  "close" (`[ close ]` on the terminal), whose press clears the flag and drops the part. Under
+  it, one line: a dim `Button` keyed `gallery-previous` ("previous"), the part as `2 of 6`,
+  and a dim `Button` keyed `gallery-next` ("next").
+- **Moving** (`moveGallery` in `hooks/register.tsx`) writes `view.galleryPart` one part along,
+  going round from the last to the first and back (`movedPart`). Wrapping keeps both buttons in
+  place on every part, so a press never lands on a button that moved.
+  - `/possums roles` while the gallery is open leaves the part as it is.
+  - A change of set keeps the part, since every set has the same roles in the same order.
+  - Every close drops the part, so an opening starts on the first.
+- **`desktopGallery`:** each of the part's roles in the default set's order, its role name
   (semibold) beside its costume name (dim), over a wrapping row of eight cells in
   `GALLERY_STATES`' order: planned, starting, working, needs-you, quiet, finished, failed,
   stopped. Each cell is the role's sprite in that pose with `prefs.motion` (0.9.0), alt
   "Builder, planned", over its state word in footnote size; where the surface draws no `Svg`,
   the state's mark. `GALLERY_MOMENTS` gives starting its arrival and finished and stopped their
-  ending, each repeated: with `motion` `auto`, 102 cells are framed and move, `planned` and
-  `failed` are images; with `off`, all 136 are images.
-- **`terminalGallery`:** "States", then each state's coloured mark and word (`planned` in
-  `inactive`); then "Roles", each role's name, a dim `·`, then its costume name (dim), so the
-  two never run together where dimming does not show.
+  ending, each repeated: with `motion` `auto`, 18 cells of a part are framed and move, and
+  `planned` and `failed` are images; with `off`, all are images.
+- **`terminalGallery`:** the same heading and line, then "States", each state's coloured mark
+  and word (`planned` in `inactive`); then "Roles", the part's roles, each name, a dim `·`, then
+  its costume name (dim), so the two never run together where dimming does not show.
+- **Its size** (by the desktop's count, in the kit, CLI 2.1.330): the heaviest part is 186,618
+  characters and 145 nodes, 8 deep (prehistoric's first, `auto`); with `off` at most 77,267.
+  The other sets' heaviest parts with `auto` are 164k to 166k.
 - **Timing** (N-05, in the kit, CLI 2.1.330): building the pane's tree for 20 rows took
   0.21 ms (median of 200, max 1.0 ms) with the sprites cached; the first build, writing its
   20 sprites, about 32 ms. The gallery's first draw of a set, writing 136 sprites, about
   43 ms; then 0.33 ms. At 0.9.0, with its 102 moving sprites, the first draw of a set took
   0.19–0.24 s in the kit, then 7–10 ms a mount; its sources are about 875k characters.
+
+Within what the desktop draws (0.10.1), in `panel` (`hooks/view/panel.tsx`) and `rowData`:
+- **The row cap:** rows are drawn in order (Needs you, Running, then Finished while open) up
+  to `ROWS_DRAWN` (60). A section that loses rows ends with a dim `Text` keyed `more`, `and 12
+  more` (`STRINGS.more`), and its heading still counts every row. Finished closed loses none:
+  its rows are not drawn anyway. A desktop row is 25 to 28 nodes as the kit draws it (its bar
+  about 8), so 60 rows with every extra came to 1,613 nodes.
+- **The sprite budget,** `SPRITE_BUDGET` (160,000 characters of sources, the Lead's counted
+  first), over the drawn rows in that order (`withinBudget`):
+  - while every row's own sprite fits, each gets it, and no other look is written;
+  - past it, rows take their still (the pose with `motion` `off`) while it fits, and the rest
+    none, so they draw the state's mark;
+  - then rows move up to their own sprite, in order, while the total still fits. A row never
+    moves while an earlier one cannot.
+
+  A row the budget stills names its own state in its alt; only a row's own sprite keeps an
+  arrival's `starting`. Forty working rows with every extra drew 14 moving and 26 still, 184k
+  characters.
+- **The description cut:** `rowData` cuts a description past `DESCRIPTION_CHARS` (100) and adds
+  `…`. `runs` keeps it whole, for the round's match. An activity's target is already cut at
+  `TARGET_CHARS` (80) in the model.
+- **The worst list:** 60 drawn of 90, every text at its longest, round 2, a moment each,
+  Finished open, a picker open. In any set it came to 1,613 nodes, 8 deep and at most 198,479
+  characters (`tests/size.test.ts`).
 
 Not yet: Session 11 (Peek, the collapsed view, the
 `widget` seat).
@@ -1189,7 +1255,8 @@ a top-level function:
   prints nothing.
 - **`open`** does the same, but leaves a shown pane as it is: it never closes.
 - **`roles`** sets `view.isGalleryOpen` through `update`, then does what `open` does, so it never
-  closes the pane; the flag comes first, so the pane's first drawing is the gallery. A refused
+  closes the pane; the flag comes first, so the pane's first drawing is the gallery. A gallery
+  already open keeps its part. A refused
   write answers the plain line a refused open does, and opens nothing; a refused open clears
   the flag again, so a later `/possums` opens on the list.
 - **An open or a raise** marks the pane open and arms the clock when a run is live (*The
@@ -1245,7 +1312,7 @@ that depends on time pins the clock; fixtures are fictional.
 |---|---|---|---|
 | `validate` | `verify` | The manifest, the hooks the module registers, which gate, and the API calls it makes | Behaviour |
 | `types` | `verify` | The module and tests against the CLI build's declarations | Another build's API, the desktop's included |
-| `tests` | `verify` | The hooks against the engine's kit, with the clock and `$` stood in; the pure modules: the run model on fixture event sequences, the role corpus, the compositor on a fictional art, every sprite's size, outline and frames as its SMIL plays, in every set; the sets' switching and fallback; the gallery | What the app actually draws; whether SMIL runs; real timing and order of events |
+| `tests` | `verify` | The hooks against the engine's kit, with the clock and `$` stood in; the pure modules: the run model on fixture event sequences, the role corpus, the compositor on a fictional art, every sprite's size, outline and frames as its SMIL plays, in every set; the sets' switching and fallback; the gallery; every gallery part and the fullest list against the desktop's bound, by a port of its count (`tests/size.ts`) | What the app actually draws; whether SMIL runs; real timing and order of events; whether the app still counts as ported |
 | `imports` | `verify` | Every import resolves inside the folder or to a declared module | Anything at run time |
 | Hygiene | `verify`, with the drafted commit message; in full when the term list or the stage changes | Private terms in files, paths and messages; attribution in messages; secrets by their exact shapes; conflict markers | Images and binaries; a term joined inside one lowercase run; attribution in files; a home-directory path; a secret of any other shape |
 | The converter | `verify`: `types` and `tests` take `tools/` | The PNG reader (every filter, an independent Paeth check, each refusal); the converter on a fictional art folder, kept as data in `tools/fixtures/art.ts` and written to a temporary folder as PNG and JSON, since a PNG made by hand could not be read for review; each broken input refused at its place; the committed `data.ts` equal to what `art/` converts to, and holding every layer the manifest names | Whether the art looks right: by eye, in the desktop app |
@@ -1306,7 +1373,7 @@ unread.
 - **With the pane closed and an agent silent past T-04,** Helper waits for its next step, its
   end or the first beat after the pane opens; the role is the same, only when it shows differs.
 - **The sprites are unseen in the desktop app** until 0.7.0 or later is installed and looked at
-  (`docs/BACKLOG.md`); the gallery's 102 framed sprites, the one-offs' `fill="freeze"` and
+  (`docs/BACKLOG.md`); a gallery part's 18 framed sprites, the one-offs' `fill="freeze"` and
   `begin`, and `planned`'s group `opacity` too; `<path>` and a discrete `opacity` animation are drawn there by another
   mod of this repository, not yet by this one.
 - **`data.ts` is about 87k characters,** loaded on every start; the kit loads it, and whether
@@ -1323,16 +1390,19 @@ unread.
   window ends plays it from the start, and the next beat draws the still it ends on.
 - **The swap from a one-off to its still image** changes the element from framed to an image;
   whether the desktop flashes there is unseen (`docs/BACKLOG.md`).
-- **While the gallery is open, each event's redraw sends its sources again,** about 875k
-  characters at 0.9.0 (400k at 0.8.0); the beat leaves it undrawn.
+- **While the gallery is open, each event's redraw sends its part's sources again,** at most
+  about 187k characters; the beat leaves it undrawn.
 - **After the last live run, the clock may beat up to T-04 more** for a run whose role may still
   fall back (a teammate's, or one waiting on background work), redrawing a pane whose times no
   longer move.
-- **The gallery draws nothing on the desktop** (seen at Session 9, installed 0.9.0): its tree,
-  about 945k characters with `motion` `auto` and 389k with `off`, 137 sprites, is refused, and
-  the app keeps the last tree it drew. While `view.isGalleryOpen` stays set every drawing is
-  the gallery, so the pane looks frozen until it is closed. Fourteen working rows, about 118k,
-  drew. The limit lies between: Session 9a.
+- **The desktop's bound is read from its code, not seen at its edge:** the gallery's parts and
+  the fullest list stay under it by the kit's port of its count, a part at 71% of its
+  characters and the fullest list at 81% of its nodes, and a later app may count otherwise. A tree past it would freeze the pane, as the 0.9.0 gallery did, with
+  nothing for the mod to hear. The look after 0.10.1's push sees the parts draw.
+- **A pane past the budget writes each drawn row's still look** besides its own: about 1 to
+  3.5 ms each, once a session.
+- **Rows past 60 are not drawn,** so a session with that many agents shows only their count.
+  The node bound would allow about 70.
 - **The picker and auto-open are unseen on the desktop:** the role's native `Button` in the
   second line's footnote type, the `Select` under the row, and an unasked open there. A
   session cannot look for the owner: computer use refuses Claude's own window (`docs/BACKLOG.md`).
@@ -1344,12 +1414,12 @@ unread.
 - **A remembered pick is never deleted:** a type goes back to detection only through another
   pick (`docs/BACKLOG.md`).
 
-## Baseline (v0.10.0)
+## Baseline (v0.10.1)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 197 pass, in 18 files: auto-open 11, clock 13, command 11, compose 8, gallery 9, header 8, model 31, pane-sprites 9, panel 10, pass-through 5, picker 12, prefs 5, roles 9, row 8, runs 17, sets 6, settle 12, sprites 13; about 13 s |
+| `claude plugin test mods/possum-squad` | 206 pass, in 19 files: auto-open 11, clock 13, command 11, compose 8, gallery 11, header 8, model 31, pane-sprites 9, panel 10, pass-through 5, picker 12, prefs 5, roles 9, row 8, runs 18, sets 6, settle 12, size 6, sprites 13; about 13 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |
@@ -1468,3 +1538,11 @@ one moves, that is the finding.
   alone; its light-theme outline is drawn outside them, at full strength, around the colours
   faint as they are seen faded. The owner's choice at Session 7's start: it keeps the
   manifest's recipe on either theme, where an outline inside the fade fell to 2.76:1.
+- 2026-11-23, *Context* and *The panel*: the desktop's bound is taken from the app's own render
+  code (2,000 nodes, 32 levels, 262,144 characters by its count), with no probe build pushed to
+  measure it. The owner's choice at Session 9a's plan.
+- 2026-11-23, *The panel*: the gallery is drawn three roles at a time, six parts, with
+  `previous` and `next`. The owner's choice at Session 9a's plan.
+- 2026-11-23, *The panel*: the pane draws a bounded number of rows and counts the rest under
+  their section. The owner chose the cap at Session 9a's plan, at 80. It became 60 when the kit
+  showed a row is about 27 nodes, not 20 (its bar is drawn as boxes), and 80 rows passed 2,000.
