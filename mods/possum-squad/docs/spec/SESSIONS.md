@@ -1899,8 +1899,19 @@ hooks*, *The run model*, *The panel*.
     - "Ping once more · needs you: waiting on a permission prompt";
     - "Ping once more · finished after 1:11".
   - No `claude --plugin-dir` was left running; the probe stayed in the scratchpad.
-  - **Not checked by hand:** quiet; a toast with the pane behind another tab; the desktop app,
-    which waits for the push (`docs/BACKLOG.md`).
+  - **In the desktop app,** after the review, the push and `claude plugin update possum-squad`
+    (0.10.1 to 0.11.0), each with the user's OK, in a new chat in manual permission mode, the
+    user looking while that chat started Haiku subagents running `ping`:
+    - with the pane shown, the row sat under Needs you with the "?" sign while the prompt
+      waited, and finished after the answer;
+    - with the pane hidden, the toast "Ping the loopback · needs you: waiting on a permission
+      prompt" showed at the top right. Two runs before it asked nothing, so raised no toast:
+      the first prompt's answer had allowed that command from then on;
+    - the finished toast was not tried there, the user's choice.
+
+    All as expected, the user said.
+  - **Not checked by hand:** quiet; a toast with the pane behind another tab or over the
+    gallery; the finished toast in the desktop app (`docs/BACKLOG.md`).
 - **Falsified,** each failing at its own test:
   - a request another hook answered moving the row;
   - an ended row asking;

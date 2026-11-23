@@ -20,10 +20,11 @@ Ask at its start whether the owner has redrawn the joey (the block's *Ask at the
   everything through Session 10's review commit, 0.11.0 among it. Nothing waits locally but
   what a later commit records. List `origin/main..HEAD` before any push, and name any commit
   that is not the session's.
-- **0.11.0 is to be installed** with `claude plugin update possum-squad`, with the user's OK,
-  right after the push, for the block's gate: the owner raising a permission prompt inside a
-  subagent in the desktop app. Its outcome is recorded after this commit; if it is not, ask
-  at Session 11's start whether the update ran and what the owner saw.
+- **0.11.0 is installed** (`claude plugin update possum-squad`, with the user's OK), and the
+  owner saw Needs you and its toast in the desktop app (Session 10's done-note). The desktop
+  runs the installed release only; each later update changes the owner's setup, so ask first.
+- **Session 10's last commit records that check,** a docs commit made after the push: it waits
+  locally until the next approved push.
 - **The desktop's bound** (*Context* in ARCHITECTURE, read from the app's own code, app
   6.28899.6): a pane's answer draws only with fewer than 2,000 nodes, 32 levels and 262,144
   characters by its count; past it the app drops the answer silently and keeps the last tree.

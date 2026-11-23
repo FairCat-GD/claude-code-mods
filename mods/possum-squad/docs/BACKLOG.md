@@ -78,10 +78,12 @@ these are the parts only a person can see.
 - **Needs you, quiet and toasts (0.11.0).** Seen in the terminal at Session 10 (CLI 2.1.330):
   a subagent's asked Bash call moved its row to Needs you while the prompt waited; it stayed
   there through the allowed call, and left it at the agent's next reply; a refused call left it
-  too. With the pane hidden, both toasts drew over the transcript. Unseen: the "?" sign in the
-  desktop app and its toasts there, which the block's gate leaves to the owner after the push;
-  a toast while the pane is open behind another pane's tab; quiet, which no hand check can
-  bring about (an agent silent for 90 s with no call running), so only the kit checks it.
+  too. With the pane hidden, both toasts drew over the transcript. **Seen in the desktop app**
+  (installed 0.11.0, Session 10): the row under Needs you with the "?" sign, then finished; with
+  the pane hidden, the Needs you toast. Unseen: the finished toast in the desktop app; a toast
+  while the pane is open behind another pane's tab, or over the gallery; quiet, which no hand
+  check can bring about (an agent silent for 90 s with no call running), so only the kit
+  checks it.
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.
