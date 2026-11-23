@@ -43,6 +43,7 @@ export function terminalGallery(table: GalleryTable, gallery: Gallery, onClose: 
         {gallery.roles.map(role => (
           <Box key={role.id} flexDirection="row" gap={1}>
             <Text>{STRINGS.roles[role.id]}</Text>
+            <Text dimColor>{STRINGS.gallery.between}</Text>
             <Text dimColor>{role.costume}</Text>
           </Box>
         ))}

@@ -1,4 +1,4 @@
-import { read } from 'claude-code'
+import { read, update } from 'claude-code'
 import type { On } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
 
@@ -118,6 +118,20 @@ test('a close by the person is kept in the view, and the close goes on as the en
   const refused = await hook($, { id: PANE, origin: { kind: 'person' } }, async () => ({ deny: 'a hook keeps it open' }))
   expect(refused).toEqual({ deny: 'a hook keeps it open' })
   expect((await readView()).isClosedByPerson).toBe(false)
+})
+
+test("any close the engine does not refuse ends an open gallery; only the person's is kept as theirs", async () => {
+  const hook = closeHook()
+  for (const kind of ['plugin', 'unload', 'person'] as const) {
+    const { $, read: readView } = stateOnly()
+    await update($ as never, view, flags => ({ ...flags, isGalleryOpen: true }))
+    await hook($, { id: PANE, origin: { kind } }, async () => ({ value: undefined }))
+    expect([kind, await readView()]).toEqual([kind, { isClosedByPerson: kind === 'person', isGalleryOpen: false }])
+  }
+  const { $, read: readView } = stateOnly()
+  await update($ as never, view, flags => ({ ...flags, isGalleryOpen: true }))
+  await hook($, { id: PANE, origin: { kind: 'person' } }, async () => ({ deny: 'a hook keeps it open' }))
+  expect(await readView()).toEqual({ isClosedByPerson: false, isGalleryOpen: true })
 })
 
 test('a close by the person whose flag cannot be written still goes on as the engine gave it', async () => {

@@ -84,7 +84,8 @@ function stopClock(own = generation) {
 }
 
 // A closed pane, or no run that is live or may still fall back to Helper, stops the clock. A pane open behind another keeps it, undrawn, so its times are right
-// the moment it shows. A role settled here redraws the pane by its write.
+// the moment it shows. A role settled here redraws the pane by its write. The gallery holds still, so a beat leaves it
+// undrawn: a redraw would send every one of its sprites again for the header's time alone.
 async function tick($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>, own: number) {
   if (own !== generation) return
   beats++
@@ -95,7 +96,8 @@ async function tick($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>, own: num
     const held = await read($, runs)
     if (!shownRuns(held).some(keepsClock)) return stopClock(own)
     const hasSettled = await settleHelpers($, held)
-    if (pane.isShown && !hasSettled) $.ui.invalidate('ui.render')
+    const flags = await read($, view).catch(() => NO_FLAGS)
+    if (pane.isShown && !hasSettled && !flags.isGalleryOpen) $.ui.invalidate('ui.render')
   } catch {
     stopClock(own)
   }
@@ -179,14 +181,17 @@ async function changeSetting($: Pick<EngineInterface, 'store' | 'ui'>, change: P
   return say(answer)
 }
 
-// `/possums roles`: the gallery takes the list's place, in a pane opened or raised, never closed.
+// `/possums roles`: the gallery takes the list's place, in a pane opened or raised, never closed. The flag is set first,
+// so the pane's first drawing is the gallery; a pane that cannot be shown takes it back.
 async function showGallery($: Pick<EngineInterface, 'ui' | 'state' | 'clock'>): Promise<CommandRunResult> {
   try {
     await update($, view, flags => ({ ...flags, isGalleryOpen: true }))
   } catch {
     return say(STRINGS.cannotToggle)
   }
-  return showPane($, false)
+  const shown = await showPane($, false)
+  if (shown.text !== undefined) await closeGallery($)
+  return shown
 }
 
 // The gallery's close button; the list is drawn again by the write.

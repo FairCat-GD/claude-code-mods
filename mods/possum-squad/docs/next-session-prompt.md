@@ -17,9 +17,9 @@ Release 0.9.0.
 
 - **Round 1 is the agents panel:** Sessions 0–8 are done; Sessions 7a and 9–13 remain. 7a
   releases 0.9.0.
-- **Push status:** `origin/main` holds everything through Session 6's review commit. Session 7's
-  commits are local until the owner approves a push. List `origin/main..HEAD` before any push,
-  and name any commit that is not the session's.
+- **Push status:** pushed on 2026-11-23 with the user's approval: `origin/main` holds everything
+  through Session 7's review commit. Nothing waits locally. List `origin/main..HEAD` before any
+  push, and name any commit that is not the session's.
 - **0.7.0 and 0.8.0 wait for the owner's install and desktop look** (`docs/BACKLOG.md`, *Not yet
   checked by hand*): ask at the start whether they were seen, and record it in 7a's done-note.
 - **What Session 7 left for Session 7a:**
@@ -27,6 +27,9 @@ Release 0.9.0.
     `sprite({ set, role, pose, motion: 'off' })`. Animating it means passing `prefs.motion`
     (the panel has it in `data.look`) and letting `spriteElement` frame what moves: 136 framed
     sprites at once, which the Decision log sends back to the owner if not smooth.
+  - **The clock's beat leaves the gallery undrawn** (Session 7's review): a redraw resent all
+    136 sources each second. Animating it does not change that: SMIL plays inside each sprite,
+    so the gallery still needs no beat.
   - **`planned` is a still, faded pose** (`COLOURINGS.greyed`, an `opacity` group with the
     outline outside it). `drawSprite` returns it before the work-loop branch, so it never
     animates; keep it so, since the recipe is still.
@@ -47,7 +50,7 @@ Release 0.9.0.
 - **For the user to decide, when they choose:** a subagent waiting on its own background shell
   reads "finished" (`docs/BACKLOG.md`, *Deferred*).
 - **Baseline** (ARCHITECTURE's table, v0.8.0, CLI 2.1.330):
-  - 154 tests in 16 files, and 10 tool specs in 2 files;
+  - 157 tests in 16 files, and 10 tool specs in 2 files;
   - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys;
   - calls: `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`,
     `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`,

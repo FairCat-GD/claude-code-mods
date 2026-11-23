@@ -927,7 +927,10 @@ cancels its timer.
   pane it stops. With no live run in `runs` it stops. While a run has no role, it reads the
   clock and settles Helper on any run past T-04 (`settleHelpers`), writing `runs` through
   `update` only when one is due; that write redraws the pane, so it skips its own
-  invalidation, and a fault there leaves the clock running. A real session showed it: a
+  invalidation, and a fault there leaves the clock running. While `view.isGalleryOpen` is
+  set it skips the invalidation too: the gallery holds still, and a redraw would send its 136
+  sprite sources again for the header's time alone, so the header's time moves only on
+  events until the gallery closes. A real session showed it: a
   subagent whose only call was a foreground `ping` of 70 s read Helper at about 1:00 while
   still working (CLI 2.1.330). Otherwise it invalidates the
   drawing, but only if the pane is shown. Any other fault stops it. Each arming has its own generation, so a beat in flight from a
@@ -989,7 +992,8 @@ sections' or the empty panel's place.
   framed), alt "Builder, planned", over its state word in footnote size; where the surface
   draws no `Svg`, the state's mark.
 - **`terminalGallery`:** "States", then each state's coloured mark and word (`planned` in
-  `inactive`); then "Roles", each role's name beside its costume name.
+  `inactive`); then "Roles", each role's name, a dim `·`, then its costume name (dim), so the
+  two never run together where dimming does not show.
 - **Timing** (N-05, in the kit, CLI 2.1.330): building the pane's tree for 20 rows took
   0.21 ms (median of 200, max 1.0 ms) with the sprites cached; the first build, writing its
   20 sprites, about 32 ms. The gallery's first draw of a set, writing 136 sprites, about
@@ -1046,8 +1050,9 @@ a top-level function:
   prints nothing.
 - **`open`** does the same, but leaves a shown pane as it is: it never closes.
 - **`roles`** sets `view.isGalleryOpen` through `update`, then does what `open` does, so it never
-  closes the pane. A refused write answers the plain line a refused open does, and opens
-  nothing.
+  closes the pane; the flag comes first, so the pane's first drawing is the gallery. A refused
+  write answers the plain line a refused open does, and opens nothing; a refused open clears
+  the flag again, so a later `/possums` opens on the list.
 - **An open or a raise** marks the pane open and arms the clock when a run is live (*The
   panel*).
 - **`settings`** reads `prefs` and answers a heading, so the engine's `possum-squad:` prefix
@@ -1180,7 +1185,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 154 pass, in 16 files: clock 13, command 11, compose 8, gallery 6, header 8, model 28, pane-sprites 3, panel 8, pass-through 5, prefs 4, roles 9, row 7, runs 17, sets 6, settle 12, sprites 9 |
+| `claude plugin test mods/possum-squad` | 157 pass, in 16 files: clock 13, command 11, compose 8, gallery 8, header 8, model 28, pane-sprites 3, panel 9, pass-through 5, prefs 4, roles 9, row 7, runs 17, sets 6, settle 12, sprites 9 |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |

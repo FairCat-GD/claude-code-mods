@@ -18,7 +18,7 @@ const luminance = (hex: string) => 0.2126 * channel(hex, 1) + 0.7152 * channel(h
 const rgb = (hex: string) => [1, 3, 5].map(at => Number.parseInt(hex.slice(at, at + 2), 16)) as [number, number, number]
 const toHex = (channels: readonly number[]) => `#${channels.map(value => Math.round(value).toString(16).padStart(2, '0')).join('')}`
 
-// A colour greyed, as the art's reference computes it: its luma, mixed with the colour itself.
+// A colour greyed after the art's reference: its luma, mixed with the colour itself; the fade is the drawing's opacity.
 export function greyed(hex: string, grey: number): string {
   const [r, g, b] = rgb(hex)
   const luma = Math.trunc(0.3 * r + 0.59 * g + 0.11 * b)

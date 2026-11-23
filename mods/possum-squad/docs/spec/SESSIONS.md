@@ -1168,6 +1168,24 @@ gallery), *The command and settings*, *Testing strategy*.
     6 (new), settle 12, sprites 9 (+1);
   - the tools' specs unchanged: 10 in 2 files;
   - `validate` unchanged; the gate green on CLI 2.1.330.
+- **Review (`/code-review high`), 6 findings, 1 important and 5 minor: 6 fixed and 0 skipped.**
+  The user chose to fix all six.
+  - **The gallery was redrawn every second** while a run was live: each beat sent its 136
+    sprite sources again, about 400k characters, for the header's time alone. The beat now
+    leaves the gallery undrawn; the header's time moves on events until it closes.
+  - **A refused open kept the gallery's flag,** so a later `/possums` opened on the gallery;
+    `showGallery` clears it when the pane cannot be shown.
+  - **The terminal gallery ran role and costume together** ("Bug catcher Monster hunter"): a
+    dim `·` now sits between them.
+  - **The docs called `planned` sitting;** it is the standing idle frame, greyed and faded.
+  - **`greyed`'s comment claimed the reference's exact sums;** it rounds where the reference
+    truncates, and the fade is the drawing's opacity. The comment says "after" it.
+  - **No test held a person's close clearing the gallery:** the close-hook test now opens it
+    first, for each origin, and for a refused close.
+  - **Falsified,** each failing at its own test: the beat redrawing the gallery; the refused
+    open keeping the flag; no separator; the person's close keeping the gallery.
+  - **Numbers after the review:** 157 tests (+3) in 16 files: gallery 8 (+2), panel 9 (+1);
+    the tools' specs and `validate` unchanged.
 
 ---
 

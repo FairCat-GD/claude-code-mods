@@ -7,6 +7,7 @@ import { ART } from '../hooks/sprites/data'
 import { sprite } from '../hooks/sprites/index'
 import { STRINGS } from '../hooks/strings'
 import { engine, MOUNT, POSSUMS, possums, SURFACES, store } from './engine'
+import { SPAWN } from './fixtures/events'
 
 const ROLE_IDS = Object.keys(STRINGS.roles) as RoleId[]
 // The motion table's eight states, in its order.
@@ -60,6 +61,11 @@ test('/possums roles opens the pane on the gallery: 17 roles in 8 states, with r
     if (surface === 'terminal') {
       expect([drawn.sprites, drawn.emptyBoxes]).toEqual([[], 0])
       for (const state of STATES) expect([state, count(drawn.texts, STRINGS.states[state])]).toEqual([state, 1])
+      // Each role's name, then a dim separator, then its costume, so they never run together.
+      for (const [at, role] of ROLE_IDS.entries()) {
+        const from = drawn.texts.indexOf(STRINGS.roles[role])
+        expect([role, drawn.texts.slice(from, from + 3)]).toEqual([role, [STRINGS.roles[role], STRINGS.gallery.between, costumes('classic')[at]]])
+      }
       continue
     }
     // The Lead's sprite heads the pane; then each role in each state, still.
@@ -166,3 +172,38 @@ test(
     expect(seen.opens).toEqual([])
   },
 )
+
+test('a pane that cannot be shown takes the gallery back, so the next drawing is the list', async ($, on) => {
+  engine(on, 'another plugin holds this pane')
+  store(on)
+  mock.clock(on, { now: 1_000 })
+  expect((await $.command.run(ROLES)).text).toBe(STRINGS.cannotToggle)
+  for (const surface of SURFACES) {
+    const drawn = await drawnOn($, surface)
+    expect([surface, drawn.texts.includes(STRINGS.empty), drawn.texts.includes(STRINGS.gallery.heading('Classic'))]).toEqual([surface, true, false])
+  }
+})
+
+test("the clock's beat redraws the list each second but leaves the still gallery undrawn", async ($, on) => {
+  const { clock } = world(on)
+  let redraws = 0
+  on('ui.invalidate', (_, e, next) => {
+    redraws++
+    return next(e)
+  })
+  on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: 'agent-1' }))
+  await $.command.run(POSSUMS)
+  await $.agent.spawn(SPAWN)
+  await clock.advance(3_000)
+  const onList = redraws
+  expect(onList).toBeGreaterThanOrEqual(3)
+  await $.command.run(ROLES)
+  await clock.advance(3_000)
+  expect(redraws).toBe(onList)
+  // Closed, the list's beat comes back.
+  const pane = await $.ui.mount({ ...MOUNT, surface: 'desktop' })
+  await pane.press({ key: 'gallery' })
+  await clock.advance(3_000)
+  await pane.unmount()
+  expect(redraws).toBeGreaterThanOrEqual(onList + 3)
+})

@@ -82,10 +82,11 @@ or a stone hard hat in `prehistoric`.
 
 **The gallery.** `/possums roles` replaces the list with every role of the current set, each
 with its role name and its costume's name, over its pose in each of the eight states: the
-seven above, and **planned**, sitting greyed and faded, which no agent uses yet. The poses are
+seven above, and **planned**, standing greyed and faded, which no agent uses yet. The poses are
 still for now. In a terminal the gallery is text: each state's mark and word, then each role
 and its costume. Its `close` button brings the list back, and so does closing the pane: the
-next `/possums` opens on the list.
+next `/possums` opens on the list. While the gallery is open the pane is not redrawn every
+second, so the session line's time moves only when an agent does something.
 
 ## What a row shows
 

@@ -88,6 +88,8 @@ export const STRINGS = {
   gallery: {
     heading: (set: string) => `Roles · ${set}`,
     close: 'close',
+    // Between a role's name and its costume's, where only dimming tells them apart.
+    between: '·',
     states: 'States',
     roles: 'Roles',
   },
