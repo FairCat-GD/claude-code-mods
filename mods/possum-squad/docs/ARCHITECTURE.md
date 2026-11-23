@@ -936,8 +936,10 @@ every state's recipe, in the set `prefs.theme` names.
   every set with its moments, 5,184 asked, 2.3 s under Node.
 - **Seen:** every classic pose, still and animated, on dark and light, drawn by Quick Look from
   a scratch page; at 0.8.0 every set's gallery poses, `planned` included, the same way; at 0.9.0
-  every set's moving looks for five roles, played in a browser on dark and light. Not yet in the
-  desktop app (`docs/BACKLOG.md`).
+  every set's moving looks for five roles, played in a browser on dark and light. In the desktop
+  app at Session 9, installed 0.9.0 on the dark theme: fourteen working rows' opossums moving in
+  their outfits and the Lead's; the gallery drew nothing (*Known debt*). The rest is unseen
+  (`docs/BACKLOG.md`).
 
 ## The panel
 
@@ -1320,6 +1322,11 @@ unread.
 - **After the last live run, the clock may beat up to T-04 more** for a run whose role may still
   fall back (a teammate's, or one waiting on background work), redrawing a pane whose times no
   longer move.
+- **The gallery draws nothing on the desktop** (seen at Session 9, installed 0.9.0): its tree,
+  about 945k characters with `motion` `auto` and 389k with `off`, 137 sprites, is refused, and
+  the app keeps the last tree it drew. While `view.isGalleryOpen` stays set every drawing is
+  the gallery, so the pane looks frozen until it is closed. Fourteen working rows, about 118k,
+  drew. The limit lies between: Session 9a.
 - **The picker and auto-open are unseen on the desktop:** the role's native `Button` in the
   second line's footnote type, the `Select` under the row, and an unasked open there. A
   session cannot look for the owner: computer use refuses Claude's own window (`docs/BACKLOG.md`).
@@ -1446,6 +1453,9 @@ one moves, that is the finding.
 - 2026-11-23, *Attention*: only a close with the pane's close mark or key is the person's; a
   `/possums` close is the plugin's, so with `always` the next agent opens it again. The owner's
   approval of Session 9's plan.
+- 2026-11-23, *The panel*: the gallery's failure on the desktop goes to a new Session 9a, after
+  Session 9's review and before Session 10, which finds the limit there. The owner's choice
+  after Session 9's commit.
 - 2026-11-23, *Values* (`role:<agent type>`, one key per type) and *Attention* (auto-open):
   confirmed as built, with the owner, at Session 9.
 - 2026-11-23, *Sprites and sets*: `planned` is greyed and faded by an `opacity` on its fills

@@ -25,6 +25,7 @@ and I-04 from Session 3; I-06 from Session 4. N-07 and I-08 are review rules in 
 | 7a | Every state's animation | 15 | **0.9.0** |
 | 8 | Roles: the reference ported, the corpus, arrival and dressing | 2, 20 | **0.6.0** |
 | 9 | Role picker and memory, states wired to runs, auto-open | 6, 19 | **0.10.0** |
+| 9a | The gallery within what the desktop draws: its limit found, the gallery redrawn within it, a size test for the pane | 5, 15, 17 | **0.10.1** |
 | 10 | Attention: Needs you, gone quiet, toasts | 16 | **0.11.0** |
 | 11 | Peek and the collapsed view; the `widget` seat | 18 | **0.12.0** |
 | 12 | Plan limits, the cost estimate, nested helpers | 1, 22 | **0.13.0** |
@@ -1498,8 +1499,13 @@ and `$.store`* (`role:<agent type>`), *Roles*, *The run model*, *The panel*, *At
 **Done (2026-11-23, 0.10.0).**
 - **Decided with the user:**
   - **At the start:** 0.7.0 to 0.9.0 were not looked at in the desktop app; the user asked the
-    session to check everything itself. It could not: computer use never grants control of, or
-    a picture of, Claude's own window. The backlog item stays, and 0.10.0 joins it.
+    session to check everything itself. Computer use never grants control of, or a picture of,
+    Claude's own window. After the commit, the user looked at this chat's pane while the session
+    started agents and the user typed the commands (*Checked by hand*).
+  - **After the commit:** the 7a session reported that `/possums roles` drew no gallery on the
+    desktop, and the check here confirmed it. The fix goes to a new Session 9a, after 9's
+    review and before 10, which also finds the limit. Session 9 ships as built. The user's
+    choices.
   - **What opens the picker:** the row's role name, a `Button`, "Pick a role" while plain, on
     both surfaces. Nothing can press a sprite on 2.1.330.
   - **A pick hops:** `Role.at` is the pick's time, so a live row plays the dressing.
@@ -1568,7 +1574,25 @@ and `$.store`* (`role:<agent type>`), *Roles*, *The run model*, *The panel*, *At
     - hidden again with `/possums`, a second Explore agent opened nothing.
   - **The terminal's picker was not pressed:** ctrl+x, tab through `screen` did not visibly move
     the focus, as in Session 7. The kit presses it on both surfaces.
-  - **Not seen:** the desktop (`docs/BACKLOG.md`).
+  - **In the desktop app,** installed 0.9.0, this chat's pane, the user looking, after the
+    commit:
+    - six agents working (5-minute `ping`s) drew six rows, each opossum moving in its role's
+      outfit, the Lead still. Fourteen working drew fourteen, about 118k of tree by the kit's
+      measure;
+    - **`/possums roles` drew nothing:** the pane kept the list. With `motion` `off` it still
+      drew nothing. The store held `motion: off`, so the command ran: the gallery, about 945k
+      with `motion` `auto` and 389k with `off` (137 sprites), is refused, and the app keeps the
+      last tree it drew;
+    - while `view.isGalleryOpen` stays set, every drawing is the gallery, so the pane looked
+      frozen until `/possums` closed it. Reopened, the list drew. Then `set motion off` and
+      `set motion auto` stopped and restarted the opossums at once;
+    - what refuses the gallery lies between 118k with 15 sprites and 389k with 137: size or
+      sprite count, not the declared 100,000 characters at the size the rows reached. Session
+      9a finds it;
+    - not seen: 0.10.0 (not pushed), the light theme, reduced motion, an ending's cheer or
+      startle, needs-you and quiet (`docs/BACKLOG.md`).
+  - **Found:** a test agent's foreground `ping -c 300` moved to the background after about two
+    minutes, so its row read finished: the backlog's background-work item.
 - **Falsified,** each failing at its own test, 23 breaks:
   - the pick: a pick doing nothing; no remembered read; the remembered rule after the
     description; a generic type remembered; the guard on pickable values gone; no hop;
@@ -1586,6 +1610,46 @@ and `$.store`* (`role:<agent type>`), *Roles*, *The run model*, *The panel*, *At
     about 13 s;
   - the tools' specs unchanged: 10 in 2 files;
   - the gate green on CLI 2.1.330.
+
+---
+
+## 9a: The gallery within what the desktop draws
+
+Added after Session 9's commit, with the owner: on the desktop `/possums roles` drew nothing,
+while fourteen working rows drew (Session 9's done-note).
+
+**Read:** `SPEC.md` §2 decisions 5, 15, 17; `PDD.md` Part 5 F-26, N-02, N-05, Part 7 *Motion &
+feedback*; `ARCHITECTURE.md` *The panel* (the gallery), *Sprites and sets*, *Testing strategy*,
+*Known debt*; Session 9's done-note.
+
+- **Find the limit** the desktop holds a pane's tree to: total size, sprite count or framed
+  count. Measure it with the fewest pushes, each with the owner's approval. A probe build
+  pushed for it is a version of its own.
+- **The gallery within it:** drawn in parts the limit allows, such as one role or a few roles at
+  a time, with the controls to move between them on both surfaces. A gallery that cannot draw
+  never holds the pane: the list stays reachable without a close.
+- **The rows within it:** if the limit binds the list too, a budget past which rows draw still or
+  smaller sprites.
+- **A size test in the kit:** the pane's serialized tree, the gallery's and a list of many working
+  rows, stays under the limit found.
+- **Docs.**
+  - `CHANGELOG.md`: 0.10.1.
+  - `ARCHITECTURE.md`: Built for *The panel* and *Sprites and sets*; the limit in *Context*; the
+    known-debt line.
+  - `USER-GUIDE.md`: the gallery.
+  - `docs/BACKLOG.md`: the desktop items this covers.
+- **Confirms:** *The panel* (the gallery as drawn).
+
+**Gates:**
+- `npm run verify -- possum-squad`, with these tests:
+  - the gallery's tree, on each set and either motion, stays under the limit, and so does the
+    pane with the most rows the budget allows;
+  - the gallery's controls move between its parts on both surfaces.
+- After the push, the owner opens the gallery on the desktop app and moves through it.
+
+**Watch for:**
+- **The desktop keeps the last tree it accepted** when it refuses one, and the kit refuses
+  nothing; only the desktop can say what draws.
 
 ---
 

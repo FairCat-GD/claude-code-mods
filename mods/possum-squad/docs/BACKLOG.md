@@ -40,8 +40,11 @@ these are the parts only a person can see.
 
 - **The opossums in the desktop app (0.7.0 to 0.10.0).** The kit checks each sprite's SVG, its
   size, its outline and its animation's frames, but not how the app paints them, and a
-  terminal shows none. Not yet looked at as of Session 9. A session cannot look for the owner:
-  computer use never grants control of, or a picture of, Claude's own window (Session 9). To check after the push, with three
+  terminal shows none. A session cannot look for the owner: computer use never grants control
+  of, or a picture of, Claude's own window. **Seen at Session 9, installed 0.9.0, dark theme:**
+  working rows' opossums, six and then fourteen at once, each moving in its role's outfit,
+  plain before; the Lead's crown, still; `set motion off` and `auto` stopping and restarting
+  them at once. **The gallery draws nothing there:** Session 9a. The rest below is unseen. To check after the push, with three
   agents running: each row's opossum in its role's outfit, plain before; a working one bobbing
   and blinking smoothly, and not restarting each second; the Lead's crown; the empty pane's
   sleeping three; on the light theme the dark outline round pale edges, and none on the dark;

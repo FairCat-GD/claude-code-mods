@@ -1,32 +1,43 @@
-Read what Session 10's **Read** line in mods/possum-squad/docs/spec/SESSIONS.md names, the root
+Read what Session 9a's **Read** line in mods/possum-squad/docs/spec/SESSIONS.md names, the root
 CLAUDE.md, then mods/possum-squad/CLAUDE.md, *The session cycle* in docs/DEVELOPMENT-WORKFLOW.md,
 mods/possum-squad/docs/ARCHITECTURE.md's overview, invariants and baseline, the header of
-mods/possum-squad/docs/spec/SESSIONS.md, Session 10's block and Session 9's done-note, then this
-file, and do Session 10: attention.
+mods/possum-squad/docs/spec/SESSIONS.md, Session 9a's block and Session 9's done-note, then this
+file, and do Session 9a: the gallery within what the desktop draws.
 
-Session 10 covers:
-- Needs you, from `classic.PermissionRequest` by `agent_id`, until that agent's next step or its
-  end;
-- gone quiet after T-05 with no call in flight;
-- toasts while the pane is closed.
+Session 9a covers:
+- finding the limit the desktop holds a pane's tree to;
+- the gallery drawn in parts within it, and the rows within it if it binds them;
+- a size test in the kit.
 
-Release 0.11.0.
+Release 0.10.1. Session 10 (attention, 0.11.0) follows it.
 
 ## State you need that is not in the specs
 
-- **Round 1 is the agents panel:** Sessions 0–9 and 7a are done; Sessions 10–13 remain. 10
-  releases 0.11.0.
+- **Round 1 is the agents panel:** Sessions 0–9 and 7a are done; Sessions 9a and 10–13 remain.
+  9a was added after Session 9's commit, with the owner; it releases 0.10.1.
 - **Push status:** `origin/main` holds everything through Session 7a's review commit. Session 9's
   commits wait locally unless the user approved their push. List `origin/main..HEAD` before
   any push, and name any commit that is not the session's.
-- **Nothing desktop has been seen since 0.6.0** (`docs/BACKLOG.md`, *Not yet checked by hand*):
-  0.7.0 to 0.10.0 wait for the owner's look.
-  - A session cannot look for them: computer use never grants control of, or a picture of,
-    Claude's own window. Ask at the start whether the owner has looked, and record it.
-  - If the gallery's 102 moving sprites are not smooth, that choice returns to the owner.
+- **What the desktop showed** (Session 9's done-note, installed 0.9.0):
+  - fourteen working rows drew, about 118k of tree by the kit's measure, each opossum moving;
+  - `/possums roles` drew nothing, with `motion` `auto` (about 945k, 137 sprites, 102 framed)
+    or `off` (389k, none framed). The app keeps the last tree it drew, and the gallery flag
+    makes every drawing the gallery, so the pane looks frozen until it is closed;
+  - so the limit lies between: total size, sprite count, or framed count. The declared bound,
+    "20,000 nodes, 32 deep, 100,000 characters serialized" (`ClientElements` in the
+    declarations), did not stop 118k;
+  - the kit measures a tree as `JSON.stringify(await pane.drawn())`: each working row adds about
+    8k, the empty pane about 9k.
+- **Testing the desktop:** a session cannot see it (computer use refuses Claude's own window).
+  The owner looks at a chat's pane while the session starts agents (general-purpose, `haiku`,
+  each running `ping -c 300 127.0.0.1 > /dev/null` in the foreground, about 67k tokens each)
+  and the owner types the `/possums` commands. The desktop runs the installed release only, so
+  every probe there needs a push and `claude plugin update possum-squad`, each with the
+  owner's OK. A `ping` moves to the background after about two minutes, ending that agent's
+  turn.
 - **H1's week of use starts after Session 9's push:** each time the owner presses a role's
   name and picks, that is a miss. No counter is stored.
-- **What Session 9 left for Session 10:**
+- **What Session 9 left for Session 10** (after 9a):
   - **The states are wired:** a row draws whatever state its run is in. `needs-you` and `quiet`
     are reached by no event yet. Their F-08 check draws them through `panel` from fixture rows;
     Session 10's events should reach them in a kit test too.
