@@ -135,7 +135,8 @@ out. The time ticks while it runs, and stops when it ends. A long line is cut
 with an ellipsis, and a task longer than 100 characters is cut there. The state is always written out as a word, beside its colour.
 
 **With many agents,** the pane keeps within what the desktop app can draw. From about twenty
-working agents, the later rows' opossums stand still while the first ones keep moving. With many more, the last rows show only
+working agents, the later rows' opossums stand still while the first ones keep moving; one
+arriving or finishing never stops another, though its own slide or cheer may be skipped. With many more, the last rows show only
 their state's coloured mark. Past sixty rows, the rest are not drawn: their section ends with a
 line such as `and 12 more`, and its heading still counts every agent.
 

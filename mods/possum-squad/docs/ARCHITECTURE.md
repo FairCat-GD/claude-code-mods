@@ -964,7 +964,8 @@ every state's recipe, in the set `prefs.theme` names.
   every set's moving looks for five roles, played in a browser on dark and light. In the desktop
   app at Session 9, installed 0.9.0 on the dark theme: fourteen working rows' opossums moving in
   their outfits and the Lead's; the 0.9.0 gallery drew nothing, past the desktop's bound
-  (*Context*). The rest is unseen (`docs/BACKLOG.md`).
+  (*Context*). At Session 9a, installed 0.10.1: the gallery's six parts in turn and round, in
+  either motion and in `prehistoric`, and its close. The rest is unseen (`docs/BACKLOG.md`).
 
 ## The panel
 
@@ -1168,21 +1169,29 @@ Within what the desktop draws (0.10.1), in `panel` (`hooks/view/panel.tsx`) and 
   its rows are not drawn anyway. A desktop row is 25 to 28 nodes as the kit draws it (its bar
   about 8), so 60 rows with every extra came to 1,613 nodes.
 - **The sprite budget,** `SPRITE_BUDGET` (160,000 characters of sources, the Lead's counted
-  first), over the drawn rows in that order (`withinBudget`):
-  - while every row's own sprite fits, each gets it, and no other look is written;
-  - past it, rows take their still (the pose with `motion` `off`) while it fits, and the rest
-    none, so they draw the state's mark;
-  - then rows move up to their own sprite, in order, while the total still fits. A row never
+  first), fitted on each drawn row's steady look (its pose's own, without a moment), in that
+  order (`withinBudget`):
+  - while every row's steady look fits, each gets it, and no other look is written;
+  - past it, rows take their still while it fits, and the rest none, so they draw the state's
+    mark. A still steady look is its own still, so a stopped row stands as it does with fewer
+    rows; a moving one's still is the pose with `motion` `off`;
+  - then rows move up to their steady look, in order, while the total still fits. A row never
     moves while an earlier one cannot.
 
-  A row the budget stills names its own state in its alt; only a row's own sprite keeps an
-  arrival's `starting`. Forty working rows with every extra drew 14 moving and 26 still, 184k
-  characters.
-- **The description cut:** `rowData` cuts a description past `DESCRIPTION_CHARS` (100) and adds
-  `…`. `runs` keeps it whole, for the round's match. An activity's target is already cut at
+  Then each row drawn as its steady look plays its moment, in order, where it fits in what the
+  rows left of the budget and `MOMENT_ROOM` (20,000) above it (`withMoments`); one that does not
+  fit leaves the next to try. Since the fit never sees a moment, a row's arrival, hop or ending
+  never moves another row between moving and still.
+
+  A row the budget stills, or whose moment does not fit, names its own state in its alt; only a
+  row drawn with its moment keeps an arrival's `starting`. Twenty-five working rows with every
+  extra drew 23 moving; forty drew 14 moving and 26 still, 184k characters.
+- **The gallery draws no row,** so while it is open `panel` writes no row's sprite.
+- **The description cut:** `rowData` cuts a description past `DESCRIPTION_CHARS` (100)
+  characters, counted whole so an emoji is never split, and adds `…`. `runs` keeps it whole, for the round's match. An activity's target is already cut at
   `TARGET_CHARS` (80) in the model.
 - **The worst list:** 60 drawn of 90, every text at its longest, round 2, a moment each,
-  Finished open, a picker open. In any set it came to 1,613 nodes, 8 deep and at most 198,479
+  Finished open, a picker open. In any set it came to 1,613 nodes, 8 deep and at most 218,861
   characters (`tests/size.test.ts`).
 
 Not yet: Session 11 (Peek, the collapsed view, the
@@ -1397,10 +1406,13 @@ unread.
   longer move.
 - **The desktop's bound is read from its code, not seen at its edge:** the gallery's parts and
   the fullest list stay under it by the kit's port of its count, a part at 71% of its
-  characters and the fullest list at 81% of its nodes, and a later app may count otherwise. A tree past it would freeze the pane, as the 0.9.0 gallery did, with
-  nothing for the mod to hear. The look after 0.10.1's push sees the parts draw.
-- **A pane past the budget writes each drawn row's still look** besides its own: about 1 to
+  characters and the fullest list at 81% of its nodes and 83% of its characters, and a later
+  app may count otherwise. A tree past it would freeze the pane, as the 0.9.0 gallery did, with
+  nothing for the mod to hear. The owner's look at 0.10.1 saw every part draw.
+- **A pane past the budget writes each moving row's still look** besides its own: about 1 to
   3.5 ms each, once a session.
+- **A moment that does not fit is not played,** and one whose room frees later starts late,
+  cut as a late first drawing is. Only a long list near the budget meets it.
 - **Rows past 60 are not drawn,** so a session with that many agents shows only their count.
   The node bound would allow about 70.
 - **The picker and auto-open are unseen on the desktop:** the role's native `Button` in the
@@ -1419,7 +1431,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 206 pass, in 19 files: auto-open 11, clock 13, command 11, compose 8, gallery 11, header 8, model 31, pane-sprites 9, panel 10, pass-through 5, picker 12, prefs 5, roles 9, row 8, runs 18, sets 6, settle 12, size 6, sprites 13; about 13 s |
+| `claude plugin test mods/possum-squad` | 209 pass, in 19 files: auto-open 11, clock 13, command 11, compose 8, gallery 11, header 8, model 31, pane-sprites 9, panel 10, pass-through 5, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 13; about 13 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |

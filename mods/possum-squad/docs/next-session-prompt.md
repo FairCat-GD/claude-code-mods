@@ -15,13 +15,11 @@ Release 0.11.0. Session 11 (Peek and the collapsed view, 0.12.0) follows it.
 
 - **Round 1 is the agents panel:** Sessions 0–9, 7a and 9a are done; Sessions 10–13 remain.
 - **Push status:** pushed on 2026-11-23 with the user's approval: `origin/main` holds everything
-  through Session 9a's commit, 0.10.1 among it, and the user approved installing it. List
+  through Session 9a's review commit, 0.10.1 among it. Nothing waits locally. List
   `origin/main..HEAD` before any push, and name any commit that is not the session's.
-- **The owner's look at the gallery on the desktop** follows 9a's push: `/possums roles`, `next`
-  through the six parts and round, with `motion` `auto` and `off`, in `prehistoric`. Record
-  what they saw in 9a's done-note if it is still open, else in Session 10's. The desktop runs
-  the installed release only; each later `claude plugin update possum-squad` changes the
-  owner's setup, so ask first.
+- **0.10.1 is installed** (`claude plugin update possum-squad`, with the user's OK), and the
+  owner saw the gallery's parts draw on the desktop. The desktop runs the installed release
+  only; each later update changes the owner's setup, so ask first.
 - **The desktop's bound** (*Context* in ARCHITECTURE, read from the app's own code, app
   6.28899.6):
   - a pane's answer draws only with fewer than 2,000 nodes, 32 levels and 262,144 characters by
@@ -31,7 +29,8 @@ Release 0.11.0. Session 11 (Peek and the collapsed view, 0.12.0) follows it.
     fullest list (60 rows) under it.
 
   Anything Session 10 adds to a row (the needs-you sign is a sprite; a row line) moves those
-  numbers: the fullest list is at 1,613 nodes and 198,479 characters now.
+  numbers: the fullest list is at 1,613 nodes and 218,861 characters now. The budget is fitted
+  on each row's steady look, and moments play after it (`withMoments`).
 - **Testing the desktop:** a session cannot see it (computer use refuses Claude's own window).
   - The owner looks at a chat's pane while the session starts agents and the owner types the
     `/possums` commands. The agents are general-purpose, `haiku`, each running
@@ -60,7 +59,7 @@ Release 0.11.0. Session 11 (Peek and the collapsed view, 0.12.0) follows it.
     *Deferred*);
   - forgetting a remembered role (`docs/BACKLOG.md`, *Deferred*).
 - **Baseline** (ARCHITECTURE's table, v0.10.1, CLI 2.1.330):
-  - 206 tests in 19 files, about 13 s, and 10 tool specs in 2 files;
+  - 209 tests in 19 files, about 13 s, and 10 tool specs in 2 files;
   - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys;
   - calls: `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`,
     `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`,

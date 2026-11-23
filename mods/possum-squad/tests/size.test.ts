@@ -7,7 +7,7 @@ import { TARGET_CHARS } from '../hooks/model/tools'
 import { PICKABLE } from '../hooks/roles/rules'
 import { sprite } from '../hooks/sprites/index'
 import { STRINGS } from '../hooks/strings'
-import { type PanelData, panel, withinBudget } from '../hooks/view/panel'
+import { type PanelData, panel, withinBudget, withMoments } from '../hooks/view/panel'
 import type { RowData } from '../hooks/view/row'
 import { engine, MOUNT, possums, SURFACES, store } from './engine'
 import { DESKTOP_BOUND, isWithin, type Measure, measure } from './size'
@@ -210,6 +210,51 @@ test('the ladder: rows past the budget stand still, then draw no sprite, each in
   expect(kinds(3)).toEqual(['mark', 'mark', 'mark', 'mark'])
   // A later row that would fit does not move while an earlier one cannot.
   expect(kinds(12, [sized(10), sized(5)]).slice(0, 2)).toEqual(['still', 'still'])
+})
+
+test('the one-offs play in order where they fit, never on a row stilled or marked, and one too large leaves the next to try', () => {
+  const sized = (length: number) => ({ source: 'x'.repeat(length), isAnimated: true, width: 32, height: 32 })
+  const steady = [sized(10), sized(10), sized(10), sized(10)]
+  const playing = [sized(14), sized(20), sized(12), sized(30)]
+  const kinds = (chosen: readonly (ReturnType<typeof sized> | undefined)[], room: number) =>
+    withMoments(chosen, steady, playing, room).map((one, at) =>
+      one === undefined ? 'mark' : one === playing[at] ? 'moment' : one === steady[at] ? 'steady' : 'still',
+    )
+  expect(kinds([steady[0], steady[1], steady[2], undefined], 6)).toEqual(['moment', 'steady', 'moment', 'mark'])
+  expect(kinds([steady[0], steady[1], sized(4), steady[3]], 100)).toEqual(['moment', 'moment', 'still', 'moment'])
+  expect(kinds([...steady], 0)).toEqual(['steady', 'steady', 'steady', 'steady'])
+})
+
+test('an arrival or an ending never moves another row between moving and still, and past the budget a stopped row stands as with fewer', async ($, on) => {
+  const draw = drawing(on)
+  const look = { set: 'classic', motion: 'auto' } as const
+  const calm = rowsIn([...times(30, 'working'), 'stopped']).map(({ moment: _, ...row }) => row)
+  const busy = calm.map((row, at) => (at === 0 ? { ...row, moment: 'arrival' as const } : at === 30 ? { ...row, moment: 'ending' as const } : row))
+  const kindsOf = async (rows: readonly RowData[]) => {
+    draw(listOf(rows, look))
+    const { elements } = await drawnOn($, 'desktop', LIST)
+    const sources = elements.filter(element => element.type === 'Svg').map(element => (element.props as { source: string }).source)
+    return sources.slice(1).map((source, at) => {
+      const row = rows[at]
+      const asked = { ...look, role: row?.roleId, pose: row?.state ?? 'working' }
+      if (row?.moment !== undefined && source === sprite({ ...asked, moment: row.moment }).source) return 'moment'
+      if (source === sprite(asked).source) return 'steady'
+      return source === sprite({ ...asked, motion: 'off' }).source ? 'still' : 'other'
+    })
+  }
+  const before = await kindsOf(calm)
+  const after = await kindsOf(busy)
+  expect([before.length, before.includes('still'), before.at(-1), after[0], after.at(-1)]).toEqual([31, true, 'steady', 'moment', 'moment'])
+  expect(after.slice(1, 30)).toEqual(before.slice(1, 30))
+  // The stopped row stands: its steady look with motion on, not the startled frame of motion off.
+  expect(sprite({ ...look, role: calm[30]?.roleId, pose: 'stopped' }).source).not.toBe(
+    sprite({ ...look, role: calm[30]?.roleId, pose: 'stopped', motion: 'off' }).source,
+  )
+  for (const surface of SURFACES) {
+    draw(listOf(busy, look))
+    const { size } = await drawnOn($, surface, LIST)
+    expect([surface, within(size)]).toEqual([surface, [true, true, true]])
+  }
 })
 
 test('past sixty rows the rest are counted under their section, and the headings keep every row, on both surfaces', async ($, on) => {

@@ -196,24 +196,29 @@ test("the gallery's previous and next move one part either way and wrap at the e
   }
 })
 
-test('the part stays through a change of set and a second /possums roles, and a gallery opened again starts on the first', async ($, on) => {
+test('the part stays through a change of set and a second /possums roles, and a gallery opened again starts on the first, on both surfaces', async ($, on) => {
   const { clock } = world(on)
-  await $.command.run(ROLES)
-  const pane = await $.ui.mount({ ...MOUNT, surface: 'desktop' })
-  await pane.press({ key: 'gallery-next' })
-  await clock.advance(100)
-  await pane.press({ key: 'gallery-next' })
-  await clock.advance(100)
-  await $.command.run(possums('set theme horror'))
-  await $.command.run(ROLES)
-  await clock.advance(100)
-  const third = seenOf(await pane.findAll({}))
-  expect([third.texts.includes(STRINGS.gallery.part(3, PARTS)), roleNames(third)]).toEqual([true, partOf(2).map(role => STRINGS.roles[role])])
-  await pane.press({ key: 'gallery' })
-  await clock.advance(100)
-  await pane.unmount()
-  await $.command.run(ROLES)
   for (const surface of SURFACES) {
+    await $.command.run(ROLES)
+    const pane = await $.ui.mount({ ...MOUNT, surface })
+    await pane.press({ key: 'gallery-next' })
+    await clock.advance(100)
+    await pane.press({ key: 'gallery-next' })
+    await clock.advance(100)
+    await $.command.run(possums('set theme horror'))
+    await $.command.run(ROLES)
+    await clock.advance(100)
+    const third = seenOf(await pane.findAll({}))
+    expect([surface, third.texts.includes(STRINGS.gallery.part(3, PARTS)), roleNames(third)]).toEqual([
+      surface,
+      true,
+      partOf(2).map(role => STRINGS.roles[role]),
+    ])
+    await pane.press({ key: 'gallery' })
+    await clock.advance(100)
+    await pane.unmount()
+    await $.command.run(possums('set theme classic'))
+    await $.command.run(ROLES)
     const again = await drawnOn($, surface)
     expect([surface, again.texts.includes(STRINGS.gallery.part(1, PARTS)), roleNames(again)]).toEqual([
       surface,

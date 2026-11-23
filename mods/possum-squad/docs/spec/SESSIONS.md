@@ -1744,8 +1744,14 @@ feedback*; `ARCHITECTURE.md` *The panel* (the gallery), *Sprites and sets*, *Tes
     on to `6 of 6` (Pilot, Helper), then round to `1 of 6`. Reopened after the close, the
     gallery started on the first part.
   - No `claude --plugin-dir` was left running.
-  - The desktop waits for the push and `claude plugin update possum-squad`, each with the
-    user's OK.
+  - **In the desktop app,** after the push and `claude plugin update possum-squad` (0.10.0 to
+    0.10.1), each with the user's OK, in a new chat, the user looking:
+    - `/possums roles`, `next` through all six parts and round, `previous` round to the last;
+    - `motion` `off` and back to `auto`;
+    - `theme` `prehistoric`, the heaviest set, through every part;
+    - `close` bringing the list back, and the gallery reopening on its first part.
+
+    All as expected, the user said; nothing froze.
 - **Falsified,** each failing at its own test:
   - the count not reading `Svg` sources;
   - overlapping parts of five that keep their `k of 6`: over the bound at classic `auto`;
@@ -1767,6 +1773,30 @@ feedback*; `ARCHITECTURE.md` *The panel* (the gallery), *Sprites and sets*, *Tes
     unchanged; about 13 s;
   - the tools' specs unchanged: 10 in 2 files;
   - the gate green on CLI 2.1.330.
+- **Review (`/code-review high`), 5 findings: all fixed, the user's choice.**
+  - **A stopped row past the budget showed startled:** its still was the pose with `motion`
+    `off`, and with `auto` a stopped row settles standing. A still steady look is now its own
+    still.
+  - **A row at the budget's edge flipped between moving and still** whenever an earlier row's
+    arrival or ending changed its size, restarting its loop. The fit now reads each row's
+    steady look. Moments play after it, in what is left and `MOMENT_ROOM` (20,000) above it
+    (`withMoments`), and only on a row drawn as its steady look.
+  - **The gallery wrote every row's sprite** it does not draw: `panel` skips them while it is
+    open.
+  - **The description cut could split an emoji:** it counts whole characters.
+  - **A new gallery test pressed on the desktop only:** it loops over both surfaces.
+  - **Falsified,** each failing at its own test:
+    - a still always the `off` pose;
+    - the fit on the moments' looks;
+    - a moment too large stopping the rest;
+    - a stilled row playing its moment;
+    - a cut by code units.
+
+    The gallery's skip has no test: it changes no drawing.
+  - **Measured:** the fullest list is now at most 218,861 characters, 83% of the bound, and
+    1,613 nodes; twenty-five working rows draw 23 moving.
+  - **Numbers after the review:** 209 tests (+3) in 19 files: runs 19 (+1), size 8 (+2), the
+    rest unchanged; about 13 s. `validate` unchanged.
 
 ---
 

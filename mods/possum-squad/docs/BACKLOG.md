@@ -45,7 +45,7 @@ these are the parts only a person can see.
   working rows' opossums, six and then fourteen at once, each moving in its role's outfit,
   plain before; the Lead's crown, still; `set motion off` and `auto` stopping and restarting
   them at once. **The 0.9.0 gallery drew nothing there,** past the bound the app holds a pane's
-  tree to; 0.10.1 draws it in parts. The rest below is unseen. To check after the push, with three
+  tree to; 0.10.1 draws it in parts, seen at Session 9a. The rest below is unseen. To check after the push, with three
   agents running: each row's opossum in its role's outfit, plain before; a working one bobbing
   and blinking smoothly, and not restarting each second; the Lead's crown; the empty pane's
   sleeping three; on the light theme the dark outline round pale edges, and none on the dark;
@@ -66,10 +66,8 @@ these are the parts only a person can see.
     press closing the list. The pane opening by itself when a session's first agent starts,
     without taking the keyboard; after a close with its close mark, a new agent opening
     nothing; `/possums` then taking that back.
-  - **From 0.10.1:** `/possums roles` drawing its first part, three roles in eight poses;
-    `next` and `previous` moving through the six parts and round from the last to the first,
-    with `motion` `auto` and `off`, and in `prehistoric`, the heaviest set; `close` bringing
-    the list back. Rows past the sprite budget (about twenty working agents) standing still,
+  - **From 0.10.1:** the gallery's parts were seen at Session 9a (the owner's look: all as
+    expected). Rows past the sprite budget (about twenty working agents) standing still,
     then showing their mark, and rows past sixty counted as `and N more`: the kit checks these,
     and the desktop would need twenty or more agents running, so they are left to a session
     that has them anyway.

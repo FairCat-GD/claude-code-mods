@@ -1,7 +1,7 @@
 import type { ElementConstructor, RenderElement, SvgProps } from 'claude-code'
 
 import type { StateId } from '../../types/index'
-import { ROWS_DRAWN, SPRITE_BUDGET } from '../config'
+import { MOMENT_ROOM, ROWS_DRAWN, SPRITE_BUDGET } from '../config'
 import { type Gallery, type Sprite, sprite, squad } from '../sprites'
 import { STRINGS } from '../strings'
 import { emptyPanel } from './empty'
@@ -75,6 +75,25 @@ export function withinBudget(own: readonly Sprite[], still: (at: number) => Spri
   return chosen
 }
 
+// Each row's one-off where it fits, in drawing order: in what the rows left of the budget and the room above it. Only a
+// row drawn as its steady look plays one, so a moment never moves another row between moving and still.
+export function withMoments(
+  chosen: readonly (Sprite | undefined)[],
+  steady: readonly Sprite[],
+  playing: readonly Sprite[],
+  room: number,
+): (Sprite | undefined)[] {
+  let left = room
+  return chosen.map((one, at) => {
+    const moment = playing[at]
+    if (one === undefined || one !== steady[at] || moment === undefined || moment === one) return one
+    const more = moment.source.length - one.source.length
+    if (more > left) return one
+    left -= more
+    return moment
+  })
+}
+
 // The header (the Lead and the session's totals), then the gallery, the sections, or the empty panel's line when no
 // agent has run. The terminal draws text rows and block bars; other surfaces the app's own bar.
 export function panel(table: PanelTable | (PanelTable & DesktopTable), isTerminal: boolean, data: PanelData, actions: PanelActions): RenderElement {
@@ -100,11 +119,21 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
     return { ...section, rows, isOpen, shown }
   }).filter(section => section.id === 'running' || section.rows.length > 0)
   const shown = sections.flatMap(section => section.shown)
-  const own = Svg
-    ? shown.map(one => sprite({ set, role: one.roleId, pose: one.state, motion, ...(one.moment === undefined ? {} : { moment: one.moment }) }))
+  // The budget is fitted on each row's steady look, which a moment elsewhere never changes, so no row flips between
+  // moving and still while another arrives or ends; the one-offs then play in what is left. The gallery draws no row.
+  const isList = Svg !== undefined && data.gallery === undefined
+  const steady = isList ? shown.map(one => sprite({ set, role: one.roleId, pose: one.state, motion })) : []
+  const playing = isList
+    ? shown.map((one, at) => (one.moment === undefined ? steady[at] : sprite({ set, role: one.roleId, pose: one.state, motion, moment: one.moment })))
     : []
-  const still = (at: number) => sprite({ set, role: shown[at]?.roleId, pose: shown[at]?.state ?? 'working', motion: 'off' })
-  const sprites = withinBudget(own, still, SPRITE_BUDGET - (lead?.source.length ?? 0))
+  // A still steady look is its own still, so a stopped row stands as it does under the budget.
+  const still = (at: number) => {
+    const mine = steady[at]
+    return mine !== undefined && !mine.isAnimated ? mine : sprite({ set, role: shown[at]?.roleId, pose: shown[at]?.state ?? 'working', motion: 'off' })
+  }
+  const budget = SPRITE_BUDGET - (lead?.source.length ?? 0)
+  const fitted = withinBudget(steady, still, budget)
+  const sprites = withMoments(fitted, steady, playing as Sprite[], budget - sizeOf(fitted) + MOMENT_ROOM)
   const placeOf = new Map(shown.map((one, at) => [one, at] as const))
   const rowSprite = (one: RowData) => {
     const at = placeOf.get(one) ?? -1
@@ -112,7 +141,7 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
     if (Svg === undefined || drawn === undefined) return undefined
     // An arrival stands as starting does, so its alt stays the same while the row's state moves on beneath it; a row
     // the budget stills names its own state.
-    const state = one.moment === 'arrival' && drawn === own[at] ? 'starting' : one.state
+    const state = one.moment === 'arrival' && drawn === playing[at] ? 'starting' : one.state
     return spriteElement(Svg, drawn, STRINGS.sprite.alt(one.role ?? STRINGS.sprite.plain, STRINGS.states[state]))
   }
   const row = (one: RowData) => (asText ? terminalRow(table, one, pickerOf(one)) : desktopRow(table, one, pickerOf(one), rowSprite(one)))

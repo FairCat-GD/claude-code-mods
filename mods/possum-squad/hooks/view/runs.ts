@@ -25,7 +25,11 @@ export function momentOf(run: Run, now: number): Moment | undefined {
 }
 
 // A description past one line's worth is cut, so one agent's text never takes the pane past what the desktop draws.
-const shortened = (text: string) => (text.length > DESCRIPTION_CHARS ? `${text.slice(0, DESCRIPTION_CHARS)}${STRINGS.cut}` : text)
+// It is cut by whole characters, so an emoji is never split.
+function shortened(text: string): string {
+  const characters = Array.from(text)
+  return characters.length > DESCRIPTION_CHARS ? `${characters.slice(0, DESCRIPTION_CHARS).join('')}${STRINGS.cut}` : text
+}
 
 // A run as its row shows it, given the figures the model worked out for it and the time it is drawn at.
 export function rowData(run: Run, key: string, figures: { tokens: number; elapsedMs: number; contextPercent?: number }, now: number): RowData {

@@ -247,6 +247,15 @@ test('a long description is drawn cut at 100 characters with an ellipsis, as pla
   expect((await drawn($, 'desktop')).texts).toContain('x'.repeat(100))
 })
 
+test('a description is cut by whole characters, so an emoji at the cut is kept whole, never split', async ($, on) => {
+  world(on)
+  await $.agent.spawn({ ...SPAWN, description: `${'a'.repeat(99)}\u{1F994} then sort the rest by size` })
+  for (const surface of SURFACES) {
+    const { texts } = await drawn($, surface)
+    expect([surface, texts.includes(`${'a'.repeat(99)}\u{1F994}…`)]).toEqual([surface, true])
+  }
+})
+
 // Another plugin, beside the mod, that shows the versions `runs` and `lead` stand at: 0 while never written.
 const STATE_READER = {
   name: 'state-reader',

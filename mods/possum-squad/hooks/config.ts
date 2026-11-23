@@ -27,6 +27,9 @@ export const GALLERY_ROLES_PER_PART = 3
 // The sprites' sources a pane spends, the Lead's included: past it, rows draw still, then their state's mark.
 export const SPRITE_BUDGET = 160_000
 
+// The room above the budget a row's one-off may take: an arrival, a hop or an ending is larger than the look it ends on.
+export const MOMENT_ROOM = 20_000
+
 // The rows a pane draws, about 28 nodes each with the bar drawn as boxes and text; the rest are counted in a line under
 // their section.
 export const ROWS_DRAWN = 60
