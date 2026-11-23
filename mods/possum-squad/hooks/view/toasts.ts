@@ -7,22 +7,31 @@ import { shortened } from './runs'
 
 // Each takes `runs` before and after an event's record. A toast names its run by its description, cut as its row's.
 
-// A permission request that moved the agent into needing the person; before its row has shown, it is `someone`.
+// Whether the agent needs the person, by its row or, before its row has shown, its loop's entry.
+function isAsking(runs: Runs, agentId: string): boolean {
+  const run = runs.rows[agentId]
+  return run === undefined ? runs.pending[agentId]?.ask !== undefined : run.state === 'needs-you'
+}
+
+// A permission request that moved the agent into needing the person; before its row has shown, it is `someone`. A
+// later request while it still waits adds none.
 export function askedToast(before: Runs, after: Runs, agentId: string): string | undefined {
-  if (after === before) return undefined
+  if (isAsking(before, agentId) || !isAsking(after, agentId)) return undefined
   const run = after.rows[agentId]
   return STRINGS.toasts.needsYou(run === undefined ? STRINGS.toasts.someone : shortened(run.description))
 }
 
-// The end of a run that was live and ran longer than T-10.
+// The end of a run that was live and whose turn ran longer than T-10: a teammate's or a resumed agent's turn is timed
+// on its own, never from the run's first start.
 export function endedToast(before: Runs, after: Runs, agentId: string): string | undefined {
   const was = before.rows[agentId]
   const run = after.rows[agentId]
   if (was === undefined || hasEnded(was) || run?.endedAt === undefined || !hasEnded(run)) return undefined
-  const ranMs = run.endedAt - run.startedAt
+  const ranMs = run.endedAt - run.turnAt
   if (!(ranMs > TOAST_AFTER_MS)) return undefined
   const who = shortened(run.description)
-  if (run.state === 'finished') return STRINGS.toasts.finished(who, elapsed(ranMs))
-  if (run.state === 'stopped') return STRINGS.toasts.stopped(who, elapsed(ranMs))
-  return STRINGS.toasts.failed(who)
+  const time = elapsed(ranMs)
+  if (run.state === 'finished') return STRINGS.toasts.finished(who, time)
+  if (run.state === 'stopped') return STRINGS.toasts.stopped(who, time)
+  return STRINGS.toasts.failed(who, time)
 }

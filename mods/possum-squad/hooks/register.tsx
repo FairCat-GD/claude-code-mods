@@ -203,11 +203,12 @@ async function autoOpen($: Pick<EngineInterface, 'store' | 'state' | 'ui' | 'clo
   }
 }
 
-// A toast only where the person cannot see the pane: closed, behind another's tab, or waiting undrawn. The event that
-// raised it does not wait for it (N-07), so every fault here ends quietly.
-async function toastUnseen($: Pick<EngineInterface, 'ui'>, text: string) {
+// A toast only where the person cannot see the list: the pane closed, behind another's tab, waiting undrawn, or showing
+// the gallery. The event that raised it does not wait for it (N-07), so every fault here ends quietly.
+async function toastUnseen($: Pick<EngineInterface, 'ui' | 'state'>, text: string) {
   try {
-    if ((await $.ui.panes()).some(one => one.id === PANE && one.isShown)) return
+    const isShown = (await $.ui.panes()).some(one => one.id === PANE && one.isShown)
+    if (isShown && !(await read($, view).catch(() => NO_FLAGS)).isGalleryOpen) return
     $.ui.toast(text)
   } catch {
     // the row says it when the pane is next seen

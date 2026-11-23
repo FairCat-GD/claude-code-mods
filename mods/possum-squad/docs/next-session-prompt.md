@@ -16,13 +16,14 @@ Ask at its start whether the owner has redrawn the joey (the block's *Ask at the
 ## State you need that is not in the specs
 
 - **Round 1 is the agents panel:** Sessions 0–10, 7a and 9a are done; Sessions 11–13 remain.
-- **Push status:** `origin/main` holds everything through Session 9a's review commit (pushed
-  2026-11-23). Session 10's commits wait locally until the owner approves a push. List
-  `origin/main..HEAD` before any push, and name any commit that is not the session's.
-- **0.10.1 is installed;** 0.11.0 is not. The block's gate, the owner raising a permission
-  prompt inside a subagent in the desktop app, needs a push and `claude plugin update
-  possum-squad`, each with the owner's OK. If Session 10's chat did not do it, offer it at
-  Session 11's start, before the plan.
+- **Push status:** pushed on 2026-11-23 with the user's approval: `origin/main` holds
+  everything through Session 10's review commit, 0.11.0 among it. Nothing waits locally but
+  what a later commit records. List `origin/main..HEAD` before any push, and name any commit
+  that is not the session's.
+- **0.11.0 is to be installed** with `claude plugin update possum-squad`, with the user's OK,
+  right after the push, for the block's gate: the owner raising a permission prompt inside a
+  subagent in the desktop app. Its outcome is recorded after this commit; if it is not, ask
+  at Session 11's start whether the update ran and what the owner saw.
 - **The desktop's bound** (*Context* in ARCHITECTURE, read from the app's own code, app
   6.28899.6): a pane's answer draws only with fewer than 2,000 nodes, 32 levels and 262,144
   characters by its count; past it the app drops the answer silently and keeps the last tree.
@@ -34,7 +35,7 @@ Ask at its start whether the owner has redrawn the joey (the block's *Ask at the
   installed release only, so every check there needs a push and an update, each with the
   owner's OK.
 - **What Session 10 left for Session 11:**
-  - **Needs you is a stored state** (`needs-you`, with `askedAt`), so the collapsed view's
+  - **Needs you is a stored state** (`needs-you`, with its `ask`), so the collapsed view's
     mark reads it from `runs`. **Quiet is not stored:** `quietMs(run, now)` in
     `hooks/model/runs.ts` works it out where a row is drawn.
   - **`runs` is `runs-5`.** Peek's last actions, files and answer are new `Run` fields: the tag
@@ -52,7 +53,7 @@ Ask at its start whether the owner has redrawn the joey (the block's *Ask at the
     *Deferred*);
   - forgetting a remembered role (`docs/BACKLOG.md`, *Deferred*).
 - **Baseline** (ARCHITECTURE's table, v0.11.0, CLI 2.1.330):
-  - 226 tests in 20 files, about 14 s, and 10 tool specs in 2 files;
+  - 232 tests in 20 files, about 14 s, and 10 tool specs in 2 files;
   - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys;
   - calls: `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`,
     `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`,

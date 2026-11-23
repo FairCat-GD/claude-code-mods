@@ -4,7 +4,7 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 import { DESCRIPTION_CHARS, QUIET_AFTER_MS, TOAST_AFTER_MS } from '../hooks/config'
 import { PANE } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
-import { engine, MOUNT, POSSUMS, SURFACES, store } from './engine'
+import { engine, MOUNT, POSSUMS, possums, SURFACES, store } from './engine'
 import { PERMISSION_FROM_AGENT, PERMITTED, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START, WAITING } from './fixtures/events'
 
 type Surface = (typeof SURFACES)[number]
@@ -149,6 +149,43 @@ test('the step that asked the call, ending after the request, leaves the row in 
   await expectRow($, 'running', 'working')
 })
 
+test('a second call asked while the next step still streams keeps the row in Needs you, with one toast (F-12, F-14)', async ($, on) => {
+  const { clock, given, toasts } = world(on)
+  await working($, 1)
+  await clock.advance(ARRIVED)
+  // The first asking step: the request comes while it streams.
+  let release = () => {}
+  given.streaming = new Promise<void>(resolve => {
+    release = resolve
+  })
+  given.calls = [PING]
+  const first = step($, 1)
+  await settled()
+  await clock.advance(500)
+  await request($, 1)
+  release()
+  await first
+  // The person allows it; the next step begins after, and asks again before its record.
+  await clock.advance(5_000)
+  given.streaming = new Promise<void>(resolve => {
+    release = resolve
+  })
+  const second = step($, 1)
+  await settled()
+  await clock.advance(500)
+  await request($, 1)
+  release()
+  await second
+  given.streaming = undefined
+  await settled()
+  await expectRow($, 'needs-you', 'needs-you')
+  expect(toasts).toEqual(['Count the shovels 1 · needs you: waiting on a permission prompt'])
+  await clock.advance(5_000)
+  given.calls = []
+  await step($, 1)
+  await expectRow($, 'running', 'working')
+})
+
 test("a request another hook answered, the main session's, or one for an ended or unknown agent moves no row", async ($, on) => {
   const { clock, given, toasts } = world(on)
   await working($, 1)
@@ -248,7 +285,21 @@ test('with the pane closed, one toast when a run needs the person and one when a
   // A run that has ended already ends no more.
   await complete($, 5, 'aborted', '')
   await settled()
-  expect(toasts.slice(2)).toEqual(['Count the shovels 4 · failed: ended without an answer', 'Count the shovels 5 · stopped after 1:05'])
+  expect(toasts.slice(2)).toEqual(['Count the shovels 4 · failed after 1:05', 'Count the shovels 5 · stopped after 1:05'])
+})
+
+test("a teammate's later turn is timed on its own: a short one ends with no toast (F-14)", async ($, on) => {
+  const { clock, toasts } = world(on)
+  await $.agent.spawn({ ...SPAWN, tool_use_id: 'toolu_1', description: 'Mind the shed', isTeammate: true } as never)
+  await $.turn.start({ ...TURN_START, agentId: 'agent-1' })
+  await clock.advance(TOAST_AFTER_MS + 1_000)
+  await complete($, 1, 'answer', '')
+  await clock.advance(2 * TOAST_AFTER_MS)
+  await $.turn.start({ ...TURN_START, agentId: 'agent-1' })
+  await clock.advance(5_000)
+  await complete($, 1, 'answer', '')
+  await settled()
+  expect(toasts).toEqual(['Mind the shed · finished after 1:01'])
 })
 
 test('a toast names its run by its description cut as on its row', async ($, on) => {
@@ -278,6 +329,16 @@ test('with the pane shown there is no toast; with it behind another tab there is
   await complete($, 2)
   await settled()
   expect(toasts).toEqual(['Count the shovels 2 · needs you: waiting on a permission prompt', 'Count the shovels 2 · finished after 1:01'])
+})
+
+test('with the gallery shown in the pane, the list is out of view, so there are toasts (F-14)', async ($, on) => {
+  const { seen, toasts } = world(on)
+  await $.command.run(possums('roles'))
+  expect(seen.panes).toEqual([{ id: PANE, isShown: true, isPlaced: true }])
+  await working($, 1)
+  await request($, 1)
+  await settled()
+  expect(toasts).toEqual(['Count the shovels 1 · needs you: waiting on a permission prompt'])
 })
 
 // Another plugin, beside the mod, counting the periods the mod's timers ask for.

@@ -159,6 +159,7 @@ test("a row's moment is its arrival, a later role's hop or its ending, each for 
     state: 'working',
     startedAt: 10_000,
     heardAt: 10_000,
+    turnAt: 10_000,
     tokens: NO_TOKENS,
     inFlight: 0,
     order: 0,

@@ -437,11 +437,11 @@ test('the clock is kept for a live run, and for an ended one whose role may stil
 test("a live row's asked call moves it to needs-you, and its next step brings it back working; an ended or unknown one stays", () => {
   const working = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1', 0), 'agent-1', 5)
   const waiting = asked(working, 'agent-1', 20)
-  expect(waiting.rows['agent-1']).toMatchObject({ state: 'needs-you', heardAt: 20 })
-  // Asked again while it waits, nothing changes.
-  expect(asked(waiting, 'agent-1', 30)).toBe(waiting)
+  expect(waiting.rows['agent-1']).toMatchObject({ state: 'needs-you', heardAt: 20, ask: { at: 20 } })
+  // Asked again while it waits, the later request is the one a step must begin after.
+  expect(asked(waiting, 'agent-1', 30).rows['agent-1']).toMatchObject({ state: 'needs-you', heardAt: 30, ask: { at: 30 } })
   expect(stepped(waiting, 'agent-1', { ...STEP, at: 40 }).rows['agent-1']).toMatchObject({ state: 'working', heardAt: 40 })
-  // A step whose time could not be read still ends the wait, and keeps the last time heard.
+  // A step whose start could not be read still ends the wait, and keeps the last time heard.
   expect(stepped(waiting, 'agent-1', STEP).rows['agent-1']).toMatchObject({ state: 'working', heardAt: 20 })
   // A starting row may ask too; one that has ended, or an agent no row or entry has, may not.
   expect(asked(spawned(NO_RUNS, SHOVELS, 'agent-1', 0), 'agent-1').rows['agent-1']?.state).toBe('needs-you')
@@ -453,13 +453,13 @@ test("a live row's asked call moves it to needs-you, and its next step brings it
 test("an asked call before the re-key is kept on the loop's entry, and the row that claims it needs the person", () => {
   const pending = turnStarted(spawnOpened(NO_RUNS, SHOVELS, 0), 'agent-1')
   const waiting = asked(pending, 'agent-1', 10)
-  expect(waiting.pending['agent-1']?.isAsking).toBe(true)
-  expect(asked(waiting, 'agent-1', 20)).toBe(waiting)
+  expect(waiting.pending['agent-1']?.ask).toEqual({ at: 10 })
+  expect(asked(waiting, 'agent-1', 20).pending['agent-1']?.ask).toEqual({ at: 20 })
   const claimed = spawnSettled(waiting, SHOVELS, { agentId: 'agent-1', model: 'claude-sonnet-5-5', isDenied: false }, 30)
-  expect(claimed.rows['agent-1']).toMatchObject({ state: 'needs-you', heardAt: 30 })
+  expect(claimed.rows['agent-1']).toMatchObject({ state: 'needs-you', heardAt: 30, ask: { at: 10 } })
   // A step before the claim moved the call on, so the row works.
   const movedOn = stepped(waiting, 'agent-1', STEP)
-  expect(movedOn.pending['agent-1']?.isAsking).toBeUndefined()
+  expect(movedOn.pending['agent-1']?.ask).toBeUndefined()
   expect(spawnSettled(movedOn, SHOVELS, { agentId: 'agent-1', isDenied: false }, 30).rows['agent-1']?.state).toBe('working')
 })
 
@@ -498,17 +498,50 @@ test('the step that asked a call, recorded after the request, leaves the row nee
   const waiting = asked(working, 'agent-1', 20)
   // The asking step began before the request and ends after it.
   const asker = stepped(waiting, 'agent-1', { ...STEP, calls: 1, began: 10, at: 25 })
-  expect(asker.rows['agent-1']).toMatchObject({ state: 'needs-you', askedAt: 20, inFlight: 1 })
+  expect(asker.rows['agent-1']).toMatchObject({ state: 'needs-you', ask: { at: 20 }, inFlight: 1 })
   const next = stepped(asker, 'agent-1', { ...STEP, began: 30, at: 40 })
   expect(next.rows['agent-1']?.state).toBe('working')
-  expect(next.rows['agent-1']?.askedAt).toBeUndefined()
+  expect(next.rows['agent-1']?.ask).toBeUndefined()
   // The same for a loop's entry before the re-key.
   const entry = asked(turnStarted(spawnOpened(NO_RUNS, SHOVELS, 0), 'agent-1'), 'agent-1', 20)
   const entryAsker = stepped(entry, 'agent-1', { ...STEP, calls: 1, began: 10 })
-  expect(entryAsker.pending['agent-1']).toMatchObject({ isAsking: true, askedAt: 20 })
-  expect(stepped(entryAsker, 'agent-1', { ...STEP, began: 30 }).pending['agent-1']?.isAsking).toBeUndefined()
+  expect(entryAsker.pending['agent-1']?.ask).toEqual({ at: 20 })
+  expect(stepped(entryAsker, 'agent-1', { ...STEP, began: 30 }).pending['agent-1']?.ask).toBeUndefined()
   // A turn's end, or a new turn, leaves nothing of the request behind.
-  expect(turnEnded(asker, 'agent-1', ANSWERED, 50).rows['agent-1']?.askedAt).toBeUndefined()
+  expect(turnEnded(asker, 'agent-1', ANSWERED, 50).rows['agent-1']?.ask).toBeUndefined()
   expect(turnStarted(asker, 'agent-1', 50).rows['agent-1']).toMatchObject({ state: 'working' })
-  expect(turnStarted(asker, 'agent-1', 50).rows['agent-1']?.askedAt).toBeUndefined()
+  expect(turnStarted(asker, 'agent-1', 50).rows['agent-1']?.ask).toBeUndefined()
+})
+
+test('a second call asked while the step after the first still streams keeps the row needing the person', () => {
+  const working = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1', 0), 'agent-1', 5)
+  const first = stepped(asked(working, 'agent-1', 20), 'agent-1', { ...STEP, calls: 1, began: 10, at: 25 })
+  // The next step begins at 30, after the first request, and asks again at 35 before its record.
+  const second = asked(first, 'agent-1', 35)
+  const recorded = stepped(second, 'agent-1', { ...STEP, calls: 1, began: 30, at: 40 })
+  expect(recorded.rows['agent-1']).toMatchObject({ state: 'needs-you', ask: { at: 35 } })
+  expect(stepped(recorded, 'agent-1', { ...STEP, began: 50, at: 60 }).rows['agent-1']?.state).toBe('working')
+})
+
+test("a request whose time could not be read waits out the asking step's record, then moves on at the next", () => {
+  const working = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1', 0), 'agent-1', 5)
+  const waiting = asked(working, 'agent-1')
+  expect(waiting.rows['agent-1']).toMatchObject({ state: 'needs-you', ask: {} })
+  const asker = stepped(waiting, 'agent-1', { ...STEP, calls: 1, began: 10, at: 25 })
+  expect(asker.rows['agent-1']).toMatchObject({ state: 'needs-you', ask: { at: 25 } })
+  expect(stepped(asker, 'agent-1', { ...STEP, began: 30, at: 40 }).rows['agent-1']?.state).toBe('working')
+  // With no time at all, the step after the asking one moves it on.
+  const untimed = stepped(waiting, 'agent-1', { ...STEP, calls: 1 })
+  expect(untimed.rows['agent-1']?.state).toBe('needs-you')
+  expect(stepped(untimed, 'agent-1', STEP).rows['agent-1']?.state).toBe('working')
+})
+
+test("a turn's start is the turn's: the opening, a resume's result and each turn start", () => {
+  const opened = spawned(NO_RUNS, SHOVELS, 'agent-1', 100)
+  expect(opened.rows['agent-1']?.turnAt).toBe(100)
+  const ended = turnEnded(turnStarted(opened, 'agent-1', 110), 'agent-1', ANSWERED, 200)
+  expect(ended.rows['agent-1']).toMatchObject({ startedAt: 100, turnAt: 110 })
+  expect(turnStarted(ended, 'agent-1', 500).rows['agent-1']).toMatchObject({ startedAt: 100, turnAt: 500 })
+  const resumed = spawnSettled(ended, { ...SHOVELS, resumes: 'agent-1' }, { agentId: 'agent-1', isDenied: false }, 900)
+  expect(resumed.rows['agent-1']).toMatchObject({ startedAt: 100, turnAt: 900 })
 })

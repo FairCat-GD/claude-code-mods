@@ -19,10 +19,11 @@ The pane says when an agent needs you, or has gone quiet, and tells you while it
 - **Quiet:** an agent starting or working with no call running and nothing heard from it for a
   minute and a half shows as quiet: its opossum dozes on its feet, and its third line reads
   "Quiet for 2 min". The next thing it does wakes it.
-- **Toasts while the pane is out of sight** (closed, behind another pane's tab, or waiting to be
-  drawn): one when an agent comes to need you, and one when an agent that ran for more than a
-  minute finishes, fails or is stopped. Each names the agent by its task, cut at 100
-  characters.
+- **Toasts while the list is out of sight** (the pane closed, behind another pane's tab,
+  waiting to be drawn, or showing the gallery): one when an agent comes to need you, and one
+  when an agent ends a turn of more than a minute, finished, failed or stopped. Each names the
+  agent by its task, cut at 100 characters; a teammate's or resumed agent's turn is timed on
+  its own.
 
 ### Changed
 

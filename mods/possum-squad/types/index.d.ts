@@ -10,6 +10,10 @@ export type View = {
   pickerFor?: number
 }
 
+// A call's request to the person: its time, or none when the clock could not be read. Only a step begun after it moves
+// the call on.
+export type Ask = { at?: number }
+
 // A run's state, by its id; `planned` is reserved.
 export type StateId = 'starting' | 'working' | 'needs-you' | 'quiet' | 'finished' | 'failed' | 'stopped'
 
@@ -68,8 +72,10 @@ export type Run = {
   endedAt?: number
   // The time of its last event, from which a live run with no call in flight goes quiet.
   heardAt: number
-  // While it needs the person, the time a call of its asked: only a step begun after it moves the call on.
-  askedAt?: number
+  // When its current turn began: its start, a resume's result or its latest turn start.
+  turnAt: number
+  // While it needs the person, the call's request.
+  ask?: Ask
   tokens: Tokens
   // The last request's size: its input, cache reads and cache writes.
   lastRequest?: number
@@ -86,9 +92,8 @@ export type Pending = {
   role?: Role
   weakCalls?: number
   hasBackgroundWork?: boolean
-  // A call of its waits on a permission prompt, so the row that claims it needs the person; asked then.
-  isAsking?: true
-  askedAt?: number
+  // A call of its waits on a permission prompt, so the row that claims it needs the person.
+  ask?: Ask
   model?: string
   effort?: string
   tokens: Tokens

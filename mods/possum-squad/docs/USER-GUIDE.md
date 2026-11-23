@@ -157,16 +157,17 @@ in amber, and its third line says for how long, such as "Quiet for 2 min". A cal
 running, however long, never makes it quiet, nor does the reply that follows one. The next thing
 the agent does brings it back to working.
 
-**Toasts.** While the pane is out of sight (closed, behind another pane's tab, or waiting to be
-drawn), a small toast tells you instead:
+**Toasts.** While the list is out of sight (the pane closed, behind another pane's tab, waiting
+to be drawn, or showing the gallery), a small toast tells you instead:
 - when an agent needs you: "Find where reports are built · needs you: waiting on a permission
   prompt";
-- when an agent that ran for more than a minute ends: "… · finished after 2:14", "… · failed:
-  ended without an answer" or "… · stopped after 1:05".
+- when an agent ends a turn that took more than a minute: "… · finished after 2:14", "… ·
+  failed after 2:14" or "… · stopped after 1:05". For a teammate, or an agent Claude resumes,
+  only that turn counts, not the time since it first started.
 
 Each names the agent by its task, cut at 100 characters as on its row; one that asks before its
 row has appeared is "An agent". There is one toast each time an agent comes to need you: a
-second prompt while it still waits adds none. With the pane in view there are none, since the
+second prompt while its row is still under Needs you adds none, and keeps the row there. With the pane in view there are none, since the
 row says it.
 
 ## How roles are chosen

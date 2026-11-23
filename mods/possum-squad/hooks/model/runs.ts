@@ -1,4 +1,4 @@
-import type { Activity, Past, Pending, Role, Run, Runs, StateId, Tokens } from '../../types/index'
+import type { Activity, Ask, Past, Pending, Role, Run, Runs, StateId, Tokens } from '../../types/index'
 import { FINISHED_KEPT, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../config'
 import { windowOf } from '../data/models'
 
@@ -89,6 +89,7 @@ function opened(runs: Runs, spawn: Spawn, at: number, agentId?: string): Run {
     state: 'starting',
     startedAt: at,
     heardAt: at,
+    turnAt: at,
     tokens: NO_TOKENS,
     inFlight: 0,
     order: runs.next,
@@ -127,9 +128,9 @@ function withStep<T extends Run | Pending>(held: T, step: Step): T {
 
 function claimed(run: Run, pending: Pending | undefined): Run {
   if (pending === undefined) return run
-  const state = pending.isAsking === true ? 'needs-you' : 'working'
+  const state = pending.ask === undefined ? 'working' : 'needs-you'
   const next: Run = { ...run, state, tokens: add(run.tokens, pending.tokens), inFlight: pending.inFlight }
-  if (pending.askedAt !== undefined) next.askedAt = pending.askedAt
+  if (pending.ask !== undefined) next.ask = pending.ask
   if (pending.lastRequest !== undefined) next.lastRequest = pending.lastRequest
   if (pending.model !== undefined) next.model = pending.model
   if (pending.effort !== undefined) next.effort = pending.effort
@@ -185,7 +186,7 @@ export function spawnSettled(runs: Runs, spawn: Spawn, settled: Settled, at: num
     }
     if (!hasEnded(held)) return runs
     const { endedAt: _, ...resumed } = held
-    return { ...runs, rows: { ...runs.rows, [id]: { ...resumed, state: 'starting', heardAt: at } } }
+    return { ...runs, rows: { ...runs.rows, [id]: { ...resumed, state: 'starting', heardAt: at, turnAt: at } } }
   }
   const held = runs.rows[spawn.key] ?? (spawn.key === '' ? opened(runs, spawn, at) : undefined)
   const next = spawn.key === '' ? runs.next + 1 : runs.next
@@ -203,8 +204,8 @@ export function turnStarted(runs: Runs, agentId: string, at?: number): Runs {
   const held = runs.rows[agentId]
   if (held !== undefined) {
     if (held.state === 'working' && held.endedAt === undefined && (at === undefined || at === held.heardAt)) return runs
-    const { endedAt: _, hasBackgroundWork: __, askedAt: ___, ...run } = held
-    return { ...runs, rows: { ...runs.rows, [agentId]: { ...run, state: 'working', ...(at === undefined ? {} : { heardAt: at }) } } }
+    const { endedAt: _, hasBackgroundWork: __, ask: ___, ...run } = held
+    return { ...runs, rows: { ...runs.rows, [agentId]: { ...run, state: 'working', ...(at === undefined ? {} : { heardAt: at, turnAt: at }) } } }
   }
   return runs.pending[agentId] === undefined ? withPending(runs, agentId, NO_PENDING) : runs
 }
@@ -213,42 +214,48 @@ export function turnStarted(runs: Runs, agentId: string, at?: number): Runs {
 export const weakOf = (runs: Runs, agentId: string): number => (runs.rows[agentId] ?? runs.pending[agentId])?.weakCalls ?? 0
 
 // The engine checks a call while the step that asked it still streams, so that step's record can come after the
-// request: only a step begun after it is the call moved on. A time that cannot be read says it is.
-const movesOn = (step: Step, askedAt: number | undefined) => askedAt === undefined || step.began === undefined || step.began >= askedAt
+// request: only a step begun after it is the call moved on, and one whose start is unknown is taken as one. A request
+// whose time is unknown waits out the next record, the asking step's, and then the first step begun after that one
+// ended. Returns the request still waiting, or none.
+function waitAfter(ask: Ask, step: Step): Ask | undefined {
+  if (ask.at === undefined) return { at: step.at ?? step.began ?? 0 }
+  return step.began === undefined || step.began >= ask.at ? undefined : ask
+}
 
 // A later step is the asked call moved on, allowed or refused: a row that needed the person works again.
 export function stepped(runs: Runs, agentId: string, step: Step): Runs {
   const held = runs.rows[agentId]
   if (held !== undefined) {
-    const isMoved = held.state === 'needs-you' && movesOn(step, held.askedAt)
-    const { askedAt: _, ...rest } = held
-    const run = withStep(isMoved ? { ...rest, state: 'working' } : held, step)
+    const { ask, ...rest } = held
+    const waiting = held.state === 'needs-you' && ask !== undefined ? waitAfter(ask, step) : undefined
+    const run = withStep(held.state !== 'needs-you' ? held : waiting === undefined ? { ...rest, state: 'working' } : { ...rest, ask: waiting }, step)
     if (step.at !== undefined) run.heardAt = step.at
     return { ...runs, rows: { ...runs.rows, [agentId]: run } }
   }
-  const entry = runs.pending[agentId] ?? NO_PENDING
-  const { isAsking: __, askedAt: ___, ...moved } = entry
-  return withPending(runs, agentId, withStep(entry.isAsking === true && movesOn(step, entry.askedAt) ? moved : entry, step))
+  const { ask, ...entry } = runs.pending[agentId] ?? NO_PENDING
+  const waiting = ask === undefined ? undefined : waitAfter(ask, step)
+  return withPending(runs, agentId, withStep(waiting === undefined ? entry : { ...entry, ask: waiting }, step))
 }
 
 // A call of the agent's waits on a permission prompt: its live row needs the person until the call moves on. An entry
-// no row has claimed yet keeps it for the row that will.
+// no row has claimed yet keeps it for the row that will. A later call's request, while the row still waits, is the one
+// a step must begin after.
 export function asked(runs: Runs, agentId: string, at?: number): Runs {
+  const ask: Ask = at === undefined ? {} : { at }
   const held = runs.rows[agentId]
   if (held !== undefined) {
-    if (held.state !== 'starting' && held.state !== 'working') return runs
-    return { ...runs, rows: { ...runs.rows, [agentId]: { ...held, state: 'needs-you', ...(at === undefined ? {} : { heardAt: at, askedAt: at }) } } }
+    if (held.state !== 'starting' && held.state !== 'working' && held.state !== 'needs-you') return runs
+    return { ...runs, rows: { ...runs.rows, [agentId]: { ...held, state: 'needs-you', ask, ...(at === undefined ? {} : { heardAt: at }) } } }
   }
   const pending = runs.pending[agentId]
-  if (pending === undefined || pending.isAsking === true) return runs
-  return withPending(runs, agentId, { ...pending, isAsking: true, ...(at === undefined ? {} : { askedAt: at }) })
+  return pending === undefined ? runs : withPending(runs, agentId, { ...pending, ask })
 }
 
 // A run's turn ends it; a loop no spawn claimed by its end is dropped and never drawn.
 export function turnEnded(runs: Runs, agentId: string, ending: Ending, at: number): Runs {
   const held = runs.rows[agentId]
   if (held === undefined) return runs.pending[agentId] === undefined ? runs : { ...runs, pending: without(runs.pending, agentId) }
-  const { askedAt: _, ...rest } = held
+  const { ask: _, ...rest } = held
   const run: Run = { ...rest, state: endingOf(ending, held.isTeammate), endedAt: at, inFlight: 0 }
   return pruned({ ...runs, rows: { ...runs.rows, [agentId]: run } })
 }

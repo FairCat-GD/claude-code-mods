@@ -114,7 +114,7 @@ export const STRINGS = {
     someone: 'An agent',
     needsYou: (who: string) => `${who} · needs you: waiting on a permission prompt`,
     finished: (who: string, time: string) => `${who} · finished after ${time}`,
-    failed: (who: string) => `${who} · failed: ended without an answer`,
+    failed: (who: string, time: string) => `${who} · failed after ${time}`,
     stopped: (who: string, time: string) => `${who} · stopped after ${time}`,
   },
   // What a sprite shows, for a reader that cannot see it.

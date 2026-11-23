@@ -1923,6 +1923,31 @@ hooks*, *The run model*, *The panel*.
     the rest unchanged; about 14 s;
   - the tools' specs unchanged: 10 in 2 files;
   - the gate green on CLI 2.1.330.
+- **Review (`/code-review high`), 5 findings: all fixed, the user's choice.**
+  - **A second call asked while the next step still streamed read as moved on:** `asked` left
+    a row already waiting alone, so that step's record, begun after the first request, moved
+    the row back while the second prompt waited. A later request now replaces the earlier
+    (`Run.ask` and `Pending.ask`, `{ at }`, in place of `askedAt` and `isAsking`); the toast
+    still goes only with the move into Needs you.
+  - **A teammate's or resumed agent's turn end toasted when the run, not the turn, was long:**
+    `endedToast` timed from the first start. Runs keep their turn's start (`turnAt`: the
+    opening, a resume's result, each turn start), and a toast times the turn.
+  - **A request whose time could not be read let the asking step's late record end it:** such
+    a request (`{}`) now waits out one record and takes its time.
+  - **With the gallery open, an agent needing the person had no row and no toast:** the
+    gallery counts as the list out of view.
+  - **The failed toast said "ended without an answer" for an error or a refusal:** it reads
+    `failed after 2:14`, like the other two.
+  - **Falsified,** each failing at its own test:
+    - a waiting row ignoring a later request;
+    - a later request toasting again;
+    - an untimed request moving on at once;
+    - an end timed from the first start;
+    - a turn's start, or a resume's, not kept;
+    - the gallery counting as seen;
+    - the failed toast's old text.
+  - **Numbers after the review:** 232 tests (+6) in 20 files: attention 14 (+3), model 39
+    (+3), the rest unchanged; about 14 s. `validate` unchanged.
 
 ---
 

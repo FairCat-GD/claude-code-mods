@@ -550,8 +550,8 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     the pane is open (*The panel*): `$.clock.every` is synchronous, and a no-op while a timer
     is armed.
   - `turn.complete` with `agentId` ends its row, and settles Helper on it if no rule has, unless
-    it is a teammate's or its turn left work in the background (`fellBack`). A run that was live
-    and ran past T-10 starts its toast, unawaited (*Attention*). Without `agentId`, it is the main session's, and
+    it is a teammate's or its turn left work in the background (`fellBack`). A run that was live,
+    and whose turn ran past T-10, starts its toast, unawaited (*Attention*). Without `agentId`, it is the main session's, and
     `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`). A malformed
     one never gets that far: the engine refuses its `next(e)` first (*Context*).
   - `session.measure` awaits `next(e)`, then records the Lead's context through `recordLead`
@@ -709,11 +709,12 @@ each returning the same object when the record changes nothing.
 - **A run** (`Run`, in `types/index.d.ts`) holds what its row needs: its agent id once known,
   its parent's id, its type, description and round, whether it is a teammate, its state, its
   role once settled and its reads and searches until then, its model and effort, its start
-  and end times, the time it was last heard (`heardAt`), its four token counts, its last
-  request's size (input, cache reads and cache writes), its activity (tool and target) and its
-  calls in flight, and, while it needs the person, when its call asked (`askedAt`). A pending
-  entry holds the same numbers and role evidence, and `isAsking` with its `askedAt` when a call
-  of its waits on the person; its loop's turn has begun, so a claimed row is
+  and end times, its current turn's start (`turnAt`), the time it was last heard (`heardAt`),
+  its four token counts, its last request's size (input, cache reads and cache writes), its
+  activity (tool and target) and its calls in flight, and, while it needs the person, its
+  call's request (`ask`, `Ask`: `{ at }`, or `{}` when the clock could not be read). A pending
+  entry holds the same numbers and role evidence, and `ask` when a call of its waits on the
+  person; its loop's turn has begun, so a claimed row is
   Working, or Needs you when it was asking. The brief, the answer, past actions and files touched wait for Peek (Session 11).
 - **Joining:**
   - `spawnOpened` opens a starting row at the spawn's input, keyed by its `tool_use_id`, plus
@@ -729,16 +730,20 @@ each returning the same object when the record changes nothing.
     keeps its place as it changes, so the one dropped first is the loop that began longest
     ago. `turnEnded` drops it: that loop was the engine's own.
   - `turnStarted` puts a known row back to Working, its end cleared, so a teammate's next turn
-    or a resumed agent's continues its row, its time counted from its first start.
+    or a resumed agent's continues its row, its time counted from its first start; `turnAt`
+    is that turn's start (a resume's, its result), which a toast times the turn by.
   - A spawn whose description equals a Finished run's gets that run's round plus one.
 - **Ending:** `turnEnded` applies `endingOf` (Decided above) and clears the calls in flight.
-- **Needs you** (0.11.0): `asked` moves a starting or working row to `needs-you`, heard and
-  asked then (`askedAt`); it leaves a row that needs the person already, one that has ended
-  and an agent nothing holds, and marks a pending entry `isAsking`, with its `askedAt`.
-  `stepped` brings a `needs-you` row back to `working`, and drops an entry's `isAsking`, at a
-  step begun at or after `askedAt` (`movesOn`): a later step is the asked call moved on,
-  allowed or refused; the step that asked it may be recorded after the request. A time that
-  cannot be read moves it on. `turnStarted` and `turnEnded` drop `askedAt`.
+- **Needs you** (0.11.0): `asked` moves a starting or working row to `needs-you`, heard then,
+  with its `ask`; on a row that needs the person already, the later request replaces the
+  earlier, since a call asked while the next step still streams must outlast that step's
+  record. It leaves an ended row and an agent nothing holds, and gives a pending entry its
+  `ask`. `stepped` brings a `needs-you` row back to `working`, and drops an entry's `ask`, at
+  a step begun at or after the request's time, or one whose start is unknown (`waitAfter`): a
+  later step is the asked call moved on, allowed or refused; the step that asked it may be
+  recorded after the request. A request whose time is unknown waits out the next record, as
+  the asking step's, and then takes that record's time. `turnStarted` and `turnEnded` drop
+  `ask`.
 - **Heard** (0.11.0): `heardAt` is the opening's time, then the spawn's result's, each turn
   start's and each step's, when the clock could be read.
 - **Quiet** (0.11.0): `quietMs` is how long a starting or working run with no call in flight
@@ -1287,8 +1292,8 @@ Needs you and quiet (0.11.0) are *The run model*'s: `asked` from `classic.Permis
 - **The asking step's record comes after the request:** the engine checks a call while the
   step that asked it still streams (*Context*), so only a step begun after the request moves
   the call on. A subagent's step reads the time before its stream (`began`), the run keeps the
-  request's (`askedAt`), and `stepped` ends Needs you at a step with `began` at or after it, or
-  where either time is unknown.
+  latest request's (`ask`), and `stepped` ends Needs you at a step with `began` at or after it,
+  or with `began` unknown; a request with no time waits out one record first.
 - **Needs you begins only where nobody else answered:** the request's `next(e)` comes back
   while the person's prompt waits, empty (*Context*); one carrying a `decision` was settled by
   a hook and showed no prompt, so it moves nothing.
@@ -1302,15 +1307,17 @@ Needs you and quiet (0.11.0) are *The run model*'s: `asked` from `classic.Permis
 Toasts (0.11.0), `toastUnseen` in `hooks/register.tsx`, started unawaited (N-07) by the hook
 that decided one, its every fault caught inside:
 - it asks `$.ui.panes()`, and calls `$.ui.toast(text)` unless `possum-squad` is there and
-  `isShown`: a pane closed, behind another's tab or waiting undrawn is out of view (the owner's
-  reading of "closed", Decision log);
+  `isShown` with the list in it: a pane closed, behind another's tab or waiting undrawn is out
+  of view (the owner's reading of "closed", Decision log), and so is the list while the gallery
+  takes its place (`view.isGalleryOpen`, a refused read counting as none);
 - the texts are `hooks/view/toasts.ts`'s, each from `runs` before and after the record:
-  `askedToast` when a request moved a run, `<description> · needs you: waiting on a permission
-  prompt`, or `An agent` for an entry no row has claimed; `endedToast` when a run that was
-  live ended past T-10 (`TOAST_AFTER_MS`, 60 s): `· finished after 2:14`, `· failed: ended
-  without an answer` or `· stopped after 1:05`;
+  `askedToast` when a request moved a run into needing the person, `<description> · needs
+  you: waiting on a permission prompt`, or `An agent` for an entry no row has claimed;
+  `endedToast` when a run that was live ended a turn longer than T-10 (`TOAST_AFTER_MS`,
+  60 s), timed from `turnAt`, so a teammate's or a resumed agent's turn is timed alone:
+  `· finished after 2:14`, `· failed after 2:14` or `· stopped after 1:05`;
 - the description is cut as the row's (`shortened`, 100 characters), I-04's toast line;
-- a second request while the run waits moves nothing, so it toasts nothing; the toast's own
+- a later request while the run waits keeps it waiting, so it toasts nothing; the toast's own
   timeout is the engine's default. No toast arms a timer (N-03).
 
 ## The command and settings
@@ -1509,13 +1516,18 @@ unread.
   call in flight (`docs/BACKLOG.md`).
 - **A toast reads the panes after its event,** unawaited, so a pane opened or closed in between
   decides it.
+- **A request whose time could not be read holds Needs you through one step record more:** it
+  takes that record for the asking step's, so if the asking step was recorded first, the row
+  comes back one step late.
+- **The failed toast names no reason:** an error, a refusal and an empty answer all read
+  `failed after 2:14`.
 
 ## Baseline (v0.11.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 226 pass, in 20 files: attention 11, auto-open 11, clock 13, command 11, compose 8, gallery 11, header 8, model 36, pane-sprites 9, panel 10, pass-through 6, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 13; about 14 s |
+| `claude plugin test mods/possum-squad` | 232 pass, in 20 files: attention 14, auto-open 11, clock 13, command 11, compose 8, gallery 11, header 8, model 39, pane-sprites 9, panel 10, pass-through 6, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 13; about 14 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |

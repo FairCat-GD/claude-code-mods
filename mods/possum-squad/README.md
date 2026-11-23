@@ -17,7 +17,7 @@ bobs and blinks while it works, holds up a sign, bobbing, when it needs you, doz
 falls asleep when it finishes. In a terminal the rows are text. A row's role name is a button: press it to pick another
 role, which the row takes at once and, for an agent type of your own, every later agent of that
 type starts in. An agent waiting on a permission prompt moves up to Needs you, and one that has
-gone silent shows as quiet; while the pane is out of sight, a toast says when an agent needs you
+gone silent shows as quiet; while the list is out of sight, a toast says when an agent needs you
 or a long one ends. `/possums roles` shows every role of the set in every state, three roles at
 a time. `/possums set` keeps its settings.
 
