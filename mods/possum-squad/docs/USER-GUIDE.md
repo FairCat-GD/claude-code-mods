@@ -23,9 +23,9 @@ It never takes the keyboard from you, and never brings forward a pane that is op
 another. In a terminal narrower than 144 columns, a pane that opens by itself waits, undrawn,
 until you widen the terminal or type `/possums` (110 columns once you have opened it yourself).
 
-**Closing the pane yourself,** with its close mark or key, keeps it closed for the rest of the
-session: no agent opens it again. Opening it yourself with `/possums`, `/possums open` or
-`/possums roles` takes that back. Hiding it with `/possums` is not such a close: with `always`,
+**Closing the pane yourself,** with its close mark or key, keeps it closed: no agent opens it
+again. Opening it yourself with `/possums`, `/possums open` or `/possums roles` takes that back,
+and so does `/clear`, which starts the conversation and its list over. Hiding it with `/possums` is not such a close: with `always`,
 the next agent opens it again.
 
 `/possums open` does the same, except that it never hides the pane: use it when you want the
@@ -159,8 +159,9 @@ change it.
 A row's role name, or "Pick a role" while it has none, is a button (`[ Builder ]` in a
 terminal). Press it and a list of the sixteen roles opens under the row, the current one
 selected; Lead stays the main session's. Choose one and the row takes it at once: a working
-opossum hops into the new outfit, and a finished one simply wears it. `cancel`, a second press
-of the button, or closing the pane closes the list without a change. Nothing the agent does
+opossum hops into the new outfit, and a finished one simply wears it. Choosing the role it
+already has changes nothing on the row. `cancel`, a second press of the button, or closing the
+pane closes the list without a change. Nothing the agent does
 afterwards changes a role you chose.
 
 **For an agent type of your own,** such as one a plugin or your settings define, the choice is

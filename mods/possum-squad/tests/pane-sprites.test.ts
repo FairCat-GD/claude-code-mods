@@ -258,3 +258,18 @@ test('a role the person picks dresses a live row with a hop, then stands in it; 
   await clock.advance(SETTLED_MS)
   expect((await spritesOn($, 'desktop'))[1]?.source).toBe(sprite(tester('working')).source)
 })
+
+test('picking the role a row already wears leaves it as it is, with no hop', async ($, on) => {
+  const { clock } = world(on)
+  // An Explore agent is a Scout from its spawn.
+  await $.agent.spawn(SPAWN)
+  await $.turn.start({ ...TURN_START, agentId: 'agent-1' })
+  await clock.advance(SETTLED_MS)
+  const pane = await $.ui.mount({ ...MOUNT, surface: 'desktop' })
+  await pane.press({ key: 'role-agent-1' })
+  await clock.advance(100)
+  await pane.select({ key: 'role-pick', value: 'scout' })
+  await clock.advance(100)
+  await pane.unmount()
+  expect((await spritesOn($, 'desktop'))[1]?.source).toBe(sprite({ set: 'classic', role: 'scout', pose: 'working', motion: 'auto' }).source)
+})

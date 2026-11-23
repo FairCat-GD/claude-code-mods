@@ -496,10 +496,11 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     (`rememberedFor`, `role:<agent type>`, guarded). It records its row's opening before `next`,
     then its settling after, each with the role that pick, its type and its description settle
     (`atSpawn`), worked out inside the guard. If `next` rejects, it records a settling with no
-    agent, which removes the row, and throws on. A new agent (no resume) then starts
-    `autoOpen` unawaited (*Attention*): at the opening, or at the settling for a fork no tool
-    call starts. Whether its row starts the list is set inside the write's change, so the try
-    the engine keeps decides it, and agents spawned together open the pane once.
+    agent, which removes the row, and throws on. Once its result names an agent and is not
+    refused, a new agent (no resume) starts `autoOpen` unawaited (*Attention*), so a refused
+    spawn opens nothing. Whether its row starts the list is set inside the change of the write
+    that opens the row (the opening, or the settling for a fork no tool call starts), so the
+    try the engine keeps decides it, and agents spawned together open the pane once.
   - `turn.start` and `turn.step` record only an event that carries `agentId`: the main loop's
     make no `$` call.
   - `turn.step` delegates every chunk (`const result = yield* next(e)`), then records the
@@ -784,7 +785,8 @@ for custom types.
   - checks the value is pickable, since another plugin's `ui.select` hook may rewrite it;
   - reads the clock, and writes `reassigned` (`hooks/model/runs.ts`), which sets `{ id,
     source: 'manual', at }` on the run with that spawn order and drops its weak calls. `at`
-    cues the hop: a live row plays the dressing, an ended one changes still;
+    cues the hop: a live row plays the dressing, an ended one changes still. The role the run
+    already wears leaves it as it is, with no hop;
   - for a custom type, taken from the run inside that write, stores `role:<agent type>`; a
     refused store loses only the memory;
   - closes the picker.
@@ -1151,9 +1153,13 @@ agent's spawn (*The hooks*):
   (`forgetClose`). A `/possums` close is the plugin's, so with `always` the next agent opens a
   pane hidden that way;
 - asks `$.ui.panes()`, and opens nothing while the pane is there, shown or behind another tab;
-- opens `{ id, title, columns }` with no `focus`, then marks the pane open and arms the clock.
-  Made unasked, the open is placed from 144 terminal columns (110 for an id the person has
-  opened), and waits undrawn below that (*Context*).
+- opens `{ id, title, columns }` with no `focus`. Made unasked, the open is placed from 144
+  terminal columns (110 for an id the person has opened), and waits undrawn below that
+  (*Context*). A placed open marks the pane open and arms the clock; one left waiting starts no
+  clock, so its first drawing or the person's open brings the times.
+
+A clear forgets the person's close: the engine resets `view` with the rest of `$.state`, and
+the list starts over.
 
 Every fault ends it quietly; the spawn has already returned. Not yet: Session 10 (Needs you,
 quiet, toasts).
@@ -1343,7 +1349,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 192 pass, in 18 files: auto-open 9, clock 13, command 11, compose 8, gallery 9, header 8, model 31, pane-sprites 8, panel 10, pass-through 5, picker 10, prefs 5, roles 9, row 8, runs 17, sets 6, settle 12, sprites 13; about 13 s |
+| `claude plugin test mods/possum-squad` | 197 pass, in 18 files: auto-open 11, clock 13, command 11, compose 8, gallery 9, header 8, model 31, pane-sprites 9, panel 10, pass-through 5, picker 12, prefs 5, roles 9, row 8, runs 17, sets 6, settle 12, sprites 13; about 13 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve` |

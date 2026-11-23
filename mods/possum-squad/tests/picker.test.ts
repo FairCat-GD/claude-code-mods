@@ -109,6 +109,14 @@ for (const surface of SURFACES) {
     expect(await roleOf($, surface, 'Find the trowel')).toBe(STRINGS.roles.scout)
   })
 
+  test(`${surface}: picking the role a custom type's row already wears still remembers it for the type`, async ($, on) => {
+    const { kept, clock } = world(on)
+    await spawn($, KEEPER, 'Build the potting bench')
+    expect(await roleOf($, surface, 'Build the potting bench')).toBe(STRINGS.roles.builder)
+    await pick($, clock, surface, 'agent-1', 'builder')
+    expect([await roleOf($, surface, 'Build the potting bench'), kept.held.get(`role:${KEEPER}`)]).toEqual([STRINGS.roles.builder, 'builder'])
+  })
+
   test(`${surface}: a store that refuses the pick's memory still dresses the run`, async ($, on) => {
     const { kept, clock } = world(on, 'set')
     await spawn($, KEEPER, 'Take care of it')

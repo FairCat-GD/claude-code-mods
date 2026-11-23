@@ -183,14 +183,16 @@ async function forgetClose($: Pick<EngineInterface, 'state'>) {
 }
 
 // The pane opens by itself as `autoOpen` says: never over the person's own close, never raising a pane already open,
-// never taking the keys. The spawn does not wait for it (N-07), so every fault here ends quietly.
+// never taking the keys. The spawn does not wait for it (N-07), so every fault here ends quietly. A pane left waiting
+// undrawn (too narrow for an unasked open) starts no clock; its first drawing, or the person's open, brings the times.
 async function autoOpen($: Pick<EngineInterface, 'store' | 'state' | 'ui' | 'clock'>, isFirst: boolean) {
   try {
     const { autoOpen: when } = readPrefs(await $.store.get('prefs'))
     if (when === 'never' || (when === 'first' && !isFirst)) return
     if ((await read($, view)).isClosedByPerson) return
     if ((await $.ui.panes()).some(one => one.id === PANE)) return
-    await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS })
+    const opened = await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS })
+    if (!opened.isPlaced) return
     isPaneOpen = true
     await armIfLive($)
   } catch {
@@ -225,7 +227,10 @@ async function pickRole($: Pick<EngineInterface, 'state' | 'store' | 'clock'>, o
     let type: string | undefined
     try {
       await update($, runs, held => {
-        type = runOf(held, order)?.type
+        const run = runOf(held, order)
+        type = run?.type
+        // The role it already wears stays as it is, with no hop; for a custom type the pick is still remembered.
+        if (run?.role?.id === value) return held
         return reassigned(held, order, { id: value, source: 'manual', ...(at === undefined ? {} : { at }) })
       })
     } catch {
@@ -480,8 +485,9 @@ export const register: Register = on => {
   // Each event passes on exactly what the engine gave; only subagents' events are recorded, the main loop's never
   // call `$`. A tool call's start is read from its step's result: `tool.call` and `tool.run` stay unhooked, since
   // the declarations say a hook there turns off a tool's move to the background, even as a pass-through.
-  // A new agent's row may open the pane (`autoOpen`), unawaited. Whether its row starts the list is learnt inside the
-  // write, whose last try is the one kept, so agents spawned together open it once.
+  // A new agent may open the pane (`autoOpen`), unawaited, once the engine has started it. Whether its row starts the
+  // list is learnt inside the write that opens the row, whose last try is the one kept, so agents spawned together open
+  // it once.
   on('agent.spawn', async ($, e, next) => {
     const spawn = spawnOf(e)
     const remembered = await rememberedFor($, spawn.type)
@@ -492,7 +498,6 @@ export const register: Register = on => {
       return opened
     })
     keepTime($)
-    if (spawn.resumes === undefined && spawn.key !== '') void autoOpen($, isFirst)
     let result: AgentSpawnResult
     try {
       result = await next(e)
@@ -500,13 +505,13 @@ export const register: Register = on => {
       await recordAt($, (held, at) => spawnSettled(held, dressed(spawn, remembered), { isDenied: true }, at))
       throw error
     }
-    // A fork no tool call starts opens its row only here.
     await recordAt($, (held, at) => {
       const settled = spawnSettled(held, dressed(spawn, remembered), settledOf(result), at)
-      isFirst = spawn.key === '' && settled !== held && isEmpty(held)
+      // A fork no tool call starts opens its row only here.
+      if (spawn.key === '') isFirst = settled !== held && isEmpty(held)
       return settled
     })
-    if (spawn.resumes === undefined && spawn.key === '' && result.agentId !== undefined) void autoOpen($, isFirst)
+    if (spawn.resumes === undefined && result.agentId !== undefined && result.deny === undefined) void autoOpen($, isFirst)
     return result
   }).catch((_$, e, next) => next(e))
 

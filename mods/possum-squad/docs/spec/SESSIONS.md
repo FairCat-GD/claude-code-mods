@@ -1610,6 +1610,29 @@ and `$.store`* (`role:<agent type>`), *Roles*, *The run model*, *The panel*, *At
     about 13 s;
   - the tools' specs unchanged: 10 in 2 files;
   - the gate green on CLI 2.1.330.
+- **Review (`/code-review high`), 6 findings: 5 fixed and 1 skipped.** The user chose to fix all
+  but the gallery's.
+  - **An open left waiting undrawn armed the clock:** on a terminal under 144 columns, auto-open
+    marked the pane open and started the one-second clock with nothing shown. Only a placed
+    open does now; the pane's first drawing or the person's open brings the times.
+  - **A refused spawn opened the pane** on an empty list: auto-open started at the spawn's
+    input. It starts once the result names an agent and is not refused; whether the row starts
+    the list is still learnt inside the opening's write.
+  - **The docs said a close by hand lasts the session;** a `/clear` forgets it, the engine
+    resetting `view`. The changelog, the user guide and *Attention* say so.
+  - **The stand-in tests left a dead timer armed** in the module: each now closes its pane and
+    checks every timer it armed was cancelled.
+  - **Picking the role a row already wears replayed the hop:** it leaves the run as it is now,
+    and for a custom type still remembers the pick, the user's choice.
+  - **Skipped:** the gallery drawing nothing on the desktop, and the docs still promising it;
+    Session 9a's, the user's choice.
+  - **Measured:** with the open after the spawn's result, the kit's spawn returns before the open
+    lands, so the kit tests let it settle (100 microtasks) before they look.
+  - **Falsified,** each failing at its own test: an undrawn open arming the clock; a refused
+    spawn opening; the same role hopping; the same role not remembered; a close leaving the
+    clock running.
+  - **Numbers after the review:** 197 tests (+5) in 18 files: auto-open 11 (+2), pane-sprites
+    9 (+1), picker 12 (+2), the rest unchanged; about 13 s. `validate` unchanged.
 
 ---
 

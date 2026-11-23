@@ -23,8 +23,16 @@ function world(on: On, autoOpen?: string, refusal?: string) {
   return seen
 }
 
+// The open an agent may make is not awaited by its spawn, so each spawn here lets it settle before the test looks.
+const settled = async () => {
+  for (let i = 0; i < 100; i++) await Promise.resolve()
+}
 let spawned = 0
-const spawn = ($: Engine) => $.agent.spawn({ ...SPAWN, tool_use_id: `toolu_${++spawned}`, description: `Sweep path ${spawned}` })
+const spawn = async ($: Engine) => {
+  const result = await $.agent.spawn({ ...SPAWN, tool_use_id: `toolu_${++spawned}`, description: `Sweep path ${spawned}` })
+  await settled()
+  return result
+}
 
 test('with autoOpen at first, the first agent opens the pane once, without the keys; later agents open nothing (F-10)', async ($, on) => {
   const seen = world(on)
@@ -68,6 +76,18 @@ test('an agent never opens a pane already open, shown or behind another tab', as
   }
 })
 
+test('a spawn the engine refuses opens nothing, and the next agent is still the first', async ($, on) => {
+  const seen = engine(on)
+  store(on)
+  mock.clock(on, { now: 1_000 })
+  let calls = 0
+  on('agent.spawn', async () => (++calls === 1 ? { deny: 'a fixture hook refuses this agent' } : { model: 'claude-haiku-5-5', agentId: 'agent-2' }) as never)
+  await spawn($)
+  expect([seen.opens, seen.panes]).toEqual([[], []])
+  await spawn($)
+  expect(seen.opens).toEqual([OPENED])
+})
+
 test('with autoOpen at never, no agent opens the pane', async ($, on) => {
   const seen = world(on, 'never')
   await spawn($)
@@ -96,10 +116,13 @@ test('a store that cannot be read opens nothing, and the spawn returns what the 
 // state, its store holding `autoOpen`, a pinned clock, and its panes.
 type Hook = (...args: unknown[]) => Promise<unknown>
 
-function standIn(autoOpen: string) {
+// A pane opened unasked on a narrow terminal waits undrawn when `isPlaced` is false. The timers the clock arms are kept,
+// so each test can see them cancelled once it closes the pane.
+function standIn(autoOpen: string, isPlaced = true) {
   const values = new Map<string, { value: unknown; version: number }>()
   const keyOf = (ref: object) => JSON.stringify(ref)
   const opens: unknown[] = []
+  const timers: { isCancelled: boolean }[] = []
   let panes: { id: string; title: string; isShown: boolean; isFocused: boolean; isPlaced: boolean }[] = []
   const $ = {
     state: {
@@ -112,13 +135,20 @@ function standIn(autoOpen: string) {
       },
     },
     store: { get: async (key: string) => (key === 'prefs' ? { autoOpen } : undefined), set: async () => {} },
-    clock: { now: async () => 1_000, every: () => ({ cancel: () => {} }) },
+    clock: {
+      now: async () => 1_000,
+      every: () => {
+        const timer = { isCancelled: false }
+        timers.push(timer)
+        return { cancel: () => (timer.isCancelled = true) }
+      },
+    },
     ui: {
       panes: async () => panes,
       open: async (pane: { id: string; title: string }) => {
         opens.push(pane)
-        panes = [{ id: pane.id, title: pane.title, isShown: true, isFocused: false, isPlaced: true }]
-        return { isPlaced: true }
+        panes = [{ id: pane.id, title: pane.title, isShown: isPlaced, isFocused: false, isPlaced }]
+        return isPlaced ? { isPlaced } : { isPlaced, reason: 'the terminal is narrower than an unasked pane needs' }
       },
       close: async () => {
         panes = []
@@ -131,6 +161,7 @@ function standIn(autoOpen: string) {
   let spawns = 0
   return {
     opens,
+    timers,
     flags: () => read($ as never, view),
     // An agent starts; the open it may make is not awaited, so the stand-in lets it settle.
     spawn: async () => {
@@ -161,6 +192,8 @@ test('after the person closes the pane, no agent opens it; the person opening it
   await engine.close('plugin')
   await engine.spawn()
   expect(engine.opens).toHaveLength(3)
+  await engine.close('plugin')
+  expect(engine.timers.every(timer => timer.isCancelled)).toBe(true)
 })
 
 test('with autoOpen at first, a person who closed the pane before any agent keeps it closed (F-10)', async () => {
@@ -169,4 +202,12 @@ test('with autoOpen at first, a person who closed the pane before any agent keep
   await engine.close('person')
   await engine.spawn()
   expect(engine.opens).toHaveLength(1)
+  expect(engine.timers.every(timer => timer.isCancelled)).toBe(true)
+})
+
+test('a pane opened by itself that waits undrawn starts no clock; its first drawing or the person brings the times', async () => {
+  const engine = standIn('first', false)
+  await engine.spawn()
+  expect([engine.opens, engine.timers]).toEqual([[OPENED], []])
+  await engine.close('plugin')
 })

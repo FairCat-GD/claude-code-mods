@@ -14,8 +14,8 @@ Pick a role, and the pane opens by itself.
 
 - **Pick an agent's role:** each row's role name, or "Pick a role" while it has none, is a
   button. Press it and choose from the sixteen roles; the row takes the role at once, and a
-  working opossum hops into its new outfit. `cancel` or a second press closes the list without
-  a change. A role you pick is never changed by what the agent does next.
+  working opossum hops into its new outfit. Choosing the role it already has leaves the row as
+  it is. `cancel` or a second press closes the list without a change. A role you pick is never changed by what the agent does next.
 - **Picks are remembered for your own agent types:** pick a role for an agent of a custom type
   and every later agent of that type starts in it. Picks for the built-in and general-purpose
   agents apply to that one run only, since every such agent shares the type.
@@ -26,8 +26,8 @@ Pick a role, and the pane opens by itself.
 
 ### Changed
 
-- **A pane you close with its close mark stays closed** for the rest of the session: no agent
-  opens it again. Opening it yourself with `/possums` takes that back.
+- **A pane you close with its close mark stays closed:** no agent opens it again until you open
+  it yourself with `/possums`, or `/clear` starts the conversation over.
 - **On a terminal, a row's role is drawn as a button,** `[ Builder ]`, before the model and
   effort.
 - A close you made this session is forgotten once when this version is installed mid-session.

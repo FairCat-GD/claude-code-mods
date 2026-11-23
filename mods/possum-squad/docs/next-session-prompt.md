@@ -15,9 +15,11 @@ Release 0.10.1. Session 10 (attention, 0.11.0) follows it.
 
 - **Round 1 is the agents panel:** Sessions 0–9 and 7a are done; Sessions 9a and 10–13 remain.
   9a was added after Session 9's commit, with the owner; it releases 0.10.1.
-- **Push status:** `origin/main` holds everything through Session 7a's review commit. Session 9's
-  commits wait locally unless the user approved their push. List `origin/main..HEAD` before
-  any push, and name any commit that is not the session's.
+- **Push status:** pushed on 2026-11-23 with the user's approval: `origin/main` holds everything
+  through Session 9's review commit, 0.10.0 among it. Nothing waits locally. List
+  `origin/main..HEAD` before any push, and name any commit that is not the session's.
+- **0.10.0 is not installed yet:** `claude plugin update possum-squad` changes the owner's
+  setup, so ask first; the desktop runs the installed release only.
 - **What the desktop showed** (Session 9's done-note, installed 0.9.0):
   - fourteen working rows drew, about 118k of tree by the kit's measure, each opossum moving;
   - `/possums roles` drew nothing, with `motion` `auto` (about 945k, 137 sprites, 102 framed)
@@ -56,7 +58,7 @@ Release 0.10.1. Session 10 (attention, 0.11.0) follows it.
     *Deferred*);
   - forgetting a remembered role (`docs/BACKLOG.md`, *Deferred*).
 - **Baseline** (ARCHITECTURE's table, v0.10.0, CLI 2.1.330):
-  - 192 tests in 18 files, about 13 s, and 10 tool specs in 2 files;
+  - 197 tests in 18 files, about 13 s, and 10 tool specs in 2 files;
   - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys;
   - calls: `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`,
     `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`,
