@@ -27,7 +27,12 @@ up, it moves out of this file.
   row back to working when the shell ends, as `turnStarted` would. Since 0.6.0 such a turn's
   end leaves a role no rule settled open, as a teammate's does: Session 8's hand check saw an
   agent refused a foreground `sleep 70` start it in the background, and the review kept it
-  from being Helper at that end.
+  from being Helper at that end. **A helper is the same case** (Session 12's hand check, CLI
+  2.1.330): a subagent's own Agent call ran in the background even when asked for the
+  foreground, so the parent's turn ended and read finished while its helper worked, the helper
+  a row of its own in Running; the parent went back to working when the helper's report came,
+  and the two were drawn nested once both had ended. So a helper is seen under a live parent
+  only when both work at once.
 - **Forgetting a remembered role.** A role picked for a custom agent type is kept under
   `role:<agent type>` until another pick replaces it; nothing removes one, so going back to
   detection for that type has no way in v1. `$.store.delete` is on the allow-list. Named at
@@ -99,6 +104,10 @@ these are the parts only a person can see.
   pane minimized in the app showing the collapsed view with no button, and a toast while it
   is minimized (`$.ui.panes()` does not say the seat, so a minimized pane toasts only if the
   app reports it not shown).
+- **Limits, the estimate and helpers (0.13.0).** Seen in the terminal at Session 12 (see its
+  done-note). Unseen in the desktop app until 0.13.0 is installed and looked at: the session
+  line with the limits and `est.` in its dim type, and how it wraps; a row's `est.` in its bar's
+  figure; a helper's row indented under its parent, its opossum beside it, two levels deep.
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.

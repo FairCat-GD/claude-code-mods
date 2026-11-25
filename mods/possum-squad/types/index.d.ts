@@ -22,6 +22,9 @@ export type StateId = 'starting' | 'working' | 'needs-you' | 'quiet' | 'finished
 // The token counts a run's model requests reported, summed.
 export type Tokens = { input: number; output: number; cacheRead: number; cacheWrite: number }
 
+// Fresh tokens and the estimate in dollars, summed: what pruned helpers counted, kept for their nearest kept ancestor.
+export type Tally = { tokens: number; usd: number }
+
 // The last tool a run's model asked for, and what the call names: a path, a command's first line, a pattern.
 export type Activity = { tool: string; target?: string }
 
@@ -84,6 +87,10 @@ export type Run = {
   // While it needs the person, the call's request.
   ask?: Ask
   tokens: Tokens
+  // Its requests at their models' list prices (T-12): an estimate, never a bill.
+  usd: number
+  // What its helpers had counted once Finished no longer keeps them, so its rolled-up totals never drop.
+  prunedHelpers?: Tally
   // The last request's size: its input, cache reads and cache writes.
   lastRequest?: number
   activity?: Activity
@@ -110,6 +117,7 @@ export type Pending = {
   model?: string
   effort?: string
   tokens: Tokens
+  usd: number
   lastRequest?: number
   activity?: Activity
   actions?: Activity[]
@@ -118,7 +126,7 @@ export type Pending = {
 }
 
 // What ended runs had counted once Finished no longer keeps them, so the header's totals never drop.
-export type Past = { tokens: number; workedMs: number }
+export type Past = { tokens: number; workedMs: number; usd: number }
 
 // Rows by key: the agent id once known, else the spawn's own key. Pending entries by agent id, oldest first.
 export type Runs = { rows: Record<string, Run>; pending: Record<string, Pending>; next: number; past: Past }
@@ -126,8 +134,12 @@ export type Runs = { rows: Record<string, Run>; pending: Record<string, Pending>
 // The main session's context as `session.measure` last gave it: the last request's input over the model's window.
 export type LeadContext = { tokens?: number; window: number; percent?: number }
 
-// The main session's own numbers: its context, and its turns' tokens and time summed.
-export type Lead = { context?: LeadContext; tokens: Tokens; workedMs: number }
+// A plan's usage window as the engine last reported it: `five_hour`, `seven_day`, a gateway's `spend_limit`.
+export type Limit = { kind: string; percent: number }
+
+// The main session's own numbers: its context, its turns' tokens, time and estimate summed, and the plan's limits, absent
+// until a measure gives one.
+export type Lead = { context?: LeadContext; tokens: Tokens; workedMs: number; usd: number; limits?: Limit[] }
 
 declare module 'claude-code' {
   interface PluginState {

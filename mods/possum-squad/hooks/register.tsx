@@ -12,6 +12,7 @@ import {
   isEmpty,
   keepsClock,
   NO_RUNS,
+  parentsOf,
   reassigned,
   runOf,
   type Spawn,
@@ -23,6 +24,7 @@ import {
   turnStarted,
   weakOf,
 } from './model/runs'
+import { rolledUp } from './model/nesting'
 import { callsOf } from './model/tools'
 import { atSpawn, HELPER, isCustomType, isPickable, rememberedOf, toolsSeen } from './roles/rules'
 import { changeOf, mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES, SETTINGS, settingsText } from './settings'
@@ -39,9 +41,9 @@ export const PANE = 'possum-squad'
 export const NO_FLAGS: View = { isClosedByPerson: false, isGalleryOpen: false }
 export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-5' })
 // Bump the shape when Runs or Run change their fields.
-export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-6' })
+export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-7' })
 // Bump the shape when Lead changes its fields.
-export const lead = atom({ plugin: 'possum-squad', key: 'lead' } as const, NO_LEAD, { shape: 'lead-1' })
+export const lead = atom({ plugin: 'possum-squad', key: 'lead' } as const, NO_LEAD, { shape: 'lead-2' })
 
 // A clear, a resume or a fork of the session starts the list over.
 const STARTS_OVER = new Set(['clear', 'resume', 'fork'])
@@ -453,13 +455,31 @@ async function drawPane(
   // A refused read says nothing of the runs, so it leaves the clock alone.
   else if (readRuns !== undefined) stopClock()
   const keyOf = (run: (typeof shown)[number]) => run.agentId ?? `spawn-${run.order}`
+  // The estimate is drawn only when asked for, so with `cost` off no dollar figure is in the tree at all.
+  const isEstimate = prefs.cost === 'estimate'
+  const sum = totals(main, held, now)
+  const parents = parentsOf(held.rows)
+  const family = rolledUp(held)
+  const rowOf = (run: (typeof shown)[number]) => {
+    const rolled = family.get(run.order)
+    const row = rowData(run, keyOf(run), { ...figures(run, now), ...(rolled === undefined ? {} : { tokens: rolled.tokens }) }, now, run.order === flags.peekFor)
+    const parent = parents.get(run.order)
+    if (parent !== undefined) row.parent = parent
+    if (isEstimate) row.usd = rolled?.usd ?? run.usd
+    return row
+  }
   return panel(
     table,
     e.surface === 'terminal',
     {
       lead: leadFigures(main),
-      session: totals(main, held, now),
-      rows: shown.map(run => rowData(run, keyOf(run), figures(run, now), now, run.order === flags.peekFor)),
+      session: {
+        tokens: sum.tokens,
+        workedMs: sum.workedMs,
+        ...(main.limits === undefined ? {} : { limits: main.limits }),
+        ...(isEstimate ? { usd: sum.usd } : {}),
+      },
+      rows: shown.map(rowOf),
       isFinishedOpen: prefs.finishedOpen,
       look: { set: prefs.theme, motion: prefs.motion },
       ...(flags.isGalleryOpen ? { gallery: galleryOf(ART, prefs.theme), galleryPart: flags.galleryPart ?? 0 } : {}),
@@ -611,10 +631,10 @@ export const register: Register = on => {
     return started
   }).catch((_$, e, next) => next(e))
 
-  // The Lead's context, after each main turn.
+  // The Lead's context and the plan's limits, after each main turn and when a limit moves a point.
   on('session.measure', async ($, e, next) => {
     const echoed = await next(e)
-    await recordLead($, held => measured(held, e.context))
+    await recordLead($, held => measured(held, e.context, e.rateLimits))
     return echoed
   }).catch((_$, e, next) => next(e))
 
@@ -655,6 +675,7 @@ export const register: Register = on => {
           model: result.usage?.model ?? e.model,
           effort,
           usage: usageOf(result),
+          ...(result.usage?.ephemeral_1h_input_tokens === undefined ? {} : { hourWrites: result.usage.ephemeral_1h_input_tokens }),
           activity: calls.activity,
           actions: calls.actions,
           files: calls.files,

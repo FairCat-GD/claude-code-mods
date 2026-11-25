@@ -34,6 +34,17 @@ export const fill = (value: number | undefined) => (known(value) ? value / 100 :
 
 export const percent = (value: number | undefined) => (known(value) ? `${Math.round(value)}%` : STRINGS.row.unknown)
 
+// An estimate in dollars: $0.25, $12.40, then whole dollars from $100; something spent under a cent reads <$0.01.
+export function dollars(usd: number): string {
+  if (!known(usd)) return STRINGS.row.unknown
+  if (usd <= 0) return STRINGS.dollars('0.00')
+  if (usd < 0.005) return STRINGS.underCent
+  return STRINGS.dollars(usd < 99.995 ? usd.toFixed(2) : `${Math.round(usd)}`)
+}
+
+// A row's or the header's estimate, labelled as one.
+export const estimate = (usd: number) => STRINGS.estimate(dollars(usd))
+
 // The context fill in block characters; an unknown fill draws empty.
 export function bar(value: number | undefined): string {
   const filled = !known(value) ? 0 : Math.min(BAR_CELLS, Math.max(0, Math.round((value / 100) * BAR_CELLS)))

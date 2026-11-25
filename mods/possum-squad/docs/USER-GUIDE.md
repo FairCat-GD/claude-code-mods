@@ -41,8 +41,10 @@ From the top:
 1. **Main session:** the conversation itself, with a bar of how full its context is, the percent
    and its own tokens. The context reads "–" until Claude's first reply in the session, and
    again after a `/clear`, until the next reply.
-2. **The session line:** tokens and time over the main session and every agent, such as
-   `254k tokens · 4:12`, then the `collapse` button (*The collapsed view*, below).
+2. **The session line:** your plan's limits once Claude Code reports them, such as
+   `5h 40% · 7d 12%`; tokens and time over the main session and every agent, such as
+   `254k tokens · 4:12`; with `cost` at `estimate`, the estimate, such as `est. $1.20`; then the
+   `collapse` button (*The collapsed view*, below). See *Limits and the estimate*, below.
 3. **The sections,** each headed with its count, such as `Running · 2`:
    - **Needs you:** agents waiting on a permission prompt (*When an agent needs you*, below);
    - **Running:** agents starting, working or quiet. It is always there once an agent has
@@ -130,11 +132,24 @@ Each subagent Claude starts gets a row the moment it starts, in the order they s
    notes.md", "Running npm test" or "Searching for TODO", cut to one line; "No tool calls yet"
    before its first; while it is quiet, how long, such as "Quiet for 2 min"; then the `peek`
    button (*Peek*, below);
-4. how full its context is, as a bar and a percent, then its tokens and its time.
+4. how full its context is, as a bar and a percent, then its tokens and its time, and with
+   `cost` at `estimate` its estimate, such as `est. $0.25`.
 
 The tokens are what the agent read and wrote fresh; what it read back from the cache is left
-out. The time ticks while it runs, and stops when it ends. A long line is cut
+out. A row with helpers (below) counts theirs too. The time ticks while it runs, and stops when
+it ends. A long line is cut
 with an ellipsis, and a task longer than 100 characters is cut there. The state is always written out as a word, beside its colour.
+
+**Helpers.** An agent started by another agent is drawn right under it, indented a step
+for each level, up to three. Its parent's tokens and estimate include its helpers', at every
+level, even those that dropped out of the list; its time and context are its own, since a
+helper's minutes pass inside its parent's. A helper is drawn under its parent only while both
+sit in the same section: one waiting on you shows in Needs you, and one that finished while its
+parent works shows in Finished, each as any other row. An agent whose parent has no row is drawn
+as any other row. A subagent's helper usually runs in the background, so its parent's turn
+ends while the helper works: the parent reads finished and the helper is its own row in Running,
+until the helper's report brings the parent back to working. Once both have ended, the helper is
+drawn under it.
 
 **With many agents,** the pane keeps within what the desktop app can draw. From about twenty
 working agents, the later rows' opossums stand still while the first ones keep moving; one
@@ -158,6 +173,22 @@ to close Peek. Opening another row's Peek closes the first, and closing the pane
 Everything in Peek is plain text: markdown, a link or a tag in what an agent wrote shows as
 written, never as formatting. Peek keeps nothing: what it shows lives with the session, and is
 gone after a `/clear`.
+
+## Limits and the estimate
+
+**Your plan's limits** lead the session line: each usage window Claude Code reports, in its
+order, such as `5h 40%` for the five-hour window and `7d 12%` for the weekly one (a gateway's
+spend limit reads `spend`). They update after each of Claude's turns, and whenever one moves a
+whole point. Off a subscription Claude Code reports none, and the line starts with the tokens.
+
+**The estimate,** with `/possums set cost estimate`, is what the requests would cost at each
+model's list price, labelled "est." on the session line and on every row. It is an estimate,
+never a bill: on a subscription your use inside the plan is not charged in dollars at all. It
+comes from a price table dated in the plugin, so it goes stale when prices change, and it does
+not see fast mode, the US-only surcharge or web search fees. A main session's turn is priced at
+the model that answered last in it. The session line's estimate is the main session's and every
+agent's; a row's includes its helpers'. Under a cent it reads `<$0.01`. With `cost` at `off`, the
+default, no dollar figure appears anywhere in the pane.
 
 ## The collapsed view
 
@@ -269,16 +300,16 @@ says so in one line.
 value isn't one it knows, it answers with the names or the values it takes, and changes
 nothing; `/possums set` alone names the settings. Names and values can be typed in any case.
 
-| Setting | Values | Default | What it will do |
+| Setting | Values | Default | What it does |
 |---|---|---|---|
-| `autoOpen` | `never`, `first`, `always` | `first` | Open the pane by itself never, when a session's first agent starts, or on every new agent. Works now. |
-| `cost` | `off`, `estimate` | `off` | Show an estimated dollar figure beside the plan-limit percent. |
-| `motion` | `auto`, `off` | `auto` | Animate the opossums, following your system's reduced-motion setting, or keep them still. Works now. |
-| `theme` | `classic`, `steampunk`, `horror`, `prehistoric` | `classic` | The set of costumes the opossums wear, in the rows and the gallery. Works now. |
+| `autoOpen` | `never`, `first`, `always` | `first` | Open the pane by itself never, when a session's first agent starts, or on every new agent. |
+| `cost` | `off`, `estimate` | `off` | Show an estimate in dollars on the session line and each row (*Limits and the estimate*). |
+| `motion` | `auto`, `off` | `auto` | Animate the opossums, following your system's reduced-motion setting, or keep them still. |
+| `theme` | `classic`, `steampunk`, `horror`, `prehistoric` | `classic` | The set of costumes the opossums wear, in the rows and the gallery. |
 
-The settings are kept between sessions and shared by every session you have open. `autoOpen`,
-`motion` and `theme` take effect at once; the others when the part of the pane they control arrives. If two
-sessions change a setting at the same moment, one change may be lost: set it again.
+The settings are kept between sessions and shared by every session you have open, and each
+takes effect at once. If two sessions change a setting at the same moment, one change may be
+lost: set it again.
 
 Answers in words are marked as yours alone. Claude Code keeps such an answer out of what
 Claude is sent for a command that waits its turn; whether it does for `/possums` typed between

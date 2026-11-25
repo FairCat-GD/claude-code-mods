@@ -1,12 +1,13 @@
-import type { Activity, Ask, Excerpt, Past, Pending, Role, Run, Runs, StateId, Tokens } from '../../types/index'
+import type { Activity, Ask, Excerpt, Past, Pending, Role, Run, Runs, StateId, Tally, Tokens } from '../../types/index'
 import { ACTIONS_KEPT, FILES_KEPT, FINISHED_KEPT, PEEK_CHARS, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../config'
 import { windowOf } from '../data/models'
+import { costOf } from '../data/prices'
 import { TARGET_CHARS } from './tools'
 
 // Each function takes `runs` and an event's record, and returns `runs` as it should now be. An event it cannot
 // place changes nothing and returns the same object. A spawn, an end and the fallback role take the time.
 
-const NO_PAST: Past = { tokens: 0, workedMs: 0 }
+const NO_PAST: Past = { tokens: 0, workedMs: 0, usd: 0 }
 export const NO_RUNS: Runs = { rows: {}, pending: {}, next: 0, past: NO_PAST }
 export const NO_TOKENS: Tokens = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
 
@@ -36,6 +37,8 @@ export type Step = {
   model?: string
   effort?: string
   usage?: Tokens
+  // The part of its cache writes kept an hour, which costs more than the five minutes the rest are kept.
+  hourWrites?: number
   activity?: Activity
   // Every call it asked for, and the files those change.
   actions?: readonly Activity[]
@@ -130,6 +133,7 @@ function opened(runs: Runs, spawn: Spawn, at: number, agentId?: string): Run {
     heardAt: at,
     turnAt: at,
     tokens: NO_TOKENS,
+    usd: 0,
     inFlight: 0,
     order: runs.next,
   }
@@ -152,12 +156,15 @@ function withEvidence<T extends Run | Pending>(next: T, evidence: { weak?: numbe
   return next
 }
 
-// A step's numbers on a row or a pending entry: tokens summed, the last request's size, the model and effort in use.
+// A step's numbers on a row or a pending entry: tokens and their estimate summed, the last request's size, the model
+// and effort in use. A step is one request, so its prompt's size picks its model's rates.
 function withStep<T extends Run | Pending>(held: T, step: Step): T {
   const next: T = { ...held, inFlight: step.calls }
   if (step.usage !== undefined) {
     next.tokens = add(held.tokens, step.usage)
     next.lastRequest = step.usage.input + step.usage.cacheRead + step.usage.cacheWrite
+    const options = { prompt: next.lastRequest, ...(step.hourWrites === undefined ? {} : { hourWrites: step.hourWrites }) }
+    next.usd = held.usd + costOf(step.model ?? held.model, step.usage, options)
   }
   if (step.model !== undefined) next.model = step.model
   if (step.effort !== undefined) next.effort = step.effort
@@ -171,7 +178,7 @@ function withStep<T extends Run | Pending>(held: T, step: Step): T {
 function claimed(run: Run, pending: Pending | undefined): Run {
   if (pending === undefined) return run
   const state = pending.ask === undefined ? 'working' : 'needs-you'
-  const next: Run = { ...run, state, tokens: add(run.tokens, pending.tokens), inFlight: pending.inFlight }
+  const next: Run = { ...run, state, tokens: add(run.tokens, pending.tokens), usd: run.usd + pending.usd, inFlight: pending.inFlight }
   if (pending.ask !== undefined) next.ask = pending.ask
   if (pending.lastRequest !== undefined) next.lastRequest = pending.lastRequest
   if (pending.model !== undefined) next.model = pending.model
@@ -186,8 +193,22 @@ function claimed(run: Run, pending: Pending | undefined): Run {
   })
 }
 
+// Each run's parent, by spawn order, where its spawn named an agent a row here has.
+export function parentsOf(rows: Record<string, Run>): Map<number, number> {
+  const byAgent = new Map<string, number>()
+  for (const run of Object.values(rows)) if (run.agentId !== undefined) byAgent.set(run.agentId, run.order)
+  const parents = new Map<number, number>()
+  for (const run of Object.values(rows)) {
+    const parent = run.parentId === undefined ? undefined : byAgent.get(run.parentId)
+    if (parent !== undefined && parent !== run.order) parents.set(run.order, parent)
+  }
+  return parents
+}
+
+const plus = (a: Tally | undefined, b: Tally): Tally => ({ tokens: (a?.tokens ?? 0) + b.tokens, usd: (a?.usd ?? 0) + b.usd })
+
 // Finished keeps the latest T-06 ended runs; a teammate is never dropped, since its next turn returns it. What a
-// dropped run counted stays in `past`.
+// dropped run counted stays in `past`, and with its nearest kept ancestor, so neither total drops.
 function pruned(runs: Runs): Runs {
   const ended = Object.entries(runs.rows)
     .filter(([, run]) => hasEnded(run) && !run.isTeammate)
@@ -196,10 +217,29 @@ function pruned(runs: Runs): Runs {
   const gone = ended.slice(FINISHED_KEPT)
   const dropped = new Set(gone.map(([key]) => key))
   const past = gone.reduce(
-    (sum, [, run]) => ({ tokens: sum.tokens + fresh(run.tokens), workedMs: sum.workedMs + ((run.endedAt ?? run.startedAt) - run.startedAt) }),
+    (sum, [, run]) => ({
+      tokens: sum.tokens + fresh(run.tokens),
+      workedMs: sum.workedMs + ((run.endedAt ?? run.startedAt) - run.startedAt),
+      usd: sum.usd + run.usd,
+    }),
     runs.past,
   )
-  return { ...runs, rows: Object.fromEntries(Object.entries(runs.rows).filter(([key]) => !dropped.has(key))), past }
+  const rows = Object.fromEntries(Object.entries(runs.rows).filter(([key]) => !dropped.has(key)))
+  const parents = parentsOf(runs.rows)
+  const keyOf = new Map(Object.entries(runs.rows).map(([key, run]) => [run.order, key]))
+  for (const [, run] of gone) {
+    const counted = plus(run.prunedHelpers, { tokens: fresh(run.tokens), usd: run.usd })
+    const seen = new Set([run.order])
+    let at = parents.get(run.order)
+    while (at !== undefined && !seen.has(at) && dropped.has(keyOf.get(at) ?? '')) {
+      seen.add(at)
+      at = parents.get(at)
+    }
+    const key = at === undefined || seen.has(at) ? undefined : keyOf.get(at)
+    const kept = key === undefined ? undefined : rows[key]
+    if (key !== undefined && kept !== undefined) rows[key] = { ...kept, prunedHelpers: plus(kept.prunedHelpers, counted) }
+  }
+  return { ...runs, rows, past }
 }
 
 // An entry keeps its place when it changes, so the first dropped is the loop that began longest ago.
@@ -208,7 +248,7 @@ function withPending(runs: Runs, agentId: string, pending: Pending): Runs {
   return { ...runs, pending: entries.length > PENDING_KEPT ? Object.fromEntries(entries.slice(-PENDING_KEPT)) : Object.fromEntries(entries) }
 }
 
-const NO_PENDING: Pending = { tokens: NO_TOKENS, inFlight: 0 }
+const NO_PENDING: Pending = { tokens: NO_TOKENS, usd: 0, inFlight: 0 }
 
 // A spawn opens its row at once, under its own key, so the row shows before the agent's id is known.
 export function spawnOpened(runs: Runs, spawn: Spawn, at: number): Runs {

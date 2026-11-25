@@ -2116,6 +2116,89 @@ run model* (nesting, numbers), *The panel* (the header), *Values: `$.state` and 
   - stubbed usage at 40% shows "40%"; with `cost` off no currency sign appears anywhere (F-20);
   - a spawn carrying a parent's id is drawn under it, and the parent's totals include it (F-24).
 
+**Done (2026-11-25, 0.13.0).**
+- **Decided with the user, at the plan:**
+  - **the estimate comes from the dated price table** (T-12), not the engine's own ledger
+    (`session.measure`'s `cost`, `$.agent.list()`'s per agent), which the declarations offer:
+    the header stays the Lead and every row, and moves with each step;
+  - **a helper is drawn under its parent only while both sit in one section,** otherwise as any
+    row in its own state's section, so Needs you still shows it and the headings are unchanged;
+  - **tokens and the estimate roll up,** at every level; time and context stay each row's own;
+  - **the session line shows every limit window** the engine reports, in its order;
+  - the plan's own choices, approved with it: prices confirmed against the published pricing
+    page; an unknown model at Opus 5.5's prices; at most four windows; the indent on the row's
+    own `Box`, two cells a level up to three; a pruned helper's share kept by its nearest kept
+    ancestor; the collapsed view counting every agent, a helper its own.
+- **Shipped:**
+  - **The model:** `runs-7` (`Run.usd`, `Run.prunedHelpers`, `Pending.usd`, `Past.usd`) and
+    `lead-2` (`Lead.usd`, `Lead.limits`). `hooks/data/prices.ts` (`PRICES`, `costOf`), with
+    `rowFor` shared with `windowOf`. `withStep` prices each step (its prompt picks Haiku's
+    long-prompt rates; its hour writes from `ephemeral_1h_input_tokens`); `claimed` carries an
+    entry's; `turnCounted` prices a main turn at its last model; `measured` takes `rateLimits`;
+    `totals` sums `usd`. `parentsOf` and `pruned`'s walk to the nearest kept ancestor in
+    `runs.ts`; `rolledUp` in `hooks/model/nesting.ts`.
+  - **The view:** the session line with the limits and `est. $…`; `est.` at the end of each
+    row's figures, with `cost` at `estimate` only (`dollars`, `estimate` in `format.ts`);
+    `nested` in `panel.tsx` ordering each section; `RowData.parent` and `RowData.usd`;
+    `indentOf` in `row.tsx`. Config: `NEST_INDENT`, `NEST_LEVELS_DRAWN`, `LIMITS_KEPT`.
+  - **Tests:** `tests/estimate.test.ts` (5) and `tests/nesting.test.ts` (5), new; model +3,
+    header +1; `size.test.ts` holds the fullest list nested at its deepest, with four limits
+    and the estimate, and checks nesting adds no node or level. Existing literals gained `usd`.
+  - **Docs:** `CHANGELOG.md` 0.13.0; `USER-GUIDE.md` (*The pane*, *What a row shows*'s Helpers,
+    *Limits and the estimate*, the settings table, now all working); `README.md`; the mod's
+    `CLAUDE.md` (`runs-7`, `lead-2`); `docs/BACKLOG.md`; `ARCHITECTURE.md`: *Overview*,
+    *Layout and boundaries*, *The hooks*, *Values*, *The run model* (Decided refined with the
+    user, Built), *The panel* (Decided refined, Built, the worst list, Helpers), *Reach* (and
+    `prefsOrDefaults`, renamed at Session 11), four known-debt lines, the baseline, four
+    Decision log lines.
+- **Amendments:** none to the block's letter. Its "drawn under it" holds within a section, the
+  user's choice at the plan.
+- **Measured** (CLI 2.1.330):
+  - **the pricing page,** read on 2026-11-25: Fable 5.2 $8/$40, reads $0.20, writes $10/$16;
+    Opus 5.5 $4/$20, $0.20, $5/$8; Sonnet 5.5 $2/$10, $0.10, $2.50/$4; Haiku 5.5 $0.10/$0.50,
+    $0.01, $0.125/$0.20, and five times each past a 100,000-token prompt;
+  - **the fullest list,** nested at its deepest with four limits and the estimate: 1,845 nodes,
+    8 deep, at most 227,422 characters (horror), 92% and 87% of the desktop's bound, against
+    225,793 at 0.12.0; the same rows unnested draw the same nodes and levels;
+  - `validate` unchanged: 11 hooks, 4 gating each with a `.catch`, 3 state keys, the same calls.
+- **Checked by hand,** in the terminal: `claude --plugin-dir mods/possum-squad` driven through
+  `screen`, auto mode, `cost` set to `estimate` for the check and put back to `off`.
+  - The session line read `5h 71% · 7d 52% · 0 tokens · 0:00 · est. $0.00` as soon as the pane
+    opened, before any reply: the first measure came at the session's start. At 46 columns it
+    wraps beside `[ collapse ]`.
+  - Rows ended `est. $0.01` and `est. <$0.01`; `/possums set cost off` took every dollar figure
+    away at once.
+  - **A subagent's helper ran in the background,** though its prompt asked for the
+    foreground: the parent's turn ended and its row read finished while the helper worked as
+    its own row in Running; the helper's report brought the parent back to working. Once both
+    had ended, `Water the seedlings` was drawn indented under `Plant the north bed` in
+    Finished. So a helper is seen under a live parent only when both work at once; added to
+    the deferred item on background work (`docs/BACKLOG.md`).
+  - At one level's indent a helper's figure line wraps its `est.` in the 46-column dock.
+  - A first Haiku parent ran the helper's commands itself rather than starting one; asked to
+    list its tools, a subagent named `Agent` among them.
+  - No `claude --plugin-dir` was left running.
+  - **Not checked by hand:** everything in the desktop app (`docs/BACKLOG.md`); a helper under
+    a parent that works at the same time; a pruned helper's share.
+- **Falsified,** each failing at its own test (24):
+  - an Opus price wrong; hour writes at five minutes' rate; Haiku's long prompts at the base;
+    an unknown model at Haiku's prices; a NaN count priced; under a cent shown as cents;
+  - the estimate drawn with `cost` off; none on rows; the header's without the Lead; a step's
+    prompt size not passed; a claimed entry's estimate lost; a main turn's not counted; the
+    step's hour writes not passed on by the hook;
+  - the limits not read from the measure; every window kept; an empty list keeping them; a
+    window with no percent kept; a window named as the engine names it;
+  - no nesting in the drawing order; a parent in another section taken for one here; no
+    indent; a parent's tokens not rolled up; a helper's estimate not rolled up; a pruned
+    helper's share lost; nesting adding an element.
+- **Numbers:**
+  - 280 tests (+14) in 24 files (+2): estimate 5 and nesting 5 (new), model 48 (+3), header 9
+    (+1), the rest unchanged; about 15 s;
+  - the tools' specs unchanged: 10 in 2 files;
+  - the gate green on CLI 2.1.330.
+- **Confirms** (*The run model*: nesting and roll-up): confirmed with the user at the plan, as
+  refined there; the desktop look waits for a push and an update.
+
 ---
 
 ## 13: Documentation pass, and the close

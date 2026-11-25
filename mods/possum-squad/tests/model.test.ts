@@ -37,6 +37,8 @@ const RAKES: Spawn = { key: 'toolu_rakes', type: 'general-purpose', description:
 const usage = (input: number, output: number, cacheRead: number, cacheWrite: number) => ({ input, output, cacheRead, cacheWrite })
 const STEP: Step = { model: 'claude-haiku-5-5', effort: 'medium', usage: usage(120, 30, 4000, 50), calls: 0 }
 const ANSWERED = { reason: 'answer', hasText: true }
+// Dollars as millionths, to the hundredth: a token count times its price per million, stated by hand.
+const micro = (usd: number) => Math.round(usd * 100_000_000) / 100
 
 // A spawn's input, then its result, at the given times.
 const spawned = (runs: Runs, spawn: Spawn, agentId: string, at = 0) =>
@@ -294,11 +296,15 @@ test("the Lead's context is the engine's percent, else its tokens over the windo
 test('the totals are the Lead, every run kept, and what pruned runs counted', () => {
   let runs = stepped(spawned(NO_RUNS, SHOVELS, 'agent-1', 1_000), 'agent-1', STEP)
   runs = turnEnded(spawned(runs, RAKES, 'agent-2', 2_000), 'agent-2', ANSWERED, 5_000)
-  runs = { ...runs, past: { tokens: 50, workedMs: 700 } }
+  runs = { ...runs, past: { tokens: 50, workedMs: 700, usd: 0.5 } }
   const main = turnCounted(NO_LEAD, turnUsage(1_000, 200, 0, 300), 4_200)
   // Tokens: the Lead's 1,500, the working run's 200, the ended run's none, 50 past. Time: 4,200, then 9,000 working
   // at 10,000, 3,000 ended, 700 past.
-  expect(totals(main, runs, 10_000)).toEqual({ tokens: 1_750, workedMs: 16_900 })
+  const { usd, ...counted } = totals(main, runs, 10_000)
+  expect(counted).toEqual({ tokens: 1_750, workedMs: 16_900 })
+  // Dollars: the Lead's turn at the default's prices (4,000 + 4,000 + 1,500), the working run's Haiku step
+  // (12 + 15 + 40 + 6.25), the ended run's none, $0.50 past.
+  expect(micro(usd)).toBe(9_500 + 73.25 + 500_000)
 })
 
 test('a run Finished no longer keeps still counts in the totals, and a clear starts them over', () => {
@@ -308,12 +314,14 @@ test('a run Finished no longer keeps still counts in the totals, and a clear sta
     runs = turnEnded(runs, `agent-${i}`, ANSWERED, 10 * i + 5)
   }
   expect(runs.rows['agent-0']).toBeUndefined()
-  // agent-0's 200 fresh tokens and 5 ms stay counted.
-  expect(runs.past).toEqual({ tokens: 200, workedMs: 5 })
-  expect(totals(NO_LEAD, runs, 0)).toEqual({ tokens: 200 * (FINISHED_KEPT + 1), workedMs: 5 * (FINISHED_KEPT + 1) })
+  // agent-0's 200 fresh tokens, 5 ms and its Haiku step's dollars stay counted.
+  expect({ ...runs.past, usd: micro(runs.past.usd) }).toEqual({ tokens: 200, workedMs: 5, usd: 73.25 })
+  const { usd, ...counted } = totals(NO_LEAD, runs, 0)
+  expect(counted).toEqual({ tokens: 200 * (FINISHED_KEPT + 1), workedMs: 5 * (FINISHED_KEPT + 1) })
+  expect(micro(usd)).toBe(73.25 * (FINISHED_KEPT + 1))
   expect(cleared(runs).past).toEqual(NO_RUNS.past)
   // A past with nothing else beside it is still cleared.
-  expect(cleared({ ...NO_RUNS, past: { tokens: 7, workedMs: 1 } }).past).toEqual(NO_RUNS.past)
+  expect(cleared({ ...NO_RUNS, past: { tokens: 7, workedMs: 1, usd: 0.01 } }).past).toEqual(NO_RUNS.past)
 })
 
 // Roles as the rules settle them.
@@ -651,4 +659,60 @@ test("an end without text keeps the last answer that had it, and a resume keeps 
   expect(spawnSettled(NO_RUNS, { ...resume, resumes: 'agent-9' }, { agentId: 'agent-9', isDenied: false }, 5).rows['agent-9']?.brief).toEqual({
     text: 'Now count the rakes.',
   })
+})
+
+test("a measure's limits are kept in its order, a few at most; one without a list keeps them, an empty list clears them", () => {
+  const window = { window: 1_000_000 }
+  const two = measured(NO_LEAD, window, [
+    { kind: 'five_hour', percentUsed: 40, resetsAt: '2030-01-01T05:00:00Z' },
+    { kind: 'seven_day', percentUsed: 12.5 },
+  ])
+  expect(two.limits).toEqual([
+    { kind: 'five_hour', percent: 40 },
+    { kind: 'seven_day', percent: 12.5 },
+  ])
+  // The same figures again change nothing; a measure with no usable window still brings its limits.
+  expect(
+    measured(two, window, [
+      { kind: 'five_hour', percentUsed: 40 },
+      { kind: 'seven_day', percentUsed: 12.5 },
+    ]),
+  ).toBe(two)
+  expect(measured(NO_LEAD, undefined, [{ kind: 'five_hour', percentUsed: 3 }]).limits).toEqual([{ kind: 'five_hour', percent: 3 }])
+  expect(measured(two, window, undefined)).toBe(two)
+  expect(measured(two, window, 'many')).toBe(two)
+  expect(measured(two, window, []).limits).toBeUndefined()
+  const five = Array.from({ length: 5 }, (_, at) => ({ kind: `window_${at}`, percentUsed: at }))
+  expect(measured(NO_LEAD, window, five).limits?.map(one => one.kind)).toEqual(['window_0', 'window_1', 'window_2', 'window_3'])
+  for (const odd of [null, 7, {}, { kind: '', percentUsed: 1 }, { kind: 'five_hour', percentUsed: -1 }, { kind: 'five_hour', percentUsed: Number.NaN }]) {
+    expect(measured(NO_LEAD, window, [odd]).limits).toBeUndefined()
+  }
+})
+
+test("a run's steps add their estimate at the model that answered, an hour's writes and Haiku's long prompts at their own rates", () => {
+  let runs = spawned(NO_RUNS, SHOVELS, 'agent-1', 0)
+  // 120 × 0.10 + 30 × 0.50 + 4,000 × 0.01 + 50 × 0.125.
+  runs = stepped(runs, 'agent-1', STEP)
+  expect(micro(runs.rows['agent-1']?.usd ?? Number.NaN)).toBe(73.25)
+  // The 50 writes kept an hour cost 0.20 each: 8 + 10 + 60 + 10.
+  runs = stepped(runs, 'agent-1', { ...STEP, usage: usage(80, 20, 6_000, 50), hourWrites: 50 })
+  expect(micro(runs.rows['agent-1']?.usd ?? Number.NaN)).toBe(73.25 + 88)
+  // A prompt past 100,000 tokens pays five times: 90,000 × 0.50 + 1,000 × 2.50 + 20,000 × 0.05.
+  runs = stepped(runs, 'agent-1', { ...STEP, usage: usage(90_000, 1_000, 20_000, 0) })
+  expect(micro(runs.rows['agent-1']?.usd ?? Number.NaN)).toBe(73.25 + 88 + 45_000 + 2_500 + 1_000)
+  // A step on Sonnet costs Sonnet's prices: 120 × 2 + 30 × 10 + 4,000 × 0.10 + 50 × 2.50.
+  const sonnet = stepped(spawned(NO_RUNS, SHOVELS, 'agent-2', 0), 'agent-2', { ...STEP, model: 'claude-sonnet-5-5' })
+  expect(micro(sonnet.rows['agent-2']?.usd ?? Number.NaN)).toBe(240 + 300 + 400 + 125)
+})
+
+test("a loop's estimate before the re-key is claimed with its row, and a main turn's is the Lead's", () => {
+  let runs = spawnOpened(NO_RUNS, SHOVELS, 0)
+  runs = stepped(runs, 'agent-1', STEP)
+  runs = spawnSettled(runs, SHOVELS, { agentId: 'agent-1', isDenied: false }, 30)
+  runs = stepped(runs, 'agent-1', STEP)
+  expect(micro(runs.rows['agent-1']?.usd ?? Number.NaN)).toBe(2 * 73.25)
+  // On Sonnet, 300 of the writes kept an hour: 1,000 × 2 + 200 × 10 + 200 × 2.50 + 100 × 4.
+  const main = turnCounted(NO_LEAD, { ...turnUsage(1_000, 200, 0, 300), model: 'claude-sonnet-5-5', ephemeral_1h_input_tokens: 100 }, 4_200)
+  expect(micro(main.usd)).toBe(2_000 + 2_000 + 500 + 400)
+  expect(main.usd).toBe(turnCounted(main, undefined, 300).usd)
 })

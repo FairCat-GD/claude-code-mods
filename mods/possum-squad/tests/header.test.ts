@@ -231,3 +231,36 @@ test('a setting changed with /possums set redraws the pane at once', async ($, o
   await $.command.run(possums('set theme neon'))
   expect(redraws).toBe(1)
 })
+
+test('the session line leads with each plan limit the engine measured, in its order, until a measure has none (F-20)', async ($, on) => {
+  world(on)
+  const measure = (rateLimits: unknown) => $.session.measure({ context: { window: 1_000_000 }, rateLimits, changed: ['rateLimits'] } as never)
+  const lines = async () => {
+    const all: string[] = []
+    for (const surface of SURFACES) all.push(...(await drawn($, surface)).texts.filter(text => text.includes(STRINGS.session('0', '0:00'))))
+    return all
+  }
+  // Before any measure, the totals alone.
+  expect(await lines()).toEqual([STRINGS.session('0', '0:00'), STRINGS.session('0', '0:00')])
+  await measure([{ kind: 'five_hour', percentUsed: 40, resetsAt: '2030-01-01T05:00:00Z' }])
+  expect(await lines()).toEqual(['5h 40% · 0 tokens · 0:00', '5h 40% · 0 tokens · 0:00'])
+  // Two windows in the engine's order; one it names otherwise as given; what is not a window is left out.
+  await measure([
+    { kind: 'seven_day', percentUsed: 12 },
+    { kind: 'five_hour', percentUsed: 40.4 },
+    { kind: 7, percentUsed: 3 },
+    { percentUsed: 5 },
+    null,
+    { kind: 'five_hour', percentUsed: Number.NaN },
+    { kind: 'spend_limit', percentUsed: 104.5 },
+    { kind: 'weekly_fixture', percentUsed: 3 },
+    { kind: 'monthly_fixture', percentUsed: 9 },
+  ])
+  const four = '7d 12% · 5h 40% · spend 105% · weekly_fixture 3% · 0 tokens · 0:00'
+  expect(await lines()).toEqual([four, four])
+  // A measure that says nothing of the limits keeps them; one with none clears them.
+  await measure(undefined)
+  expect(await lines()).toEqual([four, four])
+  await measure([])
+  expect(await lines()).toEqual([STRINGS.session('0', '0:00'), STRINGS.session('0', '0:00')])
+})

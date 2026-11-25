@@ -23,6 +23,13 @@ export const STRINGS = {
   lead: 'Main session',
   // The header's line: tokens and work time over the Lead and every run.
   session: (tokens: string, time: string) => `${tokens} tokens · ${time}`,
+  // A plan's usage window on the header's line, by the name the engine gives it; one it names otherwise reads as given.
+  limit: (window: string, percent: string) => `${window} ${percent}`,
+  limits: { five_hour: '5h', seven_day: '7d', spend_limit: 'spend' } as Record<string, string | undefined>,
+  // With `cost` at `estimate`: the dollars on the header's line and each row, never without "est.".
+  estimate: (amount: string) => `est. ${amount}`,
+  dollars: (amount: string) => `$${amount}`,
+  underCent: '<$0.01',
   sections: { 'needs-you': 'Needs you', running: 'Running', finished: 'Finished' },
   heading: (name: string, count: number) => `${name} · ${count}`,
   show: 'show',

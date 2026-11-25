@@ -2,12 +2,12 @@ import type { ElementTable, On, RenderElement } from 'claude-code'
 import { type Engine, expect, mock, test } from 'claude-code/testing'
 
 import type { RoleId, StateId } from '../types/index'
-import { DESCRIPTION_CHARS, FILES_KEPT, PEEK_CHARS, SPRITE_BUDGET } from '../hooks/config'
+import { DESCRIPTION_CHARS, FILES_KEPT, LIMITS_KEPT, NEST_INDENT, NEST_LEVELS_DRAWN, PEEK_CHARS, SPRITE_BUDGET } from '../hooks/config'
 import { TARGET_CHARS } from '../hooks/model/tools'
 import { PICKABLE } from '../hooks/roles/rules'
 import { sprite } from '../hooks/sprites/index'
 import { STRINGS } from '../hooks/strings'
-import { type PanelData, panel, withinBudget, withMoments } from '../hooks/view/panel'
+import { type PanelData, panel, SECTIONS, withinBudget, withMoments } from '../hooks/view/panel'
 import type { RowData } from '../hooks/view/row'
 import { engine, MOUNT, possums, SURFACES, store } from './engine'
 import { DESKTOP_BOUND, isWithin, type Measure, measure } from './size'
@@ -68,6 +68,26 @@ const FULLEST_PEEK = {
 const times = (count: number, state: StateId): StateId[] => Array.from({ length: count }, () => state)
 const LIVE: readonly StateId[] = ['working', 'needs-you', 'quiet', 'starting']
 const ENDED: readonly StateId[] = ['finished', 'failed', 'stopped']
+
+// The header at its longest: every limit window kept, each named by the engine's longest name, and the estimate.
+const FULLEST_SESSION = {
+  tokens: 99_999_999,
+  workedMs: 36_000_000,
+  limits: Array.from({ length: LIMITS_KEPT }, (_, at) => ({ kind: `seven_day_fixture_window_${at}`, percent: 104.5 })),
+  usd: 99_999.99,
+}
+
+// Each row under the one before it in its section, so every helper is as deep as the indent goes, and each carries
+// its estimate.
+function nestedDeepest(rows: readonly RowData[]): RowData[] {
+  const last = new Map<string, number>()
+  return rows.map(row => {
+    const section = SECTIONS.find(one => one.states.includes(row.state))?.id ?? 'running'
+    const parent = last.get(section)
+    last.set(section, row.order)
+    return { ...row, usd: 12_345.67, ...(parent === undefined ? {} : { parent }) }
+  })
+}
 
 function listOf(rows: readonly RowData[], look: PanelData['look'], options: Partial<PanelData> = {}): PanelData {
   return {
@@ -159,20 +179,34 @@ test("every part of the gallery, in every set and either motion, is within the d
   }
 })
 
-test("the pane with the most rows it draws is within the desktop's bound: sixty of ninety, long texts, moments, Finished, a picker and Peek open", async ($, on) => {
+test("the pane with the most rows it draws is within the desktop's bound: sixty of ninety, long texts, moments, Finished, a picker, Peek open, every helper nested as deep as it goes, the limits and the estimate", async ($, on) => {
   const draw = drawing(on)
   const states = [
     ...Array.from({ length: 70 }, (_, at) => LIVE[at % LIVE.length] ?? 'working'),
     ...Array.from({ length: 20 }, (_, at) => ENDED[at % ENDED.length] ?? 'finished'),
   ]
-  const listed = rowsIn(states).map(row => (row.order === 3 ? { ...row, peek: FULLEST_PEEK } : row))
+  const flat = rowsIn(states).map(row => (row.order === 3 ? { ...row, peek: FULLEST_PEEK } : row))
+  const listed = nestedDeepest(flat)
+  const options = { pickerFor: 3, peekFor: 3, session: FULLEST_SESSION }
   for (const set of SETS) {
-    draw(listOf(listed, { set, motion: 'auto' }, { pickerFor: 3, peekFor: 3 }))
+    draw(listOf(listed, { set, motion: 'auto' }, options))
     for (const surface of SURFACES) {
       const { size, elements } = await drawnOn($, surface, LIST)
       const rows = elements.filter(element => element.type === 'Button' && String((element.props as { key?: string }).key).startsWith('role-row-'))
       const peeks = elements.filter(element => element.type === 'Text' && element.text === STRINGS.peek.actions)
-      expect([set, surface, rows.length, peeks.length, within(size)]).toEqual([set, surface, 60, 1, [true, true, true]])
+      const deepest = elements.filter(element => element.type === 'Box' && element.props.paddingLeft === NEST_LEVELS_DRAWN * NEST_INDENT)
+      expect([set, surface, rows.length, peeks.length, deepest.length > 50, within(size)]).toEqual([set, surface, 60, 1, true, [true, true, true]])
+      // Nesting indents a row's own Box: it adds no element and no level.
+      draw(
+        listOf(
+          flat.map(row => ({ ...row, usd: 12_345.67 })),
+          { set, motion: 'auto' },
+          options,
+        ),
+      )
+      const unnested = (await drawnOn($, surface, LIST)).size
+      expect([set, surface, size.nodes, size.depth]).toEqual([set, surface, unnested.nodes, unnested.depth])
+      draw(listOf(listed, { set, motion: 'auto' }, options))
     }
   }
 })

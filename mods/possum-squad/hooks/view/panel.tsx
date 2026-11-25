@@ -62,6 +62,29 @@ export function countsOf(rows: readonly RowData[]): Counts {
   return { running: running ?? 0, needsYou: needsYou ?? 0 }
 }
 
+// A section's rows in drawing order, each with its depth: a row whose parent is not in the section starts a branch, in
+// spawn order, and its helpers there follow it, depth first, in spawn order. A loop of parents is drawn from its first.
+export function nested(rows: readonly RowData[]): { row: RowData; depth: number }[] {
+  const here = new Set(rows.map(one => one.order))
+  const helpers = new Map<number, RowData[]>()
+  const roots: RowData[] = []
+  for (const one of rows) {
+    if (one.parent !== undefined && one.parent !== one.order && here.has(one.parent)) helpers.set(one.parent, [...(helpers.get(one.parent) ?? []), one])
+    else roots.push(one)
+  }
+  const drawn: { row: RowData; depth: number }[] = []
+  const seen = new Set<number>()
+  const visit = (one: RowData, depth: number) => {
+    if (seen.has(one.order)) return
+    seen.add(one.order)
+    drawn.push({ row: one, depth })
+    for (const helper of helpers.get(one.order) ?? []) visit(helper, depth + 1)
+  }
+  for (const root of roots) visit(root, 0)
+  for (const one of rows) visit(one, 0)
+  return drawn
+}
+
 const sizeOf = (sprites: readonly (Sprite | undefined)[]) => sprites.reduce((sum, one) => sum + (one?.source.length ?? 0), 0)
 
 // Each row's sprite within the budget, in drawing order: its own while every row's fits. Past that, rows take their
@@ -146,10 +169,15 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
     onCancel: actions.onCancelRole,
   })
   const peekOf = (one: RowData): PeekToggle => ({ isOpen: data.peekFor === one.order, onToggle: () => actions.onTogglePeek(one.order) })
-  // Rows past the cap are not drawn, in drawing order: Needs you, Running, then Finished while open.
+  // Rows past the cap are not drawn, in drawing order: Needs you, Running, then Finished while open, each section's
+  // helpers under their parents.
   let drawable = ROWS_DRAWN
+  const depths = new Map<number, number>()
   const sections = SECTIONS.map(section => {
-    const rows = data.rows.filter(one => section.states.includes(one.state))
+    const rows = nested(data.rows.filter(one => section.states.includes(one.state))).map(({ row, depth }) => {
+      depths.set(row.order, depth)
+      return row
+    })
     const isOpen = section.id !== 'finished' || data.isFinishedOpen
     const shown = isOpen ? rows.slice(0, drawable) : []
     drawable -= shown.length
@@ -181,8 +209,10 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
     const state = one.moment === 'arrival' && drawn === playing[at] ? 'starting' : one.state
     return spriteElement(Svg, drawn, STRINGS.sprite.alt(one.role ?? STRINGS.sprite.plain, STRINGS.states[state]))
   }
-  const row = (one: RowData) =>
-    asText ? terminalRow(table, one, pickerOf(one), peekOf(one)) : desktopRow(table, one, pickerOf(one), peekOf(one), rowSprite(one))
+  const row = (one: RowData) => {
+    const depth = depths.get(one.order) ?? 0
+    return asText ? terminalRow(table, one, pickerOf(one), peekOf(one), depth) : desktopRow(table, one, pickerOf(one), peekOf(one), rowSprite(one), depth)
+  }
   const drawSection = (section: (typeof sections)[number]) => {
     const isFinished = section.id === 'finished'
     const hidden = section.isOpen ? section.rows.length - section.shown.length : 0

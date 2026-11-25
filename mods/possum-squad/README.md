@@ -5,16 +5,18 @@ their live numbers and state; in the desktop app each one is drawn as a small an
 opossum dressed for its job. It only watches: it changes nothing Claude does and adds nothing
 to what Claude is sent.
 
-This is 0.12.0: the pane opens by itself when a session's first agent starts (the `autoOpen`
-setting says when; a pane you close stays closed), and `/possums` opens or hides it. The main session heads it, with its context and the
-session's tokens and work time; under it, every subagent Claude starts is a row in Needs you,
+This is 0.13.0: the pane opens by itself when a session's first agent starts (the `autoOpen`
+setting says when; a pane you close stays closed), and `/possums` opens or hides it. The main session heads it, with its context, then a line
+of your plan's limits (such as `5h 40% · 7d 12%`), the session's tokens and work time and, with
+`/possums set cost estimate`, an estimate in dollars; under it, every subagent Claude starts is a row in Needs you,
 Running or Finished, with its state, its role (such as Builder, Scout or Researcher,
 worked out from its type, its task's words and its first tool calls), model, activity,
 context, tokens and a time that ticks. In the desktop app each row has its opossum, dressed for
 its role in the set the `theme` setting picks (`classic`, `steampunk`, `horror` or
 `prehistoric`) and moving for its state: it slides in when it arrives, hops into its outfit,
 bobs and blinks while it works, holds up a sign, bobbing, when it needs you, dozes when quiet, cheers then
-falls asleep when it finishes. In a terminal the rows are text. A row's role name is a button: press it to pick another
+falls asleep when it finishes. In a terminal the rows are text. An agent started by another agent sits under it, its tokens
+counted in its parent's. A row's role name is a button: press it to pick another
 role, which the row takes at once and, for an agent type of your own, every later agent of that
 type starts in. An agent waiting on a permission prompt moves up to Needs you, and one that has
 gone silent shows as quiet; while the list is out of sight, a toast says when an agent needs you

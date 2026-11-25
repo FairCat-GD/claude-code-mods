@@ -5,7 +5,8 @@ import { isPickable, PICKABLE } from '../roles/rules'
 import type { Moment } from '../sprites'
 import { STRINGS } from '../strings'
 import type { Shared } from './empty'
-import { bar, elapsed, fill, percent, tokens } from './format'
+import { NEST_INDENT, NEST_LEVELS_DRAWN } from '../config'
+import { bar, elapsed, estimate, fill, percent, tokens } from './format'
 
 // One run as its row shows it. The description, model, effort and activity are agent text, drawn only as plain Text (I-04).
 export type RowData = {
@@ -14,6 +15,7 @@ export type RowData = {
   order: number
   state: StateId
   description: string
+  // Fresh tokens, its helpers' included; its time and context are its own.
   tokens: number
   elapsedMs: number
   // The role's name and id, once it is settled.
@@ -25,6 +27,10 @@ export type RowData = {
   contextPercent?: number
   // Drawn from 2: the same task again after a finished run.
   round?: number
+  // The spawn order of the run that started it, when that run has a row: it is drawn under it within a section.
+  parent?: number
+  // With `cost` at `estimate`: its requests', and its helpers', at list prices.
+  usd?: number
   // The one-off its sprite plays, around its moment.
   moment?: Moment
   // What Peek shows, given only while it is open.
@@ -68,6 +74,13 @@ export const COLOURS: Record<StateId | 'planned', Color> = {
 
 const join = (parts: readonly (string | undefined)[]) => parts.filter(part => part !== undefined && part !== '').join(STRINGS.row.separator)
 const activity = (row: RowData) => row.activity ?? STRINGS.row.noActivity
+const estimateOf = (row: RowData) => (row.usd === undefined ? undefined : estimate(row.usd))
+
+// A helper under its parent is indented on the row's own Box, so nesting adds no element and no level.
+const indentOf = (depth: number) => {
+  const cells = Math.min(Math.max(0, depth), NEST_LEVELS_DRAWN) * NEST_INDENT
+  return cells === 0 ? {} : { paddingLeft: cells }
+}
 
 function firstLine({ Box, Text }: Shared, row: RowData, mark?: RenderElement): RenderElement {
   return (
@@ -176,13 +189,14 @@ function peekLines({ Box, Text }: Shared, row: RowData, isFootnote: boolean): Re
   )
 }
 
-// The terminal's row: a coloured mark, then four lines of text, the bar in block characters, and Peek while open.
-export function terminalRow(table: RowTable, row: RowData, picker: RolePicker, peek: PeekToggle): RenderElement {
+// The terminal's row: a coloured mark, then four lines of text, the bar in block characters, and Peek while open; a
+// helper indented by its depth under its parent.
+export function terminalRow(table: RowTable, row: RowData, picker: RolePicker, peek: PeekToggle, depth = 0): RenderElement {
   const { Box, Text } = table
   const mark = <Text color={COLOURS[row.state]}>{STRINGS.row.mark}</Text>
-  const figures = join([`${STRINGS.row.contextShort} ${percent(row.contextPercent)}`, tokens(row.tokens), elapsed(row.elapsedMs)])
+  const figures = join([`${STRINGS.row.contextShort} ${percent(row.contextPercent)}`, tokens(row.tokens), elapsed(row.elapsedMs), estimateOf(row)])
   return (
-    <Box key={row.id} flexDirection="column">
+    <Box key={row.id} flexDirection="column" {...indentOf(depth)}>
       {firstLine(table, row, mark)}
       <Box flexDirection="column" paddingLeft={2}>
         {detailsLine(table, row, picker, false)}
@@ -196,11 +210,12 @@ export function terminalRow(table: RowTable, row: RowData, picker: RolePicker, p
 }
 
 // The desktop's row: the sprite (the state's mark where the surface draws none) beside four lines. The last is the app's
-// own bar, which draws its label and figure above the fill at the full width, so the numbers ride in its figure.
-export function desktopRow(table: DesktopTable, row: RowData, picker: RolePicker, peek: PeekToggle, sprite?: RenderElement): RenderElement {
+// own bar, which draws its label and figure above the fill at the full width, so the numbers ride in its figure. A
+// helper is indented by its depth under its parent.
+export function desktopRow(table: DesktopTable, row: RowData, picker: RolePicker, peek: PeekToggle, sprite?: RenderElement, depth = 0): RenderElement {
   const { Box, Text, Progress } = table
   return (
-    <Box key={row.id} flexDirection="row" gap={1}>
+    <Box key={row.id} flexDirection="row" gap={1} {...indentOf(depth)}>
       {sprite ?? <Text color={COLOURS[row.state]}>{STRINGS.row.mark}</Text>}
       <Box flexDirection="column" flexGrow={1} flexShrink={1}>
         {firstLine(table, row)}
@@ -210,7 +225,7 @@ export function desktopRow(table: DesktopTable, row: RowData, picker: RolePicker
         <Progress
           label={STRINGS.row.context}
           value={fill(row.contextPercent)}
-          valueText={join([percent(row.contextPercent), tokens(row.tokens), elapsed(row.elapsedMs)])}
+          valueText={join([percent(row.contextPercent), tokens(row.tokens), elapsed(row.elapsedMs), estimateOf(row)])}
         />
         {peekLines(table, row, true)}
       </Box>

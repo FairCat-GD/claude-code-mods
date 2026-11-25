@@ -1,13 +1,15 @@
 import type { RenderElement } from 'claude-code'
 
+import type { Limit } from '../../types/index'
 import { STRINGS } from '../strings'
 import type { Shared } from './empty'
-import { bar, elapsed, fill, percent, tokens } from './format'
+import { bar, elapsed, estimate, fill, percent, tokens } from './format'
 import type { DesktopTable } from './row'
 
 // The main session's own figures, and the header's totals over it and every run.
 export type LeadData = { tokens: number; contextPercent?: number }
-export type SessionData = { tokens: number; workedMs: number }
+// `limits` once a measure gave any; `usd` only with `cost` at `estimate`.
+export type SessionData = { tokens: number; workedMs: number; limits?: readonly Limit[]; usd?: number }
 
 // The Lead is no run, so it has no state's colour; it takes the app's own.
 const COLOUR = 'claude'
@@ -42,9 +44,18 @@ export function desktopLead({ Box, Text, Progress }: DesktopTable, lead: LeadDat
   )
 }
 
-// The header's line, the same on every surface.
-export const sessionLine = ({ Text }: Shared, session: SessionData): RenderElement => (
-  <Text key="session" dimColor>
-    {STRINGS.session(tokens(session.tokens), elapsed(session.workedMs))}
-  </Text>
-)
+const limitText = (limit: Limit) => STRINGS.limit(STRINGS.limits[limit.kind] ?? limit.kind, percent(limit.percent))
+
+// The header's line, the same on every surface: the plan's limits, the totals, and the estimate when it is asked for.
+export function sessionLine({ Text }: Shared, session: SessionData): RenderElement {
+  const parts = [
+    ...(session.limits ?? []).map(limitText),
+    STRINGS.session(tokens(session.tokens), elapsed(session.workedMs)),
+    ...(session.usd === undefined ? [] : [estimate(session.usd)]),
+  ]
+  return (
+    <Text key="session" dimColor>
+      {parts.join(STRINGS.row.separator)}
+    </Text>
+  )
+}

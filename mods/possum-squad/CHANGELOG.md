@@ -6,6 +6,31 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-11-25
+
+The session line shows your plan's limits and, if you ask, what the session would cost; an
+agent's helpers sit under it.
+
+### Added
+
+- **Plan limits:** the session line starts with each usage window Claude Code reports, such as
+  `5h 40% · 7d 12%`, as soon as Claude Code reports them. Off a subscription there are none.
+- **The estimate:** with `/possums set cost estimate`, the session line and every row end with
+  what the requests would cost at each model's list price, such as `est. $0.25`. It is an
+  estimate, never a bill, from a price table dated 2026-11-25; it does not see fast mode, the
+  US-only surcharge or web search fees. With `cost` at `off`, the default, no dollar figure
+  appears anywhere.
+- **Helpers:** an agent started by another agent is drawn right under it, indented, while both
+  sit in the same section; one that needs you, or ends first, shows in its own section. A
+  parent's tokens and estimate include its helpers', theirs too, even after they drop out of
+  the list; its time and context stay its own.
+
+### Changed
+
+- **A session that loads 0.13.0 while it runs** starts its list of agents over, and the main
+  session's tokens and time from zero; its context and the limits show again after Claude's
+  next reply. Their stored shapes changed.
+
 ## [0.12.0] — 2026-11-25
 
 A row opens to show what its agent was asked, did and answered, and the pane folds down to a

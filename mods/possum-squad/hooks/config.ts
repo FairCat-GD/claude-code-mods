@@ -54,3 +54,10 @@ export const PEEK_CHARS = 600
 
 // T-14: the joeys the collapsed Lead carries; the numeral counts every running agent.
 export const JOEYS_DRAWN = 3
+
+// A helper drawn under its parent is indented this many cells a level, for at most this many levels.
+export const NEST_INDENT = 2
+export const NEST_LEVELS_DRAWN = 3
+
+// The plan's usage windows the header shows, in the engine's order.
+export const LIMITS_KEPT = 4

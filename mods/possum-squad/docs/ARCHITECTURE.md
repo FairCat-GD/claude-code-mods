@@ -32,13 +32,16 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.12.0). The Lead, header, sections, roles with the person's picker, sprites in every
+**Built** (0.13.0). The Lead, header, sections, roles with the person's picker, sprites in every
 set with every state's animation, the gallery in parts the desktop draws, auto-open, Needs you,
-quiet and toasts, Peek, and the collapsed view, which a minimized pane draws too.
+quiet and toasts, Peek, the collapsed view, which a minimized pane draws too, the plan's limits,
+the estimate, and helpers drawn under their parents.
 `hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `roles`, `set` and `settings`;
-- toggles and draws the pane: the Lead row and the session line, then the sections of subagent
-  runs, the empty panel's line, or a part of the gallery; on every surface but the terminal,
+- toggles and draws the pane: the Lead row and the session line (the plan's limits, the totals,
+  and the estimate while `prefs.cost` is `estimate`), then the sections of subagent runs, each
+  helper under its parent while both sit in one section, the empty panel's line, or a part of
+  the gallery; on every surface but the terminal,
   each with its sprite, in the set `prefs.theme` names, within what the desktop app draws. A
   row's Peek opens under it; the collapsed view, the Lead carrying its joeys with the counts,
   takes the whole pane's place while `prefs.collapsed` is set or the pane sits in the desktop's
@@ -52,7 +55,7 @@ quiet and toasts, Peek, and the collapsed view, which a minimized pane draws too
 - moves a subagent's row to Needs you while its call waits on a permission prompt, shows a run
   quiet past T-05 with no call in flight, and, while the pane is out of view, toasts a run that
   needs the person and a long run's end;
-- keeps the main session's context, tokens and time in `lead`;
+- keeps the main session's context, tokens, time and estimate, and the plan's limits, in `lead`;
 - runs the one-second clock while the pane is open and a run is live, or a run's role may still
   fall back to Helper;
 - empties `runs` and `lead` when the session is cleared, resumed or forked;
@@ -63,9 +66,10 @@ quiet and toasts, Peek, and the collapsed view, which a minimized pane draws too
 
 Of the pure modules:
 - `hooks/model/` turns records into runs (`runs.ts`), the Lead and the header's totals
-  (`lead.ts`), and a step's calls into an activity (`tools.ts`);
+  (`lead.ts`), a step's calls into an activity (`tools.ts`), and each run's helpers' tokens and
+  estimate into its own (`nesting.ts`);
 - `hooks/roles/` holds the role rules and their word lists (`rules.ts`, `words.ts`);
-- `hooks/data/models.ts` holds the dated window table;
+- `hooks/data/` holds the dated window table (`models.ts`) and price table (`prices.ts`);
 - `hooks/view/` holds the panel and its sections (`panel.tsx`), the gallery (`gallery.tsx`), the
   Lead row and the session line (`lead.tsx`), a run's row data and Peek's (`runs.ts`), the row
   builders for both surfaces, Peek's lines among them (`row.tsx`), the collapsed view
@@ -331,16 +335,18 @@ checked on CLI 2.1.330, with Node 26.7.0 for `tools/`.
   - nothing in `hooks/` or `tests/` imports from `tools/`, and `tools/` imports nothing from
     `hooks/`: it reads `art/` and writes `hooks/sprites/data.ts`.
 
-**Built** (0.8.0). In place:
+**Built** (0.8.0; `nesting.ts` and `prices.ts` 0.13.0). In place:
 - the manifest, `.claude-plugin/plugin.json`, naming `types/index.d.ts`;
 - the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-03 to T-07, T-09,
-  T-10, T-13 and T-14) and `hooks/strings.ts`;
-- `hooks/model/`, pure: `runs.ts` (runs from records, and their figures), `lead.ts` (the Lead
-  from measures and main turns, and the header's totals) and `tools.ts` (a step's calls as an
-  activity). It uses `config.ts`, `data/` and the types alone;
+  T-10, T-13 and T-14, the helpers' indent and the limits kept) and `hooks/strings.ts`;
+- `hooks/model/`, pure: `runs.ts` (runs from records, their figures and their parents),
+  `lead.ts` (the Lead from measures and main turns, and the header's totals), `tools.ts` (a
+  step's calls as an activity) and `nesting.ts` (each run's tokens and estimate with its
+  helpers'). It uses `config.ts`, `data/` and the types alone;
 - `hooks/roles/`, pure: `words.ts` (the word lists) and `rules.ts` (the rules in their order,
   the calls read a step at a time, and the fallback). It uses `config.ts` and the types alone;
-- `hooks/data/models.ts`: the dated window table (T-11);
+- `hooks/data/`: `models.ts`, the dated window table (T-11) and the lookup by model both tables
+  use; `prices.ts`, the dated price table (T-12) and `costOf`;
 - `hooks/sprites/`, pure: `types.ts` (the art's shape), `data.ts` (generated), `compose.ts`
   (grids of palette keys, and a recipe's frame on them), `recipes.ts` (each pose's frame, the
   tongue and the work loop), `svg.ts` (the writer and the light-theme outline) and `index.ts`
@@ -359,10 +365,11 @@ checked on CLI 2.1.330, with Node 26.7.0 for `tools/`.
   builder per surface, and the session line), `empty.tsx` (the empty panel's line), `runs.ts`
   (a run's row data, its activity line and its Peek), `row.tsx` (the row and its Peek, one
   builder per surface), `collapsed.tsx` (the collapsed view, one builder per surface),
-  `sprite.tsx` (a sprite as an `Svg`) and `format.ts` (tokens, time, percent and the block
-  bar);
+  `sprite.tsx` (a sprite as an `Svg`) and `format.ts` (tokens, time, percent, dollars and the
+  block bar);
 - the contract, `types/index.d.ts`: `View`; `StateId`; `RoleId`, `RoleSource` and `Role`;
-  `Runs`, `Run`, `Pending`, `Past`, `Tokens` and `Activity`; `Lead` and `LeadContext`;
+  `Runs`, `Run`, `Pending`, `Past`, `Tally`, `Tokens` and `Activity`; `Lead`, `LeadContext`
+  and `Limit`;
 - the tests, in `tests/`:
   - `tests/engine.ts`: the engine's stand-in, the store's stand-in, the shared test values, and
     `hooksOf`, which hands a test the module's hooks from one registration;
@@ -384,7 +391,11 @@ checked on CLI 2.1.330, with Node 26.7.0 for `tools/`.
     fallback; `tests/gallery.test.ts` runs `/possums roles` and reads the drawn gallery;
   - `tests/peek.test.ts` raises spawns, steps and ends and presses a row's Peek;
     `tests/collapsed.test.ts` draws the collapsed view, collapsed by the person and in the
-    `widget` seat, and reads the Lead's joeys from its SVG.
+    `widget` seat, and reads the Lead's joeys from its SVG;
+  - `tests/estimate.test.ts` prices tokens by the table, then raises steps and a main turn and
+    reads every string of the drawn pane with `cost` off and at `estimate`;
+    `tests/nesting.test.ts` raises spawns naming a parent and reads where each row is drawn,
+    its indent and its tokens.
 
 How it is held:
 - *Enforced by* the gate's `imports` stage (the import scan) and `validate`
@@ -502,7 +513,7 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 | `ui.close` | Stops the clock; when `origin.kind` is `person`, records it in `view` | 1, 5 |
 | `agent.spawn` | Opens a row from the input, its brief from the prompt; re-keys it from the result | 2, 4, 11 |
 | `turn.start` | Marks the loop's row working, heard at its time | 4, 10 |
-| `turn.step` (streaming) | Yields every chunk through untouched; from the input, the model and effort; from the result, the usage and the calls it asks for (`toolUses`): the activity line, the last actions, files touched, calls in flight, the role's tool evidence | 2, 4, 8, 10, 11 |
+| `turn.step` (streaming) | Yields every chunk through untouched; from the input, the model and effort; from the result, the usage and its estimate and the calls it asks for (`toolUses`): the activity line, the last actions, files touched, calls in flight, the role's tool evidence | 2, 4, 8, 10, 11, 12 |
 | `turn.complete` | Ends the row (*The run model*), keeping its answer for Peek, and toasts a long run's end (*Attention*); the main session's adds its tokens and time to the Lead | 4, 5, 10, 11 |
 | `session.measure` | The Lead's context and the plan limits | 2, 5, 12 |
 | `classic.SessionStart` | On `clear`, `resume` or `fork`, cancels the clock and redraws from the reset state | 4 |
@@ -554,8 +565,9 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     loses only when the run was last heard.
   - `turn.step`, for a subagent, first reads the time (`began`, guarded), then delegates every
     chunk (`const result = yield* next(e)`), then records the
-    step's model (the usage's, else the input's), its effort, its usage and its calls (the
-    activity, each call as an action, and the files the changing tools name), and returns
+    step's model (the usage's, else the input's), its effort, its usage with the part of its
+    cache writes kept an hour (`ephemeral_1h_input_tokens`), and its calls (the activity, each
+    call as an action, and the files the changing tools name), and returns
     `result`. In the same change it first settles Helper on any run past T-04
     (`fellBack`), then reads the step's calls as role evidence (`toolsSeen`, from the run's
     reads and searches so far).
@@ -569,8 +581,8 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     and whose turn ran past T-10, starts its toast, unawaited (*Attention*). Without `agentId`, it is the main session's, and
     `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`). A malformed
     one never gets that far: the engine refuses its `next(e)` first (*Context*).
-  - `session.measure` awaits `next(e)`, then records the Lead's context through `recordLead`
-    (`measured`).
+  - `session.measure` awaits `next(e)`, then records the Lead's context and the plan's limits
+    (`rateLimits`) through `recordLead` (`measured`).
   - `classic.SessionStart` with `source` `clear`, `resume` or `fork` stops the clock, empties
     `runs` and resets `lead`. The engine resets `$.state` on a clear already (*Context*); the
     mod's own reset keeps the list right wherever it does not.
@@ -594,7 +606,7 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     - `runs`: the session's runs, by run id (*The run model*). Written only through the `update`
       helper, never as a read and a later `set`, since several hooks write it at once.
     - `lead`: the main session's record: context tokens, window and percent; tokens; its
-      turns' time; plan limits.
+      turns' time and estimate; plan limits.
     - `view`: the session's flags: whether the person closed the pane, which run's Peek is open,
       whether the gallery is open.
   - Any plugin can read any `$.state` value. `runs` holds briefs, answers and file paths, so
@@ -647,20 +659,23 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
   The pane reads it while drawing, so each write redraws it; a refused read draws the list.
   `autoOpen` reads `isClosedByPerson`.
 - `runs` (0.4.0; `past` 0.5.0; roles 0.6.0; a role's moment 0.9.0; attention 0.11.0; Peek
-  0.12.0) is `Runs`, `{ rows, pending, next, past }`, the atom `runs` with the shape tag
-  `runs-6`, starting as
+  0.12.0; the estimate and pruned helpers 0.13.0) is `Runs`, `{ rows, pending, next, past }`,
+  the atom `runs` with the shape tag `runs-7`, starting as
   `NO_RUNS`. *The run model*'s Built part
   has its fields and rules; `quiet` is never kept there, only worked out where a row is drawn. The recording hooks write it, `classic.PermissionRequest` among them, and the clock's beat when it settles
   Helper, each through `update`, so concurrent writes retry rather than lose one another; the
   pane reads it while drawing, which redraws it on every write. The beat reads it too, outside
   any drawing.
-- `lead` (0.5.0) is `Lead`, `{ context?, tokens, workedMs }`, the atom `lead` with the shape tag
-  `lead-1`, starting as `NO_LEAD`:
+- `lead` (0.5.0; the estimate and the limits 0.13.0) is `Lead`, `{ context?, tokens, workedMs,
+  usd, limits? }`, the atom `lead` with the shape tag `lead-2`, starting as `NO_LEAD`:
   - `context` is `session.measure`'s `{ tokens?, window, percent? }`, absent until the first
     measure. A fresh window's has no `tokens` or `percent` until the session's first reply;
-  - `tokens` and `workedMs` sum the main session's turns, from each `turn.complete`'s `usage`
-    and `durationMs`;
-  - the plan limits join it in Session 12, with a new tag.
+  - `tokens`, `workedMs` and `usd` sum the main session's turns, from each `turn.complete`'s
+    `usage` and `durationMs` (*The run model*, the estimate);
+  - `limits` is `session.measure`'s `rateLimits` as `{ kind, percent }`: each window with a
+    `kind` that is not blank and a `percentUsed` of 0 or more, in the engine's order, at most
+    `LIMITS_KEPT` (4). It is absent until a measure gives one, and again after one gives an
+    empty list; a measure whose `rateLimits` is no list leaves it as it was.
 
   Only `session.measure`, the main session's `turn.complete` and a clear-type
   `classic.SessionStart` write it, through `recordLead`; the pane reads it while drawing.
@@ -720,13 +735,17 @@ that is not a pickable role id reads as none. Nothing deletes one.
   actions.
 - **Numbers.** Fresh tokens (in and out) are counted apart from cache reads. A row's context
   percent is its last request's size over its model's window (`hooks/data/`, T-11, with a
-  default for an unknown model). The header totals the Lead and every run. A run nested under
-  its parent (F-24) is drawn under it, and its totals roll up into the parent's.
+  default for an unknown model). The header totals the Lead and every run. A run whose spawn
+  names its parent (F-24) is drawn under it while both sit in one section, and otherwise as any
+  row in its own; its tokens and estimate roll up into the parent's, at every level, and its
+  time and context stay its own (Decision log, 2026-11-25). The estimate prices each request's
+  tokens at its model's list prices from the dated table (T-12), not from the engine's own
+  ledger (Decision log, 2026-11-25).
 - **Lifetime.** Runs live in `runs` for the session only, and are never written anywhere else.
   Finished keeps the latest T-06 (30) runs.
 
-**Built** (0.4.0; the Lead and the totals 0.5.0; roles 0.6.0), in `hooks/model/runs.ts` and
-`hooks/model/lead.ts`: pure functions from `runs` or the Lead, and a record, to its next value,
+**Built** (0.4.0; the Lead and the totals 0.5.0; roles 0.6.0; the estimate and nesting 0.13.0),
+in `hooks/model/runs.ts`, `hooks/model/lead.ts` and `hooks/model/nesting.ts`: pure functions from `runs` or the Lead, and a record, to its next value,
 each returning the same object when the record changes nothing.
 - **A run** (`Run`, in `types/index.d.ts`) holds what its row needs: its agent id once known,
   its parent's id, its type, description and round, whether it is a teammate, its state, its
@@ -735,8 +754,10 @@ each returning the same object when the record changes nothing.
   its four token counts, its last request's size (input, cache reads and cache writes), its
   activity (tool and target) and its calls in flight, and, while it needs the person, its
   call's request (`ask`, `Ask`: `{ at }`, or `{}` when the clock could not be read). For Peek
-  (0.12.0) it holds its brief, its last T-07 actions, the files it changed and its answer. A
-  pending entry holds the same numbers, actions, files and role evidence, and `ask` when a
+  (0.12.0) it holds its brief, its last T-07 actions, the files it changed and its answer. It
+  holds its estimate in dollars (`usd`, 0.13.0) and, once Finished drops a helper of its, what
+  that helper had counted (`prunedHelpers`, a `Tally`). A pending entry holds the same numbers,
+  the estimate among them, actions, files and role evidence, and `ask` when a
   call of its waits on the person; its loop's turn has begun, so a claimed row is
   Working, or Needs you when it was asking.
 - **Joining:**
@@ -800,10 +821,30 @@ each returning the same object when the record changes nothing.
 - **Numbers:** `figures` gives fresh tokens (input, cache writes and output), the elapsed time
   (to the end, or now) and the context percent, the last request over `windowOf` its model.
   `hooks/data/models.ts` holds the windows measured on 2026-11-20 (Haiku, Opus and Sonnet 5.5,
-  1,000,000 each), and the same as the default; an id with a suffix finds its model.
-- **The header's totals** (`totals`, in `hooks/model/lead.ts`): the Lead's fresh tokens and
-  `workedMs`, plus every kept run's `figures`, plus `past`. A run is live (`isLive`) until it
-  ends.
+  1,000,000 each), and the same as the default; an id with a suffix finds its model (`rowFor`,
+  which the price table shares).
+- **The estimate** (0.13.0): `costOf` (`hooks/data/prices.ts`) prices tokens at a model's list
+  prices: uncached input, output, cache reads, and cache writes, those kept an hour at their own
+  rate. `PRICES` holds Fable 5.2, Haiku 5.5, Opus 5.5 and Sonnet 5.5, read from the published
+  pricing page on 2026-11-25; Haiku 5.5's long-prompt rates apply past a 100,000-token prompt.
+  An unknown model costs Opus 5.5's prices, the default, and a count that is not a finite number
+  above 0 costs nothing, so the estimate is never NaN.
+  - `withStep` adds each step's estimate at the step's model. A step is one request: its prompt,
+    the last request's size, picks the rates, and its hour writes are
+    `ephemeral_1h_input_tokens`. A pending entry's estimate is claimed with it.
+  - `turnCounted` adds a main turn's at its usage's model, the one that answered last. A turn's
+    tokens are summed over its requests, so it never takes the long-prompt rates.
+  - The engine's own ledger (`session.measure`'s `cost`, `$.agent.list()`'s per agent) is not
+    read: the owner's choice at the plan, so the header is the Lead and every row, and moves
+    with each step.
+- **Nesting** (0.13.0): `parentsOf` (`runs.ts`) maps each run, by spawn order, to the run whose
+  agent id its spawn's `parentAgentId` names, when a row here has it; a run naming itself or an
+  agent no row has has none. `rolledUp` (`nesting.ts`) gives each run its fresh tokens and
+  estimate with every helper's under it, at any depth, and its `prunedHelpers`, memoised; a
+  loop of parents counts each run once.
+- **The header's totals** (`totals`, in `hooks/model/lead.ts`): the Lead's fresh tokens,
+  `workedMs` and `usd`, plus every kept run's own `figures` and `usd`, so a helper counts once,
+  plus `past`. A run is live (`isLive`) until it ends.
 - **The Lead** (`hooks/model/lead.ts`): `measured` takes a measure's context, and `turnCounted`
   adds a main turn's tokens and duration. A count, window or duration that is not a finite
   number of 0 or more is not counted, so a malformed or interrupted turn, whose `usage` is
@@ -813,10 +854,11 @@ each returning the same object when the record changes nothing.
   the argument that names what it works on (a path, the command's first line, a pattern, a URL,
   a query, a description), cut to 80 characters. The engine's `SubagentHandback` is not shown.
 - **Lifetime:** `cleared` empties `runs`, `past` included; past 30 ended runs (T-06) the oldest
-  by end goes, but never a teammate's. What a dropped run counted, its fresh tokens and its time
-  to its end, is added to `past`, so the header's totals never drop.
-
-Not yet: Session 12 (nesting).
+  by end goes, but never a teammate's. What a dropped run counted, its fresh tokens, its time
+  to its end and its estimate, is added to `past`, so the header's totals never drop. Its tokens
+  and estimate, with its own `prunedHelpers`, also go to its nearest kept ancestor's
+  `prunedHelpers` (`pruned`), past any ancestor dropped with it, so a parent's roll-up never
+  drops either; a teammate's helpers among them.
 
 ## Roles
 
@@ -1066,12 +1108,14 @@ every state's recipe, in the set `prefs.theme` names.
 - **Sections,** in this order: the Lead, then Needs you, Running, Finished (collapsed by
   default), each with its count. A section other than Running with no row is not drawn.
 - **The header:** the Lead row, then one line of the session's numbers: plan-limit percent,
-  tokens, time, and, with `cost` at `estimate`, a dollar figure labelled "est.". Its tokens and
-  time total the Lead and every run; the time is work time, the Lead's turns summed plus every
+  tokens, time, and, with `cost` at `estimate`, a dollar figure labelled "est.". The plan-limit
+  percent is each window the engine reports, in its order (Decision log, 2026-11-25). Its tokens
+  and time total the Lead and every run; the time is work time, the Lead's turns summed plus every
   run's time, so it moves only while something works.
 - **A row:** the sprite (desktop) or a coloured state mark (terminal); line 1 the description;
   line 2 role, model, effort; line 3 the activity; line 4 a bar of context fill, then context
-  percent, tokens and time; the state word on every row (I-06). A long text is cut to one line
+  percent, tokens and time, and with `cost` at `estimate` its estimate labelled "est."; the
+  state word on every row (I-06). A helper is drawn under its parent (*The run model*). A long text is cut to one line
   with an ellipsis; Peek shows it whole. All agent text is plain `Text` (I-04).
 - **Seats.** In the `dock` and `inline` seats the pane draws in full. In the desktop's `widget`
   seat (a minimized pane, where clicks may not reach) it draws the collapsed view.
@@ -1116,8 +1160,11 @@ and draws `panel` (`hooks/view/panel.tsx`). The terminal gets the text builders,
 surface the desktop's. A value that cannot be read draws as it starts: no runs, the Lead
 unmeasured, the default `prefs`. A clock that cannot be read draws the times as `–`, so a
 refusal never puts the engine's error in the pane's place. The drawing writes no state.
-- **The header:** the Lead row, then the session line, `254k tokens · 4:12` (dim), from
-  `totals`.
+- **The header:** the Lead row, then the session line (dim), one `Text` joined by ` · `: each
+  of `lead.limits` as `5h 40%` (0.13.0; `STRINGS.limits` names `five_hour` 5h, `seven_day` 7d
+  and `spend_limit` spend, and another kind reads as given), then `254k tokens · 4:12` from
+  `totals`, then, with `prefs.cost` at `estimate`, `est. $1.20` (0.13.0). `drawPane` gives the
+  session and each row `usd` only then, so with `off` no dollar figure is in the tree.
   - **`terminalLead`:** a `●` in the theme's `claude` colour and "Main session", then, indented,
     the block bar and `ctx 31% · 120k`.
   - **`desktopLead`:** its sprite ("Lead": the `lead` outfit, idle and still), or the mark where
@@ -1213,6 +1260,8 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
   - tokens: `640`, `9.5k`, `38k`, `1.2M`;
   - time: `0:42`, then `1:02:05` from an hour;
   - the percent, rounded;
+  - dollars (0.13.0): `$0.25`, `$12.40`, `$123` from 100, `<$0.01` above 0 and under a cent,
+    after `est. ` at the end of line 4 on both surfaces, with `cost` at `estimate`;
   - a number that is missing or not finite reads `–`, and the desktop bar's fill is empty
     rather than the bar that only spins.
 - **The desktop row** was seen by the owner with 0.4.0 installed; the terminal's in Session 4's
@@ -1284,9 +1333,25 @@ Within what the desktop draws (0.10.1), in `panel` (`hooks/view/panel.tsx`) and 
   characters, counted whole so an emoji is never split, and adds `…`. `runs` keeps it whole, for the round's match. An activity's target is already cut at
   `TARGET_CHARS` (80) in the model.
 - **The worst list:** 60 drawn of 90, every text at its longest, round 2, a moment each,
-  Finished open, a picker open, and a Peek at its fullest (0.12.0). In any set it came to 1,845
-  nodes, 8 deep and at most 225,793 characters (`tests/size.test.ts`); without Peek and its
-  button it was 1,613 and 218,861.
+  Finished open, a picker open, a Peek at its fullest (0.12.0), and every row under the one
+  before it in its section, with four limits and the estimate (0.13.0). In any set it came to
+  1,845 nodes, 8 deep and at most 227,422 characters (horror; `tests/size.test.ts`), 92% and 87%
+  of the bound; the same rows unnested draw the same nodes and levels. At 0.12.0, without
+  nesting, limits or the estimate, it was 225,793; without Peek and its button, 1,613 and
+  218,861.
+
+Helpers (0.13.0), in `panel` and the row builders:
+- **Their data:** `drawPane` gives each row its parent's spawn order (`RowData.parent`, from
+  `parentsOf`) and its rolled-up tokens and estimate (`rolledUp`); its time and context stay its
+  own.
+- **Their order:** `nested` orders each section's rows. A row whose parent is not in that
+  section starts a branch, in spawn order, and its helpers there follow it, depth first, in
+  spawn order; a loop of parents is drawn from its first, each row once. The row cap and the
+  sprite budget follow this order. The headings, `countsOf` (a helper is an agent of its own)
+  and the toasts are unchanged.
+- **Their indent:** a row's depth is `paddingLeft` on its own outer `Box`, `NEST_INDENT` (2)
+  cells a level, up to `NEST_LEVELS_DRAWN` (3) levels, so nesting adds no element and no level.
+  A depth past three keeps its place under its parent at three's indent.
 
 A quiet row's third line, on both surfaces, is "Quiet for 2 min" in place of its activity
 (`rowData`); a Needs you row keeps its activity, the call it asks about.
@@ -1469,12 +1534,12 @@ mods API calls allowed (I-02): `$.ui.resolve`, `$.ui.invalidate`, `$.ui.open`, `
 `$.agent.list`. A change to this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
 outside the engine; it is never part of the mod's running code.
 
-**Built** (0.8.0; the toast 0.11.0). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
+**Built** (0.8.0; the toast 0.11.0; unchanged by 0.13.0's limits, estimate and nesting, which read events and price from a table in the code). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
 `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`,
 `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast`; the sprites, being pure, added none. The state calls come through `update` and `read`;
 the clock through `armClock`, `recordAt`, `settleHelpers` and `drawPane`; the store calls through `writeStore`,
-`listSettings` and `prefsWhileDrawing`; the pane calls through `showPane`, `tick` and `redraw`; the toast through `toastUnseen`.
-Each is on the allow-list; `$.session.usage` is not called. No network, process or file access,
+`listSettings` and `prefsOrDefaults`; the pane calls through `showPane`, `tick` and `redraw`; the toast through `toastUnseen`.
+Each is on the allow-list; neither `$.session.usage` nor `$.agent.list` is called. No network, process or file access,
 no model call, no tool registration. `tools/art.ts`, run by hand on Node, reads `art/` (its
 JSON and PNGs) and writes `hooks/sprites/data.ts`, nothing else; its specs write fictional art
 into a temporary folder, and read `art/` and the committed `data.ts`.
@@ -1626,13 +1691,22 @@ unread.
 - **Peek's records add to every write of `runs`:** a run keeps at most about 2.5k characters
   more (a brief and an answer of 600, five actions and ten files of 80), and every step
   rewrites the whole value.
+- **The estimate is list prices from a dated table:** it does not see fast mode, the US-only
+  surcharge, web search or classifier fees, or a gateway's own rates; it goes stale when prices
+  change; and a model the table lacks, an older one among them, costs Opus 5.5's prices.
+- **A main turn is priced at the model that answered last,** its tokens summed over its
+  requests, so never at Haiku 5.5's long-prompt rates.
+- **A helper drawn in another section than its parent's shows no link to it:** only the
+  parent's tokens and estimate count it.
+- **The session line wraps at 46 columns** in the terminal's dock with two limits and the
+  estimate on, since it is one `Text` beside the `collapse` button.
 
-## Baseline (v0.12.0)
+## Baseline (v0.13.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 266 pass, in 22 files: attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, gallery 11, header 8, model 45, pane-sprites 9, panel 10, pass-through 6, peek 12, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 14; about 14 s |
+| `claude plugin test mods/possum-squad` | 280 pass, in 24 files: attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 5, gallery 11, header 9, model 48, nesting 5, pane-sprites 9, panel 10, pass-through 6, peek 12, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 14; about 14 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |
@@ -1777,3 +1851,15 @@ one moves, that is the finding.
 - 2026-11-25, *Sprites and sets*: the joey is redrawn, and kept after the owner's
   look at the Lead carrying one to three in every set on both themes. The owner's choices at
   Session 11's start.
+- 2026-11-25, *The run model*: the estimate prices each request's tokens at its model's list
+  prices from the dated table (T-12), not from the engine's own ledger (`session.measure`'s
+  `cost`). The owner's choice at Session 12's plan: the header stays the Lead and every row,
+  and moves with each step rather than only after a main turn.
+- 2026-11-25, *The run model* and *The panel*: a helper is drawn under its parent only while
+  both sit in one section, and otherwise as any row in its own state's section, so Needs you
+  still shows it and the headings count as before. The owner's choice at Session 12's plan.
+- 2026-11-25, *The run model*: a helper's tokens and estimate roll up into its parent's, at
+  every level; its time and context stay its own, since a helper's minutes pass inside its
+  parent's. The owner's choice at Session 12's plan.
+- 2026-11-25, *The panel*: the session line shows every plan-limit window the engine reports,
+  in its order, not only the most used. The owner's choice at Session 12's plan.
