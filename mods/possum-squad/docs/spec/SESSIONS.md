@@ -2598,6 +2598,23 @@ bound), *Known debt*; 12a's done-note; the declarations' `AgentInfo.label`.
   - the worst list 1,845 nodes, 8 deep, at most 232,837 characters (horror), 92% and 89% of the
     bound (227,422 before);
   - the gate green on CLI 2.1.330.
+- **Review (`/code-review high`), 6 findings: all fixed, the user's choice.**
+  - **The engine's fallback label could show as a summary:** until a summary exists the engine
+    lists the agent's own description, which may not be the row's (a resume's, or one another
+    plugin's spawn hook rewrote). `readList` now reads a label equal to the entry's own
+    `description` as blank.
+  - **A Windows path never named its file first:** `activityText` splits at the last `/` or
+    `\`, and a cut folder starts at its next separator of either kind.
+  - **Unordered list reads could land late:** the beat starts one each second, unawaited. Each
+    read is now numbered, and one answered after a later-started read applied writes nothing.
+  - **No test covered the summary on a waiting or a starting row:** one now does, beside the
+    engine's own description read as none.
+  - **Comments ran to paragraphs:** `SHRINKS`' and `tick`'s cut to one line each.
+  - **Known debt still said 86%** of the characters for the fullest list: now 89%.
+  - **Falsified,** each failing at its own test: the engine's description taken as a summary;
+    a backslash path split at `/` alone; a late read applied; the summary on working rows alone.
+  - **Numbers after the review:** 315 tests (+2) in 26 files: activity 8 (+2), model 58 (two
+    expectations added in place), the rest unchanged; about 18 s. `validate` unchanged.
 
 ---
 

@@ -9,7 +9,7 @@ import { PERMISSION_FROM_AGENT, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE
 type Surface = (typeof SURFACES)[number]
 type Use = { name: string; input: unknown }
 // What the engine's list says of each agent: its status, and its progress summary when it has one.
-type Listed = Record<string, { status: string; label?: string }>
+type Listed = Record<string, { status: string; label?: string; description?: string }>
 
 // The engine beneath the mod: its panes, a store that opens no pane by itself and keeps Finished open, a pinned clock,
 // agent ids from their tool calls, each model request answering with the calls queued for its agent, and the agent list
@@ -18,7 +18,8 @@ function world(on: On) {
   const seen = engine(on)
   store(on, { prefs: { autoOpen: 'never', finishedOpen: true } })
   const clock = mock.clock(on, { now: 1_000 })
-  const given = { listed: {} as Listed, reads: 0, isRefused: false }
+  // `held`: the next read takes the list as it is then, and answers only once the test releases it.
+  const given = { listed: {} as Listed, reads: 0, isRefused: false, held: undefined as Promise<void> | undefined }
   const queued: Record<string, Use[][]> = {}
   on('agent.spawn', (_, e) => ({ model: 'claude-haiku-5-5', agentId: e.tool_use_id.replace('toolu_', 'agent-') }))
   on('turn.start', (_, e) => ({ turnId: e.turnId }))
@@ -29,10 +30,14 @@ function world(on: On) {
     const toolUses = queued[e.agentId ?? '']?.shift() ?? []
     return { ...STEPPED, turnId: e.turnId, index: e.index, toolUses }
   })
-  on('agent.list', () => {
+  on('agent.list', async () => {
     given.reads++
     if (given.isRefused) return { deny: 'the fixture refuses the list' }
-    return { value: Object.entries(given.listed).map(([id, one]) => ({ id, description: '', ...one })) } as never
+    const listing = given.listed
+    const held = given.held
+    given.held = undefined
+    if (held !== undefined) await held
+    return { value: Object.entries(listing).map(([id, one]) => ({ id, description: '', ...one })) } as never
   })
   const queue = (n: number, uses: Use[]) => {
     const list = queued[`agent-${n}`] ?? []
@@ -222,4 +227,58 @@ test('the beat reads the list once a beat while a live run shows, and not behind
   await clock.advance(3_000)
   await settled()
   expect(given.reads).toBe(atEnd)
+})
+
+test("a waiting or a starting row shows its summary; a label that is the engine's own description is none, though the row's differs", async ($, on) => {
+  const { clock, given, queue } = world(on)
+  await $.command.run(POSSUMS)
+  await working($, 1)
+  await working($, 2)
+  await $.agent.spawn({ ...GENERIC, tool_use_id: 'toolu_3', description: 'Tend bed 3' } as never)
+  queue(1, [run('ping -c 40 127.0.0.1')])
+  queue(2, [run('npm test')])
+  await step($, 1)
+  await step($, 2)
+  given.listed = { 'agent-1': { status: 'waiting', label: 'Waiting on the ping' } }
+  await ends($, 1)
+  given.listed = {
+    'agent-1': { status: 'waiting', label: 'Waiting on the ping' },
+    // A resume's description, say, which the row does not hold: the engine's stand-in for no summary.
+    'agent-2': { status: 'running', label: 'Finish the beds', description: 'Finish the beds' },
+    'agent-3': { status: 'running', label: 'Getting ready' },
+  }
+  await clock.advance(1_000)
+  await settled()
+  for (const surface of SURFACES) {
+    const { texts } = await drawn($, clock, surface)
+    expect(texts).toContain(STRINGS.states.waiting)
+    expect(texts).toContain('Waiting on the ping')
+    expect(texts).toContain(STRINGS.states.starting)
+    expect(texts).toContain('Getting ready')
+    expect(texts).not.toContain('Finish the beds')
+    expect(texts).toContain('Running npm test')
+  }
+})
+
+test("a read answered after a later one leaves the later one's summary", async ($, on) => {
+  const { clock, given, queue } = world(on)
+  await $.command.run(POSSUMS)
+  await working($, 1)
+  queue(1, [run('npm test')])
+  await step($, 1)
+  let release = () => {}
+  given.held = new Promise<void>(resolve => (release = resolve))
+  given.listed = { 'agent-1': { status: 'running', label: 'Reading the config' } }
+  await clock.advance(1_000)
+  given.listed = { 'agent-1': { status: 'running', label: 'Running the tests' } }
+  await clock.advance(1_000)
+  await settled()
+  release()
+  await settled()
+  await clock.advance(100)
+  for (const surface of SURFACES) {
+    const { texts } = await drawn($, clock, surface)
+    expect(texts).toContain('Running the tests')
+    expect(texts).not.toContain('Reading the config')
+  }
 })

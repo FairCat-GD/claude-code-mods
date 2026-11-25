@@ -111,8 +111,7 @@ function stopClock(own = generation) {
 
 // A closed pane, or no run that is live or may still fall back to Helper, stops the clock. A pane open behind another keeps it, undrawn, so its times are right
 // the moment it shows. A role settled here redraws the pane by its write. The gallery's sprites move inside themselves,
-// so a beat leaves it undrawn: a redraw would send every one of its sprites again for the header's time alone. The
-// engine's list is read once a beat at most: for a kept turn's end, or for the summaries of live rows the pane shows.
+// so a beat leaves it undrawn: a redraw would send every one of its sprites again for the header's time alone.
 async function tick($: Watching, own: number) {
   if (own !== generation) return
   beats++
@@ -125,6 +124,7 @@ async function tick($: Watching, own: number) {
     const flags = await read($, view).catch(() => NO_FLAGS)
     const hasSettled = await settleHelpers($, held)
     if (hasKept(held)) await settleHeld($, held)
+    // One list read a beat at most: for a kept end, else for the summaries of the live rows shown.
     else if (pane.isShown && !flags.isGalleryOpen && shownRuns(held).some(isLive)) void readList($)
     if (pane.isShown && !hasSettled && !flags.isGalleryOpen) $.ui.invalidate('ui.render')
   } catch {
@@ -166,22 +166,37 @@ async function settleHeld($: Watching, held: Runs) {
   void readList($)
 }
 
+// Reads start unawaited each beat, so one answered late must not undo a later one's: each is numbered.
+let readsStarted = 0
+let readApplied = 0
+
+// The engine's fallback label is its own description, which may not be the row's (a resume's, another plugin's): no summary.
+const labelOf = (agent: { label?: unknown; description?: unknown }) =>
+  typeof agent.label !== 'string' ? undefined : agent.label === agent.description ? '' : agent.label
+
 // The engine's list settles each kept turn's end (`listed`) and gives each live row its progress summary
 // (`summarized`); a list that cannot be read leaves the summaries be. Nothing awaits it (N-07), so every fault ends here.
 async function readList($: Watching) {
+  const own = ++readsStarted
   let statuses: Map<string, string> | undefined
-  let labels = new Map<string, string>()
+  const labels = new Map<string, string>()
   try {
     const agents: unknown = await $.agent.list()
     const known = Array.isArray(agents) ? agents.filter(isListed) : undefined
     statuses = known === undefined ? undefined : new Map(known.map(agent => [agent.id, agent.status] as const))
-    labels = new Map((known ?? []).flatMap(agent => (typeof agent.label === 'string' ? [[agent.id, agent.label] as const] : [])))
+    for (const agent of known ?? []) {
+      const label = labelOf(agent)
+      if (label !== undefined) labels.set(agent.id, label)
+    }
   } catch {
     statuses = undefined
   }
   const now = await timeOrNone($)
+  if (own < readApplied) return
+  readApplied = own
   let toasts: string[] = []
   const settle = (latest: Runs) => {
+    if (own < readApplied) return latest
     const ended = listed(latest, statuses, now)
     return summarized(now === undefined || ended === latest ? ended : fellBack(ended, now, HELPER), labels)
   }
@@ -199,7 +214,7 @@ async function readList($: Watching) {
   for (const text of toasts) void toastUnseen($, text)
 }
 
-const isListed = (agent: unknown): agent is { id: string; status: string; label?: unknown } =>
+const isListed = (agent: unknown): agent is { id: string; status: string; label?: unknown; description?: unknown } =>
   typeof agent === 'object' &&
   agent !== null &&
   typeof (agent as { id?: unknown }).id === 'string' &&

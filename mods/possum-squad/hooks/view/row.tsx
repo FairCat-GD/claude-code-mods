@@ -73,9 +73,7 @@ export const COLOURS: Record<StateId | 'planned', Color> = {
   stopped: 'inactive',
 }
 
-// The desktop lays Boxes out as CSS flex, where a one-line Text keeps its Box from shrinking below the text's width and
-// pushes what follows (`peek`, the state word) out of the pane, unless the Box may shrink to nothing. The row's column
-// takes the minimum alone: hiding its overflow could clip the role picker.
+// In the desktop's CSS flex a one-line Text holds its Box at its width, pushing `peek` out, unless its minimum is 0.
 const SHRINKS = { flexGrow: 1, flexShrink: 1, minWidth: 0, overflow: 'hidden' } as const
 
 const join = (parts: readonly (string | undefined)[]) => parts.filter(part => part !== undefined && part !== '').join(STRINGS.row.separator)
@@ -223,6 +221,7 @@ export function desktopRow(table: DesktopTable, row: RowData, picker: RolePicker
   return (
     <Box key={row.id} flexDirection="row" gap={1} {...indentOf(depth)}>
       {sprite ?? <Text color={COLOURS[row.state]}>{STRINGS.row.mark}</Text>}
+      {/* The minimum alone: hiding the column's overflow could clip the role picker. */}
       <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0}>
         {firstLine(table, row)}
         {detailsLine(table, row, picker, true)}

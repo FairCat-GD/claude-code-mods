@@ -747,6 +747,9 @@ test('a path reads its file name first, then its folder, a cut one from its next
   expect(activityText({ tool: 'Edit', target: 'rack.txt' })).toBe('Editing rack.txt')
   expect(activityText({ tool: 'Read', target: 'k.txt', isCut: true })).toBe('Reading …k.txt')
   expect(activityText({ tool: 'Read', target: '/hosts' })).toBe('Reading hosts in /')
+  // A Windows path, by its backslashes.
+  expect(activityText({ tool: 'Read', target: 'ds\\north\\shed\\rack.txt', isCut: true })).toBe('Reading rack.txt in …\\north\\shed')
+  expect(activityText({ tool: 'Read', target: 'C:\\rack.txt' })).toBe('Reading rack.txt in C:')
   expect(activityText({ tool: 'Bash', target: './plant --bed', isCut: true })).toBe('Running ./plant --bed…')
   expect(activityText({ tool: 'Bash', target: 'npm test' }, true)).toBe('Ran npm test')
   expect(activityText({ tool: 'Read', target: 'north/rack.txt' }, true)).toBe('Read rack.txt in north')

@@ -22,7 +22,8 @@ works on, and reads in the past once the agent is done; its `peek` button stays 
 ### Changed
 
 - **A file names itself first:** "Reading package.json in …/mods/possum-squad" instead of a long
-  path whose file name the line cut off. Peek's last actions read the same way. A long shell
+  path whose file name the line cut off, Windows paths included. Peek's last actions read the
+  same way. A long shell
   command still shows its start, now with `…` where it was cut.
 - **A finished, failed or stopped row reads its last call in the past:** "Ran npm test", "Read
   package.json in …", or "No tool calls". A waiting row keeps "Running …", since what it waits

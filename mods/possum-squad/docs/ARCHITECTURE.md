@@ -606,10 +606,15 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   after any write whose runs hold a turn's end (`hasKept`), so every subagent event reads the
   list while a run is held or waits, and the pane closed needs no beat for it. `readList` reads
   `$.agent.list()` (a refusal, a throw or an answer that is no list reads as unread; an entry
-  without a text `id` and `status` is left out), each entry's `label` when it is text (0.15.0),
-  the time, then `runs`, and writes only when `listed` or `summarized` changes a run, through
+  without a text `id` and `status` is left out), each entry's `label` when it is text (0.15.0;
+  one equal to the entry's own `description`, the engine's fallback, reads as blank, since the
+  row's description may differ: a resume's, or one another plugin's spawn hook rewrote), the
+  time, then `runs`, and writes only when `listed` or `summarized` changes a run, through
   `update`, with `fellBack` at that time when `listed` changed one; then one `toastUnseen` per
-  run it ended (`endedToasts`). An unread list leaves the summaries as they were. It is the only
+  run it ended (`endedToasts`). An unread list leaves the summaries as they were. Each read is
+  numbered as it starts (`readsStarted`), and one answered after a later-started read has
+  applied (`readApplied`) writes nothing, so a slow answer never puts back an older summary or
+  status. It is the only
   caller of `$.agent.list`; the clock's beat starts it too (*The panel*).
 - Every hook but `command.run` and `ui.render` carries `.catch((_$, e, next) => next(e))`
   (`turn.step`'s a generator doing `return yield* next(e)`), gating or not, so the rule is one
@@ -1295,8 +1300,8 @@ refusal never puts the engine's error in the pane's place. The drawing writes no
   a press writes the flag through `writeStore`, then invalidates the drawing.
 - `rowData` (`hooks/view/runs.ts`) makes a run's `RowData` from it and the model's figures, its
   role's name from `STRINGS.roles`, and the activity line through `activityText` (0.15.0):
-  - a path tool's call names its file first, then its folder after `STRINGS.inFolder`'s
-    ` in `: "Reading rack.txt in north/shed"; a cut path's folder starts at its next whole
+  - a path tool's call names its file first, split at its last `/` or `\` (a Windows path),
+    then its folder after `STRINGS.inFolder`'s ` in `: "Reading rack.txt in north/shed"; a cut path's folder starts at its next whole
     name after `…` ("in …/north/shed"), one with no folder reads "Reading rack.txt", and a cut
     one with no `/` "Reading …k.txt". The desktop always cuts a line's end, and a docked
     terminal row leaves about 35 columns for it, so the name leads: the owner's choice at the
@@ -1808,7 +1813,7 @@ unread.
   longer move.
 - **The desktop's bound is read from its code, not seen at its edge:** the gallery's parts and
   the fullest list stay under it by the kit's port of its count, a part at 71% of its
-  characters and the fullest list, with a Peek open, at 92% of its nodes and 86% of its
+  characters and the fullest list, with a Peek open, at 92% of its nodes and 89% of its
   characters, and a later
   app may count otherwise. A tree past it would freeze the pane, as the 0.9.0 gallery did, with
   nothing for the mod to hear. The owner's look at 0.10.1 saw every part draw.
@@ -1865,9 +1870,9 @@ unread.
   characters, so on a docked terminal row the file's own folder is what the line's end cuts
   (at Session 12b's hand check, a folder near the path's start followed "Read tools.ts in …/").
   Peek's actions wrap whole.
-- **A path's folder is told from its file by its last `/`,** so a path that is not one (a tool
-  given markup or a URL as its path) splits where its last slash falls; it still draws as plain
-  `Text`.
+- **A path's folder is told from its file by its last `/` or `\`,** so a path that is not one
+  (a tool given markup or a URL as its path) splits where its last slash falls; it still draws
+  as plain `Text`.
 - **Peek's records add to every write of `runs`:** a run keeps at most about 2.5k characters
   more (a brief and an answer of 600, five actions and ten files of 80), and every step
   rewrites the whole value.
@@ -1887,7 +1892,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 313 pass, in 26 files: activity 6, attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 58, nesting 6, pane-sprites 9, panel 10, pass-through 7, peek 12, picker 12, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, waiting 11; about 18 s |
+| `claude plugin test mods/possum-squad` | 315 pass, in 26 files: activity 8, attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 58, nesting 6, pane-sprites 9, panel 10, pass-through 7, peek 12, picker 12, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, waiting 11; about 18 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.agent.list`, `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |

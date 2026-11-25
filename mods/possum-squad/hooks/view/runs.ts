@@ -17,12 +17,14 @@ export function activityText(activity: Activity, isPast = false): string {
   }
   const isCut = activity.isCut === true
   if (!PATH_TOOLS.has(activity.tool)) return `${verb} ${target}${isCut ? STRINGS.cut : ''}`
-  const at = target.lastIndexOf('/')
+  // A Windows path's separator is the backslash.
+  const at = Math.max(target.lastIndexOf('/'), target.lastIndexOf('\\'))
   if (at === -1 || at === target.length - 1) return `${verb} ${isCut ? STRINGS.cut : ''}${target}`
   const folder = target.slice(0, at)
   // A cut folder starts at its next whole name.
-  const whole = isCut && folder.includes('/') ? folder.slice(folder.indexOf('/')) : folder
-  return STRINGS.inFolder(verb, target.slice(at + 1), `${isCut ? STRINGS.cut : ''}${whole === '' ? '/' : whole}`)
+  const first = folder.search(/[\\/]/)
+  const whole = isCut && first !== -1 ? folder.slice(first) : folder
+  return STRINGS.inFolder(verb, target.slice(at + 1), `${isCut ? STRINGS.cut : ''}${whole === '' ? target.charAt(at) : whole}`)
 }
 
 // The one-off a row's sprite plays while its moment is fresh: its ending, its dressing when the role came after its
