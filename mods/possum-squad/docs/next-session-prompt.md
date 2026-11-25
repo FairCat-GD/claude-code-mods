@@ -18,11 +18,10 @@ Release 0.15.0.
 - **Round 1 is the agents panel:** Sessions 0–12, 7a, 9a and 12a are done; 12b, 12c, 12d and 13
   remain, then 1.0.0 (the header of `SESSIONS.md`, and `SPEC.md` decision 1's amendment).
   Session 13's block carries amendments from the review of its plan for when it runs.
-- **Push status:** `origin/main` holds everything through
-  `review(possum-squad): 12a's order toasted before waiting, and 7 smaller` (pushed on
-  2026-11-25). Session 12a's commit, `feat(possum-squad): waiting, not finished (0.14.0)`, waits
-  locally, and its review after it. List `origin/main..HEAD` before any push, and name any
-  commit that is not the session's.
+- **Push status:** pushed on 2026-11-25 with the owner's approval: `origin/main` holds
+  everything through `review(possum-squad): an undrawn pane kept no clock, and 5 smaller`,
+  Session 12a's review, with 0.14.0 before it. Nothing waits locally. List `origin/main..HEAD`
+  before any push, and name any commit that is not the session's.
 - **What 12b builds on, from 12a:**
   - `readList` in `hooks/register.tsx` is the one caller of `$.agent.list()`, started unawaited
     after a record that keeps a turn's end, and by the beat (`tick` → `settleHeld`) only while
@@ -39,6 +38,8 @@ Release 0.15.0.
     `Box`, then the `peek` `Button`.
   - A waiting row (12a) shows its last call too, as a live row: whether 12b's past tense applies
     to it is the start's question (it is not ended).
+- **The engine ran every Agent call in the background** at 2.1.330, even one asked for in the
+  foreground (12a's review): a foreground subagent's list status at its end is unmeasured.
 - **The tests:** a test that ends a run uses `turnEnds` (`tests/engine.ts`), which lets the
   unawaited list read land; the kit rejects an unhooked `$.agent.list()`, so a world that needs
   the list hooks `agent.list` (`tests/waiting.test.ts`). A model test ends a run with
@@ -49,7 +50,7 @@ Release 0.15.0.
   desktop app.
 - **The engines:** CLI 2.1.330; the desktop app ran engine 2.1.330 on 2026-11-23, the last
   reading.
-- **Baseline** (ARCHITECTURE's table, v0.14.0, CLI 2.1.330): 303 tests in 25 files, about 17 s;
+- **Baseline** (ARCHITECTURE's table, v0.14.0, CLI 2.1.330): 304 tests in 25 files, about 17 s;
   the tools' specs 10 in 2; `validate` 11 hooks, 4 gating each with a `.catch`, 3 state keys,
   and the calls line with `$.agent.list`.
 

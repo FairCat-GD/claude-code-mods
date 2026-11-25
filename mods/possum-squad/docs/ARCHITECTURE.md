@@ -873,7 +873,8 @@ each returning the same object when the record changes nothing.
   seen. `fellBack` settles Helper on every run with no role that is T-04 past its start, or
   has ended and is neither a teammate's nor one whose turn left work in the background
   (`hasBackgroundWork`, set by a step with a call whose input has `run_in_background`, and
-  cleared when its next turn starts). A held or `waiting` run has not ended, so the end's rule
+  cleared when its next turn starts, or when the engine's list says the run ended, since its
+  background work is then done; an end an unread list gives keeps it). A held or `waiting` run has not ended, so the end's rule
   waits for the end the list gives. `keepsClock` is true for a live run, a held or `waiting` one
   included, or one with no role.
 - **Numbers:** `figures` gives fresh tokens (input, cache writes and output), the elapsed time
@@ -1528,8 +1529,9 @@ agent's spawn (*The hooks*):
 - asks `$.ui.panes()`, and opens nothing while the pane is there, shown or behind another tab;
 - opens `{ id, title, columns }` with no `focus`. Made unasked, the open is placed from 144
   terminal columns (110 for an id the person has opened), and waits undrawn below that
-  (*Context*). A placed open marks the pane open and arms the clock; one left waiting starts no
-  clock, so its first drawing or the person's open brings the times.
+  (*Context*). The open marks the pane open and arms the clock when a run is live, placed or
+  left waiting undrawn (0.14.0): the beat finds an undrawn pane open and not shown, so it reads
+  the list for a waiting run and redraws nothing, and a drawing arms no clock.
 
 A clear forgets the person's close: the engine resets `view` with the rest of `$.state`, and
 the list starts over.
@@ -1712,6 +1714,10 @@ unread.
 - **A waiting run's end, with the pane closed, shows at the next subagent event or the pane's
   next open:** no beat runs then (N-03), and the main session's events read no list. Its time
   and its toast run to that read, so they are long by the gap.
+- **A foreground subagent's end is unmeasured:** at 2.1.330 the engine ran every Agent call in
+  the background, even one asked for in the foreground (Session 12a's review), and each read at
+  a turn's end listed the agent ended. Were a foreground agent listed `running` then, its end
+  would wait, with the pane closed, for another subagent's event or the pane's open.
 - **A waiting run's end is timed at the read that saw it,** up to a beat late with the pane
   open.
 - **A turn's end the list never answers is held, drawn as it was,** until a beat finds it past
@@ -1814,7 +1820,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 303 pass, in 25 files: attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 54, nesting 6, pane-sprites 9, panel 10, pass-through 7, peek 12, picker 12, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, waiting 11; about 17 s |
+| `claude plugin test mods/possum-squad` | 304 pass, in 25 files: attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 55, nesting 6, pane-sprites 9, panel 10, pass-through 7, peek 12, picker 12, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, waiting 11; about 17 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.agent.list`, `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |

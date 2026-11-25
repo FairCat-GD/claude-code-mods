@@ -232,7 +232,8 @@ another turn, and its row works again; it ends when Claude Code says it has, and
 does its row go to Finished, cheer, take Helper if no rule dressed it, and toast. For the
 moment its turn ends, until Claude Code answers, the row stays as it was; if no answer comes
 within five seconds, the next beat of the pane's clock ends it as its turn did. With the pane
-closed, a waiting agent's end shows at the next event of any agent, or when you open the pane.
+closed, a waiting agent's end shows at the next event of another subagent (not the main
+session's), or when you open the pane.
 
 **Toasts.** While the list is out of sight (the pane closed, behind another pane's tab, waiting
 to be drawn, collapsed, or showing the gallery), a small toast tells you instead:
@@ -267,8 +268,8 @@ possum-squad sees anyway, never from asking a model, by the first of these that 
    one that commits, pushes, tags or opens a pull request a Courier. Six reads and searches with
    nothing else make a Scout. Any other shell command says nothing.
 4. **Helper,** when nothing has settled it a minute after it started, or when it ends first. A
-   teammate whose turn ends, an agent waiting on its own work, or one whose turn started work in
-   the background, keeps its role open for its next turn, or the minute.
+   teammate whose turn ends, or an agent waiting on its own work, keeps its role open for its
+   next turn, or the minute.
 
 Until its role settles, a row shows none. Once settled, a run's role changes only when you
 change it.

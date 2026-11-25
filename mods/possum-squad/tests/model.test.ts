@@ -428,9 +428,9 @@ test("the fallback settles a run past T-04 or ended, but not a teammate's end, a
   expect(fellBack(dressed, ROLE_SETTLES_MS * 2, HELPER)).toBe(dressed)
 })
 
-test('a run whose turn left work in the background is not Helper at that end, and its next turn starts clean', () => {
+test('a run whose turn left work in the background is not Helper at an end an unread list gives, and its next turn starts clean', () => {
   const started = turnStarted(spawned(NO_RUNS, RAKES, 'agent-1', 0), 'agent-1')
-  const waiting = endedNow(stepped(started, 'agent-1', { ...STEP, hasBackground: true }), 'agent-1', ANSWERED, 10)
+  const waiting = listed(turnEnded(stepped(started, 'agent-1', { ...STEP, hasBackground: true }), 'agent-1', ANSWERED, 10), undefined)
   expect(waiting.rows['agent-1']?.hasBackgroundWork).toBe(true)
   expect(fellBack(waiting, 10, HELPER)).toBe(waiting)
   expect(fellBack(waiting, ROLE_SETTLES_MS, HELPER).rows['agent-1']?.role).toEqual(settledAt(HELPER, ROLE_SETTLES_MS))
@@ -813,4 +813,14 @@ test('a waiting run is live: it keeps the clock, is never quiet, is not Helper b
   expect(endOf(next)).toEqual({ state: 'working', endedAt: undefined, keptEnding: undefined })
   // A held run's next turn too, even at the time it was last heard.
   expect(endOf(turnStarted(held, 'agent-1', held.rows['agent-1']?.heardAt))).toEqual({ state: 'working', endedAt: undefined, keptEnding: undefined })
+})
+
+test('a run whose turn started background work is Helper at the end the list confirms, not at one an unread list gives', () => {
+  const started = turnStarted(spawned(NO_RUNS, RAKES, 'agent-1'), 'agent-1', 10)
+  const held = turnEnded(stepped(started, 'agent-1', { ...STEP, hasBackground: true }), 'agent-1', ANSWERED, 50)
+  const roleAt = (runs: Runs) => fellBack(runs, 90, HELPER).rows['agent-1']?.role
+  expect(roleAt(listed(held, statuses('completed'), 90))).toEqual(settledAt(HELPER, 90))
+  expect(roleAt(listed(listed(held, statuses('waiting'), 60), statuses(), 90))).toEqual(settledAt(HELPER, 90))
+  // A list that could not be read says nothing of that work: the run may come back, so its role waits.
+  expect(roleAt(listed(held, undefined, 90))).toBeUndefined()
 })

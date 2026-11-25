@@ -55,8 +55,7 @@ const STARTS_OVER = new Set(['clear', 'resume', 'fork'])
 // account's, so the Lead starts over with them. A reload drops them until a measure or a drawing brings them back.
 let knownLimits: Limit[] | undefined
 
-// What the clock's beat, the recording hooks and the list's read reach: the list's read toasts, so it needs the panes and
-// the store too.
+// What the beat, the recording hooks and the list's read reach; a toast needs the panes and the store.
 type Watching = Pick<EngineInterface, 'agent' | 'clock' | 'state' | 'store' | 'ui'>
 
 // The person's answer, kept out of every request the engine lets it be.
@@ -110,8 +109,7 @@ function stopClock(own = generation) {
 
 // A closed pane, or no run that is live or may still fall back to Helper, stops the clock. A pane open behind another keeps it, undrawn, so its times are right
 // the moment it shows. A role settled here redraws the pane by its write. The gallery's sprites move inside themselves,
-// so a beat leaves it undrawn: a redraw would send every one of its sprites again for the header's time alone. While a
-// turn's end is kept, each beat reads the engine's list.
+// so a beat leaves it undrawn: a redraw would send every one of its sprites again for the header's time alone.
 async function tick($: Watching, own: number) {
   if (own !== generation) return
   beats++
@@ -144,8 +142,7 @@ async function settleHelpers($: Pick<EngineInterface, 'state' | 'clock'>, held: 
   }
 }
 
-// A turn's end the list never answered ends past its bound, toasting as any end; then the list is read, unawaited, as
-// every beat does while a turn's end is kept. A fault here leaves the clock running.
+// While a turn's end is kept, each beat ends a hold past its bound, then reads the list; a fault leaves the clock running.
 async function settleHeld($: Watching, held: Runs) {
   try {
     const now = await $.clock.now()
@@ -165,9 +162,7 @@ async function settleHeld($: Watching, held: Runs) {
   void readList($)
 }
 
-// The engine's list settles each run whose turn's end is kept: listed waiting, it waits; listed ended or not listed, it
-// ends with that ending, Helper and its toast. No event waits on it (N-07), so every fault ends here; a list that cannot
-// be read, or is no list, ends them as their turns did. It writes only when the list changes a run.
+// The engine's list settles each kept turn's end (`listed`). Nothing awaits it (N-07), so every fault ends here.
 async function readList($: Watching) {
   let statuses: Map<string, string> | undefined
   try {
@@ -257,15 +252,14 @@ async function forgetClose($: Pick<EngineInterface, 'state'>) {
 
 // The pane opens by itself as `autoOpen` says: never over the person's own close, never raising a pane already open,
 // never taking the keys. The spawn does not wait for it (N-07), so every fault here ends quietly. A pane left waiting
-// undrawn (too narrow for an unasked open) starts no clock; its first drawing, or the person's open, brings the times.
+// undrawn (too narrow for an unasked open) is open, so it starts the clock too: a drawing never does.
 async function autoOpen($: Watching, isFirst: boolean) {
   try {
     const { autoOpen: when } = readPrefs(await $.store.get('prefs'))
     if (when === 'never' || (when === 'first' && !isFirst)) return
     if ((await read($, view)).isClosedByPerson) return
     if ((await $.ui.panes()).some(one => one.id === PANE)) return
-    const opened = await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS })
-    if (!opened.isPlaced) return
+    await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS })
     isPaneOpen = true
     await armIfLive($)
   } catch {
@@ -418,8 +412,7 @@ async function showFinished($: Pick<EngineInterface, 'store' | 'ui'>, isOpen: bo
 }
 
 // The reading guard (I-05): an event's record is read and written apart from its result, so a fault here loses only
-// the panel's record, never the event. While a turn's end is kept, each record reads the engine's list, unawaited, so a
-// waiting run ends with the pane closed too.
+// the panel's record, never the event. While a turn's end is kept, each record reads the list, the pane closed or not.
 async function record($: Watching, change: (held: Runs) => Runs) {
   try {
     listAfter($, await update($, runs, change))
@@ -678,9 +671,8 @@ export const register: Register = on => {
     return started
   }).catch((_$, e, next) => next(e))
 
-  // The main session's turn counts once, at its end: its tokens and time are the Lead's. A subagent's turn's end is
-  // kept until the engine's list says whether it waits on its own work, a read this record starts and never awaits;
-  // Helper at its end, and a long run's toast, come with the end the list gives.
+  // The main session's turn counts once, at its end: its tokens and time are the Lead's. A subagent's end, its Helper and
+  // its toast wait for the engine's list.
   on('turn.complete', async ($, e, next) => {
     const completed = await next(e)
     const { agentId } = e

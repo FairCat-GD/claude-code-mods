@@ -5,7 +5,7 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 import { PANE_COLUMNS } from '../hooks/config'
 import { PANE, view } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
-import { engine, hooksOf, POSSUMS, possums, store } from './engine'
+import { engine, hooksOf, POSSUMS, possums, settled, store } from './engine'
 import { SPAWN } from './fixtures/events'
 
 const OPENED = { id: PANE, title: STRINGS.title, columns: PANE_COLUMNS }
@@ -23,10 +23,6 @@ function world(on: On, autoOpen?: string, refusal?: string) {
   return seen
 }
 
-// The open an agent may make is not awaited by its spawn, so each spawn here lets it settle before the test looks.
-const settled = async () => {
-  for (let i = 0; i < 100; i++) await Promise.resolve()
-}
 let spawned = 0
 const spawn = async ($: Engine) => {
   const result = await $.agent.spawn({ ...SPAWN, tool_use_id: `toolu_${++spawned}`, description: `Sweep path ${spawned}` })
@@ -168,7 +164,7 @@ function standIn(autoOpen: string, isPlaced = true) {
       spawns++
       const e = { ...SPAWN, tool_use_id: `toolu_stand_${spawns}`, description: `Rake bed ${spawns}` }
       await hook('agent.spawn')($, e, async () => ({ model: 'claude-haiku-5-5', agentId: `agent-stand-${spawns}` }))
-      for (let i = 0; i < 100; i++) await Promise.resolve()
+      await settled()
     },
     close: async (kind: 'person' | 'plugin') => {
       await $.ui.close()
@@ -205,9 +201,12 @@ test('with autoOpen at first, a person who closed the pane before any agent keep
   expect(engine.timers.every(timer => timer.isCancelled)).toBe(true)
 })
 
-test('a pane opened by itself that waits undrawn starts no clock; its first drawing or the person brings the times', async () => {
+// Its beat finds the pane open but not shown, so it reads the list for a waiting run and redraws nothing; a drawing
+// arms no clock, so a waiting run would otherwise be read again only at another agent's event.
+test('a pane opened by itself that waits undrawn starts the clock, as any open pane does', async () => {
   const engine = standIn('first', false)
   await engine.spawn()
-  expect([engine.opens, engine.timers]).toEqual([[OPENED], []])
+  expect([engine.opens, engine.timers.length]).toEqual([[OPENED], 1])
   await engine.close('plugin')
+  expect(engine.timers.every(timer => timer.isCancelled)).toBe(true)
 })

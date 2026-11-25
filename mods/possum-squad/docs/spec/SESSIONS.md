@@ -2405,6 +2405,26 @@ collapsed view), *Attention* (the toasts), *Reach*, *Known debt*; the declaratio
   - the gate green on CLI 2.1.330.
 - **Confirms** (*The run model*: `waiting`): confirmed with the user at the plan, the hold and
   its ends as above; the desktop look waits for a push and an update.
+- **Review (`/code-review high`), 6 findings: all fixed, the user's choice.**
+  - **A foreground subagent's end was unmeasured:** every probed agent ran in the background.
+    Measured again (CLI 2.1.330): asked for the foreground, the engine still ran it in the
+    background, and the read at its turn's end listed it `completed`. No foreground agent can be
+    made here, so the case is a known-debt line, not code.
+  - **A pane auto-open left waiting undrawn started no clock,** and a drawing arms none, so
+    once drawn a waiting run was read again only at another subagent's event. Such an open now
+    arms the clock as any open does; its beat finds the pane not shown and redraws nothing.
+  - **`hasBackgroundWork` kept Helper off a run the list said had ended:** a confirmed end
+    (`listed` with a list) now drops the flag, so Helper settles then; an end an unread list
+    gives keeps it, as before.
+  - **The changelog and the guide said "any agent"** where only another subagent's event reads
+    the list.
+  - **Comments ran to paragraphs** (root `CLAUDE.md`, rule 5): each cut to its one-line why.
+  - **Two tests kept their own microtask settle** beside the new shared one: attention,
+    auto-open and pass-through now use `settled` from `tests/engine.ts`.
+  - **Falsified,** each failing at its own test: an undrawn auto-open arming nothing; a
+    confirmed end keeping the flag; an unread list dropping it.
+  - **Numbers after the review:** 304 tests (+1) in 25 files: model 55 (+1), the auto-open test
+    changed in place, the rest unchanged; about 17 s. `validate` unchanged.
 
 ---
 

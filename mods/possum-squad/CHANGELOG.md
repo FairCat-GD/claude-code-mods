@@ -24,8 +24,10 @@ reading finished.
 
 - **The toast for a long agent's end** comes when it really ends, timed through its wait, not
   when it hands back to wait on its own work. Helper, for an agent no rule dressed, also waits
-  for its real end.
-- **With the pane closed,** a waiting agent's end shows at the next event of any agent, or when
+  for its real end, and comes then even if a step of its turn started work in the background.
+- **A pane that opened by itself but waits for room to be drawn** keeps time like an open pane,
+  so a waiting agent's end is noticed there too.
+- **With the pane closed,** a waiting agent's end shows at the next event of another subagent, or when
   you open the pane.
 - **A session that loads 0.14.0 while it runs** starts its list of agents over: its stored
   shape changed.

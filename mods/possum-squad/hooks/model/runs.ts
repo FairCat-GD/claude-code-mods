@@ -348,16 +348,15 @@ export function asked(runs: Runs, agentId: string, at?: number): Runs {
   return pending === undefined ? runs : withPending(runs, agentId, { ...pending, ask })
 }
 
-// A run ends with its kept ending: at the turn's end, or, for a run that waited, at the time the list said it ended.
-function endedWith(run: Run, kept: KeptEnding, at: number): Run {
+// A run ends with its kept ending. Once the list says it ended, its background work is done, so Helper may settle it.
+function endedWith(run: Run, kept: KeptEnding, at: number, isConfirmed = false): Run {
   const { keptEnding: _, ask: __, ...rest } = run
-  return { ...rest, state: kept.state, endedAt: at, inFlight: 0 }
+  const ended: Run = { ...rest, state: kept.state, endedAt: at, inFlight: 0 }
+  if (isConfirmed) delete ended.hasBackgroundWork
+  return ended
 }
 
-// A run's turn ends, but whether the run has is the engine's list's to say: the agent may wait on its own background
-// work. So a live run keeps the ending and stays as it was until the list answers (`listed`). A run already ended ends
-// again at once; a loop no spawn claimed by its end is dropped and never drawn. An answer with text is kept for Peek;
-// one without leaves the last that had it, a teammate's earlier turn's.
+// A live run keeps its turn's ending until the engine's list says whether it waits on its own work (`listed`).
 export function turnEnded(runs: Runs, agentId: string, ending: Ending, at: number): Runs {
   const held = runs.rows[agentId]
   if (held === undefined) return runs.pending[agentId] === undefined ? runs : { ...runs, pending: without(runs.pending, agentId) }
@@ -371,17 +370,14 @@ export function turnEnded(runs: Runs, agentId: string, ending: Ending, at: numbe
   return hasEnded(run) ? pruned(next) : next
 }
 
-// What the engine's list says of an agent: `waiting` holds it; `running` or `pending` is a turn under way, which its own
-// events will tell; anything else, or its absence, is its end.
+// `running` or `pending` is a turn its own events will tell of; any other status, or none, is an end.
 const ENDS: readonly string[] = ['completed', 'failed', 'killed', 'idle']
 const WAITS = 'waiting'
 
 // Any run whose turn's end is kept, held or waiting: the list has yet to settle it.
 export const hasKept = (runs: Runs) => Object.values(runs.rows).some(run => run.keptEnding !== undefined)
 
-// The engine's list, read after a turn's end, settles each run whose ending is kept: listed waiting, it waits; listed
-// ended or not listed, it ends with that ending, at its turn's end, or at `now` for a run that waited, whose time ran
-// on. A list that could not be read (`undefined`) ends them all, so none waits for good.
+// A run that waited ends when the list says so, its time having run on; an unread list (`undefined`) ends them all.
 export function listed(runs: Runs, statuses: ReadonlyMap<string, string> | undefined, now?: number): Runs {
   let rows: Record<string, Run> | undefined
   for (const [key, run] of Object.entries(runs.rows)) {
@@ -391,7 +387,7 @@ export function listed(runs: Runs, statuses: ReadonlyMap<string, string> | undef
     let next = run
     if (statuses !== undefined && status === WAITS) next = run.state === 'waiting' ? run : { ...run, state: 'waiting' }
     else if (statuses === undefined || status === undefined || ENDS.includes(status))
-      next = endedWith(run, kept, run.state === 'waiting' ? (now ?? kept.at) : kept.at)
+      next = endedWith(run, kept, run.state === 'waiting' ? (now ?? kept.at) : kept.at, statuses !== undefined)
     if (next === run) continue
     rows ??= { ...runs.rows }
     rows[key] = next
@@ -399,8 +395,7 @@ export function listed(runs: Runs, statuses: ReadonlyMap<string, string> | undef
   return rows === undefined ? runs : pruned({ ...runs, rows })
 }
 
-// A turn's end the list has not answered within `LIST_ANSWER_MS` ends as the turn did: a read that never comes back
-// must not keep a run live for good. A run the list said waits is the list's to end.
+// A held turn's end no list has answered within `LIST_ANSWER_MS` ends as the turn did; a waiting run is the list's.
 export function heldOut(runs: Runs, now: number): Runs {
   const due = Object.entries(runs.rows).filter(
     ([, run]) => run.keptEnding !== undefined && run.state !== 'waiting' && now - run.keptEnding.at >= LIST_ANSWER_MS,

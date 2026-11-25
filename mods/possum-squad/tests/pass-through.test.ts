@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { hooksOf } from './engine'
+import { hooksOf, settled } from './engine'
 import {
   CLEARED,
   MEASURE,
@@ -179,7 +179,7 @@ test('a toast that cannot be shown never changes what the engine gave (I-05)', a
   expect(await plain('classic.PermissionRequest')($, PERMISSION_FROM_AGENT, async () => WAITING)).toEqual(WAITING)
   now += 61_000
   expect(await plain('turn.complete')($, TURN_COMPLETE, async () => TURN_COMPLETED)).toEqual(TURN_COMPLETED)
-  for (let i = 0; i < 100; i++) await Promise.resolve()
+  await settled()
   expect(tries).toEqual({ panes: 2, toasts: 1 })
 })
 
