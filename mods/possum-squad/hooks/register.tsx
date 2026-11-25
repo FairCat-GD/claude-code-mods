@@ -1,9 +1,9 @@
 import type { AgentSpawnInput, AgentSpawnResult, CommandRunResult, EngineInterface, Register, Timer, TurnStepResult } from 'claude-code'
 import { atom, read, update } from 'claude-code'
 
-import type { Lead, RoleId, Runs, Tokens, View } from '../types/index'
+import type { Lead, Limit, RoleId, Runs, Tokens, View } from '../types/index'
 import { PANE_COLUMNS } from './config'
-import { leadFigures, measured, NO_LEAD, totals, turnCounted } from './model/lead'
+import { leadFigures, limitsOf, measured, NO_LEAD, startedOver, totals, turnCounted } from './model/lead'
 import {
   asked,
   cleared,
@@ -47,6 +47,10 @@ export const lead = atom({ plugin: 'possum-squad', key: 'lead' } as const, NO_LE
 
 // A clear, a resume or a fork of the session starts the list over.
 const STARTS_OVER = new Set(['clear', 'resume', 'fork'])
+
+// The plan's limits last measured, in module memory: the engine empties `$.state` at a clear, and the limits are the
+// account's, so the Lead starts over with them. A reload drops them until a measure or a drawing brings them back.
+let knownLimits: Limit[] | undefined
 
 // The person's answer, kept out of every request the engine lets it be.
 const say = (text: string): CommandRunResult => ({ text, isTextDisplayOnly: true })
@@ -447,6 +451,7 @@ async function drawPane(
   const readRuns = await read($, runs).catch(() => undefined)
   const held = readRuns ?? NO_RUNS
   const main = await read($, lead).catch(() => NO_LEAD)
+  if (main.limits !== undefined) knownLimits = main.limits
   const flags = await read($, view).catch(() => NO_FLAGS)
   const prefs = await prefsOrDefaults($)
   const now = await $.clock.now().catch(() => Number.NaN)
@@ -626,7 +631,7 @@ export const register: Register = on => {
     if (STARTS_OVER.has(e.source)) {
       stopClock()
       await record($, held => cleared(held))
-      await recordLead($, () => NO_LEAD)
+      await recordLead($, () => startedOver(knownLimits))
     }
     return started
   }).catch((_$, e, next) => next(e))
@@ -634,6 +639,7 @@ export const register: Register = on => {
   // The Lead's context and the plan's limits, after each main turn and when a limit moves a point.
   on('session.measure', async ($, e, next) => {
     const echoed = await next(e)
+    knownLimits = limitsOf(e.rateLimits) ?? knownLimits
     await recordLead($, held => measured(held, e.context, e.rateLimits))
     return echoed
   }).catch((_$, e, next) => next(e))

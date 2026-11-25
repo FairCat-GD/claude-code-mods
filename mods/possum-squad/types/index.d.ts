@@ -61,6 +61,7 @@ export type Role = { id: RoleId; source: RoleSource; at?: number }
 export type Run = {
   // Absent until the spawn's result names it.
   agentId?: string
+  // The agent whose loop started it; once Finished drops that one, its nearest ancestor still kept.
   parentId?: string
   type: string
   description: string

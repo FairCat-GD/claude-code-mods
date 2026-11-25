@@ -2198,6 +2198,27 @@ run model* (nesting, numbers), *The panel* (the header), *Values: `$.state` and 
   - the gate green on CLI 2.1.330.
 - **Confirms** (*The run model*: nesting and roll-up): confirmed with the user at the plan, as
   refined there; the desktop look waits for a push and an update.
+- **Review (`/code-review high`), 5 findings: all fixed, the user's choice.**
+  - **Pruning a middle agent cut its kept helper out of the roll-up:** the helper's
+    `parentId` still named the dropped agent, so nothing linked it to the agent above. A kept
+    helper of a dropped run now takes its nearest kept ancestor's agent id, or none.
+  - **A `/clear` dropped the plan limits** until the next measure, and none follows a clear
+    (seen by hand, CLI 2.1.330: the line read `0 tokens · 0:00` after it). The Lead now starts
+    over with the last limits measured (`startedOver`, `knownLimits` in module memory, set by
+    each measure and each drawing).
+  - **`cleared` and `isEmpty` ignored `past.usd`:** a `past` of dollars alone now counts.
+  - **A window or tool named as an Object's own key** (`constructor`) read the prototype: both
+    lookups use `Object.hasOwn`.
+  - **Older models still served were priced as Opus 5.5:** `PRICES` holds every served model on
+    the pricing page, and `rowFor` takes the longest model leading an id, so a dated
+    `claude-opus-5-5-…` is never Opus 5's.
+  - **Falsified,** each failing at its own test: a kept helper left pointing at a dropped
+    agent; one with no kept ancestor keeping its old parent; a clear dropping the limits; a past
+    of dollars taken for empty; a window's name and a tool's verb looked up on the prototype;
+    a shorter model taken first; an older model's price wrong.
+  - **Numbers after the review:** 285 tests (+5) in 24 files: estimate 6 (+1), header 10 (+1),
+    model 50 (+2), nesting 6 (+1), the rest unchanged; about 15 s. `validate` unchanged. The
+    fullest list unchanged: the fixes draw nothing new.
 
 ---
 

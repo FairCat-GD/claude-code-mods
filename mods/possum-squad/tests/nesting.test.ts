@@ -188,3 +188,29 @@ test("a section's rows are drawn branch by branch in spawn order; a loop of pare
   const chain = Array.from({ length: NEST_LEVELS_DRAWN + 3 }, (_, at) => row(at, at === 0 ? undefined : at - 1))
   expect(shape(chain).map(([, depth]) => depth)).toEqual(chain.map((_, at) => at))
 })
+
+test('a kept helper of a dropped agent moves under the nearest agent still kept, or to the top with none, its share staying there', () => {
+  // A teammate starts P, which starts H; P ends while H still works, then more helpers than Finished keeps end.
+  let runs = settled(NO_RUNS, spawn('toolu_t', undefined, true), 'agent-t', 0)
+  runs = settled(runs, spawn('toolu_p', 'agent-t'), 'agent-p', 1)
+  runs = settled(runs, spawn('toolu_h', 'agent-p'), 'agent-h', 2)
+  // A top-level agent with a helper of its own, which ends before it.
+  runs = settled(runs, spawn('toolu_q'), 'agent-q', 3)
+  runs = settled(runs, spawn('toolu_r', 'agent-q'), 'agent-r', 4)
+  runs = turnEnded(runs, 'agent-p', { reason: 'answer', hasText: true }, 5)
+  runs = turnEnded(runs, 'agent-q', { reason: 'answer', hasText: true }, 6)
+  for (let i = 0; i < FINISHED_KEPT; i++) {
+    runs = settled(runs, spawn(`toolu_${i}`, 'agent-t'), `agent-${i}`, 10 + i)
+    runs = turnEnded(runs, `agent-${i}`, { reason: 'answer', hasText: true }, 100 + i)
+  }
+  expect([runs.rows['agent-p'], runs.rows['agent-q'], runs.rows['agent-h']?.parentId, runs.rows['agent-r']?.parentId]).toEqual([
+    undefined,
+    undefined,
+    'agent-t',
+    undefined,
+  ])
+  const teammate = runs.rows['agent-t']
+  if (teammate === undefined) throw new Error('no teammate')
+  // The teammate, P (in its pruned helpers), H, and the 30 helpers that ended: one step of 200 each.
+  expect(rolledUp(runs).get(teammate.order)?.tokens).toBe(200 * (FINISHED_KEPT + 3))
+})

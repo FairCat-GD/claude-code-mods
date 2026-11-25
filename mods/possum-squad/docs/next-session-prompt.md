@@ -20,10 +20,10 @@ chat's last act.
 ## State you need that is not in the specs
 
 - **Round 1 is the agents panel:** Sessions 0–12, 7a and 9a are done; Session 13 remains.
-- **Push status:** `origin/main` holds everything through Session 11's review commit, 0.12.0
-  among it. Session 12's commits (0.13.0, and its review's) are local until the user approves a
-  push. List `origin/main..HEAD` before any push, and name any commit that is not the
-  session's.
+- **Push status:** pushed on 2026-11-25 with the user's approval: `origin/main` holds
+  everything through Session 12's review commit, 0.13.0 among it. Nothing waits locally but what
+  a later commit records. List `origin/main..HEAD` before any push, and name any commit that is
+  not the session's.
 - **The desktop app has seen nothing since 0.11.0 by record:** 0.12.0's install was planned
   after its push, and no look at Peek, the collapsed view, the `widget` seat, the limits, the
   estimate or helpers is recorded (`docs/BACKLOG.md`, *Not yet checked by hand*). Session 11's
@@ -34,8 +34,10 @@ chat's last act.
   limits and the estimate, is at 1,845 nodes, 8 deep and 227,422 characters (92% and 87%).
 - **What Session 12 left:**
   - **`runs` is `runs-7`, `lead` is `lead-2`, `view` is `view-5`.**
-  - **The price table** (`hooks/data/prices.ts`) was read from the published pricing page on
-    2026-11-25; it dates, and the docs say so. The engine's own ledger is not read (the user's
+  - **The price table** (`hooks/data/prices.ts`) holds every served model, read from the
+    published pricing page on 2026-11-25; it dates, and the docs say so.
+  - **The plan's limits survive a `/clear`** through module memory (`knownLimits`): the engine
+    empties `$.state` at a clear, and no measure follows one (seen at Session 12's review). The engine's own ledger is not read (the user's
     choice at Session 12's plan).
   - **Helpers under a live parent are rare in this build:** a subagent's own Agent call runs in
     the background, so the parent reads finished while its helper works (`docs/BACKLOG.md`,

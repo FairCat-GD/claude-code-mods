@@ -14,11 +14,12 @@ agent's helpers sit under it.
 ### Added
 
 - **Plan limits:** the session line starts with each usage window Claude Code reports, such as
-  `5h 40% · 7d 12%`, as soon as Claude Code reports them. Off a subscription there are none.
+  `5h 40% · 7d 12%`, as soon as Claude Code reports them, and kept through a `/clear`. Off a
+  subscription there are none.
 - **The estimate:** with `/possums set cost estimate`, the session line and every row end with
   what the requests would cost at each model's list price, such as `est. $0.25`. It is an
-  estimate, never a bill, from a price table dated 2026-11-25; it does not see fast mode, the
-  US-only surcharge or web search fees. With `cost` at `off`, the default, no dollar figure
+  estimate, never a bill, from a price table dated 2026-11-25 that lists every model still
+  served; it does not see fast mode, the US-only surcharge or web search fees. With `cost` at `off`, the default, no dollar figure
   appears anywhere.
 - **Helpers:** an agent started by another agent is drawn right under it, indented, while both
   sit in the same section; one that needs you, or ends first, shows in its own section. A
@@ -28,8 +29,8 @@ agent's helpers sit under it.
 ### Changed
 
 - **A session that loads 0.13.0 while it runs** starts its list of agents over, and the main
-  session's tokens and time from zero; its context and the limits show again after Claude's
-  next reply. Their stored shapes changed.
+  session's tokens and time from zero; its context shows again after Claude's next reply, and
+  the limits at the next measure. Their stored shapes changed.
 
 ## [0.12.0] — 2026-11-25
 

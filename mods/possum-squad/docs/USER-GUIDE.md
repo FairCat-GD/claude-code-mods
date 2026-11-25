@@ -179,13 +179,15 @@ gone after a `/clear`.
 **Your plan's limits** lead the session line: each usage window Claude Code reports, in its
 order, such as `5h 40%` for the five-hour window and `7d 12%` for the weekly one (a gateway's
 spend limit reads `spend`). They update after each of Claude's turns, and whenever one moves a
-whole point. Off a subscription Claude Code reports none, and the line starts with the tokens.
+whole point. A `/clear` keeps them, since they are your account's. Off a subscription Claude
+Code reports none, and the line starts with the tokens.
 
 **The estimate,** with `/possums set cost estimate`, is what the requests would cost at each
 model's list price, labelled "est." on the session line and on every row. It is an estimate,
 never a bill: on a subscription your use inside the plan is not charged in dollars at all. It
 comes from a price table dated in the plugin, so it goes stale when prices change, and it does
-not see fast mode, the US-only surcharge or web search fees. A main session's turn is priced at
+not see fast mode, the US-only surcharge or web search fees. A model the table does not list,
+one released after it, is priced as Opus 5.5. A main session's turn is priced at
 the model that answered last in it. The session line's estimate is the main session's and every
 agent's; a row's includes its helpers'. Under a cent it reads `<$0.01`. With `cost` at `off`, the
 default, no dollar figure appears anywhere in the pane.

@@ -264,3 +264,20 @@ test('the session line leads with each plan limit the engine measured, in its or
   await measure([])
   expect(await lines()).toEqual([STRINGS.session('0', '0:00'), STRINGS.session('0', '0:00')])
 })
+
+test("a clear starts the main session's numbers over but keeps the plan's limits, the account's; a window named as an Object's own key reads as given", async ($, on) => {
+  const clock = world(on)
+  on('classic.SessionStart', () => ({}))
+  const measure = (rateLimits: unknown) => $.session.measure({ context: { window: 1_000_000 }, rateLimits, changed: ['rateLimits'] } as never)
+  const { agentId: _, ...main } = TURN_COMPLETE
+  await measure([
+    { kind: 'five_hour', percentUsed: 40 },
+    { kind: 'constructor', percentUsed: 3 },
+  ])
+  await $.turn.complete({ ...main, durationMs: 4_200 })
+  await clock.set(10_000)
+  const sessionOf = async (surface: Surface) => (await drawn($, surface)).texts.find(text => text.includes(' tokens · ')) ?? ''
+  for (const surface of SURFACES) expect([surface, await sessionOf(surface)]).toEqual([surface, `5h 40% · constructor 3% · ${tokens(150)} tokens · 0:04`])
+  await $.classic.SessionStart({ source: 'clear' } as never)
+  for (const surface of SURFACES) expect([surface, await sessionOf(surface)]).toEqual([surface, '5h 40% · constructor 3% · 0 tokens · 0:00'])
+})

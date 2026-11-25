@@ -30,6 +30,8 @@ import {
 } from '../hooks/model/runs'
 import { callsOf, TARGET_CHARS } from '../hooks/model/tools'
 import { leadFigures, measured, NO_LEAD, totals, turnCounted } from '../hooks/model/lead'
+import { STRINGS } from '../hooks/strings'
+import { activityText } from '../hooks/view/runs'
 
 // Fictional spawns and steps.
 const SHOVELS: Spawn = { key: 'toolu_shovels', type: 'Explore', description: 'Count the shovels', isTeammate: false }
@@ -715,4 +717,15 @@ test("a loop's estimate before the re-key is claimed with its row, and a main tu
   const main = turnCounted(NO_LEAD, { ...turnUsage(1_000, 200, 0, 300), model: 'claude-sonnet-5-5', ephemeral_1h_input_tokens: 100 }, 4_200)
   expect(micro(main.usd)).toBe(2_000 + 2_000 + 500 + 400)
   expect(main.usd).toBe(turnCounted(main, undefined, 300).usd)
+})
+
+test('a past holding only dollars is not empty: a clear starts it over and the list is not new', () => {
+  const runs = { ...NO_RUNS, past: { tokens: 0, workedMs: 0, usd: 0.01 } }
+  expect(cleared(runs).past).toEqual(NO_RUNS.past)
+  expect(isEmpty(runs)).toBe(false)
+})
+
+test("a call to a tool named as an Object's own key reads as any tool the table does not name", () => {
+  expect(activityText({ tool: 'constructor', target: 'shed' })).toBe(STRINGS.using('constructor'))
+  expect(activityText({ tool: 'Read', target: 'shed/rack.txt' })).toBe('Reading shed/rack.txt')
 })

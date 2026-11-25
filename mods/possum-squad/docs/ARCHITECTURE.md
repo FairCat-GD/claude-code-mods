@@ -584,7 +584,7 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   - `session.measure` awaits `next(e)`, then records the Lead's context and the plan's limits
     (`rateLimits`) through `recordLead` (`measured`).
   - `classic.SessionStart` with `source` `clear`, `resume` or `fork` stops the clock, empties
-    `runs` and resets `lead`. The engine resets `$.state` on a clear already (*Context*); the
+    `runs` and resets `lead`, keeping the plan's limits (*Values*). The engine resets `$.state` on a clear already (*Context*); the
     mod's own reset keeps the list right wherever it does not.
 - `classic.PermissionRequest` awaits `next(e)`. With `agent_id`, and an answer that carries no
   `decision`, it reads the time and records `asked` through `record`; the change learns whether
@@ -678,7 +678,12 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
     empty list; a measure whose `rateLimits` is no list leaves it as it was.
 
   Only `session.measure`, the main session's `turn.complete` and a clear-type
-  `classic.SessionStart` write it, through `recordLead`; the pane reads it while drawing.
+  `classic.SessionStart` write it, through `recordLead`; the pane reads it while drawing. A
+  clear starts the Lead over with the last limits measured (`startedOver`): they are the
+  account's, the engine empties `$.state` at a clear, and no measure follows it (seen at
+  Session 12's review, CLI 2.1.330). `hooks/register.tsx` keeps them in module memory
+  (`knownLimits`), set by each measure's `rateLimits` and by each drawing's `lead`, so a reload
+  forgets them only until the pane draws.
 
 `prefs` (0.3.0), in `$.store`:
 - **Its shape** is one flat object, as Decided. `hooks/settings.ts` holds each setting's values,
@@ -822,11 +827,13 @@ each returning the same object when the record changes nothing.
   (to the end, or now) and the context percent, the last request over `windowOf` its model.
   `hooks/data/models.ts` holds the windows measured on 2026-11-20 (Haiku, Opus and Sonnet 5.5,
   1,000,000 each), and the same as the default; an id with a suffix finds its model (`rowFor`,
-  which the price table shares).
+  which the price table shares), by the longest model that leads it, so a dated
+  `claude-opus-5-5-…` is never taken for `claude-opus-5`.
 - **The estimate** (0.13.0): `costOf` (`hooks/data/prices.ts`) prices tokens at a model's list
   prices: uncached input, output, cache reads, and cache writes, those kept an hour at their own
-  rate. `PRICES` holds Fable 5.2, Haiku 5.5, Opus 5.5 and Sonnet 5.5, read from the published
-  pricing page on 2026-11-25; Haiku 5.5's long-prompt rates apply past a 100,000-token prompt.
+  rate. `PRICES` holds every model the page lists as served, read from the published pricing
+  page on 2026-11-25: Fable and Mythos 5.2, 5.1 and 5; Opus 5.5, 5 and 4.8 to 4.5; Sonnet 5.5,
+  5, 4.6 and 4.5; Haiku 5.5 and 4.5; Haiku 5.5's long-prompt rates apply past a 100,000-token prompt.
   An unknown model costs Opus 5.5's prices, the default, and a count that is not a finite number
   above 0 costs nothing, so the estimate is never NaN.
   - `withStep` adds each step's estimate at the step's model. A step is one request: its prompt,
@@ -857,8 +864,11 @@ each returning the same object when the record changes nothing.
   by end goes, but never a teammate's. What a dropped run counted, its fresh tokens, its time
   to its end and its estimate, is added to `past`, so the header's totals never drop. Its tokens
   and estimate, with its own `prunedHelpers`, also go to its nearest kept ancestor's
-  `prunedHelpers` (`pruned`), past any ancestor dropped with it, so a parent's roll-up never
-  drops either; a teammate's helpers among them.
+  `prunedHelpers` (`pruned`), past any ancestor dropped with it; and a kept helper of a dropped
+  run takes that ancestor's agent id as its `parentId`, or none when no ancestor is kept, so its
+  own share stays in the ancestor's roll-up and it is drawn under it. So a parent's roll-up
+  never drops either; a teammate's helpers among them. `cleared` and `isEmpty` read a `past`
+  holding anything, dollars alone included, as not empty.
 
 ## Roles
 
@@ -1693,7 +1703,8 @@ unread.
   rewrites the whole value.
 - **The estimate is list prices from a dated table:** it does not see fast mode, the US-only
   surcharge, web search or classifier fees, or a gateway's own rates; it goes stale when prices
-  change; and a model the table lacks, an older one among them, costs Opus 5.5's prices.
+  change; and a model the table lacks, a retired one or one released after the table, costs
+  Opus 5.5's prices.
 - **A main turn is priced at the model that answered last,** its tokens summed over its
   requests, so never at Haiku 5.5's long-prompt rates.
 - **A helper drawn in another section than its parent's shows no link to it:** only the
@@ -1706,7 +1717,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 280 pass, in 24 files: attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 5, gallery 11, header 9, model 48, nesting 5, pane-sprites 9, panel 10, pass-through 6, peek 12, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 14; about 14 s |
+| `claude plugin test mods/possum-squad` | 285 pass, in 24 files: attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 50, nesting 6, pane-sprites 9, panel 10, pass-through 6, peek 12, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 14; about 14 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |

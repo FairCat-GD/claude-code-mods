@@ -7,7 +7,7 @@ import type { PeekData, RowData } from './row'
 
 // "Reading shed/rack.txt"; an MCP tool by its own last name.
 export function activityText(activity: Activity): string {
-  const verb = STRINGS.activity[activity.tool]
+  const verb = Object.hasOwn(STRINGS.activity, activity.tool) ? STRINGS.activity[activity.tool] : undefined
   if (verb !== undefined && activity.target !== undefined) return `${verb} ${activity.target}`
   return STRINGS.using(activity.tool.split('__').pop() || activity.tool)
 }

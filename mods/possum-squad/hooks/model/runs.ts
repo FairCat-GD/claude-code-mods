@@ -208,7 +208,8 @@ export function parentsOf(rows: Record<string, Run>): Map<number, number> {
 const plus = (a: Tally | undefined, b: Tally): Tally => ({ tokens: (a?.tokens ?? 0) + b.tokens, usd: (a?.usd ?? 0) + b.usd })
 
 // Finished keeps the latest T-06 ended runs; a teammate is never dropped, since its next turn returns it. What a
-// dropped run counted stays in `past`, and with its nearest kept ancestor, so neither total drops.
+// dropped run counted stays in `past`, and with its nearest kept ancestor, so neither total drops; a kept helper of a
+// dropped run is moved under that ancestor, so its own share stays there too.
 function pruned(runs: Runs): Runs {
   const ended = Object.entries(runs.rows)
     .filter(([, run]) => hasEnded(run) && !run.isTeammate)
@@ -227,17 +228,29 @@ function pruned(runs: Runs): Runs {
   const rows = Object.fromEntries(Object.entries(runs.rows).filter(([key]) => !dropped.has(key)))
   const parents = parentsOf(runs.rows)
   const keyOf = new Map(Object.entries(runs.rows).map(([key, run]) => [run.order, key]))
-  for (const [, run] of gone) {
-    const counted = plus(run.prunedHelpers, { tokens: fresh(run.tokens), usd: run.usd })
-    const seen = new Set([run.order])
-    let at = parents.get(run.order)
+  // The key of a run's nearest ancestor this prune keeps, past any it drops.
+  const keptAbove = (order: number): string | undefined => {
+    const seen = new Set([order])
+    let at = parents.get(order)
     while (at !== undefined && !seen.has(at) && dropped.has(keyOf.get(at) ?? '')) {
       seen.add(at)
       at = parents.get(at)
     }
-    const key = at === undefined || seen.has(at) ? undefined : keyOf.get(at)
+    return at === undefined || seen.has(at) ? undefined : keyOf.get(at)
+  }
+  for (const [, run] of gone) {
+    const counted = plus(run.prunedHelpers, { tokens: fresh(run.tokens), usd: run.usd })
+    const key = keptAbove(run.order)
     const kept = key === undefined ? undefined : rows[key]
     if (key !== undefined && kept !== undefined) rows[key] = { ...kept, prunedHelpers: plus(kept.prunedHelpers, counted) }
+  }
+  for (const [key, run] of Object.entries(rows)) {
+    const parent = parents.get(run.order)
+    if (parent === undefined || !dropped.has(keyOf.get(parent) ?? '')) continue
+    const above = keptAbove(run.order)
+    const agentId = above === undefined ? undefined : rows[above]?.agentId
+    const { parentId: _, ...moved } = run
+    rows[key] = agentId === undefined ? moved : { ...moved, parentId: agentId }
   }
   return { ...runs, rows, past }
 }
@@ -373,14 +386,14 @@ export function reassigned(runs: Runs, order: number, role: Role): Runs {
   return { ...runs, rows: { ...runs.rows, [key]: { ...picked, role } } }
 }
 
+const isPastEmpty = (past: Past) => past.tokens === 0 && past.workedMs === 0 && past.usd === 0
+
 // A clear, a resume or a fork of the session starts the list and its totals over.
 export const cleared = (runs: Runs): Runs =>
-  Object.keys(runs.rows).length === 0 && Object.keys(runs.pending).length === 0 && runs.past.tokens === 0 && runs.past.workedMs === 0
-    ? runs
-    : { ...NO_RUNS, next: runs.next }
+  Object.keys(runs.rows).length === 0 && Object.keys(runs.pending).length === 0 && isPastEmpty(runs.past) ? runs : { ...NO_RUNS, next: runs.next }
 
 // No agent has had a row since the session began or was cleared.
-export const isEmpty = (runs: Runs) => Object.keys(runs.rows).length === 0 && runs.past.tokens === 0 && runs.past.workedMs === 0
+export const isEmpty = (runs: Runs) => Object.keys(runs.rows).length === 0 && isPastEmpty(runs.past)
 
 // The rows to draw, in spawn order.
 export const shownRuns = (runs: Runs): Run[] => Object.values(runs.rows).sort((a, b) => a.order - b.order)

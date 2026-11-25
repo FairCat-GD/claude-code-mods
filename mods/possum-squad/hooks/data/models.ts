@@ -8,10 +8,13 @@ export const WINDOWS: readonly { model: string; tokens: number; measured: string
 // For a model the table does not name: the window every measured model had.
 export const DEFAULT_WINDOW = 1_000_000
 
-// A table's row for a model; an id the engine dates or suffixes (`claude-opus-5-5-20261101`) still finds it.
+// A table's row for a model; an id the engine dates or suffixes (`claude-opus-5-5-20261101`) still finds it, by the
+// longest model that leads it, so `claude-opus-5-5-…` is never taken for `claude-opus-5`.
 export function rowFor<T extends { model: string }>(rows: readonly T[], model: string | undefined): T | undefined {
   if (model === undefined) return undefined
-  return rows.find(row => model === row.model) ?? rows.find(row => model.startsWith(`${row.model}-`))
+  const exact = rows.find(row => model === row.model)
+  if (exact !== undefined) return exact
+  return rows.filter(row => model.startsWith(`${row.model}-`)).sort((a, b) => b.model.length - a.model.length)[0]
 }
 
 export const windowOf = (model: string | undefined): number => rowFor(WINDOWS, model)?.tokens ?? DEFAULT_WINDOW

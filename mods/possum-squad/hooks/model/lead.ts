@@ -29,8 +29,8 @@ const sameLimits = (a: readonly Limit[] | undefined, b: readonly Limit[]) =>
 
 // The windows the engine reported, in its order: each with a name and a percent, the first few. An empty list is none
 // now (off a subscription, or a window that left); anything but a list says nothing.
-function withLimits(lead: Lead, rateLimits: unknown): Lead {
-  if (!Array.isArray(rateLimits)) return lead
+export function limitsOf(rateLimits: unknown): Limit[] | undefined {
+  if (!Array.isArray(rateLimits)) return undefined
   const limits: Limit[] = []
   for (const one of rateLimits as unknown[]) {
     if (typeof one !== 'object' || one === null) continue
@@ -38,8 +38,17 @@ function withLimits(lead: Lead, rateLimits: unknown): Lead {
     const percent = count(percentUsed)
     if (typeof kind === 'string' && kind.trim() !== '' && percent !== undefined) limits.push({ kind: kind.trim(), percent })
   }
-  const kept = limits.slice(0, LIMITS_KEPT)
-  if (sameLimits(lead.limits, kept)) return lead
+  return limits.slice(0, LIMITS_KEPT)
+}
+
+// The Lead started over, as a clear leaves it: the plan's limits are the account's, so they stay until a measure moves
+// them.
+export const startedOver = (limits: readonly Limit[] | undefined): Lead =>
+  limits === undefined || limits.length === 0 ? NO_LEAD : { ...NO_LEAD, limits: [...limits] }
+
+function withLimits(lead: Lead, rateLimits: unknown): Lead {
+  const kept = limitsOf(rateLimits)
+  if (kept === undefined || sameLimits(lead.limits, kept)) return lead
   if (kept.length > 0) return { ...lead, limits: kept }
   const { limits: _, ...rest } = lead
   return rest

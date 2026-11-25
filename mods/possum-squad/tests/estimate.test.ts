@@ -127,3 +127,14 @@ test("with cost at estimate, each row and the header show the estimate, the head
   await $.command.run(possums('set cost off'))
   for (const surface of SURFACES) expect([surface, (await drawnOn($, surface)).strings.filter(text => text.includes('$'))]).toEqual([surface, []])
 })
+
+test("every model the engine still serves has its own prices, and a dated id finds its own model, never a shorter one's", () => {
+  // Fable 5.1: × 10, × 50, × 0.25, × 12.50. Sonnet 5: × 2, × 10, × 0.20, × 2.50. Haiku 4.5: × 1, × 5, × 0.10, × 1.25.
+  expect(micro(costOf('claude-fable-5-1', TOKENS))).toBe(10_000 + 10_000 + 12_500 + 3_750)
+  expect(micro(costOf('claude-sonnet-5', TOKENS))).toBe(2_000 + 2_000 + 10_000 + 750)
+  expect(micro(costOf('claude-haiku-4-5', TOKENS))).toBe(1_000 + 1_000 + 5_000 + 375)
+  // Opus 5: × 5, × 25, × 0.50, × 6.25; a dated Opus 5.5 is Opus 5.5's, and a dated Opus 5 is Opus 5's.
+  expect(micro(costOf('claude-opus-5-20990101', TOKENS))).toBe(5_000 + 5_000 + 25_000 + 1_875)
+  expect(micro(costOf('claude-opus-5-5-20990101', TOKENS))).toBe(19_500)
+  expect(micro(costOf('claude-fable-5-2-20990101', TOKENS))).toBe(29_000)
+})

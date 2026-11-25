@@ -44,7 +44,9 @@ export function desktopLead({ Box, Text, Progress }: DesktopTable, lead: LeadDat
   )
 }
 
-const limitText = (limit: Limit) => STRINGS.limit(STRINGS.limits[limit.kind] ?? limit.kind, percent(limit.percent))
+// The engine names the window, so only the table's own names are looked up.
+const limitText = (limit: Limit) =>
+  STRINGS.limit((Object.hasOwn(STRINGS.limits, limit.kind) ? STRINGS.limits[limit.kind] : undefined) ?? limit.kind, percent(limit.percent))
 
 // The header's line, the same on every surface: the plan's limits, the totals, and the estimate when it is asked for.
 export function sessionLine({ Text }: Shared, session: SessionData): RenderElement {
