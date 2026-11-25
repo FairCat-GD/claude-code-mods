@@ -32,10 +32,11 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.14.0). The Lead, header, sections, roles with the person's picker, sprites in every
+**Built** (0.15.0). The Lead, header, sections, roles with the person's picker, sprites in every
 set with every state's animation, the gallery in parts the desktop draws, auto-open, Needs you,
 quiet and toasts, Peek, the collapsed view, which a minimized pane draws too, the plan's limits,
-the estimate, helpers drawn under their parents, and agents waiting on their own work.
+the estimate, helpers drawn under their parents, agents waiting on their own work, and the
+activity line with a file named first, the engine's progress summary and the past tense.
 `hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `roles`, `set` and `settings`;
 - toggles and draws the pane: the Lead row and the session line (the plan's limits, the totals,
@@ -59,7 +60,8 @@ the estimate, helpers drawn under their parents, and agents waiting on their own
   needs the person and a long run's end;
 - keeps the main session's context, tokens, time and estimate, and the plan's limits, in `lead`;
 - runs the one-second clock while the pane is open and a run is live, or a run's role may still
-  fall back to Helper; while a turn's end is held or a run waits, each beat reads the list;
+  fall back to Helper; each beat reads the list while a turn's end is held or a run waits, or,
+  for the progress summaries, while a live run shows in the shown pane;
 - empties `runs` and `lead` when the session is cleared, resumed or forked;
 - keeps the settings, Finished's flag and the collapsed view's in the store under `prefs`, and
   each custom type's picked role under `role:<agent type>`; in `view`, a close by the person,
@@ -604,9 +606,11 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   after any write whose runs hold a turn's end (`hasKept`), so every subagent event reads the
   list while a run is held or waits, and the pane closed needs no beat for it. `readList` reads
   `$.agent.list()` (a refusal, a throw or an answer that is no list reads as unread; an entry
-  without a text `id` and `status` is left out), the time, then `runs`, and writes only when
-  `listed` changes a run, through `update`, with `fellBack` at that time; then one
-  `toastUnseen` per run it ended (`endedToasts`). It is the only caller of `$.agent.list`.
+  without a text `id` and `status` is left out), each entry's `label` when it is text (0.15.0),
+  the time, then `runs`, and writes only when `listed` or `summarized` changes a run, through
+  `update`, with `fellBack` at that time when `listed` changed one; then one `toastUnseen` per
+  run it ended (`endedToasts`). An unread list leaves the summaries as they were. It is the only
+  caller of `$.agent.list`; the clock's beat starts it too (*The panel*).
 - Every hook but `command.run` and `ui.render` carries `.catch((_$, e, next) => next(e))`
   (`turn.step`'s a generator doing `return yield* next(e)`), gating or not, so the rule is one
   line to check. The engine's `next` there replays what the hook's own call settled to, so
@@ -680,8 +684,9 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
   The pane reads it while drawing, so each write redraws it; a refused read draws the list.
   `autoOpen` reads `isClosedByPerson`.
 - `runs` (0.4.0; `past` 0.5.0; roles 0.6.0; a role's moment 0.9.0; attention 0.11.0; Peek
-  0.12.0; the estimate and pruned helpers 0.13.0; the kept ending 0.14.0) is `Runs`,
-  `{ rows, pending, next, past }`, the atom `runs` with the shape tag `runs-8`, starting as
+  0.12.0; the estimate and pruned helpers 0.13.0; the kept ending 0.14.0; the activity's cut and
+  the summary 0.15.0) is `Runs`,
+  `{ rows, pending, next, past }`, the atom `runs` with the shape tag `runs-9`, starting as
   `NO_RUNS`. *The run model*'s Built part
   has its fields and rules; `quiet` is never kept there, only worked out where a row is drawn;
   `waiting` is. The recording hooks write it, `classic.PermissionRequest` among them, the
@@ -913,7 +918,25 @@ each returning the same object when the record changes nothing.
   tokens over its window. Each returns the same object when nothing changes.
 - **The activity** is the last call a step asked for, in `hooks/model/tools.ts`: its tool and
   the argument that names what it works on (a path, the command's first line, a pattern, a URL,
-  a query, a description), cut to 80 characters. The engine's `SubagentHandback` is not shown.
+  a query, a description), cut to `TARGET_CHARS` (80) and marked `isCut` (0.15.0). A path of
+  `PATH_TOOLS` (Read, Write, Edit, MultiEdit, NotebookEdit) keeps its last 80 characters
+  (`pathEnd`), where its file's name is; any other target its first 80, whole characters
+  (`cutTo`). Glob's pattern keeps its start: it is short, and a pattern's end is no file. The
+  engine's `SubagentHandback` is not shown. `cutTo` and `pathEnd` live in `tools.ts`, which
+  `runs.ts` imports, so neither imports the other back.
+- **The summary** (0.15.0): `summarized(runs, labels)` gives each live row the engine lists,
+  by agent id, its `AgentInfo.label`: its whitespace folded to single spaces and trimmed, cut
+  at `DESCRIPTION_CHARS` (100) as an `Excerpt` (`Run.summary`), so `runs` holds no more than
+  the row draws. A blank label, or one equal to the description folded alike (the engine's
+  stand-in for none), removes it. Pending entries and ended rows are left alone, and
+  `endedWith` drops it, so an ended row keeps none. It returns the same object when nothing
+  changes.
+  - Measured before building (CLI 2.1.330, a probe plugin reading the list each second): a
+    background subagent of 57 s, three 15-second pings with a read and a listing between them,
+    had its label equal to its description for 31.5 s, then a one-line summary of 29
+    characters, kept unchanged through its end and after it; the engine's own agent row in the
+    terminal showed the same words. 144 reads took 1.9 ms each on average, 4 ms at most, with
+    one agent listed.
 - **Lifetime:** `cleared` empties `runs`, `past` included; past 30 ended runs (T-06) the oldest
   by end goes, but never a teammate's. What a dropped run counted, its fresh tokens, its time
   to its end and its estimate, is added to `past`, so the header's totals never drop. Its tokens
@@ -924,8 +947,7 @@ each returning the same object when the record changes nothing.
   never drops either; a teammate's helpers among them. `cleared` and `isEmpty` read a `past`
   holding anything, dollars alone included, as not empty.
 
-Not yet: a path's end and the engine's progress summary in the activity (Session 12b); a
-failed run's reason, kept for its toast (Session 12d).
+Not yet: a failed run's reason, kept for its toast (Session 12d).
 
 ## Roles
 
@@ -1217,10 +1239,12 @@ owner's choice at Session 12a's plan, since it would repeat quiet's cell for eve
   section.
 - **The terminal** draws the same sections and numbers as text rows, a coloured mark per state
   and block-character bars, with no element the terminal lacks.
-- **The activity** (Decision log, 2026-11-25): a call's target that is a path keeps its end, so
-  its file name shows; a command keeps its start. The engine's progress summary for an agent,
-  where it has one, shows as plain text, placed at Session 12b's start. An ended row's last call
-  reads as past.
+- **The activity** (Decision log, 2026-11-25): a call's target that is a path keeps its end, and
+  the line names the file first, then its folder, so its file name shows at any width; a
+  command keeps its start. The engine's progress summary for an agent, where it has one, shows
+  as plain text in the last call's place on a starting, working or waiting row, but not on one
+  that needs the person, is quiet or has ended. A finished, failed or stopped row reads its last
+  call in the past; a waiting row keeps the live verb.
 - **The clock.** The only timer is `$.clock.every(1000)`, armed while the pane is open and a
   run is live or its role may still fall back to Helper, or a main turn runs, cancelled
   otherwise (N-03); it redraws the pane only while it is shown, so a
@@ -1270,8 +1294,22 @@ refusal never puts the engine's error in the pane's place. The drawing writes no
   The terminal draws it `[ show ]`. Its rows are drawn only while `prefs.finishedOpen` is set;
   a press writes the flag through `writeStore`, then invalidates the drawing.
 - `rowData` (`hooks/view/runs.ts`) makes a run's `RowData` from it and the model's figures, its
-  role's name from `STRINGS.roles`, and the activity line from `STRINGS.activity`. The line reads "Reading notes.md", or "Using
-  <tool>" for a tool it has no verb for (an MCP tool by its own last name).
+  role's name from `STRINGS.roles`, and the activity line through `activityText` (0.15.0):
+  - a path tool's call names its file first, then its folder after `STRINGS.inFolder`'s
+    ` in `: "Reading rack.txt in north/shed"; a cut path's folder starts at its next whole
+    name after `…` ("in …/north/shed"), one with no folder reads "Reading rack.txt", and a cut
+    one with no `/` "Reading …k.txt". The desktop always cuts a line's end, and a docked
+    terminal row leaves about 35 columns for it, so the name leads: the owner's choice at the
+    plan;
+  - any other call reads its verb and target, `…` after a cut one: "Running ./plant …";
+  - a tool with no verb reads "Using <tool>" (an MCP tool by its own last name).
+
+  Line 3 by the row: quiet reads "Quiet for 2 min"; an ended row (finished, failed, stopped)
+  its last call in the past, from `STRINGS.activityPast` ("Ran npm test", "Read rack.txt in
+  shed", "Used water"), or `STRINGS.row.noCalls` ("No tool calls"); a live row with a summary
+  that does not need the person, the summary, `…` after a cut one; otherwise its last call with
+  the live verb. A waiting row is live, so it keeps "Running …": what it waits on still runs.
+  Peek's last actions read as the live line does.
 
 The clock (0.5.0; roles 0.6.0), in module memory in `hooks/register.tsx`: a reload drops it, and the engine
 cancels its timer.
@@ -1294,8 +1332,11 @@ cancels its timer.
   subagent whose only call was a foreground `ping` of 70 s read Helper at about 1:00 while
   still working (CLI 2.1.330). While a run holds a kept ending (`hasKept`), it ends any held
   past `LIST_ANSWER_MS` (`settleHeld`, through `update`, with Helper and the toasts of what it
-  ends), then starts `readList`, unawaited: one read of the engine's list a beat while a turn's
-  end is held or a run waits, and none otherwise. Otherwise it invalidates the
+  ends), then starts `readList`, unawaited. Otherwise, while the pane is shown, the gallery
+  closed and a run live (0.15.0), it starts `readList` for the summaries. So the list is read
+  once a beat at most, and not while the pane hides behind another tab, shows the gallery, or
+  shows only ended runs, whose last beat stops the clock. It reads `view` first. Otherwise it
+  invalidates the
   drawing, but only if the pane is shown. Any other fault stops it. Each arming has its own generation, so a beat in flight from a
   replaced timer stops nothing.
 - **Stopping:** at a close, whatever its origin; at a clear-type session start; and when a
@@ -1342,6 +1383,13 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
   row's order; one picker is open at a time.
 - **Lines cut to one:** the description, the model and effort, and the activity carry
   `wrap="end"`, so a long one ends in an ellipsis.
+- **What keeps `peek` in reach** (0.15.0): each of those three Texts sits in a `Box` of
+  `SHRINKS`, `flexGrow` and `flexShrink` 1 with `minWidth` 0 and `overflow` `hidden`, and
+  `desktopRow`'s column beside the sprite has `minWidth` 0 alone, since hiding its overflow
+  could clip the role picker. Laid out as CSS flex, a one-line Text keeps its Box from
+  shrinking below the text's width unless its minimum is 0, which at 0.13.0 pushed the `peek`
+  button out of the desktop pane, and could push line 1's state word. In the terminal's layout
+  both props are the defaults. They are props only: no node.
 - **Colours** are theme keys, the same for the mark and the word: working `success`, needs-you
   `permission`, quiet `warning`, failed `error`, finished `subtle`, starting, waiting and stopped
   `inactive` (waiting's the owner's choice at Session 12a's plan).
@@ -1420,12 +1468,15 @@ Within what the desktop draws (0.10.1), in `panel` (`hooks/view/panel.tsx`) and 
 - **The gallery draws no row,** so while it is open `panel` writes no row's sprite.
 - **The description cut:** `rowData` cuts a description past `DESCRIPTION_CHARS` (100)
   characters, counted whole so an emoji is never split, and adds `…`. `runs` keeps it whole, for the round's match. An activity's target is already cut at
-  `TARGET_CHARS` (80) in the model.
+  `TARGET_CHARS` (80) in the model, and a summary at `DESCRIPTION_CHARS`.
 - **The worst list:** 60 drawn of 90, every text at its longest, round 2, a moment each,
   Finished open, a picker open, a Peek at its fullest (0.12.0), and every row under the one
-  before it in its section, with four limits and the estimate (0.13.0). In any set it came to
-  1,845 nodes, 8 deep and at most 227,422 characters (horror; `tests/size.test.ts`), 92% and 87%
-  of the bound; the same rows unnested draw the same nodes and levels. At 0.12.0, without
+  before it in its section, with four limits and the estimate (0.13.0). Its third lines and
+  Peek's actions are the longest a row draws at 0.15.0, a web search's query cut, 103
+  characters, past a summary cut at 100 and a path named file first. In any set it came to
+  1,845 nodes, 8 deep and at most 232,837 characters (horror; `tests/size.test.ts`), 92% and 89%
+  of the bound; the same rows unnested draw the same nodes and levels. At 0.14.0, with an
+  activity of 88 characters, it was 227,422. At 0.12.0, without
   nesting, limits or the estimate, it was 225,793; without Peek and its button, 1,613 and
   218,861.
 
@@ -1453,15 +1504,15 @@ Peek (0.12.0), in `hooks/view/row.tsx` and `hooks/view/runs.ts`:
   press to the row's spawn order, and `togglePeek` writes `view.peekFor`.
 - **Its data:** `rowData` gives `RowData.peek` for the open row alone (`peekData`): the
   description cut at `PEEK_CHARS` rather than 100, the brief and the answer with `…` where the
-  model cut them, the actions through `activityText`, and the files, `…` before a cut one's
+  model cut them, the actions through `activityText` (a file named first, the live verb, 0.15.0), and the files, `…` before a cut one's
   end. While the run is live again, an answer kept from an earlier turn is marked
   (`isEarlierAnswer`) and headed `Last answer`, not `Answer`.
 - **Its lines,** under the row (on the desktop after the bar, in footnote size; on the terminal
   after the bar line): the description, wrapping, then `Brief`, `Last actions`, `Files changed`
   and `Answer`, each a dim heading over one `Text` per line. A part with nothing is left out.
 - **Its size:** the button adds three nodes a row. The fullest list with a Peek at its longest
-  (`tests/size.test.ts`): 1,845 nodes, 8 deep and at most 225,793 characters in any set, against
-  1,613 and 218,861 before.
+  (`tests/size.test.ts`): 1,845 nodes, 8 deep and at most 225,793 characters in any set at
+  0.12.0, against 1,613 and 218,861 before; the worst list above has the numbers today.
 
 The collapsed view (0.12.0), in `hooks/view/collapsed.tsx`, chosen by `panel`:
 - **When:** in the `widget` seat (`e.props.placement`, read by `drawPane`; any other value is
@@ -1487,8 +1538,7 @@ The collapsed view (0.12.0), in `hooks/view/collapsed.tsx`, chosen by `panel`:
   mounts the seat on both surfaces, and both draw the glance.
 - **Its size** is the Lead's sprite and a few nodes; it draws no row's sprite.
 
-Not yet: `peek` keeping its room and the activity's changes (Session 12b); the clock and the
-session line's time during a main turn (Session 12c).
+Not yet: the clock and the session line's time during a main turn (Session 12c).
 
 ## Attention
 
@@ -1637,10 +1687,10 @@ mods API calls allowed (I-02): `$.ui.resolve`, `$.ui.invalidate`, `$.ui.open`, `
 `$.agent.list`. A change to this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
 outside the engine; it is never part of the mod's running code.
 
-**Built** (0.8.0; the toast 0.11.0; unchanged by 0.13.0's limits, estimate and nesting, which read events and price from a table in the code; the agent list 0.14.0). `validate` lists `$.agent.list`, `$.clock.every`, `$.clock.now`, `$.command.register`,
+**Built** (0.8.0; the toast 0.11.0; unchanged by 0.13.0's limits, estimate and nesting, which read events and price from a table in the code; the agent list 0.14.0, read for summaries too 0.15.0, no new call). `validate` lists `$.agent.list`, `$.clock.every`, `$.clock.now`, `$.command.register`,
 `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`,
 `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast`; the sprites, being pure, added none. The state calls come through `update` and `read`;
-the agent list through `readList`; the clock through `armClock`, `recordAt`, `settleHeld`, `settleHelpers` and `drawPane`; the store calls through `writeStore`,
+the agent list through `readList`, from records and the beat; the clock through `armClock`, `recordAt`, `settleHeld`, `settleHelpers` and `drawPane`; the store calls through `writeStore`,
 `listSettings` and `prefsOrDefaults`; the pane calls through `showPane`, `tick` and `redraw`; the toast through `toastUnseen`.
 Each is on the allow-list; `$.session.usage` is not called. No network, process or file access,
 no model call, no tool registration. `tools/art.ts`, run by hand on Node, reads `art/` (its
@@ -1797,10 +1847,27 @@ unread.
   only a drawing sees `placement`, so whether a `widget` counts as shown is the app's.
 - **The collapsed view is redrawn by the clock's beat** while a run is live, though nothing in
   it moves with time; it is a few nodes and its sprite string is cached.
-- **A call's target is cut at 80 characters from its start,** on the activity line and in
-  Peek's last actions, so a longer path loses its file name: a subagent's paths are absolute,
-  and Session 11's hand check saw its reads end `…/claude-code-mods/package.jso`. Peek's files
-  keep their ends.
+- **`peek` keeping its room on the desktop is unseen** until the owner's look after a push:
+  the kit lays the row out its own way, and drew the button the desktop pushed out at 0.13.0.
+  The fix is `minWidth` 0 on the shrinking Boxes, which assumes the desktop lays them out as
+  CSS flex (`docs/BACKLOG.md`).
+- **The summaries are the CLI's, measured once:** whether the desktop app's engine fills
+  `AgentInfo.label` the same way, and how often a longer agent's summary changes, are not
+  measured. The one probed agent's first came 31.5 s into its work.
+- **The beat reads the list once a second while a live run shows,** in the collapsed view too,
+  where no row is drawn: the beat reads no store, so it does not know the pane is collapsed. A
+  read took 1.9 ms on average with one agent listed (CLI 2.1.330).
+- **A summary is up to a beat late,** and while the pane is closed it is not read at all: the
+  row shows the last one read, or the last call, until the pane's first beat.
+- **A changed summary redraws the pane twice in its beat:** the beat invalidates it, and the
+  unawaited read's write redraws it again.
+- **A cut path's folder reads from its far end:** the line keeps the path's last 80
+  characters, so on a docked terminal row the file's own folder is what the line's end cuts
+  (at Session 12b's hand check, a folder near the path's start followed "Read tools.ts in …/").
+  Peek's actions wrap whole.
+- **A path's folder is told from its file by its last `/`,** so a path that is not one (a tool
+  given markup or a URL as its path) splits where its last slash falls; it still draws as plain
+  `Text`.
 - **Peek's records add to every write of `runs`:** a run keeps at most about 2.5k characters
   more (a brief and an answer of 600, five actions and ten files of 80), and every step
   rewrites the whole value.
@@ -1815,12 +1882,12 @@ unread.
 - **The session line wraps at 46 columns** in the terminal's dock with two limits and the
   estimate on, since it is one `Text` beside the `collapse` button.
 
-## Baseline (v0.14.0)
+## Baseline (v0.15.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 304 pass, in 25 files: attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 55, nesting 6, pane-sprites 9, panel 10, pass-through 7, peek 12, picker 12, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, waiting 11; about 17 s |
+| `claude plugin test mods/possum-squad` | 313 pass, in 26 files: activity 6, attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 58, nesting 6, pane-sprites 9, panel 10, pass-through 7, peek 12, picker 12, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, waiting 11; about 18 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.agent.list`, `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |
@@ -2008,5 +2075,17 @@ one moves, that is the finding.
   confirming the proposal of Session 13's.
 - 2026-11-25, *The panel*: a waiting row's mark and word are `inactive`, as a starting one's.
   The owner's choice at Session 12a's plan.
+- 2026-11-25, *The panel*: a file's path on the activity line, and in Peek's last actions, names
+  the file first, then its folder: "Reading package.json in …/mods/possum-squad". The owner's
+  choice at Session 12b's plan, over the path's end in order: the desktop always cuts a line's
+  end, and a docked terminal row leaves about 35 columns, so a path's last 80 characters alone
+  still hid the name. It amends the line above by which the activity keeps a path's end.
+- 2026-11-25, *The panel* and *The run model*: the engine's progress summary takes the last
+  call's place on a starting, working or waiting row; a row that needs the person keeps its
+  call, a quiet one its quiet time, an ended one its last call. It is kept cut at 100
+  characters, and Peek does not show it. The owner's choice at Session 12b's plan.
+- 2026-11-25, *The panel*: a finished, failed or stopped row reads its last call in the past,
+  and "No tool calls" with none; a waiting row keeps the live verb, and Peek's last actions keep
+  theirs. The owner's choice at Session 12b's plan.
 - 2026-11-25, *The panel* and *Sprites and sets*: the gallery does not draw `waiting`, which is
   quiet's pose. The owner's choice at Session 12a's plan.

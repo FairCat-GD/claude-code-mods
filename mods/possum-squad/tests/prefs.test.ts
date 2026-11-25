@@ -2,7 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 
 import { readPrefs, SETTING_NAMES, SETTINGS, type SettingName } from '../hooks/settings'
 import { STRINGS } from '../hooks/strings'
-import { engine, MOUNT, possums, SURFACES, store, turnEnds } from './engine'
+import { engine, MOUNT, possums, SURFACES, settled, store, turnEnds } from './engine'
 import {
   MEASURE,
   MEASURED,
@@ -19,6 +19,7 @@ import {
 
 const DEFAULTS = { autoOpen: 'first', cost: 'off', motion: 'auto', theme: 'classic', collapsed: false, finishedOpen: false }
 const FLAGS = ['collapsed', 'finishedOpen']
+const SUMMARY = 'Weighing the north bed'
 
 test('prefs that are missing, not an object, or of values this version does not know read as the defaults', () => {
   for (const stored of [undefined, null, 'classic', 7, ['theme', 'horror'], {}]) expect(readPrefs(stored)).toEqual(DEFAULTS)
@@ -61,7 +62,10 @@ test('every store write holds only setting values and panel flags, never what an
   on('session.measure', () => MEASURED)
   on('classic.PermissionRequest', () => PERMITTED)
   on('classic.SessionStart', () => ({}))
-  mock.clock(on)
+  // The engine's list gives the agent a progress summary, which the row draws from state alone.
+  const listed = { status: 'running' }
+  on('agent.list', () => ({ value: [{ id: SPAWNED.agentId, description: SPAWN.description, label: SUMMARY, ...listed }] }) as never)
+  const clock = mock.clock(on)
   const kept = store(on, { prefs: { future: 'kept' } })
 
   await $.session.start(SESSION_START)
@@ -74,6 +78,14 @@ test('every store write holds only setting values and panel flags, never what an
   // A run that ends after the clear, so Finished's show button is drawn and pressed on each surface, then its Peek,
   // which keeps its brief and answer in state alone, and the header's collapse and the way back.
   await $.agent.spawn(SPAWN)
+  await $.turn.start(TURN_START)
+  await $.command.run(possums('open'))
+  await clock.advance(1_000)
+  await settled()
+  const live = await $.ui.mount({ ...MOUNT, surface: 'desktop' })
+  expect((await live.findAll({ type: 'Text' })).map(text => text.text)).toContain(SUMMARY)
+  await live.unmount()
+  listed.status = 'completed'
   await turnEnds($, TURN_COMPLETE)
   for (const surface of SURFACES) {
     const pane = await $.ui.mount({ ...MOUNT, surface })
@@ -88,7 +100,7 @@ test('every store write holds only setting values and panel flags, never what an
   for (const args of ['open', 'settings', ...sets, '']) await $.command.run(possums(args))
 
   expect(kept.writes).toHaveLength(SURFACES.length * 3 + sets.length)
-  const agentText = [SPAWN.prompt, SPAWN.description, TURN_START.text, TURN_COMPLETE.answer, SESSION_START.cwd, PERMISSION.tool_input.command]
+  const agentText = [SPAWN.prompt, SPAWN.description, TURN_START.text, TURN_COMPLETE.answer, SESSION_START.cwd, PERMISSION.tool_input.command, SUMMARY]
   for (const write of kept.writes) {
     expect(write.key).toBe('prefs')
     for (const [key, value] of Object.entries(write.value as object)) {

@@ -6,6 +6,36 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-11-25
+
+A row's third line says what its agent is doing in Claude Code's own words, names the file it
+works on, and reads in the past once the agent is done; its `peek` button stays in reach.
+
+### Added
+
+- **Claude Code's own progress summary** of an agent, such as "Running second localhost ping",
+  takes the place of its last tool call on a working, starting or waiting row once Claude Code
+  has one (about half a minute into the agent's work), while the pane is open. A row that needs
+  you still names the call it asks about, and a quiet one how long it has been quiet. A long
+  summary is cut to one line.
+
+### Changed
+
+- **A file names itself first:** "Reading package.json in …/mods/possum-squad" instead of a long
+  path whose file name the line cut off. Peek's last actions read the same way. A long shell
+  command still shows its start, now with `…` where it was cut.
+- **A finished, failed or stopped row reads its last call in the past:** "Ran npm test", "Read
+  package.json in …", or "No tool calls". A waiting row keeps "Running …", since what it waits
+  on still runs.
+- **A session that loads 0.15.0 while it runs** starts its list of agents over: its stored shape
+  changed.
+
+### Fixed
+
+- **The `peek` button stays in the pane** on the desktop app: a long activity, such as a `cd`
+  into a long path, pushed it out of reach. A long task description can no longer push the
+  state word out either.
+
 ## [0.14.0] — 2026-11-25
 
 An agent that hands back while its own background work still runs waits in Running instead of

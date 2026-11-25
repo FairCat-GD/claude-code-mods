@@ -29,8 +29,9 @@ export type Tokens = { input: number; output: number; cacheRead: number; cacheWr
 // Fresh tokens and the estimate in dollars, summed: what pruned helpers counted, kept for their nearest kept ancestor.
 export type Tally = { tokens: number; usd: number }
 
-// The last tool a run's model asked for, and what the call names: a path, a command's first line, a pattern.
-export type Activity = { tool: string; target?: string }
+// The last tool a run's model asked for, and what the call names: a path, a command's first line, a pattern. `isCut`
+// when there was more: a path loses its start, anything else its end.
+export type Activity = { tool: string; target?: string; isCut?: true }
 
 // A text's first characters as Peek draws them, or a path's last; `isCut` when there was more.
 export type Excerpt = { text: string; isCut?: true }
@@ -101,6 +102,8 @@ export type Run = {
   // The last request's size: its input, cache reads and cache writes.
   lastRequest?: number
   activity?: Activity
+  // The engine's latest progress summary of it while it is live, on one line, cut as the row cuts a description.
+  summary?: Excerpt
   // The last calls it asked for, oldest first, and the files it changed, each once, the latest last, each its last
   // characters.
   actions?: Activity[]

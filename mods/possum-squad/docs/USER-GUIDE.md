@@ -129,10 +129,20 @@ Each subagent Claude starts gets a row the moment it starts, in the order they s
 2. its role, such as Builder or Scout, once it is settled (*How roles are chosen*, below), or
    "Pick a role" until then, as a button (*Changing a role*); then the model it runs on and its
    effort, once its first request names them;
-3. what it is doing: the last tool it asked for and what that names, such as "Reading
-   notes.md", "Running npm test" or "Searching for TODO", cut to one line; "No tool calls yet"
-   before its first; while it is quiet, how long, such as "Quiet for 2 min"; then the `peek`
-   button (*Peek*, below);
+3. what it is doing, cut to one line, then the `peek` button (*Peek*, below), which stays in
+   reach however long the line is:
+   - the last tool it asked for and what that names, such as "Running npm test" or "Searching
+     for TODO"; a file names itself first, then where it is, such as "Reading package.json in
+     …/mods/possum-squad", so a long path never hides the name; a long command shows its start,
+     with `…` where it was cut; "No tool calls yet" before its first;
+   - Claude Code's own summary of its progress, such as "Running second localhost ping", in the
+     call's place once Claude Code has one, usually about half a minute into the agent's work,
+     while the pane is open; it is a model's words, shown as plain text;
+   - a row that needs you names the call it asks about, and a quiet one how long it has been
+     quiet, such as "Quiet for 2 min";
+   - once it has finished, failed or stopped, its last call in the past, such as "Ran npm test"
+     or "Read package.json in …", or "No tool calls"; a waiting row keeps "Running …", since
+     what it waits on still runs;
 4. how full its context is, as a bar and a percent, then its tokens and its time, and with
    `cost` at `estimate` its estimate, such as `est. $0.25`.
 
@@ -160,7 +170,8 @@ line such as `and 12 more`, and its heading still counts every agent.
 **Peek.** The `peek` button at the end of a row's third line opens, under the row:
 - its task in full, wrapped over as many lines as it needs, up to 600 characters;
 - **Brief:** what Claude asked the agent to do, its first 600 characters;
-- **Last actions:** its last five tool calls, oldest first, read as the third line reads them;
+- **Last actions:** its last five tool calls, oldest first, each read as the third line reads a
+  call, a file's name first;
 - **Files changed:** the files it wrote or edited, each once, the latest ten; a long path shows
   its last 80 characters after `…`, so its name stays; files it only read show among its last
   actions;

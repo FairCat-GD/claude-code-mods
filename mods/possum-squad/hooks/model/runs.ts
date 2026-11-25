@@ -1,8 +1,8 @@
 import type { Activity, Ask, Excerpt, KeptEnding, Past, Pending, Role, Run, Runs, StateId, Tally, Tokens } from '../../types/index'
-import { ACTIONS_KEPT, FILES_KEPT, FINISHED_KEPT, LIST_ANSWER_MS, PEEK_CHARS, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../config'
+import { ACTIONS_KEPT, DESCRIPTION_CHARS, FILES_KEPT, FINISHED_KEPT, LIST_ANSWER_MS, PEEK_CHARS, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../config'
 import { windowOf } from '../data/models'
 import { costOf } from '../data/prices'
-import { TARGET_CHARS } from './tools'
+import { cutTo, pathEnd } from './tools'
 
 // Each function takes `runs` and an event's record, and returns `runs` as it should now be. An event it cannot
 // place changes nothing and returns the same object. A spawn, an end and the fallback role take the time.
@@ -75,12 +75,6 @@ const without = <T>(record: Record<string, T>, key: string) => {
   return rest
 }
 
-// A text's first characters, counted whole so an emoji is never split.
-export function cutTo(text: string, characters: number): { text: string; isCut: boolean } {
-  const all = Array.from(text)
-  return all.length > characters ? { text: all.slice(0, characters).join(''), isCut: true } : { text, isCut: false }
-}
-
 // What Peek keeps of a brief or an answer: nothing more than it draws, since any plugin can read `runs`.
 export function excerptOf(text: string): Excerpt {
   const cut = cutTo(text.trim(), PEEK_CHARS)
@@ -89,12 +83,6 @@ export function excerptOf(text: string): Excerpt {
 
 // The latest calls, oldest first.
 const withActions = (held: readonly Activity[] | undefined, actions: readonly Activity[]) => [...(held ?? []), ...actions].slice(-ACTIONS_KEPT)
-
-// A path's last characters, where its file's name is.
-export function pathEnd(path: string): Excerpt {
-  const all = Array.from(path)
-  return all.length > TARGET_CHARS ? { text: all.slice(-TARGET_CHARS).join(''), isCut: true } : { text: path }
-}
 
 // Each file once, at the place it was last changed, so the latest stay.
 function withFiles(held: readonly Excerpt[] | undefined, files: readonly (string | Excerpt)[]): Excerpt[] {
@@ -350,7 +338,7 @@ export function asked(runs: Runs, agentId: string, at?: number): Runs {
 
 // A run ends with its kept ending. Once the list says it ended, its background work is done, so Helper may settle it.
 function endedWith(run: Run, kept: KeptEnding, at: number, isConfirmed = false): Run {
-  const { keptEnding: _, ask: __, ...rest } = run
+  const { keptEnding: _, ask: __, summary: ___, ...rest } = run
   const ended: Run = { ...rest, state: kept.state, endedAt: at, inFlight: 0 }
   if (isConfirmed) delete ended.hasBackgroundWork
   return ended
@@ -393,6 +381,28 @@ export function listed(runs: Runs, statuses: ReadonlyMap<string, string> | undef
     rows[key] = next
   }
   return rows === undefined ? runs : pruned({ ...runs, rows })
+}
+
+// One line of a model's text: its line breaks and runs of spaces as single spaces.
+const oneLine = (text: string) => text.replace(/\s+/g, ' ').trim()
+
+// The engine's progress summary of each live row the list names, by agent id. A label that is blank, or the
+// description itself (the engine's stand-in for none), leaves the row without one.
+export function summarized(runs: Runs, labels: ReadonlyMap<string, string>): Runs {
+  let rows: Record<string, Run> | undefined
+  for (const [key, run] of Object.entries(runs.rows)) {
+    const label = run.agentId === undefined ? undefined : labels.get(run.agentId)
+    if (label === undefined || hasEnded(run)) continue
+    const line = oneLine(label)
+    const cut = cutTo(line, DESCRIPTION_CHARS)
+    const summary: Excerpt | undefined =
+      line === '' || line === oneLine(run.description) ? undefined : cut.isCut ? { text: cut.text, isCut: true } : { text: line }
+    if (summary?.text === run.summary?.text && summary?.isCut === run.summary?.isCut) continue
+    const { summary: _, ...rest } = run
+    rows ??= { ...runs.rows }
+    rows[key] = summary === undefined ? rest : { ...rest, summary }
+  }
+  return rows === undefined ? runs : { ...runs, rows }
 }
 
 // A held turn's end no list has answered within `LIST_ANSWER_MS` ends as the turn did; a waiting run is the list's.

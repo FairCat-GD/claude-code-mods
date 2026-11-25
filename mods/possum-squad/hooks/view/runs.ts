@@ -1,15 +1,28 @@
 import type { Activity, Excerpt, Run } from '../../types/index'
 import { ANIMATION_STEP_MS, DESCRIPTION_CHARS, MOMENT_GRACE_MS, PEEK_CHARS } from '../config'
-import { cutTo, isLive, quietMs } from '../model/runs'
+import { hasEnded, isLive, quietMs } from '../model/runs'
+import { cutTo, PATH_TOOLS } from '../model/tools'
 import { MOMENT_STEPS, type Moment } from '../sprites/recipes'
 import { STRINGS } from '../strings'
 import type { PeekData, RowData } from './row'
 
-// "Reading shed/rack.txt"; an MCP tool by its own last name.
-export function activityText(activity: Activity): string {
-  const verb = Object.hasOwn(STRINGS.activity, activity.tool) ? STRINGS.activity[activity.tool] : undefined
-  if (verb !== undefined && activity.target !== undefined) return `${verb} ${activity.target}`
-  return STRINGS.using(activity.tool.split('__').pop() || activity.tool)
+// "Reading rack.txt in shed", "Running npm test", or past on an ended row; an MCP tool by its own last name.
+export function activityText(activity: Activity, isPast = false): string {
+  const verbs = isPast ? STRINGS.activityPast : STRINGS.activity
+  const verb = Object.hasOwn(verbs, activity.tool) ? verbs[activity.tool] : undefined
+  const { target } = activity
+  if (verb === undefined || target === undefined) {
+    const tool = activity.tool.split('__').pop() || activity.tool
+    return isPast ? STRINGS.used(tool) : STRINGS.using(tool)
+  }
+  const isCut = activity.isCut === true
+  if (!PATH_TOOLS.has(activity.tool)) return `${verb} ${target}${isCut ? STRINGS.cut : ''}`
+  const at = target.lastIndexOf('/')
+  if (at === -1 || at === target.length - 1) return `${verb} ${isCut ? STRINGS.cut : ''}${target}`
+  const folder = target.slice(0, at)
+  // A cut folder starts at its next whole name.
+  const whole = isCut && folder.includes('/') ? folder.slice(folder.indexOf('/')) : folder
+  return STRINGS.inFolder(verb, target.slice(at + 1), `${isCut ? STRINGS.cut : ''}${whole === '' ? '/' : whole}`)
 }
 
 // The one-off a row's sprite plays while its moment is fresh: its ending, its dressing when the role came after its
@@ -39,7 +52,7 @@ const excerpt = (kept: Excerpt) => (kept.isCut === true ? `${kept.text}${STRINGS
 export function peekData(run: Run): PeekData {
   const peek: PeekData = {
     description: shortened(run.description, PEEK_CHARS),
-    actions: (run.actions ?? []).map(activityText),
+    actions: (run.actions ?? []).map(action => activityText(action)),
     files: (run.files ?? []).map(file => (file.isCut === true ? `${STRINGS.cut}${file.text}` : file.text)),
   }
   if (run.brief !== undefined) peek.brief = excerpt(run.brief)
@@ -69,7 +82,10 @@ export function rowData(
   }
   if (run.model !== undefined) row.model = run.model
   if (run.effort !== undefined) row.effort = run.effort
+  // Line 3: quiet's time; an ended row's last call, past; the engine's summary, but where it needs the person; its call.
   if (quiet !== undefined) row.activity = STRINGS.row.quietFor(Math.floor(quiet / 60_000))
+  else if (hasEnded(run)) row.activity = run.activity === undefined ? STRINGS.row.noCalls : activityText(run.activity, true)
+  else if (run.summary !== undefined && run.state !== 'needs-you') row.activity = excerpt(run.summary)
   else if (run.activity !== undefined) row.activity = activityText(run.activity)
   if (run.round > 1) row.round = run.round
   if (isPeeked) row.peek = peekData(run)

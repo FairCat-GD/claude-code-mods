@@ -74,6 +74,8 @@ export const STRINGS = {
     mark: '●',
     separator: ' · ',
     noActivity: 'No tool calls yet',
+    // An ended row that made none.
+    noCalls: 'No tool calls',
     context: 'Context',
     contextShort: 'ctx',
     unknown: '–',
@@ -97,7 +99,26 @@ export const STRINGS = {
     Task: 'Starting',
     Skill: 'Using',
   } as Record<string, string | undefined>,
+  // The same verbs for a call that is over, on an ended row.
+  activityPast: {
+    Read: 'Read',
+    Write: 'Wrote',
+    Edit: 'Edited',
+    MultiEdit: 'Edited',
+    NotebookEdit: 'Edited',
+    Bash: 'Ran',
+    Grep: 'Searched for',
+    Glob: 'Looked for',
+    WebFetch: 'Fetched',
+    WebSearch: 'Searched the web for',
+    Agent: 'Started',
+    Task: 'Started',
+    Skill: 'Used',
+  } as Record<string, string | undefined>,
   using: (tool: string) => `Using ${tool}`,
+  used: (tool: string) => `Used ${tool}`,
+  // A path names its file first, so a line cut at its end keeps it: "Reading rack.txt in …/north/shed".
+  inFolder: (verb: string, name: string, folder: string) => `${verb} ${name} in ${folder}`,
   // `/possums roles`: every role of the set in every state, a few roles at a time.
   gallery: {
     heading: (set: string) => `Roles · ${set}`,

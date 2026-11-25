@@ -73,6 +73,11 @@ export const COLOURS: Record<StateId | 'planned', Color> = {
   stopped: 'inactive',
 }
 
+// The desktop lays Boxes out as CSS flex, where a one-line Text keeps its Box from shrinking below the text's width and
+// pushes what follows (`peek`, the state word) out of the pane, unless the Box may shrink to nothing. The row's column
+// takes the minimum alone: hiding its overflow could clip the role picker.
+const SHRINKS = { flexGrow: 1, flexShrink: 1, minWidth: 0, overflow: 'hidden' } as const
+
 const join = (parts: readonly (string | undefined)[]) => parts.filter(part => part !== undefined && part !== '').join(STRINGS.row.separator)
 const activity = (row: RowData) => row.activity ?? STRINGS.row.noActivity
 const estimateOf = (row: RowData) => (row.usd === undefined ? undefined : estimate(row.usd))
@@ -87,7 +92,7 @@ function firstLine({ Box, Text }: Shared, row: RowData, mark?: RenderElement): R
   return (
     <Box flexDirection="row" gap={1}>
       {mark}
-      <Box flexGrow={1} flexShrink={1}>
+      <Box {...SHRINKS}>
         <Text wrap="end">{row.description}</Text>
       </Box>
       {row.round !== undefined && row.round > 1 ? <Text dimColor>{STRINGS.row.round(row.round)}</Text> : undefined}
@@ -103,7 +108,7 @@ function detailsLine({ Box, Text, Button }: RowTable, row: RowData, picker: Role
     <Box flexDirection="row" gap={1}>
       <Button key={`role-${row.id}`} label={row.role ?? STRINGS.picker.pick} dimColor onPress={picker.onToggle} />
       {rest === '' ? undefined : (
-        <Box flexGrow={1} flexShrink={1}>
+        <Box {...SHRINKS}>
           {isFootnote ? (
             <Text size="footnote" dimColor wrap="end">
               {rest}
@@ -138,7 +143,7 @@ function pickerLine({ Box, Button, Select }: RowTable, row: RowData, picker: Rol
 function activityLine({ Box, Text, Button }: RowTable, row: RowData, peek: PeekToggle, isFootnote: boolean): RenderElement {
   return (
     <Box flexDirection="row" gap={1}>
-      <Box flexGrow={1} flexShrink={1}>
+      <Box {...SHRINKS}>
         {isFootnote ? (
           <Text size="footnote" wrap="end">
             {activity(row)}
@@ -218,7 +223,7 @@ export function desktopRow(table: DesktopTable, row: RowData, picker: RolePicker
   return (
     <Box key={row.id} flexDirection="row" gap={1} {...indentOf(depth)}>
       {sprite ?? <Text color={COLOURS[row.state]}>{STRINGS.row.mark}</Text>}
-      <Box flexDirection="column" flexGrow={1} flexShrink={1}>
+      <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0}>
         {firstLine(table, row)}
         {detailsLine(table, row, picker, true)}
         {pickerLine(table, row, picker)}

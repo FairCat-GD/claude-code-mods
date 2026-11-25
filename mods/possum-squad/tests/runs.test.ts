@@ -81,7 +81,7 @@ test("a loop's turn and steps before the spawn's result join its row at the re-k
   for (const surface of SURFACES) {
     const { texts } = await drawn($, surface)
     expect(texts).toContain(STRINGS.states.working)
-    expect(texts).toContain('Reading shed/rack.txt')
+    expect(texts).toContain('Reading rack.txt in shed')
     expect(texts.filter(text => text === SPAWN.description)).toHaveLength(1)
   }
 })
@@ -224,7 +224,8 @@ test("a call's arguments draw as plain Text in the activity line, never as marku
   await step($)
   for (const surface of SURFACES) {
     const { elements, texts } = await drawn($, surface)
-    expect(texts).toContain(`Reading ${path}`)
+    // A path names its file first: here what follows its last slash.
+    expect(texts).toContain('Reading b>.txt in **bold** [hedge](https://example.test/hedge) <b>today<')
     // The sprite is the only Svg, built from the mod's own art: no element's props, its source included, hold the call's text.
     expect(elements.filter(element => element.type === 'Markdown' || element.type === 'Link')).toEqual([])
     for (const element of elements.filter(one => one.type !== 'Text')) expect(JSON.stringify(element.props)).not.toContain('hedge')

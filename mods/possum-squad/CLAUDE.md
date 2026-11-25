@@ -23,7 +23,7 @@ These keep their spelling, because installs and stored data live under them:
 - its settings and their values, its set ids, role ids and state ids (`docs/ARCHITECTURE.md`,
   *Values*);
 - its `$.state` keys, `runs`, `lead`, `view`, declared in `types/index.d.ts` (`view` under the
-  shape tag `view-5`, `runs` under `runs-8` and `lead` under `lead-2`, each changing with its
+  shape tag `view-5`, `runs` under `runs-9` and `lead` under `lead-2`, each changing with its
   fields);
 - its `$.store` keys, `prefs` and `role:<agent type>` (a custom type's picked role, keyed by
   the type as the engine spells it), both built;

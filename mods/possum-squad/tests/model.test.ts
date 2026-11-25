@@ -6,8 +6,6 @@ import { DEFAULT_WINDOW, WINDOWS } from '../hooks/data/models'
 import {
   asked,
   cleared,
-  cutTo,
-  pathEnd,
   endingOf,
   fellBack,
   figures,
@@ -27,11 +25,12 @@ import {
   spawnOpened,
   spawnSettled,
   stepped,
+  summarized,
   turnEnded,
   turnStarted,
   weakOf,
 } from '../hooks/model/runs'
-import { callsOf, TARGET_CHARS } from '../hooks/model/tools'
+import { callsOf, cutTo, pathEnd, TARGET_CHARS } from '../hooks/model/tools'
 import { leadFigures, measured, NO_LEAD, totals, turnCounted } from '../hooks/model/lead'
 import { STRINGS } from '../hooks/strings'
 import { activityText } from '../hooks/view/runs'
@@ -731,9 +730,56 @@ test('a past holding only dollars is not empty: a clear starts it over and the l
   expect(isEmpty(runs)).toBe(false)
 })
 
+test("a path's target keeps its last 80 characters, any other its first 80, each marked cut, an emoji never split", () => {
+  const path = `/fixture/orchard/${'beds/north/'.repeat(8)}rack.txt`
+  expect(callsOf([read(path)]).activity).toEqual({ tool: 'Read', target: path.slice(-TARGET_CHARS), isCut: true })
+  expect(callsOf([edit('shed/rack.txt')]).activity).toEqual({ tool: 'Edit', target: 'shed/rack.txt' })
+  const command = `🌱${'x'.repeat(TARGET_CHARS)}`
+  const ran = callsOf([{ name: 'Bash', input: { command } }]).activity
+  expect(ran).toEqual({ tool: 'Bash', target: `🌱${'x'.repeat(TARGET_CHARS - 1)}`, isCut: true })
+  expect(callsOf([{ name: 'Grep', input: { pattern: 'rake' } }]).activity).toEqual({ tool: 'Grep', target: 'rake' })
+})
+
+test('a path reads its file name first, then its folder, a cut one from its next whole name; past on an ended row', () => {
+  expect(activityText({ tool: 'Read', target: 'north/shed/rack.txt' })).toBe('Reading rack.txt in north/shed')
+  expect(activityText({ tool: 'Write', target: 'ds/north/shed/rack.txt', isCut: true })).toBe('Writing rack.txt in …/north/shed')
+  expect(activityText({ tool: 'Edit', target: 'rth/rack.txt', isCut: true })).toBe('Editing rack.txt in …rth')
+  expect(activityText({ tool: 'Edit', target: 'rack.txt' })).toBe('Editing rack.txt')
+  expect(activityText({ tool: 'Read', target: 'k.txt', isCut: true })).toBe('Reading …k.txt')
+  expect(activityText({ tool: 'Read', target: '/hosts' })).toBe('Reading hosts in /')
+  expect(activityText({ tool: 'Bash', target: './plant --bed', isCut: true })).toBe('Running ./plant --bed…')
+  expect(activityText({ tool: 'Bash', target: 'npm test' }, true)).toBe('Ran npm test')
+  expect(activityText({ tool: 'Read', target: 'north/rack.txt' }, true)).toBe('Read rack.txt in north')
+  expect(activityText({ tool: 'Glob', target: '*.md' }, true)).toBe('Looked for *.md')
+  expect(activityText({ tool: 'mcp__garden__water' }, true)).toBe('Used water')
+  expect(activityText({ tool: 'mcp__garden__water' })).toBe('Using water')
+  expect(activityText({ tool: 'constructor' }, true)).toBe('Used constructor')
+})
+
+test("the engine's summary sits on a live row: folded to one line, cut at 100, gone when blank or the description, left on an ended one", () => {
+  let runs = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1')
+  runs = turnStarted(spawned(runs, RAKES, 'agent-2'), 'agent-2')
+  const labels = (one: Record<string, string>) => new Map(Object.entries(one))
+  runs = summarized(runs, labels({ 'agent-1': 'Weeding\n   the  bed ', 'agent-2': 'Rake the leaves', 'agent-9': 'Nobody here' }))
+  expect(runs.rows['agent-1']?.summary).toEqual({ text: 'Weeding the bed' })
+  expect(runs.rows['agent-2']?.summary).toBeUndefined()
+  expect(summarized(runs, labels({ 'agent-1': 'Weeding the bed' }))).toBe(runs)
+  expect(summarized(runs, labels({}))).toBe(runs)
+  const long = 'Sorting the seed trays by colour '.repeat(5)
+  expect(summarized(runs, labels({ 'agent-1': long })).rows['agent-1']?.summary).toEqual({ text: long.slice(0, 100), isCut: true })
+  expect(summarized(runs, labels({ 'agent-1': '  \n ' })).rows['agent-1']?.summary).toBeUndefined()
+  // An end drops it, and a later list leaves the ended row be.
+  const ended = endedNow(runs, 'agent-1', ANSWERED, 5)
+  expect(ended.rows['agent-1']?.summary).toBeUndefined()
+  expect(summarized(ended, labels({ 'agent-1': 'Weeding again' }))).toBe(ended)
+  // A pending entry is no row: the list's summary waits for the re-key.
+  const pending = turnStarted(NO_RUNS, 'agent-7')
+  expect(summarized(pending, labels({ 'agent-7': 'Watering' }))).toBe(pending)
+})
+
 test("a call to a tool named as an Object's own key reads as any tool the table does not name", () => {
   expect(activityText({ tool: 'constructor', target: 'shed' })).toBe(STRINGS.using('constructor'))
-  expect(activityText({ tool: 'Read', target: 'shed/rack.txt' })).toBe('Reading shed/rack.txt')
+  expect(activityText({ tool: 'Read', target: 'shed/rack.txt' })).toBe('Reading rack.txt in shed')
 })
 
 // What a run's ending leaves on it.

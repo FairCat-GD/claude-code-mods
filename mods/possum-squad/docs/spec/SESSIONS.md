@@ -2496,6 +2496,109 @@ bound), *Known debt*; 12a's done-note; the declarations' `AgentInfo.label`.
 - **The desktop's layout is not the kit's:** the kit drew the `peek` button the desktop pushed
   out. Only a look shows it.
 
+**Done (2026-11-25, 0.15.0).**
+- **Decided with the user, at the plan** (the block's three asks, and one the code raised):
+  - **the path's form:** the declarations say `Text` on the desktop always cuts a line's end, and
+    a docked terminal row leaves about 35 columns for line 3, so a path's last 80 characters
+    alone still hid the file name. A path names its file first, then its folder: "Reading
+    package.json in …/mods/possum-squad", in Peek's last actions too;
+  - **the summary:** measured first (below); it takes the last call's place on a starting,
+    working or waiting row, not on one that needs the person, is quiet or has ended; kept cut at
+    100 characters; not in Peek;
+  - **the past tense:** finished, failed and stopped rows only, "No tool calls" with none; a
+    waiting row keeps the live verb; Peek's last actions keep theirs.
+- **Measured first** (CLI 2.1.330), with a throwaway probe plugin in the scratchpad reading
+  `$.agent.list()` each second, never in the repository, driven through `screen`:
+  - a background subagent of 57 s (three 15-second pings, a read and a listing between them)
+    listed its `label` as its description for 31.5 s, then one summary of 29 characters, one
+    line, the words the engine's own agent row showed; it kept that label through its end, when
+    its status went `completed`;
+  - 144 reads took 1.9 ms each on average, 4 ms at most, with one agent listed.
+- **Shipped:**
+  - **The model:** `runs-9`: `Activity.isCut`, `Run.summary`. `hooks/model/tools.ts` holds
+    `cutTo` and `pathEnd`, moved from `runs.ts`, and `PATH_TOOLS`. `targetOf` keeps a path's
+    last 80 characters and any other target's first 80, whole characters, each marked cut.
+    `summarized` is in `runs.ts`, and `endedWith` drops the summary.
+  - **The hooks:** `readList` keeps each entry's text `label` and applies `listed`, then
+    `summarized`, in one `update`. The beat reads `view` first; with no kept ending, it starts
+    `readList` while the pane is shown, the gallery closed and a run live. So it is one read a
+    beat at most.
+  - **The view:**
+    - `activityText(activity, isPast)` gives a path its file first, through
+      `STRINGS.inFolder`, a cut folder from its next whole name, and `…` after a cut command;
+    - `STRINGS.activityPast`, `used` and `row.noCalls`;
+    - `rowData`'s line 3 by state;
+    - `SHRINKS` (`minWidth` 0, `overflow` `hidden`) on the description's, the model's and the
+      activity's Boxes, and `minWidth` 0 on `desktopRow`'s column.
+  - **Tests:**
+    - `tests/activity.test.ts` (6), new;
+    - model +3, the I-03 store check with a listed summary drawn before the end;
+    - 12a's read-count test rewritten to the widened rule;
+    - the size test's line 3 at its longest (a web search's query cut, 103 characters);
+    - the old `Reading shed/rack.txt` expectations to the new form;
+    - the I-04 prop check reads prop values only.
+  - **Docs:** `CHANGELOG.md` 0.15.0; `README.md` (0.15.0, its row); `USER-GUIDE.md` (*What a row
+    shows*, Peek); the mod's `CLAUDE.md` (`runs-9`); `docs/BACKLOG.md`; `ARCHITECTURE.md`:
+    - *Overview*, *The hooks* (`readList`), *Values* (`runs-9`);
+    - *The run model* (the activity, the summary with its measurement);
+    - *The panel* (the Decided activity line, `rowData`'s line 3, the beat, what keeps `peek` in
+      reach, the worst list, Peek);
+    - *Reach*; *Known debt* (the 80-character line out, seven in); the baseline; three
+      Decision log lines.
+- **Amendments:**
+  - The block's "keeps its end" became file name first, the owner's choice at the plan: the end
+    kept in order still hid the name.
+  - "Cut like a brief" is kept at the row's 100 characters, not Peek's 600, since only the row
+    draws it.
+  - 12a's rule of one read a beat "while a turn's end is held or a run waits, and none
+    otherwise" now also reads while a live run shows in the shown pane: its test was rewritten.
+  - Decided by the session:
+    - the reads a record starts while an ending is kept apply the labels too: no read is added
+      to any event hook;
+    - an unread list leaves the summaries be;
+    - Glob's pattern keeps its start;
+    - "Looked for" is Glob's past;
+    - the column Box takes no `overflow`, which could clip the role picker;
+    - the I-04 test reads prop values only, since `overflow`, a prop's name, holds the
+      fixture's effort `low`.
+- **Checked by hand,** in the terminal: `claude --plugin-dir mods/possum-squad` driven through
+  `screen`, auto mode, the `@inline` store's settings left as they were (nothing pressed or set).
+  - A background agent's row read "Running ping -c 45 127.0.0.1 | tai…" with `[ peek ]` beside
+    it, then at about 0:41 the engine's summary "Pinging localhost 45 times", the words of the
+    engine's own agent row.
+  - At its end it read "Ran wc -l" and the file's absolute path, cut, in Finished, `[ peek ]` in
+    place.
+  - A second agent whose last call read a file by its absolute path read "Reading tools.ts in
+    …/" and a far folder, cut, then "Read tools.ts in …/" at its end. Its folder reads from the
+    far end of the kept 80 characters, a known-debt line.
+  - No `claude --plugin-dir` was left running.
+  - **Not checked by hand:** everything in the desktop app, `peek` in reach there above all
+    (`docs/BACKLOG.md`); Peek's last actions in the terminal (the kit checks them); a summary on
+    a waiting row.
+- **Falsified,** each failing at its own test (22):
+  - **the cuts and the path form:** a path keeping its start; a cut command unmarked; no file
+    named first; a cut folder kept whole;
+  - **`peek`'s room:** `minWidth` dropped;
+  - **line 3 by state:** the past tense dropped; an ended row with no call reading "No tool
+    calls yet"; waiting read past; needs-you showing the summary;
+  - **the summary:** labels not read; the description taken as a summary; the cut at 600; line
+    breaks kept; an end keeping the summary; an ended row taking one; an unread list clearing it;
+  - **the beat's reads:** none for summaries; a read behind another tab; a read over the
+    gallery; two reads a beat while a turn's end is kept;
+  - **the invariants:** a store write carrying the summary (I-03); agent text in a Box's `key`
+    (I-04).
+  - In seven of the runs, the sprites' size test (N-02) also timed out, at 5–5.6 s against about
+    3 s, under the load of back-to-back runs: unrelated to the changes, and green in every
+    clean run.
+- **Numbers:**
+  - 313 tests (+9) in 26 files (+1): activity 6 (new), model 58 (+3), the rest unchanged in
+    count; about 18 s;
+  - the tools' specs unchanged: 10 in 2 files;
+  - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys, the calls line unchanged;
+  - the worst list 1,845 nodes, 8 deep, at most 232,837 characters (horror), 92% and 89% of the
+    bound (227,422 before);
+  - the gate green on CLI 2.1.330.
+
 ---
 
 ## 12c: The Lead's time during a main turn

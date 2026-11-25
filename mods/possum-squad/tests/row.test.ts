@@ -63,8 +63,9 @@ test("a row's agent text is drawn only as plain Text, never as markup, a link or
       const svgs = elements.filter(element => element.type === 'Svg')
       expect(svgs.map(svg => svg.props.source)).toEqual(surface === 'terminal' ? [] : [spriteOf(row).source])
       for (const element of elements.filter(one => one.type !== 'Text')) {
+        // Values only: a prop's name is the mod's own word, and `overflow` holds the fixture's `low`.
         const { source: _, ...props } = element.props as Record<string, unknown>
-        for (const text of agentText(row)) expect(JSON.stringify(props)).not.toContain(text)
+        for (const text of agentText(row)) expect(JSON.stringify(Object.values(props))).not.toContain(text)
       }
     }
   }

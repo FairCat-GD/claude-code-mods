@@ -1,7 +1,22 @@
-import type { Activity } from '../../types/index'
+import type { Activity, Excerpt } from '../../types/index'
 
 // About what one line of the pane shows; the rest of a command or path stays out of state other plugins read.
 export const TARGET_CHARS = 80
+
+// A text's first characters, counted whole so an emoji is never split.
+export function cutTo(text: string, characters: number): { text: string; isCut: boolean } {
+  const all = Array.from(text)
+  return all.length > characters ? { text: all.slice(0, characters).join(''), isCut: true } : { text, isCut: false }
+}
+
+// A path's last characters, where its file's name is.
+export function pathEnd(path: string): Excerpt {
+  const all = Array.from(path)
+  return all.length > TARGET_CHARS ? { text: all.slice(-TARGET_CHARS).join(''), isCut: true } : { text: path }
+}
+
+// The tools whose target is a file's path: it keeps its end, where the name is; any other keeps its start.
+export const PATH_TOOLS: ReadonlySet<string> = new Set(['Read', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 
 // The argument that says what a call is about, by tool.
 const TARGETS: Record<string, string> = {
@@ -36,9 +51,12 @@ function lineOf(tool: string, input: unknown): string | undefined {
   return line === '' ? undefined : line
 }
 
-function targetOf(tool: string, input: unknown): string | undefined {
+function targetOf(tool: string, input: unknown): Excerpt | undefined {
   const line = lineOf(tool, input)
-  return line !== undefined && line.length > TARGET_CHARS ? line.slice(0, TARGET_CHARS) : line
+  if (line === undefined) return undefined
+  if (PATH_TOOLS.has(tool)) return pathEnd(line)
+  const cut = cutTo(line, TARGET_CHARS)
+  return cut.isCut ? { text: cut.text, isCut: true } : { text: line }
 }
 
 // A call as the role rules read it: the tool's name, and a shell command after it. Read, never stored.
@@ -53,7 +71,8 @@ const isBackground = (use: { input?: unknown }) =>
 
 const activityOf = (use: { name: string; input?: unknown }): Activity => {
   const target = targetOf(use.name, use.input)
-  return target === undefined ? { tool: use.name } : { tool: use.name, target }
+  if (target === undefined) return { tool: use.name }
+  return target.isCut === true ? { tool: use.name, target: target.text, isCut: true } : { tool: use.name, target: target.text }
 }
 
 export type Calls = { activity?: Activity; actions: Activity[]; files: string[]; count: number; clues: string[]; hasBackground: boolean }

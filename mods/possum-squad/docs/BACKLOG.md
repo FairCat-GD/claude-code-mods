@@ -75,8 +75,9 @@ these are the parts only a person can see.
 - **Peek and the collapsed view (0.12.0).** Seen in the terminal at Session 11 (see its
   done-note). **Seen in the desktop app at Session 13's plan** (installed 0.13.0): the header's
   `collapse` at the end of the session line; and a defect: a long activity, a `cd` into an
-  absolute path, pushed each row's `peek` button out of the pane, which Session 12b fixes.
-  Unseen: `peek` and `hide` in reach; Peek's lines under the row, wrapping, in the small type; the
+  absolute path, pushed each row's `peek` button out of the pane, which 0.15.0 fixes with
+  `minWidth` 0 on the row's shrinking Boxes. Unseen: `peek` and `hide` in reach on a row reading
+  a file under a long path, or running a long command; Peek's lines under the row, wrapping, in the small type; the
   collapsed view, the Lead carrying one to three joeys at panel size on both themes (the
   redrawn joey's light-theme outline), the count and `1 needs you` beside it, and `expand`; a
   pane minimized in the app showing the collapsed view with no button, and a toast while it
@@ -95,6 +96,10 @@ these are the parts only a person can see.
   waiting on its background helper with the helper drawn under it (the engine listed such a
   parent `waiting` in Session 12a's probe); the toast at a waiting agent's real end with the
   pane closed, and that end shown at another agent's event.
+- **The activity line (0.15.0).** Unseen in the desktop app: a file named first ("Reading
+  package.json in …/mods/possum-squad") on a row and in Peek; Claude Code's progress summary in
+  a working row's third line, about half a minute into an agent's work, and whether the desktop
+  app's engine gives one at all; an ended row's last call in the past.
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.

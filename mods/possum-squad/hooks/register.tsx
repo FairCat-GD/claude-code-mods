@@ -12,6 +12,7 @@ import {
   hasKept,
   heldOut,
   isEmpty,
+  isLive,
   keepsClock,
   listed,
   NO_RUNS,
@@ -23,6 +24,7 @@ import {
   spawnOpened,
   spawnSettled,
   stepped,
+  summarized,
   turnEnded,
   turnStarted,
   weakOf,
@@ -44,7 +46,7 @@ export const PANE = 'possum-squad'
 export const NO_FLAGS: View = { isClosedByPerson: false, isGalleryOpen: false }
 export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-5' })
 // Bump the shape when Runs or Run change their fields.
-export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-8' })
+export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-9' })
 // Bump the shape when Lead changes its fields.
 export const lead = atom({ plugin: 'possum-squad', key: 'lead' } as const, NO_LEAD, { shape: 'lead-2' })
 
@@ -109,7 +111,8 @@ function stopClock(own = generation) {
 
 // A closed pane, or no run that is live or may still fall back to Helper, stops the clock. A pane open behind another keeps it, undrawn, so its times are right
 // the moment it shows. A role settled here redraws the pane by its write. The gallery's sprites move inside themselves,
-// so a beat leaves it undrawn: a redraw would send every one of its sprites again for the header's time alone.
+// so a beat leaves it undrawn: a redraw would send every one of its sprites again for the header's time alone. The
+// engine's list is read once a beat at most: for a kept turn's end, or for the summaries of live rows the pane shows.
 async function tick($: Watching, own: number) {
   if (own !== generation) return
   beats++
@@ -119,9 +122,10 @@ async function tick($: Watching, own: number) {
     if (pane === undefined) return stopClock(own)
     const held = await read($, runs)
     if (!shownRuns(held).some(keepsClock)) return stopClock(own)
+    const flags = await read($, view).catch(() => NO_FLAGS)
     const hasSettled = await settleHelpers($, held)
     if (hasKept(held)) await settleHeld($, held)
-    const flags = await read($, view).catch(() => NO_FLAGS)
+    else if (pane.isShown && !flags.isGalleryOpen && shownRuns(held).some(isLive)) void readList($)
     if (pane.isShown && !hasSettled && !flags.isGalleryOpen) $.ui.invalidate('ui.render')
   } catch {
     stopClock(own)
@@ -162,23 +166,30 @@ async function settleHeld($: Watching, held: Runs) {
   void readList($)
 }
 
-// The engine's list settles each kept turn's end (`listed`). Nothing awaits it (N-07), so every fault ends here.
+// The engine's list settles each kept turn's end (`listed`) and gives each live row its progress summary
+// (`summarized`); a list that cannot be read leaves the summaries be. Nothing awaits it (N-07), so every fault ends here.
 async function readList($: Watching) {
   let statuses: Map<string, string> | undefined
+  let labels = new Map<string, string>()
   try {
     const agents: unknown = await $.agent.list()
-    statuses = Array.isArray(agents) ? new Map(agents.flatMap(agent => (isListed(agent) ? [[agent.id, agent.status] as const] : []))) : undefined
+    const known = Array.isArray(agents) ? agents.filter(isListed) : undefined
+    statuses = known === undefined ? undefined : new Map(known.map(agent => [agent.id, agent.status] as const))
+    labels = new Map((known ?? []).flatMap(agent => (typeof agent.label === 'string' ? [[agent.id, agent.label] as const] : [])))
   } catch {
     statuses = undefined
   }
   const now = await timeOrNone($)
   let toasts: string[] = []
+  const settle = (latest: Runs) => {
+    const ended = listed(latest, statuses, now)
+    return summarized(now === undefined || ended === latest ? ended : fellBack(ended, now, HELPER), labels)
+  }
   try {
     const held = await read($, runs)
-    if (listed(held, statuses, now) === held) return
+    if (settle(held) === held) return
     await update($, runs, latest => {
-      const settled = listed(latest, statuses, now)
-      const next = now === undefined || settled === latest ? settled : fellBack(settled, now, HELPER)
+      const next = settle(latest)
       toasts = endedToasts(latest, next)
       return next
     })
@@ -188,7 +199,7 @@ async function readList($: Watching) {
   for (const text of toasts) void toastUnseen($, text)
 }
 
-const isListed = (agent: unknown): agent is { id: string; status: string } =>
+const isListed = (agent: unknown): agent is { id: string; status: string; label?: unknown } =>
   typeof agent === 'object' &&
   agent !== null &&
   typeof (agent as { id?: unknown }).id === 'string' &&

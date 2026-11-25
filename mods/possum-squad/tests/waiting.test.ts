@@ -245,17 +245,20 @@ test('a waiting parent and its working helper both sit in Running, the helper dr
   }
 })
 
-test('the beat reads the list once a beat while a run waits, and never while none does', async ($, on) => {
+test('the beat reads the list once a beat, whether a run waits or only works', async ($, on) => {
   const { clock, given } = world(on)
   await $.command.run(POSSUMS)
   await working($, 1)
   await working($, 2)
+  // Two working runs: one read a beat, for their summaries.
   await clock.advance(3_000)
-  expect(given.reads).toBe(0)
+  await settled()
+  expect(given.reads).toBe(3)
   given.listed = { 'agent-1': 'waiting' }
   await ends($, 1)
   const atEnd = given.reads
-  expect(atEnd).toBeGreaterThan(0)
+  expect(atEnd).toBe(4)
+  // A waiting run and a working one: still one read a beat, not one for each.
   await clock.advance(3_000)
   await settled()
   expect(given.reads).toBe(atEnd + 3)
@@ -263,8 +266,8 @@ test('the beat reads the list once a beat while a run waits, and never while non
   await clock.advance(1_000)
   await settled()
   expect(given.reads).toBe(atEnd + 4)
-  // Agent 2 still works, so the clock beats on, reading nothing.
+  // Agent 2 still works, so the clock beats on, reading once a beat.
   await clock.advance(3_000)
   await settled()
-  expect(given.reads).toBe(atEnd + 4)
+  expect(given.reads).toBe(atEnd + 7)
 })

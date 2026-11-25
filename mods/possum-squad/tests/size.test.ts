@@ -30,9 +30,10 @@ const PARTS = 6
 const GALLERY_STATES = ['planned', 'starting', 'working', 'needs-you', 'quiet', 'finished', 'failed', 'stopped'] as const
 const GALLERY_MOMENTS = { starting: 'arrival', finished: 'ending', stopped: 'ending' } as const
 
-// The longest text a row draws: a description cut where the pane cuts it, and an activity naming a call's longest target.
+// The longest text a row draws: a description cut where the pane cuts it, and the longest third line, a web search's
+// query cut (103 characters), past a summary cut at 100 and a path named file first.
 const LONG_DESCRIPTION = `${'Sort the seed trays by colour, then label each for the spring beds '.repeat(3).slice(0, DESCRIPTION_CHARS)}${STRINGS.cut}`
-const LONG_ACTIVITY = `${STRINGS.activity.Bash} ${'./plant --bed north --rows 12 --spacing 30cm --label spring '.repeat(3).slice(0, TARGET_CHARS)}`
+const LONG_ACTIVITY = `${STRINGS.activity.WebSearch} ${'when to plant north bed seed trays by colour in spring '.repeat(3).slice(0, TARGET_CHARS)}${STRINGS.cut}`
 
 // Fictional rows in the given states, each dressed, numbered, in its second round and playing its moment.
 function rowsIn(states: readonly StateId[]): RowData[] {
