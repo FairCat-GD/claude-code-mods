@@ -33,7 +33,15 @@ export type RowData = {
 
 // Peek's lines, each agent text whole as its own plain Text (I-04): the description, the brief, the last calls as
 // activity lines, the files changed and the answer, each cut where the model cut it.
-export type PeekData = { description: string; brief?: string; actions: readonly string[]; files: readonly string[]; answer?: string }
+export type PeekData = {
+  description: string
+  brief?: string
+  actions: readonly string[]
+  files: readonly string[]
+  answer?: string
+  // The answer is an earlier turn's, while the run works again.
+  isEarlierAnswer?: true
+}
 
 export type RowTable = Shared & { Button: ElementConstructor<ButtonProps>; Select: ElementConstructor<SelectProps> }
 export type DesktopTable = RowTable & { Progress: ElementConstructor<ProgressProps> }
@@ -163,7 +171,7 @@ function peekLines({ Box, Text }: Shared, row: RowData, isFootnote: boolean): Re
       {part('brief', STRINGS.peek.brief, peek.brief === undefined ? [] : [peek.brief])}
       {part('actions', STRINGS.peek.actions, peek.actions)}
       {part('files', STRINGS.peek.files, peek.files)}
-      {part('answer', STRINGS.peek.answer, peek.answer === undefined ? [] : [peek.answer])}
+      {part('answer', peek.isEarlierAnswer === true ? STRINGS.peek.lastAnswer : STRINGS.peek.answer, peek.answer === undefined ? [] : [peek.answer])}
     </Box>
   )
 }

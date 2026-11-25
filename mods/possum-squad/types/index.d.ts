@@ -25,7 +25,7 @@ export type Tokens = { input: number; output: number; cacheRead: number; cacheWr
 // The last tool a run's model asked for, and what the call names: a path, a command's first line, a pattern.
 export type Activity = { tool: string; target?: string }
 
-// A text's first characters, as Peek draws them; `isCut` when it went on.
+// A text's first characters as Peek draws them, or a path's last; `isCut` when there was more.
 export type Excerpt = { text: string; isCut?: true }
 
 // The seventeen roles, by id; `lead` is the main session's alone.
@@ -87,9 +87,10 @@ export type Run = {
   // The last request's size: its input, cache reads and cache writes.
   lastRequest?: number
   activity?: Activity
-  // The last calls it asked for, oldest first, and the files it changed, each once, the latest last.
+  // The last calls it asked for, oldest first, and the files it changed, each once, the latest last, each its last
+  // characters.
   actions?: Activity[]
-  files?: string[]
+  files?: Excerpt[]
   // Its latest turn's answer that had text, its first characters.
   answer?: Excerpt
   // Calls the last step asked for, until the loop's next step or its end.
@@ -112,7 +113,7 @@ export type Pending = {
   lastRequest?: number
   activity?: Activity
   actions?: Activity[]
-  files?: string[]
+  files?: Excerpt[]
   inFlight: number
 }
 

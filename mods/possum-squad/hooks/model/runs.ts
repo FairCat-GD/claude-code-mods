@@ -1,6 +1,7 @@
 import type { Activity, Ask, Excerpt, Past, Pending, Role, Run, Runs, StateId, Tokens } from '../../types/index'
 import { ACTIONS_KEPT, FILES_KEPT, FINISHED_KEPT, PEEK_CHARS, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../config'
 import { windowOf } from '../data/models'
+import { TARGET_CHARS } from './tools'
 
 // Each function takes `runs` and an event's record, and returns `runs` as it should now be. An event it cannot
 // place changes nothing and returns the same object. A spawn, an end and the fallback role take the time.
@@ -86,11 +87,17 @@ export function excerptOf(text: string): Excerpt {
 // The latest calls, oldest first.
 const withActions = (held: readonly Activity[] | undefined, actions: readonly Activity[]) => [...(held ?? []), ...actions].slice(-ACTIONS_KEPT)
 
+// A path's last characters, where its file's name is.
+export function pathEnd(path: string): Excerpt {
+  const all = Array.from(path)
+  return all.length > TARGET_CHARS ? { text: all.slice(-TARGET_CHARS).join(''), isCut: true } : { text: path }
+}
+
 // Each file once, at the place it was last changed, so the latest stay.
-function withFiles(held: readonly string[] | undefined, files: readonly string[]): string[] {
+function withFiles(held: readonly Excerpt[] | undefined, files: readonly (string | Excerpt)[]): Excerpt[] {
   const order = [...(held ?? [])]
-  for (const file of files) {
-    const at = order.indexOf(file)
+  for (const file of files.map(one => (typeof one === 'string' ? pathEnd(one) : one))) {
+    const at = order.findIndex(one => one.text === file.text)
     if (at !== -1) order.splice(at, 1)
     order.push(file)
   }

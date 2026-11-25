@@ -146,10 +146,12 @@ line such as `and 12 more`, and its heading still counts every agent.
 - its task in full, wrapped over as many lines as it needs, up to 600 characters;
 - **Brief:** what Claude asked the agent to do, its first 600 characters;
 - **Last actions:** its last five tool calls, oldest first, read as the third line reads them;
-- **Files changed:** the files it wrote or edited, each once, the latest ten; files it only
-  read show among its last actions;
+- **Files changed:** the files it wrote or edited, each once, the latest ten; a long path shows
+  its last 80 characters after `…`, so its name stays; files it only read show among its last
+  actions;
 - **Answer:** the start of its answer, 600 characters, once it has one. An agent that answers
-  more than once shows its latest answer with text.
+  more than once shows its latest answer with text; while it works on a later turn, that answer
+  is headed **Last answer**, since this turn has none yet.
 
 A part with nothing in it yet is left out. The button reads `hide` while Peek is open; press it
 to close Peek. Opening another row's Peek closes the first, and closing the pane closes it too.
@@ -165,8 +167,9 @@ running, such as `4 running`, and `1 needs you` in the permission colour while a
 on you. Running counts what the Running section holds (starting, working and quiet agents);
 one that needs you is counted there instead. In a terminal it is one line of text. `expand`
 brings the list back. Your choice is kept between sessions, and shared by every session you have
-open. `/possums roles` still shows the gallery over a collapsed pane, and the header's button
-then reads `expand`.
+open. `/possums roles` still shows the gallery over a collapsed pane, and closing the gallery
+brings the collapsed view back. While the gallery shows, the session line has no `collapse`
+button.
 
 **A minimized pane** in the desktop app always shows the collapsed view, whatever you chose,
 with no button, since a click may not reach it there; the app's own control brings it back.

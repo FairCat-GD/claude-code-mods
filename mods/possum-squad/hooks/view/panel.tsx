@@ -218,12 +218,8 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
           <Box flexGrow={1} flexShrink={1}>
             {sessionLine(table, data.session)}
           </Box>
-          <Button
-            key="collapse"
-            label={data.isCollapsed === true ? STRINGS.expand : STRINGS.collapse}
-            dimColor
-            onPress={() => actions.onCollapse(data.isCollapsed !== true)}
-          />
+          {/* Over the gallery a collapse would show nothing until it closes, so the button waits for the list. */}
+          {data.gallery === undefined ? <Button key="collapse" label={STRINGS.collapse} dimColor onPress={() => actions.onCollapse(true)} /> : undefined}
         </Box>
       </Box>
       {list()}

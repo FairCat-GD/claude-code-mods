@@ -62,7 +62,7 @@ const FULLEST_PEEK = {
   description: LONGEST('Sort the seed trays by colour, then label each for the spring beds. '),
   brief: LONGEST('Walk every bed, list what needs water, and leave the gate shut behind you. '),
   actions: Array.from({ length: 5 }, () => LONG_ACTIVITY),
-  files: Array.from({ length: FILES_KEPT }, (_, at) => `${'beds/north/rows/'.repeat(5)}${at}`.slice(-TARGET_CHARS)),
+  files: Array.from({ length: FILES_KEPT }, (_, at) => `${STRINGS.cut}${`${'beds/north/rows/'.repeat(5)}${at}`.slice(-TARGET_CHARS)}`),
   answer: LONGEST('The north bed is weeded and watered, and the labels are on every tray. '),
 }
 const times = (count: number, state: StateId): StateId[] => Array.from({ length: count }, () => state)

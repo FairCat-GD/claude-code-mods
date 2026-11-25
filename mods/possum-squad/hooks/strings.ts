@@ -110,6 +110,7 @@ export const STRINGS = {
     actions: 'Last actions',
     files: 'Files changed',
     answer: 'Answer',
+    lastAnswer: 'Last answer',
   },
   // The header's button between the list and the collapsed view, and what the collapsed view says.
   collapse: 'collapse',

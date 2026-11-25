@@ -1,6 +1,6 @@
 import type { Activity, Excerpt, Run } from '../../types/index'
 import { ANIMATION_STEP_MS, DESCRIPTION_CHARS, MOMENT_GRACE_MS, PEEK_CHARS } from '../config'
-import { cutTo, quietMs } from '../model/runs'
+import { cutTo, isLive, quietMs } from '../model/runs'
 import { MOMENT_STEPS, type Moment } from '../sprites/recipes'
 import { STRINGS } from '../strings'
 import type { PeekData, RowData } from './row'
@@ -34,15 +34,19 @@ export function shortened(text: string, characters = DESCRIPTION_CHARS): string 
 
 const excerpt = (kept: Excerpt) => (kept.isCut === true ? `${kept.text}${STRINGS.cut}` : kept.text)
 
-// What Peek shows of a run: its description whole up to Peek's length, and what the model kept.
+// What Peek shows of a run: its description whole up to Peek's length, and what the model kept. An answer kept from an
+// earlier turn while the run works again is said to be the last, not this turn's.
 export function peekData(run: Run): PeekData {
   const peek: PeekData = {
     description: shortened(run.description, PEEK_CHARS),
     actions: (run.actions ?? []).map(activityText),
-    files: run.files ?? [],
+    files: (run.files ?? []).map(file => (file.isCut === true ? `${STRINGS.cut}${file.text}` : file.text)),
   }
   if (run.brief !== undefined) peek.brief = excerpt(run.brief)
-  if (run.answer !== undefined) peek.answer = excerpt(run.answer)
+  if (run.answer !== undefined) {
+    peek.answer = excerpt(run.answer)
+    if (isLive(run)) peek.isEarlierAnswer = true
+  }
   return peek
 }
 

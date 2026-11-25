@@ -135,16 +135,27 @@ for (const surface of SURFACES) {
     await pane.unmount()
   })
 
-  test(`${surface}: the gallery draws over a collapsed pane, whose header button then reads expand`, async ($, on) => {
+  test(`${surface}: the gallery draws over a collapsed pane, and no collapse button is drawn over the gallery`, async ($, on) => {
     world(on, { collapsed: true })
     await working($, 1)
     await $.command.run(possums('roles'))
-    const { texts, buttons } = await drawn($, surface)
-    expect(texts.some(text => text.startsWith('Roles'))).toBe(true)
-    expect(buttons[0]).toBe('collapse')
+    const over = await drawn($, surface)
+    expect(over.texts.some(text => text.startsWith('Roles'))).toBe(true)
+    expect(over.buttons).not.toContain('collapse')
+    expect(over.buttons).not.toContain('expand')
+    // Its close brings back the collapsed view the person chose.
     const pane = await $.ui.mount({ ...MOUNT, surface })
-    expect((await pane.find({ type: 'Button', key: 'collapse' }))?.props.label).toBe(STRINGS.expand)
+    await pane.press({ key: 'gallery' })
     await pane.unmount()
+    expect((await drawn($, surface)).buttons).toEqual(['expand'])
+  })
+
+  test(`${surface}: over the gallery of an expanded pane there is no collapse button either`, async ($, on) => {
+    world(on)
+    await working($, 1)
+    expect((await drawn($, surface)).buttons).toContain('collapse')
+    await $.command.run(possums('roles'))
+    expect((await drawn($, surface)).buttons).not.toContain('collapse')
   })
 }
 

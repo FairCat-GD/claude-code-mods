@@ -26,14 +26,19 @@ const UNSHOWN = new Set(['SubagentHandback'])
 // The tools that change the file they name: Peek lists these files, and leaves reads to the last actions.
 const CHANGING = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 
-function targetOf(tool: string, input: unknown): string | undefined {
+// The first line of the argument that says what a call is about, whole.
+function lineOf(tool: string, input: unknown): string | undefined {
   const field = TARGETS[tool]
   if (field === undefined || typeof input !== 'object' || input === null) return undefined
   const value = (input as Record<string, unknown>)[field]
   if (typeof value !== 'string') return undefined
   const line = value.trim().split('\n')[0]?.trim() ?? ''
-  if (line === '') return undefined
-  return line.length > TARGET_CHARS ? line.slice(0, TARGET_CHARS) : line
+  return line === '' ? undefined : line
+}
+
+function targetOf(tool: string, input: unknown): string | undefined {
+  const line = lineOf(tool, input)
+  return line !== undefined && line.length > TARGET_CHARS ? line.slice(0, TARGET_CHARS) : line
 }
 
 // A call as the role rules read it: the tool's name, and a shell command after it. Read, never stored.
@@ -68,7 +73,11 @@ export function callsOf(uses: unknown): Calls {
   return {
     activity: activityOf(last),
     actions,
-    files: actions.flatMap(action => (CHANGING.has(action.tool) && action.target !== undefined ? [action.target] : [])),
+    // Whole, so two files are never taken for one by a cut they share.
+    files: shown.flatMap(use => {
+      const path = CHANGING.has(use.name) ? lineOf(use.name, use.input) : undefined
+      return path === undefined ? [] : [path]
+    }),
     count: shown.length,
     clues: shown.map(clueOf),
     hasBackground: shown.some(isBackground),

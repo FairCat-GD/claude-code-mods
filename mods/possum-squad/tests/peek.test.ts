@@ -54,7 +54,7 @@ async function peeked($: Engine, clock: { advance: (ms: number) => Promise<void>
 }
 
 // The lines under a heading of Peek, up to the next heading or the end.
-const HEADINGS: readonly string[] = [STRINGS.peek.brief, STRINGS.peek.actions, STRINGS.peek.files, STRINGS.peek.answer]
+const HEADINGS: readonly string[] = [STRINGS.peek.brief, STRINGS.peek.actions, STRINGS.peek.files, STRINGS.peek.answer, STRINGS.peek.lastAnswer]
 function under(texts: readonly string[], heading: string): string[] | undefined {
   const at = texts.indexOf(heading)
   if (at === -1) return undefined
@@ -140,6 +140,34 @@ for (const surface of SURFACES) {
       ['peek-agent-2', 'peek'],
     ])
     expect(kept.writes.length).toBe(writes)
+  })
+
+  test(`${surface}: a file deep in its folders shows its end, its name kept, after an ellipsis`, async ($, on) => {
+    const { clock, queue } = world(on)
+    const path = `/fixture/${'orchard/north-field/'.repeat(5)}beds/rows.md`
+    await spawn($, { description: 'Mark the rows' })
+    await $.turn.start({ ...TURN_START, agentId: 'agent-1' })
+    queue([edit(path)])
+    await step($, 'agent-1')
+    const { texts } = await peeked($, clock, surface, ['agent-1'])
+    expect(under(texts, STRINGS.peek.files)).toEqual([`${STRINGS.cut}${path.slice(-80)}`])
+  })
+
+  test(`${surface}: while an answered run works again, its answer is shown as the last one, and a new one replaces it`, async ($, on) => {
+    const { clock } = world(on)
+    await spawn($, { description: 'Count the shovels' })
+    await $.turn.start({ ...TURN_START, agentId: 'agent-1' })
+    await complete($, 'agent-1', 'Seven shovels.')
+    expect(under((await peeked($, clock, surface, ['agent-1'])).texts, STRINGS.peek.answer)).toEqual(['Seven shovels.'])
+    // A turn of its own again, as a teammate's next or a resumed agent's.
+    await $.turn.start({ ...TURN_START, agentId: 'agent-1' })
+    const working = (await peeked($, clock, surface, [])).texts
+    expect(working).not.toContain(STRINGS.peek.answer)
+    expect(working.slice(working.indexOf(STRINGS.peek.lastAnswer) + 1)).toEqual(['Seven shovels.'])
+    await complete($, 'agent-1', 'Nine rakes.')
+    const ended = (await peeked($, clock, surface, [])).texts
+    expect(ended).not.toContain(STRINGS.peek.lastAnswer)
+    expect(under(ended, STRINGS.peek.answer)).toEqual(['Nine rakes.'])
   })
 
   test(`${surface}: a description with markdown, a link and a tag draws whole in Peek as plain text (I-04)`, async ($, on) => {

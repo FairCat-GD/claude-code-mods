@@ -2073,6 +2073,24 @@ panel* (Peek, the collapsed view, seats), *The run model*, *Values: `$.state` an
   - the gate green on CLI 2.1.330.
 - **Confirms** (*The panel*: the `widget` seat draws the collapsed view): waits for the user's
   look in the desktop app after a push and an update.
+- **Review (`/code-review high`), 4 findings: all fixed, the user's choice.**
+  - **Peek's files could merge different files into one:** a file was kept as its first 80
+    characters and told apart by them, so files deep in one folder, as a subagent's absolute
+    paths are, became one entry naming none. `callsOf` now gives each path whole, and the run
+    keeps its last 80 characters (`pathEnd`, an `Excerpt` marked cut), drawn after `…`.
+  - **Collapsing over the gallery showed nothing:** the gallery stayed, and only the button's
+    label changed. The session line draws no `collapse` button while the gallery shows.
+  - **The changelog said a mid-session update forgets only the list and a picker:** `view-5`
+    also drops the gallery and the person's close, so the next agent may open the pane again.
+    The entry now says so.
+  - **Peek showed a resumed or teammate run's earlier answer as this turn's:** while the run is
+    live again, it is headed `Last answer` (`isEarlierAnswer`).
+  - **Falsified,** each failing at its own test: a file cut at its start; a file taken from the
+    cut target; a cut file drawn with no `…`; an earlier answer never marked; the collapse
+    button drawn over the gallery.
+  - **Numbers after the review:** 266 tests (+7) in 22 files: model 45 (+1), peek 12 (+4),
+    collapsed 14 (+2), the rest unchanged; about 14 s. The fullest list: 1,845 nodes, at most
+    225,793 characters (+10, the `…` before each cut file). `validate` unchanged.
 
 ---
 

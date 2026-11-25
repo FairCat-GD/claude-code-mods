@@ -33,10 +33,11 @@ up, it moves out of this file.
   detection for that type has no way in v1. `$.store.delete` is on the allow-list. Named at
   Session 9.
 - **A long path cut from its start loses its file name.** A call's target is kept to its first
-  80 characters, for the row's activity line and for Peek's actions and files. A subagent's
-  paths are absolute, so Session 11's hand check saw reads end `…/claude-code-mods/package.jso`.
-  Keeping a path's end instead (`…/possum-squad/README.md`) would change what the activity line
-  shows too. Needs the owner's decision. Named at Session 11.
+  80 characters, for the row's activity line and for Peek's last actions; Peek's files keep
+  their ends since Session 11's review. A subagent's paths are absolute, so Session 11's hand
+  check saw reads end `…/claude-code-mods/package.jso`. Keeping a path's end there too
+  (`…/possum-squad/README.md`) would change what the activity line shows. Needs the owner's
+  decision. Named at Session 11.
 
 ## Not yet checked by hand
 

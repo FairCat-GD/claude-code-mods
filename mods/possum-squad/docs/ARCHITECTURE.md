@@ -775,10 +775,11 @@ each returning the same object when the record changes nothing.
   - **the actions** are each shown call of each step, as the activity reads it (`callsOf`'s
     `actions`), the last `ACTIONS_KEPT` (T-07, 5), oldest first; a pending entry's go before
     the row's own when it is claimed;
-  - **the files** are what Write, Edit, MultiEdit and NotebookEdit name (`callsOf`'s `files`),
-    cut at `TARGET_CHARS` from the start as the activity's are, each kept once at the place it
-    was last changed, the latest `FILES_KEPT` (10). Reads are no file changed: the owner's
-    choice at the plan;
+  - **the files** are what Write, Edit, MultiEdit and NotebookEdit name (`callsOf`'s `files`,
+    each path's first line whole), each kept as its last `TARGET_CHARS` characters
+    (`pathEnd`, an `Excerpt` marked cut), where its name is, once at the place it was last
+    changed, the latest `FILES_KEPT` (10). Two files are told apart by their whole ends, never
+    by a start they share. Reads are no file changed: the owner's choice at the plan;
   - **the answer** is a turn's `answer` with text, as an `Excerpt`; an end without text keeps
     the last that had it, a teammate's earlier turn's.
 - **Heard** (0.11.0): `heardAt` is the opening's time, then the spawn's result's, each turn
@@ -1284,7 +1285,7 @@ Within what the desktop draws (0.10.1), in `panel` (`hooks/view/panel.tsx`) and 
   `TARGET_CHARS` (80) in the model.
 - **The worst list:** 60 drawn of 90, every text at its longest, round 2, a moment each,
   Finished open, a picker open, and a Peek at its fullest (0.12.0). In any set it came to 1,845
-  nodes, 8 deep and at most 225,783 characters (`tests/size.test.ts`); without Peek and its
+  nodes, 8 deep and at most 225,793 characters (`tests/size.test.ts`); without Peek and its
   button it was 1,613 and 218,861.
 
 A quiet row's third line, on both surfaces, is "Quiet for 2 min" in place of its activity
@@ -1298,12 +1299,14 @@ Peek (0.12.0), in `hooks/view/row.tsx` and `hooks/view/runs.ts`:
   press to the row's spawn order, and `togglePeek` writes `view.peekFor`.
 - **Its data:** `rowData` gives `RowData.peek` for the open row alone (`peekData`): the
   description cut at `PEEK_CHARS` rather than 100, the brief and the answer with `…` where the
-  model cut them, the actions through `activityText`, and the files.
+  model cut them, the actions through `activityText`, and the files, `…` before a cut one's
+  end. While the run is live again, an answer kept from an earlier turn is marked
+  (`isEarlierAnswer`) and headed `Last answer`, not `Answer`.
 - **Its lines,** under the row (on the desktop after the bar, in footnote size; on the terminal
   after the bar line): the description, wrapping, then `Brief`, `Last actions`, `Files changed`
   and `Answer`, each a dim heading over one `Text` per line. A part with nothing is left out.
 - **Its size:** the button adds three nodes a row. The fullest list with a Peek at its longest
-  (`tests/size.test.ts`): 1,845 nodes, 8 deep and at most 225,783 characters in any set, against
+  (`tests/size.test.ts`): 1,845 nodes, 8 deep and at most 225,793 characters in any set, against
   1,613 and 218,861 before.
 
 The collapsed view (0.12.0), in `hooks/view/collapsed.tsx`, chosen by `panel`:
@@ -1312,7 +1315,8 @@ The collapsed view (0.12.0), in `hooks/view/collapsed.tsx`, chosen by `panel`:
   the gallery is closed. The gallery the person asks for draws over a collapsed pane in the
   dock or inline; the widget draws only the glance.
 - **The header's button:** the session line is a row `Box` with a dim `Button` keyed
-  `collapse` at its end, `collapse`, or `expand` while collapsed (over the gallery). Its press,
+  `collapse` at its end, drawn only while the list is: over the gallery a collapse would show
+  nothing until the gallery closed. Its press,
   and the collapsed view's own `expand`, write `prefs.collapsed` through `writeStore`, then
   invalidate the drawing (`collapse` in `hooks/register.tsx`).
 - **The counts** (`countsOf`): the rows in Running's states (starting, working, quiet) and in
@@ -1615,10 +1619,10 @@ unread.
   only a drawing sees `placement`, so whether a `widget` counts as shown is the app's.
 - **The collapsed view is redrawn by the clock's beat** while a run is live, though nothing in
   it moves with time; it is a few nodes and its sprite string is cached.
-- **A path in Peek is cut at 80 characters from its start,** as the activity's target is, so a
-  path longer than that loses its file name: a subagent's paths are absolute, and Session 11's
-  hand check saw its reads end `…/claude-code-mods/package.jso`. The row's activity line cuts
-  the same way, and its own width cuts it again.
+- **A call's target is cut at 80 characters from its start,** on the activity line and in
+  Peek's last actions, so a longer path loses its file name: a subagent's paths are absolute,
+  and Session 11's hand check saw its reads end `…/claude-code-mods/package.jso`. Peek's files
+  keep their ends.
 - **Peek's records add to every write of `runs`:** a run keeps at most about 2.5k characters
   more (a brief and an answer of 600, five actions and ten files of 80), and every step
   rewrites the whole value.
@@ -1628,7 +1632,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 259 pass, in 22 files: attention 15, auto-open 11, clock 13, collapsed 12, command 11, compose 8, gallery 11, header 8, model 44, pane-sprites 9, panel 10, pass-through 6, peek 8, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 14; about 14 s |
+| `claude plugin test mods/possum-squad` | 266 pass, in 22 files: attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, gallery 11, header 8, model 45, pane-sprites 9, panel 10, pass-through 6, peek 12, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 14; about 14 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |

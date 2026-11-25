@@ -7,6 +7,7 @@ import {
   asked,
   cleared,
   cutTo,
+  pathEnd,
   endingOf,
   fellBack,
   figures,
@@ -594,17 +595,30 @@ test('after seven calls a run keeps the last five, oldest first, over steps and 
       { tool: 'Read', target: 'bed.txt' },
       { tool: 'Edit', target: 'bed.txt' },
     ],
-    files: ['bed.txt'],
+    files: [{ text: 'bed.txt' }],
   })
 })
 
 test('a run keeps the files it changed each once, where last changed, at most ten', () => {
   let runs = spawned(NO_RUNS, SHOVELS, 'agent-1')
   runs = stepped(runs, 'agent-1', stepOf([edit('a.md'), edit('b.md'), read('c.md'), edit('a.md')]))
-  expect(runs.rows['agent-1']?.files).toEqual(['b.md', 'a.md'])
+  expect(runs.rows['agent-1']?.files).toEqual([{ text: 'b.md' }, { text: 'a.md' }])
   const twelve = Array.from({ length: 12 }, (_, at) => edit(`bed-${at}.md`))
   runs = stepped(runs, 'agent-1', stepOf(twelve))
-  expect(runs.rows['agent-1']?.files).toEqual(Array.from({ length: 10 }, (_, at) => `bed-${at + 2}.md`))
+  expect(runs.rows['agent-1']?.files).toEqual(Array.from({ length: 10 }, (_, at) => ({ text: `bed-${at + 2}.md` })))
+})
+
+test("two files deep in one folder stay two, each kept by its path's last 80 characters", () => {
+  const folder = `/fixture/${'orchard/north-field/'.repeat(5)}`
+  const [rows, beds] = [`${folder}rows.md`, `${folder}beds.md`]
+  expect(callsOf([edit(rows), edit(beds)]).files).toEqual([rows, beds])
+  let runs = spawned(NO_RUNS, SHOVELS, 'agent-1')
+  runs = stepped(runs, 'agent-1', stepOf([edit(rows), edit(beds), edit(rows)]))
+  expect(runs.rows['agent-1']?.files).toEqual([
+    { text: beds.slice(-TARGET_CHARS), isCut: true },
+    { text: rows.slice(-TARGET_CHARS), isCut: true },
+  ])
+  expect(pathEnd('beds/a.md')).toEqual({ text: 'beds/a.md' })
 })
 
 test("a brief is the spawn's prompt and an answer its turn's, each its first 600 characters", () => {
