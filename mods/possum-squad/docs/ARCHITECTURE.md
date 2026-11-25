@@ -530,10 +530,17 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 - **A subagent ends on its `turn.complete`,** which carries the reason the endings need.
   `classic.SubagentStop` also fires for the engine's own helpers and can fire twice, and
   `agent.report` misses teammates and workflow agents; neither is hooked.
-- **The main loop's `turn.start` and `turn.step` make no `$` call;** its `turn.complete` makes
-  one write to `lead`, once per main turn, beside the one `session.measure` makes then.
+- **The main loop's `turn.step` makes no `$` call, and its `turn.start` only reads the clock's
+  time** to keep the turn's start, so the session line's time moves during a main turn
+  (Decision log, 2026-11-25); its `turn.complete` makes one write to `lead`, once per main turn,
+  beside the one `session.measure` makes then.
+- **A subagent's `turn.complete` reads `$.agent.list()`, unawaited,** to tell a turn that left
+  the agent waiting from its end (*The run model*; Decision log, 2026-11-25).
 - Session 1 hooks every event marked 2 as a pass-through, so Session 2 only reads.
 - The spike's hooks that no later session needs are gone: `tool.check` and `tool.call`.
+
+*Not yet built:* the list read at a subagent's turn end (Session 12a); the main loop's
+`turn.start` keeping its start (Session 12c).
 
 **Built** (0.5.0). Eleven hooks, in `hooks/register.tsx`:
 - `session.start` registers `/possums` with `immediate` and its argument hint, awaits
@@ -615,18 +622,21 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     then a write is not atomic):
     - `prefs`: one object: `autoOpen` (`never`, `first`, `always`; default `first`), `cost`
       (`off`, `estimate`; `off`), `motion` (`auto`, `off`; `auto`), `theme` (`classic`,
-      `steampunk`, `horror`, `prehistoric`; `classic`), `collapsed` (default false),
+      `steampunk`, `horror`, `prehistoric`; `classic`), `toasts` (`all`, `needs`, `off`;
+      `all`; not yet built: Session 12d), `collapsed` (default false),
       `finishedOpen` (default false). Two sessions changing settings at the same moment may lose
       one change; accepted, since settings change rarely.
     - `role:<agent type>`: the role id the person picked for a custom agent type. Never written
       for the generic types (`general-purpose`, `claude`, `fork`) or the built-in ones. One key
-      per type, so no value is built from a stale copy.
+      per type, so no value is built from a stale copy. The picker's `detect` deletes it
+      (not yet built: Session 12d).
 - **Evolution:** a stored value's shape changes forward-only: a new version still reads the old
   shape, because stored values are the owner's data. A key or value `prefs` does not know reads
   as the default and is kept on the next write.
 - **Machine identifiers, never renamed:** the mod's name, `possum-squad`, and its install id,
   `possum-squad@claude-code-mods`, under which the engine keeps its `$.store`; the command
-  `possums` and its words `open`, `set`, `settings`, `roles`; the pane id `possum-squad`; the
+  `possums` and its words `open`, `set`, `settings`, `roles`; the picker's entry `detect`; the
+  pane id `possum-squad`; the
   setting names and values above; the set ids; the role ids (*Roles*); the state ids (*The run
   model*); the state keys `runs`, `lead`, `view`; the store keys `prefs` and `role:<agent type>`.
   Reserved for step reports, a later round: the tools `step` and `plan`, the setting
@@ -719,9 +729,14 @@ that is not a pickable role id reads as none. Nothing deletes one.
   cache write) and the size of its last request; its activity (tool, a one-line summary, time);
   its last T-07 actions; the files it touched; its answer's first T-09 characters; its tool calls
   in flight. The Lead is the main session's record, in `lead`, not a run.
-- **States,** and their ids: `starting`, `working`, `needs-you`, `quiet`, `finished`, `failed`,
-  `stopped`; `planned` is reserved. A run moves starting → working, back and forth through
-  needs-you and quiet, and ends in finished, failed or stopped.
+- **States,** and their ids: `starting`, `working`, `needs-you`, `quiet`, `waiting`,
+  `finished`, `failed`, `stopped`; `planned` is reserved. A run moves starting → working, back
+  and forth through needs-you, quiet and waiting, and ends in finished, failed or stopped.
+- **Waiting** (Decision log, 2026-11-25): a turn's end while the engine lists the agent's
+  status as `waiting` (on background work it owns, a plan's approval, or a helper it waits on)
+  is not the run's end. The run reads `waiting` and keeps that turn's ending; its next turn
+  makes it working, and the engine listing it ended, or no longer listing it, ends it with the
+  kept ending. A read that fails ends it at once. Helper does not settle it at that turn's end.
 - **How events join to rows:**
   - a spawn opens its row under its `tool_use_id`, and re-keys it to the agent id when the
     spawn's result gives one;
@@ -734,9 +749,9 @@ that is not a pickable role id reads as none. Nothing deletes one.
   - a teammate's row goes back to working on its next turn;
   - a workflow's agents are ordinary rows;
   - a spawn whose description equals a finished run's opens a new row marked "round 2".
-- **How a run ends:** an answer with text is Finished; `aborted` is Stopped; `error`, `refusal`,
-  and `answer` with empty text are Failed, but a teammate's `answer` with empty text (it
-  answered with a message) is Finished until its next turn. A failed run keeps its last T-07
+- **How a run ends:** unless it is left waiting, an answer with text is Finished; `aborted` is
+  Stopped; `error`, `refusal`, and `answer` with empty text are Failed, but a teammate's
+  `answer` with empty text (it answered with a message) is Finished until its next turn. A failed run keeps its last T-07
   actions.
 - **Numbers.** Fresh tokens (in and out) are counted apart from cache reads. A row's context
   percent is its last request's size over its model's window (`hooks/data/`, T-11, with a
@@ -748,6 +763,9 @@ that is not a pickable role id reads as none. Nothing deletes one.
   ledger (Decision log, 2026-11-25).
 - **Lifetime.** Runs live in `runs` for the session only, and are never written anywhere else.
   Finished keeps the latest T-06 (30) runs.
+
+*Not yet built:* `waiting` (Session 12a); a path's end and the engine's progress summary in
+the activity (Session 12b); a failed run's reason, kept for its toast (Session 12d).
 
 **Built** (0.4.0; the Lead and the totals 0.5.0; roles 0.6.0; the estimate and nesting 0.13.0),
 in `hooks/model/runs.ts`, `hooks/model/lead.ts` and `hooks/model/nesting.ts`: pure functions from `runs` or the Lead, and a record, to its next value,
@@ -898,7 +916,10 @@ each returning the same object when the record changes nothing.
      its calls count.
 - **Settled once.** A run whose role is not settled at spawn draws plain in `starting`, and gets
   its outfit when a rule fires; after that only the person's reassignment changes it (I-07). A
-  reassignment applies to that run at once, and is remembered only for a custom type.
+  reassignment applies to that run at once, and is remembered only for a custom type. The
+  picker's first entry, `detect`, is a pick too: it puts the run back on the rules and, for a
+  custom type, deletes the remembered pick (Decision log, 2026-11-25; not yet built: Session
+  12d).
 - **One home for the word lists.** The rules are a port of the round's Python reference, with
   its behaviour unchanged; once ported, the word lists, their order and the matching rules
   (whole words, stems, phrases, case ignored) live only in `hooks/roles/`.
@@ -968,7 +989,8 @@ for custom types.
 - **Frames by recipe.** A recipe names a body transform, an eye variant, the prop's offset and a
   state mark. Every state has one: `planned` (sitting, greyed), `starting` (slides in plain, then
   one hop and lands dressed), `working` (two-frame bob, prop moving against the body, a blink
-  now and then), `needs-you` (holds up a "?" sign), `quiet` (dozing on its feet), `finished`
+  now and then), `needs-you` (holds up a "?" sign), `quiet` (dozing on its feet; `waiting` draws
+  the same, Decision log 2026-11-25, not yet built: Session 12a), `finished`
   (two hops, then asleep with a rising "z"; still after 3 s), `failed` (on its back, tongue out,
   hat on and nothing in hand; still), `stopped` (startled with "!" for 1 s, then idle; still).
   `failed` turns rows 3..29 over, then down 2, so a hat above the head stays on.
@@ -1114,16 +1136,18 @@ every state's recipe, in the set `prefs.theme` names.
 **Decided.**
 - **The pane.** Id `possum-squad`, title "Possum Squad", T-13 (46) columns asked. `/possums`
   toggles it; it opens by itself per *Attention*. It redraws when a state value it read changes,
-  and once a second while a run is live and it is shown, for elapsed time.
+  and once a second while a run is live or a main turn runs, and it is shown, for elapsed time.
 - **Sections,** in this order: the Lead, then Needs you, Running, Finished (collapsed by
   default), each with its count. A section other than Running with no row is not drawn.
 - **The header:** the Lead row, then one line of the session's numbers: plan-limit percent,
   tokens, time, and, with `cost` at `estimate`, a dollar figure labelled "est.". The plan-limit
   percent is each window the engine reports, in its order (Decision log, 2026-11-25). Its tokens
   and time total the Lead and every run; the time is work time, the Lead's turns summed plus every
-  run's time, so it moves only while something works.
+  run's time, so it moves only while something works, a main turn included (Decision log,
+  2026-11-25).
 - **A row:** the sprite (desktop) or a coloured state mark (terminal); line 1 the description;
-  line 2 role, model, effort; line 3 the activity; line 4 a bar of context fill, then context
+  line 2 role, model, effort; line 3 the activity, then the `peek` button, which keeps its room
+  at any activity's length; line 4 a bar of context fill, then context
   percent, tokens and time, and with `cost` at `estimate` its estimate labelled "est."; the
   state word on every row (I-06). A helper is drawn under its parent (*The run model*). A long text is cut to one line
   with an ellipsis; Peek shows it whole. All agent text is plain `Text` (I-04).
@@ -1146,13 +1170,21 @@ every state's recipe, in the set `prefs.theme` names.
   section.
 - **The terminal** draws the same sections and numbers as text rows, a coloured mark per state
   and block-character bars, with no element the terminal lacks.
+- **The activity** (Decision log, 2026-11-25): a call's target that is a path keeps its end, so
+  its file name shows; a command keeps its start. The engine's progress summary for an agent,
+  where it has one, shows as plain text, placed at Session 12b's start. An ended row's last call
+  reads as past.
 - **The clock.** The only timer is `$.clock.every(1000)`, armed while the pane is open and a
-  run is live or its role may still fall back to Helper, cancelled otherwise (N-03); it redraws the pane only while it is shown, so a
+  run is live or its role may still fall back to Helper, or a main turn runs, cancelled
+  otherwise (N-03); it redraws the pane only while it is shown, so a
   pane behind another's tab keeps its times. A reload cancels it, so `session.start` re-arms
   it.
 - **The empty panel:** the squad asleep and "No agents yet. They show up here when Claude starts
   one."
 - **Words** are plain and short, with no exclamation marks and no jokes in error text.
+
+*Not yet built:* `peek` kept in reach, and the activity's changes (Session 12b); the clock and
+the session line's time during a main turn (Session 12c).
 
 **Built** (0.1.0; the row 0.3.0): the pane, the toggle and the empty panel.
 - `/possums` opens `possum-squad` with `{ id, title: 'Possum Squad', columns: PANE_COLUMNS }`
@@ -1424,11 +1456,19 @@ The collapsed view (0.12.0), in `hooks/view/collapsed.tsx`, chosen by `panel`:
     where auto mode's classifier or a hook settles the ask with no prompt shown.
 - **Gone quiet:** a run with no event for T-05 (90 s) and no tool call in flight shows as quiet.
 - **Toasts,** only while the pane is closed: when a run needs the person, and when a run that
-  ran longer than T-10 (60 s) ends. The collapsed view counts as the list out of view, as the
+  ran longer than T-10 (60 s) ends, a waiting run at its real end. `prefs.toasts` says which:
+  `all`, `needs` (Needs you only) or `off`. A failed run's toast names its reason: an error, a
+  refusal or an empty answer (Decision log, 2026-11-25).
+- **The tab title:** while a run needs the person, the pane's title counts them
+  (`Possum Squad · 1 needs you`), retitled only while the pane is open, never opening a closed
+  one (Decision log, 2026-11-25). The collapsed view counts as the list out of view, as the
   gallery does (0.12.0, the plan's choice with the owner's approval).
 - **Auto-open** (`prefs.autoOpen`): `first` opens the pane when a session's first agent starts;
   `always` on every new agent; `never` leaves it to `/possums`. A pane the person closed stays
   closed for the rest of the session (`view`).
+
+*Not yet built:* `prefs.toasts`, the failed toast's reason and the tab title (Session 12d); a
+waiting run's toast at its real end (Session 12a).
 
 **Built** (auto-open 0.10.0; Needs you, quiet and toasts 0.11.0). `autoOpen` in `hooks/register.tsx`, started unawaited by a new
 agent's spawn (*The hooks*):
@@ -1874,3 +1914,22 @@ one moves, that is the finding.
   parent's. The owner's choice at Session 12's plan.
 - 2026-11-25, *The panel*: the session line shows every plan-limit window the engine reports,
   in its order, not only the most used. The owner's choice at Session 12's plan.
+- 2026-11-25, *The run model*, *Sprites and sets* and *The panel*: a turn's end while the engine
+  lists the agent as `waiting` leaves the run `waiting`, in Running, in quiet's pose, its time
+  counting and its ending's toast at its real end. The owner's choice at Session 13's plan,
+  from that plan's review: such a run read finished (seen at Sessions 5, 8 and 12). It amends
+  the round's decision 13.
+- 2026-11-25, *The panel*: the activity keeps a path's end, shows the engine's progress summary
+  where it has one, and reads an ended row's last call as past; the `peek` button keeps its
+  room. The owner's choice at Session 13's plan, the last two from their desktop look at 0.13.0,
+  where a long activity pushed `peek` out of the pane.
+- 2026-11-25, *The hooks* and *The panel*: the main loop's `turn.start` reads the clock's time
+  to keep the turn's start, and the clock beats during a main turn while the pane is open, so
+  the session line's time moves through it. The owner's choice at Session 13's plan; it
+  revises the line of 2026-11-20 by which the main loop's turn start made no `$` call.
+- 2026-11-25, *Attention* and *Values*: a failed run's toast names its reason; `prefs.toasts`
+  (`all`, `needs`, `off`; `all`) says which toasts show; the pane's tab title counts the runs
+  that need the person while the pane is open. The owner's choice at Session 13's plan.
+- 2026-11-25, *Roles* and *Values*: the picker's first entry, `detect`, puts a run back on the
+  rules and, for a custom type, deletes its `role:<agent type>`. The owner's choice at
+  Session 13's plan, over a `/possums forget` command.

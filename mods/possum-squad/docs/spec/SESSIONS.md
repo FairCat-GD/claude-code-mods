@@ -29,11 +29,21 @@ and I-04 from Session 3; I-06 from Session 4. N-07 and I-08 are review rules in 
 | 10 | Attention: Needs you, gone quiet, toasts | 16 | **0.11.0** |
 | 11 | Peek and the collapsed view; the `widget` seat | 18 | **0.12.0** |
 | 12 | Plan limits, the cost estimate, nested helpers | 1, 22 | **0.13.0** |
+| 12a | Waiting, not finished: an agent held by its own background work reads `waiting` | 1, 13 (both amended); *The run model* | **0.14.0** |
+| 12b | The activity line: a path's end, the engine's progress summary, `peek` in reach, an ended row's last call | 1 (amended); *The panel* | **0.15.0** |
+| 12c | The Lead's time moving during a main turn | 1 (amended); *The hooks*, *The panel* | **0.16.0** |
+| 12d | Toasts and the tab: the failed toast's reason, the `toasts` setting, the tab title, `detect` in the picker | 1 (amended); *Attention*, *The command and settings* | **0.17.0** |
 | 13 | Docs, changelog, manual runs; `ARCHITECTURE.md` read cold; close the round | all | **1.0.0**, tagged `possum-squad-v1.0.0` |
 
 Session 8 ran before Session 6 (amended at Session 8's plan, with the owner: the repo-level round
 that teaches the gate `tools/` was not committed, as Session 6's block foresaw). It released
 0.6.0, so Sessions 6, 7 and 7a release 0.7.0, 0.8.0 and 0.9.0.
+
+Sessions 12a to 12d were inserted at Session 13's plan (2026-11-25, with the owner). The owner
+asked for an adversarial review of that plan "and potential features/improvements to the
+plugin. if any will be accepted we will move 1.0.0 release until they are done". The owner
+accepted all eight of the review's ideas, and two defects their desktop look at 0.13.0 found at
+the same plan join 12b. So 1.0.0 waits: Session 13 runs after 12d, as its block's amendment says.
 
 ---
 
@@ -2222,6 +2232,262 @@ run model* (nesting, numbers), *The panel* (the header), *Values: `$.state` and 
 
 ---
 
+## 12a: Waiting, not finished
+
+Inserted at Session 13's plan (2026-11-25, with the owner), from the review of that plan. An
+agent held by its own background work, a shell or a helper, reads finished: its turn ended,
+which is how a run ends here (`docs/BACKLOG.md`'s deferred item, seen at Sessions 5, 8 and 12).
+The owner chose that such a run stays in Running, dozing, with the word `waiting`.
+
+**Read:** `SPEC.md` §2 decisions 13 and 14, with their amendments; `ARCHITECTURE.md` *The
+hooks*, *Values* (the state ids, `runs`), *The run model* (its `waiting` lines), *Roles* (Helper
+at a run's end), *Sprites and sets* (the poses), *The panel* (the clock, the sections, the
+collapsed view), *Attention* (the toasts), *Reach*, *Known debt*; the declarations' `$.agent.list`,
+`AgentInfo` and `AgentStatus`.
+
+- **A turn's end that leaves the agent waiting** (*The run model*, amended).
+  - `turn.complete` (`hooks/register.tsx:613-627`) ends a run through `turnEnded`
+    (`hooks/model/runs.ts:353-360`), by `endingOf` (`runs.ts:65-71`). After it, and unawaited
+    (N-07), the hook reads `$.agent.list()`, which is async and takes no argument. When the
+    engine lists that agent's `status` as `waiting`, the run goes to `waiting`. It keeps the
+    ending and the answer its turn gave, to apply later.
+  - The declarations say `waiting` covers background work the agent owns, a plan's approval,
+    and a background subagent waiting on an Agent call alone. `taskStatus` reads `completed`
+    for a subagent whose turn ended, whatever holds it, so the run reads `status`.
+  - A waiting run's next turn puts it back to `working` (`turnStarted`). A later read that
+    lists it `completed`, `failed` or `killed`, or no longer lists it, ends it with its kept
+    ending. A read that is refused or throws ends it as today, so no run waits for good.
+- **The beat reads the list while a run waits.** A waiting run is live, so it keeps the clock
+  (`keepsClock`, `runs.ts:63`). `tick` (`register.tsx:107-121`) reads the list once a beat
+  while any run waits, and nothing else changes in what the beat reads.
+- **How it looks.**
+  - `waiting` sits in Running (`hooks/view/panel.tsx:53-57`), with its own word and quiet's
+    pose (`STILL.quiet`, `BOB_PACE.quiet`, `LIVE` in `hooks/sprites/recipes.ts`).
+  - Its time keeps counting, and `quiet` never applies to it (`quietMs`, `runs.ts:404-408`).
+  - Helper at the end does not settle it, as for a turn that left background work (`fellBack`,
+    `runs.ts:364-376`).
+  - The collapsed view counts it among the running.
+  - A waiting parent and its working helper both sit in Running, so the helper is drawn under
+    it, the case nesting was built for.
+- **The toasts wait for the real end.** `endedToast` (`hooks/view/toasts.ts:25-37`) fires when
+  the waiting run ends, timed from its turn's start as today, and not at the turn's end that
+  left it waiting.
+- **Machine identifiers:** the state id `waiting`. `runs-8` if `Run`'s fields change. The call
+  `$.agent.list` joins `validate`'s calls line; it is already on the allow-list.
+- **Docs.**
+  - `CHANGELOG.md`: 0.14.0.
+  - `ARCHITECTURE.md`: Built for *The run model*, *The panel*, *Attention*, *Reach*; the
+    known-debt line on a subagent waiting on its background shell removed; the baseline.
+  - `USER-GUIDE.md`: the states and Running.
+  - `README.md`; the mod's `CLAUDE.md` if `runs` changes its tag.
+- **Confirms:** *The run model* (`waiting`).
+- **Ask at the start of 12a:**
+  - What 2.1.330 lists for a subagent waiting on a background shell, and for one waiting on a
+    background helper; and how long an ended subagent stays listed. Measure before building.
+  - How a waiting run ends while the pane is closed and the clock stopped (N-03). Proposed at
+    Session 13's plan, not yet confirmed: any subagent's event reads the list, unawaited, while
+    a run waits, and so does the pane's next open; a toast for such an end comes then.
+
+**Gates:**
+- `npm run verify -- possum-squad`, with these tests on both surfaces, the clock pinned:
+  - a subagent's turn ending while the list says `waiting` leaves its row in Running as
+    `waiting`, with no ending toast and no Helper;
+  - its next turn puts it back to `working`;
+  - the list's later `completed`, or the agent's absence from it, ends it with its kept ending,
+    and a long one toasts then;
+  - a refused or throwing read ends the run as before;
+  - a waiting parent draws its working helper under it;
+  - the hook passes the event on unchanged and never awaits the list.
+- A hand check in the terminal (`screen`): a subagent starts `ping -c 40 127.0.0.1` in the
+  background and ends its turn; its row reads `waiting` until the shell ends.
+
+**Watch for:**
+- **The kit stands in for the engine's list** through a hook on `agent.list`, which the
+  declarations make hookable; check what the kit answers unhooked before relying on it.
+- **A late read may see the next turn already running** (`running`): that is not an end either.
+
+---
+
+## 12b: The activity line
+
+Inserted at Session 13's plan (2026-11-25, with the owner): a path's end and the engine's
+progress summary from the review of that plan; `peek` pushed out of reach, and a finished row
+reading "Running …", from the owner's desktop look at 0.13.0 at the same plan.
+
+**Read:** `ARCHITECTURE.md` I-03, I-04, *The run model* (the activity, the actions, the files),
+*Values* (`runs`), *The panel* (the row's lines, Peek, the fullest list and the desktop's
+bound), *Known debt*; 12a's done-note; the declarations' `AgentInfo.label`.
+
+- **A path keeps its end** (`docs/BACKLOG.md`'s deferred item, picked up here).
+  - `targetOf` (`hooks/model/tools.ts:39-42`) keeps a line's first `TARGET_CHARS` (80), so a
+    subagent's absolute path loses its file name.
+  - A path-like target keeps its end instead, on the activity line and in Peek's last actions,
+    as Peek's files already do through `pathEnd` (`hooks/model/runs.ts:94-97`). A shell command
+    keeps its start.
+  - `runs` changes its tag if `Activity`'s fields change.
+- **`peek` stays in reach on the desktop.**
+  - Seen at Session 13's plan, in the desktop app on the installed 0.13.0: a long activity
+    (`Running cd` into an absolute path) took the row's width and pushed the `peek` button out
+    of the pane. Peek could not be opened from those rows.
+  - `activityLine` (`hooks/view/row.tsx:137-150`) draws a `Text wrap="end"` in a growing,
+    shrinking `Box`, then the `Button`. The button must keep its room at any activity's length.
+  - The kit cannot see the desktop's layout, so the owner's look confirms the fix.
+- **An ended row's activity reads as past.**
+  - A finished, failed or stopped row shows its last call with the live verb (`Running cd …`;
+    `activityText`, `hooks/view/runs.ts:9-13`; `STRINGS.activity`).
+  - Proposed at Session 13's plan, not yet confirmed: an ended row's line reads its last call in
+    the past tense.
+- **The engine's progress summary.**
+  - `AgentInfo.label` is the agent's latest progress summary as the engine stores it, else its
+    description. It is a model's text.
+  - It is read through 12a's list on the clock's beat and drawn as plain `Text` (I-04). It is
+    kept in `runs` only (I-03) and cut like a brief.
+  - It adds no node, so the fullest list stays within the desktop's bound
+    (`tests/size.test.ts`).
+- **Docs.**
+  - `CHANGELOG.md`: 0.15.0.
+  - `ARCHITECTURE.md`: Built for *The run model* and *The panel*; the known-debt line on the 80
+    characters removed; the baseline.
+  - `USER-GUIDE.md`: *What a row shows*, Peek.
+  - `README.md`.
+- **Ask at the start of 12b:**
+  - How often 2.1.330 fills a subagent's progress summary. Measure first; if it never does,
+    drop it with the owner.
+  - Where the summary goes. Proposed at Session 13's plan: the activity line, with the last call
+    when there is none.
+  - An ended row's line, as proposed above.
+
+**Gates:**
+- `npm run verify -- possum-squad`, with these tests on both surfaces:
+  - a long path keeps its file name on the activity line and in Peek's last actions; a long
+    command keeps its start;
+  - the `peek` button is in every row's tree at any activity's length;
+  - an ended row's activity reads as past;
+  - a listed summary shows as plain text, and one that equals the description does not;
+  - the fullest list stays within the desktop's bound.
+- The owner's look in the desktop app after the push: `peek` in reach on a row with a long
+  path.
+
+**Watch for:**
+- **The desktop's layout is not the kit's:** the kit drew the `peek` button the desktop pushed
+  out. Only a look shows it.
+
+---
+
+## 12c: The Lead's time during a main turn
+
+Inserted at Session 13's plan (2026-11-25, with the owner), from the review of that plan. The
+session line's time grows only when a main turn ends (*Known debt*), so it stands still through
+a long main turn.
+
+**Read:** `ARCHITECTURE.md` N-07, *The hooks* (the main loop's hooks, amended), *Values*
+(`lead`), *The run model* (numbers), *The panel* (the session line, the clock, amended), *Known
+debt*.
+
+- **The main turn's start is kept** (*The hooks*, amended).
+  - The main loop's `turn.start` (`hooks/register.tsx:601-610`) reads the clock's time and
+    keeps it. Its `turn.step` still makes no `$` call.
+  - `turn.complete` (`register.tsx:613-628`) counts the turn as today (`turnCounted`,
+    `hooks/model/lead.ts:71-83`) and drops the start.
+- **The clock beats during a main turn** while the pane is open (*The panel*, amended).
+  - Today a run keeps the clock (`keepsClock`, `hooks/model/runs.ts:63`) and the Lead never
+    does. The running main turn joins the condition in `tick`, `armIfLive` and the drawing
+    (`register.tsx:107-121`, `149-154`, `459-461`).
+  - With the pane closed no timer runs (N-03).
+- **The session line** (`hooks/view/lead.tsx:52-62`; `totals`, `lead.ts:99-107`) adds the
+  running turn's time. At the turn's end the counted time replaces it.
+- **Docs.**
+  - `CHANGELOG.md`: 0.16.0.
+  - `ARCHITECTURE.md`: Built for *The hooks*, *The panel*, *Values* if `lead` changes; the
+    known-debt line on the Lead's time removed; the baseline.
+  - `USER-GUIDE.md`: the session line.
+  - `README.md`; the mod's `CLAUDE.md` if `lead` changes its tag.
+- **Confirms:** *The hooks* (the main loop's `turn.start`).
+- **Ask at the start of 12c:** where the start lives. In `lead` (`lead-3`) it survives a reload
+  of the mod, at one write per main turn. In module memory it costs no write, and a reload
+  loses the running turn's start until the next. Proposed at Session 13's plan, not yet
+  confirmed: module memory, as `knownLimits` is.
+
+**Gates:**
+- `npm run verify -- possum-squad`, with these tests on both surfaces, the clock pinned:
+  - with the pane open and only a main turn running, the session line's time moves once a
+    second with no event, and stops at the turn's end on the counted time;
+  - with the pane closed no timer runs;
+  - the main loop's `turn.step` makes no `$` call;
+  - a clear mid-turn starts the time over.
+
+**Watch for:**
+- **The engine's `durationMs` and the clock's time differ,** so the line can step back a little
+  at the turn's end. Decide which way it rounds, and test it.
+- **The clock now runs through most of a session** while the pane is open: each beat redraws
+  the pane. Keep the beat's work within N-07.
+
+---
+
+## 12d: Toasts, the tab title and `detect`
+
+Inserted at Session 13's plan (2026-11-25, with the owner), from the review of that plan. The
+owner chose `detect` in the role picker over a command for forgetting a remembered role.
+
+**Read:** `ARCHITECTURE.md` I-07, *Attention*, *The command and settings*, *Values* (`prefs`,
+`role:<agent type>`), *Roles* (the picker and the remembered pick), *The panel* (the picker),
+*Reach*, *Known debt*; the declarations' `ui.open` (`title`; an open id retitles).
+
+- **The failed toast says why.**
+  - `endedToast` (`hooks/view/toasts.ts:25-37`) reads any ending that is not finished or
+    stopped as failed, and `STRINGS.toasts.failed` (`hooks/strings.ts:143-145`) names no
+    reason (*Known debt*).
+  - It names an error, a refusal or an empty answer, from the turn's reason and text
+    (`endingOf`, `hooks/model/runs.ts:65-71`). The run keeps which, so `runs` changes its tag.
+- **A `toasts` setting:** `all` (the default), `needs` (Needs you only) or `off`.
+  - It goes in `hooks/settings.ts:4-9` and `readPrefs` (`:24-34`), and `toastUnseen`
+    (`hooks/register.tsx:215-223`) reads it through `prefsOrDefaults`.
+  - The tests' `DEFAULTS` gain it (`tests/prefs.test.ts:20`, `tests/command.test.ts:15`).
+- **The tab title carries attention.**
+  - While an agent needs you, the pane's tab reads `Possum Squad · 1 needs you`, and its plain
+    name after. A title shows only while more than one pane is open.
+  - `$.ui.open` on an open id retitles it in place, and on a closed one opens it. So a retitle
+    reads `$.ui.panes()` first, as `autoOpen` does (`register.tsx:202-203`).
+- **`detect` in the picker.**
+  - The picker (`pickerLine`, `hooks/view/row.tsx:122-131`; `pickRole`,
+    `register.tsx:257-280`) gets a first entry, `detect`.
+  - It puts the row back on detection. Nothing re-detects a role today: `withEvidence` only
+    fills an unset one (`runs.ts:149-155`), and `reassigned` is the only path that changes a
+    settled one (I-07), so `detect` is a pick, like any other.
+  - For a custom type it also deletes `role:<agent type>` (`$.store.delete`, allowed, not yet
+    called).
+- **Machine identifiers:** the setting `toasts`, its values, and the picker's `detect`.
+- **Docs.**
+  - `CHANGELOG.md`: 0.17.0.
+  - `ARCHITECTURE.md`: Built for *Attention*, *The command and settings*, *Values*, *Roles*,
+    *Reach*; the known-debt lines on the failed toast and on a remembered pick never deleted,
+    removed; the baseline.
+  - `USER-GUIDE.md`: the toasts, the settings table, the picker.
+  - `README.md`: the settings; the mod's `CLAUDE.md`: the machine identifiers.
+- **Ask at the start of 12d:**
+  - The retitle's race: a close between the read of the panes and the open would reopen the
+    pane. Read the declarations for an unasked open of a pane the person closed; if a retitle
+    can reopen one, drop the title, with the owner.
+  - What `detect` does to the row at once. Proposed at Session 13's plan, not yet confirmed:
+    the rules run again on the run's type, description and calls seen, and the row redresses
+    with one hop.
+
+**Gates:**
+- `npm run verify -- possum-squad`, with these tests on both surfaces:
+  - the failed toast names each reason;
+  - `toasts` at `needs` keeps the Needs you toast and drops the ended ones, `off` drops both,
+    `all` is as today, and a value it does not know reads `all`;
+  - the title shows the count while an agent needs you, and the plain name after;
+  - a retitle never opens a closed pane;
+  - `detect` deletes the stored pick for a custom type and none for a built-in one, and settles
+    the row's role again;
+  - `/possums settings` lists `toasts`.
+
+**Watch for:**
+- **The title shows only beside another pane:** check it with a second plugin's pane open.
+
+---
+
 ## 13: Documentation pass, and the close
 
 **Read:** everything: `SPEC.md`, `PDD.md`, `ARCHITECTURE.md` whole, `docs/BACKLOG.md`, every
@@ -2245,3 +2511,38 @@ done-note in this file.
 **Watch for:**
 - **`docs/spec/research/` goes with the close:** before it does, check that `art/`,
   `hooks/roles/` and the corpus fixture hold everything a later round needs.
+
+**Amended at plan time, with the user (2026-11-25).** The session's first chat planned it, had
+the plan reviewed adversarially, and on the owner's word held 1.0.0 for what the review
+proposed: Sessions 12a to 12d, inserted before this one. So this session runs after 12d. That
+chat also had the owner look at the installed 0.13.0 in the desktop app (`docs/BACKLOG.md`).
+The amendments below are from the review, and the owner chose the order of the last look.
+- **The look from the installed 1.0.0 comes before the close,** so what it finds can still be
+  recorded and fixed:
+  1. the release commit and its `review:` commit, then the first push, with the owner's yes;
+  2. the owner updates to 1.0.0 (their setup: ask first) and looks in the desktop app; the
+     session looks in the terminal from the installed release, a plain `claude` in `screen`;
+  3. a docs commit records both looks in this done-note;
+  4. the close, then the second push and the tag, each on the owner's yes.
+
+  The handoff names the last commit that holds this file in full, which is then that docs
+  commit rather than the review commit.
+- **The ids outlive `PDD.md`.** `F-`, `N-02` to `N-08` and `H` ids are named in
+  `ARCHITECTURE.md`, test names and code comments, and only `PDD.md` defines them (`T-` ids are
+  defined in `hooks/config.ts`; `I-`, `N-01` and `N-07` in *The invariants*). The release
+  commit adds a short table to `ARCHITECTURE.md`: each id and one line.
+- **Before the release commit,** grep the mod for `docs/spec`, `PDD`, `SPEC`, `research/` and
+  requirement ids, and settle every hit. Two lines turn false at the close: the mod's
+  `CLAUDE.md` *Watch for* line on `docs/spec/research/`, and *Packaging*'s "until round 1
+  closes".
+- **The doc checks no test makes,** run once and not committed, since no test reads docs:
+  - every path in backticks in the README, the user guide and the architecture exists;
+  - the README's calls line equals `validate`'s output;
+  - every quoted string of the pane is in `hooks/strings.ts`;
+  - `hooks/` and `types/` have no diff since 12d's last commit, so the look at 1.0.0 is a look
+    at the code 12d's review left.
+- **Every hypothesis is recorded,** H1 to H6: H1 and H3 as not yet measured if their weeks of
+  use have not run, each with how to measure it, in `docs/BACKLOG.md`.
+- **`CHANGELOG.md` gets a link reference for every version,** as the workflow's *Versions and
+  the changelog* asks; 1.0.0's points at its tag only once the tag is pushed.
+- **Ask before the `@inline` copy's stored values change** for a check, and show them.

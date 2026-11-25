@@ -19,31 +19,6 @@ up, it moves out of this file.
 - **The `modern` set,** drawn in full before the build and not chosen as the first set; its
   layers are outside the repository. Left out at the round 1 intake.
 
-- **An agent waiting on its own background work reads "finished".** A subagent that starts a
-  shell in the background, then ends its turn to wait on it, has its `turn.complete`, which is
-  how a run ends (Session 4). Claude Code still lists it as waiting on a shell. Seen in
-  Session 5's hand check (CLI 2.1.329). Needs the owner's decision: whether such a run reads
-  something other than finished, and from which signal. Not seen: whether a new turn puts the
-  row back to working when the shell ends, as `turnStarted` would. Since 0.6.0 such a turn's
-  end leaves a role no rule settled open, as a teammate's does: Session 8's hand check saw an
-  agent refused a foreground `sleep 70` start it in the background, and the review kept it
-  from being Helper at that end. **A helper is the same case** (Session 12's hand check, CLI
-  2.1.330): a subagent's own Agent call ran in the background even when asked for the
-  foreground, so the parent's turn ended and read finished while its helper worked, the helper
-  a row of its own in Running; the parent went back to working when the helper's report came,
-  and the two were drawn nested once both had ended. So a helper is seen under a live parent
-  only when both work at once.
-- **Forgetting a remembered role.** A role picked for a custom agent type is kept under
-  `role:<agent type>` until another pick replaces it; nothing removes one, so going back to
-  detection for that type has no way in v1. `$.store.delete` is on the allow-list. Named at
-  Session 9.
-- **A long path cut from its start loses its file name.** A call's target is kept to its first
-  80 characters, for the row's activity line and for Peek's last actions; Peek's files keep
-  their ends since Session 11's review. A subagent's paths are absolute, so Session 11's hand
-  check saw reads end `…/claude-code-mods/package.jso`. Keeping a path's end there too
-  (`…/possum-squad/README.md`) would change what the activity line shows. Needs the owner's
-  decision. Named at Session 11.
-
 ## Not yet checked by hand
 
 Checks that need a person at the machine. Each has an automated check covering most of it;
@@ -56,7 +31,9 @@ these are the parts only a person can see.
   working rows' opossums, six and then fourteen at once, each moving in its role's outfit,
   plain before; the Lead's crown, still; `set motion off` and `auto` stopping and restarting
   them at once. **The 0.9.0 gallery drew nothing there,** past the bound the app holds a pane's
-  tree to; 0.10.1 draws it in parts, seen at Session 9a. The rest below is unseen. To check after the push, with three
+  tree to; 0.10.1 draws it in parts, seen at Session 9a. **Seen at Session 13's plan, installed 0.13.0, dark theme:** finished
+  opossums each in its role's outfit, dozing with the "z" above them; the Lead's crown. The rest
+  below is unseen. To check after the push, with three
   agents running: each row's opossum in its role's outfit, plain before; a working one bobbing
   and blinking smoothly, and not restarting each second; the Lead's crown; the empty pane's
   sleeping three; on the light theme the dark outline round pale edges, and none on the dark;
@@ -72,7 +49,7 @@ these are the parts only a person can see.
     `fill="freeze"` and a `begin` time, which the app has not drawn for this mod yet. A gallery
     part's 18 moving sprites replace the 102 this item first named.
   - **From 0.10.0:** each row's role name as a button beside the model and effort, in the
-    second line's small type; pressing it opens a list of sixteen roles under the row, the
+    second line's small type (seen at Session 13's plan); pressing it opens a list of sixteen roles under the row, the
     current one selected; a pick dressing a working opossum with one hop; `cancel` and a second
     press closing the list. The pane opening by itself when a session's first agent starts,
     without taking the keyboard; after a close with its close mark, a new agent opening
@@ -96,18 +73,21 @@ these are the parts only a person can see.
   check can bring about (an agent silent for 90 s with no call running), so only the kit
   checks it.
 - **Peek and the collapsed view (0.12.0).** Seen in the terminal at Session 11 (see its
-  done-note). Unseen in the desktop app until 0.12.0 is installed and looked at: a row's `peek`
-  button at the end of its third line, in its small type, and `hide`; Peek's lines under the row,
-  wrapping, in the small type; the header's `collapse` at the end of the session line; the
+  done-note). **Seen in the desktop app at Session 13's plan** (installed 0.13.0): the header's
+  `collapse` at the end of the session line; and a defect: a long activity, a `cd` into an
+  absolute path, pushed each row's `peek` button out of the pane, which Session 12b fixes.
+  Unseen: `peek` and `hide` in reach; Peek's lines under the row, wrapping, in the small type; the
   collapsed view, the Lead carrying one to three joeys at panel size on both themes (the
   redrawn joey's light-theme outline), the count and `1 needs you` beside it, and `expand`; a
   pane minimized in the app showing the collapsed view with no button, and a toast while it
   is minimized (`$.ui.panes()` does not say the seat, so a minimized pane toasts only if the
   app reports it not shown).
 - **Limits, the estimate and helpers (0.13.0).** Seen in the terminal at Session 12 (see its
-  done-note). Unseen in the desktop app until 0.13.0 is installed and looked at: the session
-  line with the limits and `est.` in its dim type, and how it wraps; a row's `est.` in its bar's
-  figure; a helper's row indented under its parent, its opossum beside it, two levels deep.
+  done-note). **Seen in the desktop app at Session 13's plan** (installed 0.13.0, `cost` at
+  `off`): the session line with the limits in its dim type (`5h 76% · 7d 64% · 665k tokens ·
+  20:16`), wrapping beside `collapse`; a helper's row indented under its parent in Finished, its
+  opossum beside it. Unseen: `est.` on the session line and on a row; a helper two levels deep;
+  a helper under a parent that still works.
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.

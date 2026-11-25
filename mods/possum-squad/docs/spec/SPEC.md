@@ -31,7 +31,11 @@ not here.
 
 1. **Round 1 is the PDD's version 1, plus nested helpers (F-24), minus step reports,** in 14
    sessions (`SESSIONS.md`: 1–13 and 7a, split from 7 at the intake's review), releasing 0.1.0
-   to 1.0.0.
+   to 1.0.0. **Amended 2026-11-25 by the owner,** at Session 13's plan: round 1 also takes
+   Sessions 12a to 12d, inserted before 13 from that plan's review: a `waiting` state, the
+   activity line (a path's end, the engine's progress summary, `peek` in reach, an ended row's
+   last call), the Lead's time moving during a main turn, and the failed toast's reason, a
+   `toasts` setting, the tab title and `detect` in the role picker. 1.0.0 comes after them.
 2. **No step reports in v1.** The `step` tool (F-17), the nudge (F-18) and the `plan` tool (F-19)
    go to `docs/BACKLOG.md` as one later round. Their names (`step`, `plan`, the setting
    `stepReports`, the state key `planned`) stay reserved, and so does role rule 1 ("stated"),
@@ -68,7 +72,10 @@ not here.
     - The kit raises `agent.spawn`, `turn.start`, `turn.step`, `turn.complete`, `tool.call` and
       `tool.check`.
 13. **How a run ends (F-11):** an answer with text is Finished; `aborted` is Stopped; `error`,
-    `refusal`, and `answer` with empty text are Failed.
+    `refusal`, and `answer` with empty text are Failed. **Amended 2026-11-25 by the owner,** at
+    Session 13's plan: a turn's end while the engine lists the agent as `waiting` (on its own
+    background work or a helper) is not yet an end: the run reads `waiting`, in Running, until
+    its next turn or its real end (Session 12a).
 14. **How events join to rows:**
     - a spawn opens its row under its `tool_use_id` and re-keys it to the agent id when the
       spawn's result gives one;
@@ -110,7 +117,7 @@ each agent is an animated pixel opossum in its role's outfit, from one of four s
 the same rows are text. Agents nested under their parent, Peek, a collapsed view, toasts while
 the pane is closed, a role picker, the plan-limit percent, an optional cost estimate and a
 gallery of every role and state complete it. Watching costs no tokens and changes nothing Claude
-does.
+does. **Amended 2026-11-25 by the owner:** with decision 1's additions (Sessions 12a to 12d).
 
 **v1 is not:** step reports or a planned list (decision 2); a translation (decision 4); an
 orchestrator that starts, stops or plans work; billing; sprites in the terminal; a band above
@@ -198,7 +205,8 @@ Session 4. N-07 and I-08 are review rules in every session.
    sets of animated outfits on the desktop app and as text rows in the terminal; roles are
    detected and correctable; attention states, Peek, the collapsed view, nested helpers, the
    plan-limit percent and the gallery work; the role corpus passes (`dev` all, `holdout` at
-   least 90%).
+   least 90%). **Amended 2026-11-25 by the owner:** and what Sessions 12a to 12d add
+   (decision 1).
 3. `npm run verify -- possum-squad` is green, with the counts in `ARCHITECTURE.md`'s baseline,
    and `claude plugin validate` lists only the calls `ARCHITECTURE.md`'s *Reach* allows.
 4. The owner has checked it by hand from the installed 1.0.0, in the desktop app and the
