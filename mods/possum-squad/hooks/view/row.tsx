@@ -67,6 +67,7 @@ export const COLOURS: Record<StateId | 'planned', Color> = {
   working: 'success',
   'needs-you': 'permission',
   quiet: 'warning',
+  waiting: 'inactive',
   finished: 'subtle',
   failed: 'error',
   stopped: 'inactive',

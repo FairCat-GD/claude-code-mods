@@ -4,7 +4,7 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 import { ROLE_SETTLES_MS } from '../hooks/config'
 import { detect } from '../hooks/roles/rules'
 import { STRINGS } from '../hooks/strings'
-import { engine, MOUNT, POSSUMS, possums, SURFACES, store } from './engine'
+import { engine, MOUNT, POSSUMS, possums, SURFACES, store, turnEnds } from './engine'
 import { CORPUS } from './fixtures/role-corpus'
 import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 
@@ -69,7 +69,7 @@ async function drain(stream: AsyncGenerator<unknown, unknown>) {
 }
 const step = ($: Engine, agentId: string) => drain($.turn.step({ ...STEP, agentId }))
 const start = ($: Engine, agentId: string) => $.turn.start({ ...TURN_START, agentId })
-const complete = ($: Engine, agentId: string, answer: string = TURN_COMPLETE.answer) => $.turn.complete({ ...TURN_COMPLETE, agentId, answer } as never)
+const complete = ($: Engine, agentId: string, answer: string = TURN_COMPLETE.answer) => turnEnds($, { ...TURN_COMPLETE, agentId, answer } as never)
 
 // On each surface, the role name the row with this description draws on its second line, its role button, which is
 // the first button after its description; undefined while it draws plain.

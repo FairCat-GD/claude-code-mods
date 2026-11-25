@@ -88,6 +88,13 @@ these are the parts only a person can see.
   20:16`), wrapping beside `collapse`; a helper's row indented under its parent in Finished, its
   opossum beside it. Unseen: `est.` on the session line and on a row; a helper two levels deep;
   a helper under a parent that still works.
+- **Waiting (0.14.0).** Seen in the terminal at Session 12a (CLI 2.1.330): a subagent that
+  started a 40-second `ping` in the background and handed back read `waiting` in Running, its
+  time counting, with no role; when the ping ended it took another turn, then read finished at
+  0:44 as Helper. Unseen: in the desktop app, the waiting row's doze and its dim word; a parent
+  waiting on its background helper with the helper drawn under it (the engine listed such a
+  parent `waiting` in Session 12a's probe); the toast at a waiting agent's real end with the
+  pane closed, and that end shown at another agent's event.
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.

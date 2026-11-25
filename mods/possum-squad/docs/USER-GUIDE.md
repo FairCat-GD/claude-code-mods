@@ -47,8 +47,8 @@ From the top:
    `collapse` button (*The collapsed view*, below). See *Limits and the estimate*, below.
 3. **The sections,** each headed with its count, such as `Running · 2`:
    - **Needs you:** agents waiting on a permission prompt (*When an agent needs you*, below);
-   - **Running:** agents starting, working or quiet. It is always there once an agent has
-     started;
+   - **Running:** agents starting, working, quiet or waiting. It is always there once an agent
+     has started;
    - **Finished:** agents that finished, failed or were stopped. It starts folded, with a
      `show` button beside its heading; `hide` folds it again. Your choice is kept between
      sessions, and shared by every session you have open.
@@ -83,6 +83,7 @@ state:
 - **starting:** standing;
 - **working:** bobbing, its tool moving against it, blinking every few seconds;
 - **quiet:** dozing on its feet, eyes closed, bobbing slowly;
+- **waiting:** the same doze as quiet;
 - **needs you:** holding up a "?" sign, bobbing;
 - **finished:** two hops in a cheer, then asleep as a "z" rises; still after 3 seconds;
 - **stopped:** startled, with a "!", for a second, then standing;
@@ -107,7 +108,7 @@ or a stone hard hat in `prehistoric`.
 
 **The gallery.** `/possums roles` replaces the list with every role of the current set, three
 roles at a time. Each role shows its name and its costume's name, over its pose in each of the
-eight states: the seven above, and **planned**, standing greyed and faded, which no agent uses
+eight states: the seven above but waiting, which looks like quiet, and **planned**, standing greyed and faded, which no agent uses
 yet. The poses are moving: the arrival, the cheer and the startle play again every few seconds,
 so you can watch any of them; with `motion` at `off` they are still.
 
@@ -123,8 +124,8 @@ the session line's time moves only when an agent does something.
 
 Each subagent Claude starts gets a row the moment it starts, in the order they started:
 
-1. its task in a few words, and its state: starting, working, needs you, quiet, finished,
-   failed or stopped; "round 2" when a run with the same task already finished;
+1. its task in a few words, and its state: starting, working, needs you, quiet, waiting,
+   finished, failed or stopped; "round 2" when a run with the same task already finished;
 2. its role, such as Builder or Scout, once it is settled (*How roles are chosen*, below), or
    "Pick a role" until then, as a button (*Changing a role*); then the model it runs on and its
    effort, once its first request names them;
@@ -147,9 +148,8 @@ helper's minutes pass inside its parent's. A helper is drawn under its parent on
 sit in the same section: one waiting on you shows in Needs you, and one that finished while its
 parent works shows in Finished, each as any other row. An agent whose parent has no row is drawn
 as any other row. A subagent's helper usually runs in the background, so its parent's turn
-ends while the helper works: the parent reads finished and the helper is its own row in Running,
-until the helper's report brings the parent back to working. Once both have ended, the helper is
-drawn under it.
+ends while the helper works: the parent waits (*Waiting*, below), so both sit in Running and the
+helper is drawn under it, until the helper's report brings the parent back to working.
 
 **With many agents,** the pane keeps within what the desktop app can draw. From about twenty
 working agents, the later rows' opossums stand still while the first ones keep moving; one
@@ -197,7 +197,8 @@ default, no dollar figure appears anywhere in the pane.
 The `collapse` button at the end of the session line folds the pane down to a glance: the main
 session's opossum carrying a joey for each running agent, up to three, beside how many are
 running, such as `4 running`, and `1 needs you` in the permission colour while any agent waits
-on you. Running counts what the Running section holds (starting, working and quiet agents);
+on you. Running counts what the Running section holds (starting, working, quiet and waiting
+agents);
 one that needs you is counted there instead. In a terminal it is one line of text. `expand`
 brings the list back. Your choice is kept between sessions, and shared by every session you have
 open. `/possums roles` still shows the gallery over a collapsed pane, and closing the gallery
@@ -223,13 +224,24 @@ in amber, and its third line says for how long, such as "Quiet for 2 min". A cal
 running, however long, never makes it quiet, nor does the reply that follows one. The next thing
 the agent does brings it back to working.
 
+**Waiting.** An agent that hands back while work of its own still runs, such as a shell command
+it started in the background or a helper it started, has not finished: Claude Code lists it as
+waiting. Its row stays in Running and reads "waiting", dim, and its opossum dozes as a quiet one
+does; its time keeps counting. When that work is done, Claude Code usually gives the agent
+another turn, and its row works again; it ends when Claude Code says it has, and only then
+does its row go to Finished, cheer, take Helper if no rule dressed it, and toast. For the
+moment its turn ends, until Claude Code answers, the row stays as it was; if no answer comes
+within five seconds, the next beat of the pane's clock ends it as its turn did. With the pane
+closed, a waiting agent's end shows at the next event of any agent, or when you open the pane.
+
 **Toasts.** While the list is out of sight (the pane closed, behind another pane's tab, waiting
 to be drawn, collapsed, or showing the gallery), a small toast tells you instead:
 - when an agent needs you: "Find where reports are built · needs you: waiting on a permission
   prompt";
 - when an agent ends a turn that took more than a minute: "… · finished after 2:14", "… ·
   failed after 2:14" or "… · stopped after 1:05". For a teammate, or an agent Claude resumes,
-  only that turn counts, not the time since it first started.
+  only that turn counts, not the time since it first started. A waiting agent toasts when it
+  really ends, its wait counted in the time, not when it hands back.
 
 Each names the agent by its task, cut at 100 characters as on its row; one that asks before its
 row has appeared is "An agent". There is one toast each time an agent comes to need you: a
@@ -255,8 +267,8 @@ possum-squad sees anyway, never from asking a model, by the first of these that 
    one that commits, pushes, tags or opens a pull request a Courier. Six reads and searches with
    nothing else make a Scout. Any other shell command says nothing.
 4. **Helper,** when nothing has settled it a minute after it started, or when it ends first. A
-   teammate whose turn ends, or an agent whose turn left work running in the background, keeps
-   its role open for its next turn, or the minute.
+   teammate whose turn ends, an agent waiting on its own work, or one whose turn started work in
+   the background, keeps its role open for its next turn, or the minute.
 
 Until its role settles, a row shows none. Once settled, a run's role changes only when you
 change it.

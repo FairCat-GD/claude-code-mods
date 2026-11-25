@@ -52,7 +52,7 @@ export type SectionId = keyof typeof STRINGS.sections
 // The sections in their order, and the states each holds; once any run exists, Running is drawn even when empty.
 export const SECTIONS: readonly { id: SectionId; states: readonly StateId[] }[] = [
   { id: 'needs-you', states: ['needs-you'] },
-  { id: 'running', states: ['starting', 'working', 'quiet'] },
+  { id: 'running', states: ['starting', 'working', 'quiet', 'waiting'] },
   { id: 'finished', states: ['finished', 'failed', 'stopped'] },
 ]
 

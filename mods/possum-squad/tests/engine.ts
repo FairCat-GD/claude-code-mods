@@ -1,4 +1,5 @@
 import type { CommandSpec, On, PaneOpenArgs } from 'claude-code'
+import type { Engine } from 'claude-code/testing'
 
 import { PANE_COLUMNS } from '../hooks/config'
 import { PANE, register } from '../hooks/register'
@@ -74,4 +75,17 @@ export function hooksOf() {
   }
   register(capture as never, {} as never)
   return { hooks, catches }
+}
+
+// Work an event started and did not await (a toast, the engine's list read at a turn's end) settles within these turns.
+export async function settled() {
+  for (let i = 0; i < 200; i++) await Promise.resolve()
+}
+
+// A turn's end, then the list read it started: the kit lists no agent unless a test stands in for it, so the end lands
+// as the turn gave it.
+export async function turnEnds($: Engine, e: Parameters<Engine['turn']['complete']>[0]) {
+  const completed = await $.turn.complete(e)
+  await settled()
+  return completed
 }

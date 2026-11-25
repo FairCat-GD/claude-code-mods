@@ -6,6 +6,30 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-11-25
+
+An agent that hands back while its own background work still runs waits in Running instead of
+reading finished.
+
+### Added
+
+- **Waiting:** an agent whose turn ends while a shell it started in the background, or a helper
+  it started, still runs stays in Running with the state `waiting`, dozing as a quiet one does,
+  its time still counting. It is counted among the running in the collapsed view, and a helper
+  working under it is drawn beneath it. When that work is done the agent usually picks up again
+  and its row works; it ends when Claude Code says it has. `/possums roles` does not show it
+  apart: it looks like quiet.
+
+### Changed
+
+- **The toast for a long agent's end** comes when it really ends, timed through its wait, not
+  when it hands back to wait on its own work. Helper, for an agent no rule dressed, also waits
+  for its real end.
+- **With the pane closed,** a waiting agent's end shows at the next event of any agent, or when
+  you open the pane.
+- **A session that loads 0.14.0 while it runs** starts its list of agents over: its stored
+  shape changed.
+
 ## [0.13.0] — 2026-11-25
 
 The session line shows your plan's limits and, if you ask, what the session would cost; an

@@ -2,7 +2,7 @@ import type { On } from 'claude-code'
 import { type Engine, expect, mock, test } from 'claude-code/testing'
 
 import { STRINGS } from '../hooks/strings'
-import { engine, MOUNT, POSSUMS, SURFACES, store } from './engine'
+import { engine, MOUNT, POSSUMS, SURFACES, store, turnEnds } from './engine'
 import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 
 type Surface = (typeof SURFACES)[number]
@@ -34,7 +34,7 @@ async function drain(stream: AsyncGenerator<unknown, unknown>) {
   for (;;) if ((await stream.next()).done) return
 }
 const step = ($: Engine, agentId: string) => drain($.turn.step({ ...STEP, agentId }))
-const complete = ($: Engine, agentId: string, answer: string) => $.turn.complete({ ...TURN_COMPLETE, agentId, answer } as never)
+const complete = ($: Engine, agentId: string, answer: string) => turnEnds($, { ...TURN_COMPLETE, agentId, answer } as never)
 
 const read = (path: string): Use => ({ name: 'Read', input: { file_path: path } })
 const edit = (path: string): Use => ({ name: 'Edit', input: { file_path: path, old_string: 'a', new_string: 'b' } })

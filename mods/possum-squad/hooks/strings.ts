@@ -45,6 +45,7 @@ export const STRINGS = {
     working: 'working',
     'needs-you': 'needs you',
     quiet: 'quiet',
+    waiting: 'waiting',
     finished: 'finished',
     failed: 'failed',
     stopped: 'stopped',

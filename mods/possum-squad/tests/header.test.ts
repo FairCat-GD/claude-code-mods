@@ -4,7 +4,7 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 import { STRINGS } from '../hooks/strings'
 import { elapsed, tokens } from '../hooks/view/format'
 import { type PanelData, panel, type SectionId } from '../hooks/view/panel'
-import { engine, MOUNT, possums, SURFACES, store } from './engine'
+import { engine, MOUNT, possums, SURFACES, store, turnEnds } from './engine'
 import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 import { ROWS } from './fixtures/rows'
 
@@ -30,7 +30,7 @@ const NO_ACTIONS = {
 const PANELS: Record<string, PanelData> = {
   every: { lead: LEAD, session: SESSION, rows: ROWS, isFinishedOpen: false, look: LOOK },
   open: { lead: LEAD, session: SESSION, rows: ROWS, isFinishedOpen: true, look: LOOK },
-  running: { lead: LEAD, session: SESSION, rows: stateOf(['starting', 'working', 'quiet']), isFinishedOpen: true, look: LOOK },
+  running: { lead: LEAD, session: SESSION, rows: stateOf(['starting', 'working', 'quiet', 'waiting']), isFinishedOpen: true, look: LOOK },
   ended: { lead: LEAD, session: SESSION, rows: stateOf(ENDED), isFinishedOpen: true, look: LOOK },
   none: { lead: { tokens: 0 }, session: { tokens: 0, workedMs: 0 }, rows: [], isFinishedOpen: false, look: LOOK },
 }
@@ -65,8 +65,8 @@ const heading = (id: SectionId, count: number) => STRINGS.heading(STRINGS.sectio
 test('the sections come in order with their counts, and an empty one other than Running is not drawn (F-04)', async ($, on) => {
   drawPanels(on)
   for (const surface of SURFACES) {
-    expect(headingsOf((await drawn($, surface, 'every')).texts)).toEqual([heading('needs-you', 1), heading('running', 3), heading('finished', 3)])
-    expect(headingsOf((await drawn($, surface, 'running')).texts)).toEqual([heading('running', 3)])
+    expect(headingsOf((await drawn($, surface, 'every')).texts)).toEqual([heading('needs-you', 1), heading('running', 4), heading('finished', 3)])
+    expect(headingsOf((await drawn($, surface, 'running')).texts)).toEqual([heading('running', 4)])
     expect(headingsOf((await drawn($, surface, 'ended')).texts)).toEqual([heading('running', 0), heading('finished', 3)])
 
     const none = (await drawn($, surface, 'none')).texts
@@ -83,20 +83,29 @@ test('each row sits under its section, in spawn order; Finished stays collapsed 
     const at = (text: string) => collapsed.texts.indexOf(text)
     // Needs you's row, then Running's in spawn order: the needs-you row was spawned between working and quiet.
     expect(
-      [heading('needs-you', 1), description('needs-you'), heading('running', 3), description('starting'), description('working'), description('quiet')].map(at),
+      [
+        heading('needs-you', 1),
+        description('needs-you'),
+        heading('running', 4),
+        description('starting'),
+        description('working'),
+        description('quiet'),
+        description('waiting'),
+      ].map(at),
     ).toEqual(
       [
         ...[
           heading('needs-you', 1),
           description('needs-you'),
-          heading('running', 3),
+          heading('running', 4),
           description('starting'),
           description('working'),
           description('quiet'),
+          description('waiting'),
         ].map(at),
       ].sort((a, b) => a - b),
     )
-    expect(at(description('starting'))).toBeGreaterThan(at(heading('running', 3)))
+    expect(at(description('starting'))).toBeGreaterThan(at(heading('running', 4)))
     for (const state of ENDED) expect(collapsed.texts).not.toContain(description(state))
     expect(collapsed.button?.props.label).toBe(STRINGS.show)
 
@@ -175,10 +184,10 @@ test('the header totals the Lead and every run, in tokens and in time (F-03)', a
   await $.agent.spawn({ ...SPAWN, tool_use_id: 'toolu_b', description: 'Weigh the pumpkins' })
   await drain($.turn.step({ ...STEP, agentId: 'agent-b', index: 0 }))
   await clock.set(3_000)
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-b' })
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-b' })
   // A main turn of 4.2 s: 1,000 in, 300 written to the cache, 200 out; its cache reads are not fresh.
   const { agentId: _, ...main } = TURN_COMPLETE
-  await $.turn.complete({
+  await turnEnds($, {
     ...main,
     durationMs: 4_200,
     usage: { ...TURN_COMPLETE.usage, input_tokens: 1_000, cache_creation_input_tokens: 300, output_tokens: 200 },
@@ -196,7 +205,7 @@ test("Finished's show button opens the section, remembers it, and a second press
   world(on)
   const kept = store(on)
   await $.agent.spawn(SPAWN)
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-a' })
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-a' })
   for (const surface of SURFACES) {
     const pane = await $.ui.mount({ ...MOUNT, surface })
     const texts = async () => (await pane.findAll({ type: 'Text' })).map(text => text.text)
@@ -274,7 +283,7 @@ test("a clear starts the main session's numbers over but keeps the plan's limits
     { kind: 'five_hour', percentUsed: 40 },
     { kind: 'constructor', percentUsed: 3 },
   ])
-  await $.turn.complete({ ...main, durationMs: 4_200 })
+  await turnEnds($, { ...main, durationMs: 4_200 })
   await clock.set(10_000)
   const sessionOf = async (surface: Surface) => (await drawn($, surface)).texts.find(text => text.includes(' tokens · ')) ?? ''
   for (const surface of SURFACES) expect([surface, await sessionOf(surface)]).toEqual([surface, `5h 40% · constructor 3% · ${tokens(150)} tokens · 0:04`])

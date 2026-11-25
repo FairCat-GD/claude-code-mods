@@ -4,7 +4,7 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 import { DESCRIPTION_CHARS, QUIET_AFTER_MS, TOAST_AFTER_MS } from '../hooks/config'
 import { PANE } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
-import { engine, MOUNT, POSSUMS, possums, SURFACES, store } from './engine'
+import { engine, MOUNT, POSSUMS, possums, SURFACES, store, turnEnds } from './engine'
 import { PERMISSION_FROM_AGENT, PERMITTED, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START, WAITING } from './fixtures/events'
 
 type Surface = (typeof SURFACES)[number]
@@ -61,7 +61,7 @@ async function working($: Engine, n: number, description = `Count the shovels ${
 const step = ($: Engine, n: number) => drain($.turn.step({ ...STEP, agentId: `agent-${n}` }))
 const request = ($: Engine, n: number) => $.classic.PermissionRequest({ ...PERMISSION_FROM_AGENT, agent_id: `agent-${n}` } as never)
 const complete = ($: Engine, n: number, reason = 'answer', answer: string = TURN_COMPLETE.answer) =>
-  $.turn.complete({ ...TURN_COMPLETE, reason, answer, isAborted: reason === 'aborted', agentId: `agent-${n}` } as never)
+  turnEnds($, { ...TURN_COMPLETE, reason, answer, isAborted: reason === 'aborted', agentId: `agent-${n}` } as never)
 
 // A toast is not awaited by the event that raised it, so each test lets it settle before it looks.
 const settled = async () => {

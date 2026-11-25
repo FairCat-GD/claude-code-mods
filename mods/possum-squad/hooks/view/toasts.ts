@@ -21,11 +21,11 @@ export function askedToast(before: Runs, after: Runs, agentId: string): string |
   return STRINGS.toasts.needsYou(run === undefined ? STRINGS.toasts.someone : shortened(run.description))
 }
 
-// The end of a run that was live and whose turn ran longer than T-10: a teammate's or a resumed agent's turn is timed
-// on its own, never from the run's first start.
-export function endedToast(before: Runs, after: Runs, agentId: string): string | undefined {
-  const was = before.rows[agentId]
-  const run = after.rows[agentId]
+// The end of a run that was live and whose turn ran longer than T-10, a wait after it included: a teammate's or a
+// resumed agent's turn is timed on its own, never from the run's first start.
+export function endedToast(before: Runs, after: Runs, key: string): string | undefined {
+  const was = before.rows[key]
+  const run = after.rows[key]
   if (was === undefined || hasEnded(was) || run?.endedAt === undefined || !hasEnded(run)) return undefined
   const ranMs = run.endedAt - run.turnAt
   if (!(ranMs > TOAST_AFTER_MS)) return undefined
@@ -35,3 +35,9 @@ export function endedToast(before: Runs, after: Runs, agentId: string): string |
   if (run.state === 'stopped') return STRINGS.toasts.stopped(who, time)
   return STRINGS.toasts.failed(who, time)
 }
+
+// Every run a record ended, in spawn order: the list's answer may end several at once.
+export const endedToasts = (before: Runs, after: Runs): string[] =>
+  Object.entries(after.rows)
+    .sort(([, a], [, b]) => a.order - b.order)
+    .flatMap(([key]) => endedToast(before, after, key) ?? [])

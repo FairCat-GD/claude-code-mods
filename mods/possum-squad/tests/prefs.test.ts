@@ -2,7 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 
 import { readPrefs, SETTING_NAMES, SETTINGS, type SettingName } from '../hooks/settings'
 import { STRINGS } from '../hooks/strings'
-import { engine, MOUNT, possums, SURFACES, store } from './engine'
+import { engine, MOUNT, possums, SURFACES, store, turnEnds } from './engine'
 import {
   MEASURE,
   MEASURED,
@@ -69,12 +69,12 @@ test('every store write holds only setting values and panel flags, never what an
   await $.turn.start(TURN_START)
   await $.classic.PermissionRequest(PERMISSION)
   await $.classic.SessionStart({ source: 'clear' })
-  await $.turn.complete(TURN_COMPLETE)
+  await turnEnds($, TURN_COMPLETE)
   await $.session.measure(MEASURE)
   // A run that ends after the clear, so Finished's show button is drawn and pressed on each surface, then its Peek,
   // which keeps its brief and answer in state alone, and the header's collapse and the way back.
   await $.agent.spawn(SPAWN)
-  await $.turn.complete(TURN_COMPLETE)
+  await turnEnds($, TURN_COMPLETE)
   for (const surface of SURFACES) {
     const pane = await $.ui.mount({ ...MOUNT, surface })
     // Finished opens on the first surface and closes on the second, so its row's Peek is pressed while it is open.

@@ -40,6 +40,9 @@ export const DESCRIPTION_CHARS = 100
 // T-05: a live run with no event this long, and no call in flight, shows as quiet.
 export const QUIET_AFTER_MS = 90_000
 
+// A turn's end the engine's list has not answered for this long ends as the turn did, at the clock's next beat.
+export const LIST_ANSWER_MS = 5_000
+
 // T-10: a run that ends after running longer than this toasts while the pane is out of view.
 export const TOAST_AFTER_MS = 60_000
 

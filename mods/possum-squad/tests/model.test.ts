@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Role, Runs } from '../types/index'
-import { FINISHED_KEPT, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../hooks/config'
+import { FINISHED_KEPT, LIST_ANSWER_MS, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../hooks/config'
 import { DEFAULT_WINDOW, WINDOWS } from '../hooks/data/models'
 import {
   asked,
@@ -11,8 +11,11 @@ import {
   endingOf,
   fellBack,
   figures,
+  hasKept,
+  heldOut,
   isEmpty,
   keepsClock,
+  listed,
   NO_RUNS,
   PENDING_KEPT,
   quietMs,
@@ -32,6 +35,9 @@ import { callsOf, TARGET_CHARS } from '../hooks/model/tools'
 import { leadFigures, measured, NO_LEAD, totals, turnCounted } from '../hooks/model/lead'
 import { STRINGS } from '../hooks/strings'
 import { activityText } from '../hooks/view/runs'
+
+// A turn's end as the engine's list settles it when it no longer lists the agent: the kept ending, at the turn's end.
+const endedNow = (runs: Runs, agentId: string, ending: Parameters<typeof turnEnded>[2], at: number) => listed(turnEnded(runs, agentId, ending, at), new Map())
 
 // Fictional spawns and steps.
 const SHOVELS: Spawn = { key: 'toolu_shovels', type: 'Explore', description: 'Count the shovels', isTeammate: false }
@@ -71,7 +77,7 @@ test("a loop's turn and step before the spawn's result wait as pending, and the 
 
 test('a loop no spawn claims is dropped at its end, and the pending list is bounded', () => {
   let runs = turnStarted(NO_RUNS, 'fork-1')
-  runs = turnEnded(runs, 'fork-1', ANSWERED, 5)
+  runs = endedNow(runs, 'fork-1', ANSWERED, 5)
   expect(runs).toEqual(NO_RUNS)
 
   for (let i = 0; i < PENDING_KEPT + 5; i++) runs = turnStarted(runs, `fork-${i}`)
@@ -103,7 +109,7 @@ test('a fork no tool call starts opens at its result', () => {
 })
 
 test('a resumed agent returns to its row; a resume of an agent no row has opens one', () => {
-  let runs = turnEnded(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', ANSWERED, 50)
+  let runs = endedNow(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', ANSWERED, 50)
   const resume: Spawn = { ...SHOVELS, key: 'toolu_resume', resumes: 'agent-1' }
   expect(spawnOpened(runs, resume, 60)).toBe(runs)
 
@@ -114,7 +120,7 @@ test('a resumed agent returns to its row; a resume of an agent no row has opens 
   expect(turnStarted(runs, 'agent-1').rows['agent-1']?.state).toBe('working')
 
   // A refused resume leaves the finished row as it was.
-  const ended = turnEnded(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', ANSWERED, 50)
+  const ended = endedNow(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', ANSWERED, 50)
   expect(spawnSettled(ended, resume, { isDenied: true }, 61)).toBe(ended)
 
   const fresh = spawnSettled(NO_RUNS, { ...RAKES, key: 'toolu_r', resumes: 'agent-9' }, { agentId: 'agent-9', isDenied: false }, 5)
@@ -125,11 +131,11 @@ test('a resumed agent returns to its row; a resume of an agent no row has opens 
 })
 
 test('a second spawn with a finished run’s description is round 2; a failed one does not count', () => {
-  let runs = turnEnded(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', ANSWERED, 10)
+  let runs = endedNow(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', ANSWERED, 10)
   runs = spawned(runs, { ...SHOVELS, key: 'toolu_again' }, 'agent-2')
   expect(runs.rows['agent-2']?.round).toBe(2)
 
-  let failed = turnEnded(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', { reason: 'error', hasText: false }, 10)
+  let failed = endedNow(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', { reason: 'error', hasText: false }, 10)
   failed = spawned(failed, { ...SHOVELS, key: 'toolu_again' }, 'agent-2')
   expect(failed.rows['agent-2']?.round).toBe(1)
 })
@@ -148,7 +154,7 @@ test('the endings: text is finished, aborted is stopped, error, refusal and an e
 test("a teammate's next turn puts its row back to working, its time counted from its first start", () => {
   const mate: Spawn = { ...SHOVELS, isTeammate: true }
   let runs = turnStarted(spawned(NO_RUNS, mate, 'agent-1', 100), 'agent-1')
-  runs = turnEnded(runs, 'agent-1', { reason: 'answer', hasText: false }, 200)
+  runs = endedNow(runs, 'agent-1', { reason: 'answer', hasText: false }, 200)
   expect(runs.rows['agent-1']?.state).toBe('finished')
   runs = turnStarted(runs, 'agent-1')
   expect(runs.rows['agent-1']).toMatchObject({ state: 'working', startedAt: 100 })
@@ -175,11 +181,11 @@ test('tokens sum over steps, fresh apart from cache reads, and the context is th
 
 test('finished keeps the latest T-06 ended runs, and never drops a teammate or a working run', () => {
   let runs = spawned(NO_RUNS, { ...SHOVELS, key: 'toolu_mate', isTeammate: true }, 'mate', 0)
-  runs = turnEnded(runs, 'mate', ANSWERED, 1)
+  runs = endedNow(runs, 'mate', ANSWERED, 1)
   runs = spawned(runs, { ...RAKES, key: 'toolu_busy' }, 'busy', 0)
   for (let i = 0; i < FINISHED_KEPT + 3; i++) {
     runs = spawned(runs, { ...RAKES, key: `toolu_${i}` }, `agent-${i}`, 10 + i)
-    runs = turnEnded(runs, `agent-${i}`, ANSWERED, 100 + i)
+    runs = endedNow(runs, `agent-${i}`, ANSWERED, 100 + i)
   }
   const kept = Object.keys(runs.rows)
   expect(kept).toContain('mate')
@@ -250,7 +256,7 @@ test('a step tells whether any of its calls went to the background', () => {
 })
 
 test('an event it cannot place changes nothing', () => {
-  expect(turnEnded(NO_RUNS, 'nobody', ANSWERED, 1)).toBe(NO_RUNS)
+  expect(endedNow(NO_RUNS, 'nobody', ANSWERED, 1)).toBe(NO_RUNS)
   expect(spawnSettled(NO_RUNS, SHOVELS, { agentId: 'agent-1', isDenied: false }, 1)).toBe(NO_RUNS)
   const working = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1')
   expect(turnStarted(working, 'agent-1')).toBe(working)
@@ -297,7 +303,7 @@ test("the Lead's context is the engine's percent, else its tokens over the windo
 
 test('the totals are the Lead, every run kept, and what pruned runs counted', () => {
   let runs = stepped(spawned(NO_RUNS, SHOVELS, 'agent-1', 1_000), 'agent-1', STEP)
-  runs = turnEnded(spawned(runs, RAKES, 'agent-2', 2_000), 'agent-2', ANSWERED, 5_000)
+  runs = endedNow(spawned(runs, RAKES, 'agent-2', 2_000), 'agent-2', ANSWERED, 5_000)
   runs = { ...runs, past: { tokens: 50, workedMs: 700, usd: 0.5 } }
   const main = turnCounted(NO_LEAD, turnUsage(1_000, 200, 0, 300), 4_200)
   // Tokens: the Lead's 1,500, the working run's 200, the ended run's none, 50 past. Time: 4,200, then 9,000 working
@@ -313,7 +319,7 @@ test('a run Finished no longer keeps still counts in the totals, and a clear sta
   let runs = NO_RUNS
   for (let i = 0; i <= FINISHED_KEPT; i++) {
     runs = stepped(spawned(runs, { ...RAKES, key: `toolu_${i}` }, `agent-${i}`, 10 * i), `agent-${i}`, STEP)
-    runs = turnEnded(runs, `agent-${i}`, ANSWERED, 10 * i + 5)
+    runs = endedNow(runs, `agent-${i}`, ANSWERED, 10 * i + 5)
   }
   expect(runs.rows['agent-0']).toBeUndefined()
   // agent-0's 200 fresh tokens, 5 ms and its Haiku step's dollars stay counted.
@@ -337,7 +343,7 @@ const settledAt = (role: Role, at: number): Role => ({ ...role, at })
 test("a spawn's role from its words is its row's from the start, and a resume keeps the row's", () => {
   const runs = spawned(NO_RUNS, { ...RAKES, role: BUILDER }, 'agent-1', 5)
   expect(runs.rows['agent-1']?.role).toEqual(settledAt(BUILDER, 5))
-  const ended = turnEnded(turnStarted(runs, 'agent-1'), 'agent-1', ANSWERED, 10)
+  const ended = endedNow(turnStarted(runs, 'agent-1'), 'agent-1', ANSWERED, 10)
   const resumed = spawnSettled(ended, { ...RAKES, key: 'toolu_again', resumes: 'agent-1', role: SCOUT }, { agentId: 'agent-1', isDenied: false }, 20)
   expect(resumed.rows['agent-1']?.role).toEqual(settledAt(BUILDER, 5))
 })
@@ -364,7 +370,7 @@ test("the person's pick replaces a settled role or settles a plain one, and stan
     expect(runOf(picked, order)?.description).toBe(RAKES.description)
     const later = stepped(picked, 'agent-1', { ...STEP, tools: { weak: 0, role: RESEARCHER }, at: 60 })
     expect(later.rows['agent-1']?.role).toEqual(PICKED)
-    expect(fellBack(turnEnded(later, 'agent-1', ANSWERED, 70), 1_000_000, HELPER).rows['agent-1']?.role).toEqual(PICKED)
+    expect(fellBack(endedNow(later, 'agent-1', ANSWERED, 70), 1_000_000, HELPER).rows['agent-1']?.role).toEqual(PICKED)
   }
   // A run that is gone, or never was, changes nothing.
   expect(reassigned(NO_RUNS, 0, PICKED)).toBe(NO_RUNS)
@@ -411,26 +417,26 @@ test("the fallback settles a run past T-04 or ended, but not a teammate's end, a
   expect(fellBack(young, ROLE_SETTLES_MS - 1, HELPER)).toBe(young)
   expect(fellBack(young, ROLE_SETTLES_MS, HELPER).rows['agent-1']?.role).toEqual(settledAt(HELPER, ROLE_SETTLES_MS))
 
-  const ended = turnEnded(young, 'agent-1', ANSWERED, 10)
+  const ended = endedNow(young, 'agent-1', ANSWERED, 10)
   expect(fellBack(ended, 10, HELPER).rows['agent-1']?.role).toEqual(settledAt(HELPER, 10))
 
-  const teammate = turnEnded(turnStarted(spawned(NO_RUNS, { ...RAKES, isTeammate: true }, 'agent-2', 0), 'agent-2'), 'agent-2', ANSWERED, 10)
+  const teammate = endedNow(turnStarted(spawned(NO_RUNS, { ...RAKES, isTeammate: true }, 'agent-2', 0), 'agent-2'), 'agent-2', ANSWERED, 10)
   expect(fellBack(teammate, 10, HELPER)).toBe(teammate)
   expect(fellBack(teammate, ROLE_SETTLES_MS, HELPER).rows['agent-2']?.role).toEqual(settledAt(HELPER, ROLE_SETTLES_MS))
 
-  const dressed = turnEnded(turnStarted(spawned(NO_RUNS, { ...RAKES, role: BUILDER }, 'agent-3', 0), 'agent-3'), 'agent-3', ANSWERED, 10)
+  const dressed = endedNow(turnStarted(spawned(NO_RUNS, { ...RAKES, role: BUILDER }, 'agent-3', 0), 'agent-3'), 'agent-3', ANSWERED, 10)
   expect(fellBack(dressed, ROLE_SETTLES_MS * 2, HELPER)).toBe(dressed)
 })
 
 test('a run whose turn left work in the background is not Helper at that end, and its next turn starts clean', () => {
   const started = turnStarted(spawned(NO_RUNS, RAKES, 'agent-1', 0), 'agent-1')
-  const waiting = turnEnded(stepped(started, 'agent-1', { ...STEP, hasBackground: true }), 'agent-1', ANSWERED, 10)
+  const waiting = endedNow(stepped(started, 'agent-1', { ...STEP, hasBackground: true }), 'agent-1', ANSWERED, 10)
   expect(waiting.rows['agent-1']?.hasBackgroundWork).toBe(true)
   expect(fellBack(waiting, 10, HELPER)).toBe(waiting)
   expect(fellBack(waiting, ROLE_SETTLES_MS, HELPER).rows['agent-1']?.role).toEqual(settledAt(HELPER, ROLE_SETTLES_MS))
   const back = turnStarted(waiting, 'agent-1')
   expect(back.rows['agent-1']?.hasBackgroundWork).toBeUndefined()
-  expect(fellBack(turnEnded(back, 'agent-1', ANSWERED, 20), 20, HELPER).rows['agent-1']?.role).toEqual(settledAt(HELPER, 20))
+  expect(fellBack(endedNow(back, 'agent-1', ANSWERED, 20), 20, HELPER).rows['agent-1']?.role).toEqual(settledAt(HELPER, 20))
 
   const early = stepped(turnStarted(NO_RUNS, 'agent-2'), 'agent-2', { ...STEP, hasBackground: true })
   expect(spawned(early, RAKES, 'agent-2').rows['agent-2']?.hasBackgroundWork).toBe(true)
@@ -446,7 +452,7 @@ test('a step whose time could not be read settles its role with no moment, so no
 test('the clock is kept for a live run, and for an ended one whose role may still fall back', () => {
   const rowOf = (runs: Runs) => runs.rows['agent-1'] as NonNullable<Runs['rows'][string]>
   expect(keepsClock(rowOf(turnStarted(spawned(NO_RUNS, RAKES, 'agent-1', 0), 'agent-1')))).toBe(true)
-  const teammate = turnEnded(turnStarted(spawned(NO_RUNS, { ...RAKES, isTeammate: true }, 'agent-1', 0), 'agent-1'), 'agent-1', ANSWERED, 10)
+  const teammate = endedNow(turnStarted(spawned(NO_RUNS, { ...RAKES, isTeammate: true }, 'agent-1', 0), 'agent-1'), 'agent-1', ANSWERED, 10)
   expect(keepsClock(rowOf(teammate))).toBe(true)
   expect(keepsClock(rowOf(fellBack(teammate, ROLE_SETTLES_MS, HELPER)))).toBe(false)
 })
@@ -462,7 +468,7 @@ test("a live row's asked call moves it to needs-you, and its next step brings it
   expect(stepped(waiting, 'agent-1', STEP).rows['agent-1']).toMatchObject({ state: 'working', heardAt: 20 })
   // A starting row may ask too; one that has ended, or an agent no row or entry has, may not.
   expect(asked(spawned(NO_RUNS, SHOVELS, 'agent-1', 0), 'agent-1').rows['agent-1']?.state).toBe('needs-you')
-  const ended = turnEnded(working, 'agent-1', ANSWERED, 50)
+  const ended = endedNow(working, 'agent-1', ANSWERED, 50)
   expect(asked(ended, 'agent-1', 60)).toBe(ended)
   expect(asked(working, 'agent-9', 60)).toBe(working)
 })
@@ -492,7 +498,7 @@ test('each event of a run is the last time it was heard: its spawn, its result, 
   expect(turnStarted(started, 'agent-1', 200)).toBe(started)
   expect(stepped(started, 'agent-1', { ...STEP, at: 250 }).rows['agent-1']?.heardAt).toBe(250)
   // A resume is heard at its result.
-  const ended = turnEnded(started, 'agent-1', ANSWERED, 300)
+  const ended = endedNow(started, 'agent-1', ANSWERED, 300)
   const resumed = spawnSettled(ended, { ...SHOVELS, resumes: 'agent-1' }, { agentId: 'agent-1', isDenied: false }, 400)
   expect(resumed.rows['agent-1']).toMatchObject({ state: 'starting', heardAt: 400 })
 })
@@ -525,7 +531,7 @@ test('the step that asked a call, recorded after the request, leaves the row nee
   expect(entryAsker.pending['agent-1']?.ask).toEqual({ at: 20 })
   expect(stepped(entryAsker, 'agent-1', { ...STEP, began: 30 }).pending['agent-1']?.ask).toBeUndefined()
   // A turn's end, or a new turn, leaves nothing of the request behind.
-  expect(turnEnded(asker, 'agent-1', ANSWERED, 50).rows['agent-1']?.ask).toBeUndefined()
+  expect(endedNow(asker, 'agent-1', ANSWERED, 50).rows['agent-1']?.ask).toBeUndefined()
   expect(turnStarted(asker, 'agent-1', 50).rows['agent-1']).toMatchObject({ state: 'working' })
   expect(turnStarted(asker, 'agent-1', 50).rows['agent-1']?.ask).toBeUndefined()
 })
@@ -556,7 +562,7 @@ test("a request whose time could not be read waits out the asking step's record,
 test("a turn's start is the turn's: the opening, a resume's result and each turn start", () => {
   const opened = spawned(NO_RUNS, SHOVELS, 'agent-1', 100)
   expect(opened.rows['agent-1']?.turnAt).toBe(100)
-  const ended = turnEnded(turnStarted(opened, 'agent-1', 110), 'agent-1', ANSWERED, 200)
+  const ended = endedNow(turnStarted(opened, 'agent-1', 110), 'agent-1', ANSWERED, 200)
   expect(ended.rows['agent-1']).toMatchObject({ startedAt: 100, turnAt: 110 })
   expect(turnStarted(ended, 'agent-1', 500).rows['agent-1']).toMatchObject({ startedAt: 100, turnAt: 500 })
   const resumed = spawnSettled(ended, { ...SHOVELS, resumes: 'agent-1' }, { agentId: 'agent-1', isDenied: false }, 900)
@@ -643,15 +649,15 @@ test("a brief is the spawn's prompt and an answer its turn's, each its first 600
 
   // An emoji is never split; 601 of them are cut to 600.
   const answer = '🌱'.repeat(601)
-  const ended = turnEnded(runs, 'agent-1', { reason: 'answer', hasText: true, answer }, 50)
+  const ended = endedNow(runs, 'agent-1', { reason: 'answer', hasText: true, answer }, 50)
   expect(ended.rows['agent-1']?.answer).toEqual({ text: '🌱'.repeat(600), isCut: true })
   expect(cutTo('🌱🌱', 1)).toEqual({ text: '🌱', isCut: true })
 })
 
 test("an end without text keeps the last answer that had it, and a resume keeps its row's brief", () => {
   let runs = spawned(NO_RUNS, { ...SHOVELS, isTeammate: true, brief: 'Count the shovels.' }, 'agent-1')
-  runs = turnEnded(runs, 'agent-1', { reason: 'answer', hasText: true, answer: 'Seven.' }, 50)
-  runs = turnEnded(turnStarted(runs, 'agent-1', 60), 'agent-1', { reason: 'answer', hasText: false, answer: '' }, 70)
+  runs = endedNow(runs, 'agent-1', { reason: 'answer', hasText: true, answer: 'Seven.' }, 50)
+  runs = endedNow(turnStarted(runs, 'agent-1', 60), 'agent-1', { reason: 'answer', hasText: false, answer: '' }, 70)
   expect(runs.rows['agent-1']?.answer).toEqual({ text: 'Seven.' })
 
   const resume: Spawn = { ...SHOVELS, key: 'toolu_resume', resumes: 'agent-1', brief: 'Now count the rakes.' }
@@ -728,4 +734,83 @@ test('a past holding only dollars is not empty: a clear starts it over and the l
 test("a call to a tool named as an Object's own key reads as any tool the table does not name", () => {
   expect(activityText({ tool: 'constructor', target: 'shed' })).toBe(STRINGS.using('constructor'))
   expect(activityText({ tool: 'Read', target: 'shed/rack.txt' })).toBe('Reading shed/rack.txt')
+})
+
+// What a run's ending leaves on it.
+const endOf = (runs: Runs, agentId = 'agent-1') => {
+  const run = runs.rows[agentId]
+  return { state: run?.state, endedAt: run?.endedAt, keptEnding: run?.keptEnding }
+}
+const statuses = (status?: string) => new Map(status === undefined ? [] : [['agent-1', status]])
+
+test("a live run's turn end keeps its ending and leaves it as it was: no end, no ask, no call in flight, its answer kept", () => {
+  const started = stepped(turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', 10), 'agent-1', { ...STEP, calls: 2 })
+  const held = turnEnded(asked(started, 'agent-1', 20), 'agent-1', { reason: 'answer', hasText: true, answer: 'Seven.' }, 50)
+  const run = held.rows['agent-1']
+  expect([run?.state, run?.endedAt, run?.ask, run?.inFlight, run?.keptEnding, run?.answer]).toEqual([
+    'working',
+    undefined,
+    undefined,
+    0,
+    { state: 'finished', at: 50 },
+    { text: 'Seven.' },
+  ])
+  expect(hasKept(held)).toBe(true)
+  expect(hasKept(started)).toBe(false)
+  // Each ending is kept as the state it ends in.
+  expect(endOf(turnEnded(started, 'agent-1', { reason: 'aborted', hasText: false }, 50)).keptEnding).toEqual({ state: 'stopped', at: 50 })
+  expect(endOf(turnEnded(started, 'agent-1', { reason: 'refusal', hasText: false }, 50)).keptEnding).toEqual({ state: 'failed', at: 50 })
+  // A run already ended ends again at once.
+  const ended = endedNow(started, 'agent-1', ANSWERED, 50)
+  expect(endOf(turnEnded(ended, 'agent-1', { reason: 'error', hasText: false }, 60))).toEqual({ state: 'failed', endedAt: 60, keptEnding: undefined })
+})
+
+test('the list settles a kept ending: waiting waits, running or pending stays held, an end or an absence ends it', () => {
+  const held = turnEnded(turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', 10), 'agent-1', ANSWERED, 50)
+  for (const status of ['running', 'pending']) expect(listed(held, statuses(status), 60)).toBe(held)
+  const waiting = listed(held, statuses('waiting'), 60)
+  expect(endOf(waiting)).toEqual({ state: 'waiting', endedAt: undefined, keptEnding: { state: 'finished', at: 50 } })
+  expect(listed(waiting, statuses('waiting'), 70)).toBe(waiting)
+  expect(listed(waiting, statuses('running'), 70)).toBe(waiting)
+  for (const status of ['completed', 'failed', 'killed', 'idle', undefined]) {
+    // Held, it ends at its turn's end; waiting, when the list said so, its time having run on.
+    expect([status, endOf(listed(held, statuses(status), 90))]).toEqual([status, { state: 'finished', endedAt: 50, keptEnding: undefined }])
+    expect([status, endOf(listed(waiting, statuses(status), 90))]).toEqual([status, { state: 'finished', endedAt: 90, keptEnding: undefined }])
+  }
+  // A list that could not be read ends both; with no time, a waiting run at its turn's end.
+  expect(endOf(listed(held, undefined, 90))).toEqual({ state: 'finished', endedAt: 50, keptEnding: undefined })
+  expect(endOf(listed(waiting, undefined, 90))).toEqual({ state: 'finished', endedAt: 90, keptEnding: undefined })
+  expect(endOf(listed(waiting, undefined))).toEqual({ state: 'finished', endedAt: 50, keptEnding: undefined })
+  // A run with nothing kept is the list's no business.
+  const working = turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', 10)
+  expect(listed(working, statuses('completed'), 90)).toBe(working)
+  expect(listed(working, undefined, 90)).toBe(working)
+})
+
+test("a held end the list has not answered ends at its turn's end once its bound has passed; a waiting run is left to the list", () => {
+  const held = turnEnded(turnStarted(spawned(NO_RUNS, SHOVELS, 'agent-1'), 'agent-1', 10), 'agent-1', ANSWERED, 50)
+  expect(heldOut(held, 50 + LIST_ANSWER_MS - 1)).toBe(held)
+  expect(endOf(heldOut(held, 50 + LIST_ANSWER_MS))).toEqual({ state: 'finished', endedAt: 50, keptEnding: undefined })
+  const waiting = listed(held, statuses('waiting'), 60)
+  expect(heldOut(waiting, 1_000_000)).toBe(waiting)
+})
+
+test('a waiting run is live: it keeps the clock, is never quiet, is not Helper by its end, and its next turn works with nothing kept', () => {
+  const held = turnEnded(turnStarted(spawned(NO_RUNS, RAKES, 'agent-1'), 'agent-1', 10), 'agent-1', ANSWERED, 50)
+  const waiting = listed(held, statuses('waiting'), 60)
+  const run = waiting.rows['agent-1']
+  if (run === undefined) throw new Error('no run')
+  expect(keepsClock(run)).toBe(true)
+  expect(quietMs(run, 60 + QUIET_AFTER_MS * 10)).toBeUndefined()
+  // Held, the same: no call in flight, yet never quiet.
+  const heldRun = held.rows['agent-1']
+  if (heldRun === undefined) throw new Error('no run')
+  expect(quietMs(heldRun, 60 + QUIET_AFTER_MS * 10)).toBeUndefined()
+  // A run with no role is not Helper by an end that left it waiting, only once T-04 has passed.
+  expect(fellBack(waiting, 70, HELPER).rows['agent-1']?.role).toBeUndefined()
+  expect(fellBack(waiting, ROLE_SETTLES_MS, HELPER).rows['agent-1']?.role).toEqual(settledAt(HELPER, ROLE_SETTLES_MS))
+  const next = turnStarted(waiting, 'agent-1', 80)
+  expect(endOf(next)).toEqual({ state: 'working', endedAt: undefined, keptEnding: undefined })
+  // A held run's next turn too, even at the time it was last heard.
+  expect(endOf(turnStarted(held, 'agent-1', held.rows['agent-1']?.heardAt))).toEqual({ state: 'working', endedAt: undefined, keptEnding: undefined })
 })

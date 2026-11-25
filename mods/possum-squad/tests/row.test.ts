@@ -80,6 +80,23 @@ test('every row carries its state word, on every surface (I-06)', async ($, on) 
   }
 })
 
+test('a waiting row draws its word and mark dim, as a starting one does; a quiet one in amber', async ($, on) => {
+  drawRows(on)
+  const colour: Record<string, string> = { starting: 'inactive', waiting: 'inactive', quiet: 'warning' }
+  for (const surface of SURFACES) {
+    for (const row of ROWS.filter(one => ['starting', 'waiting', 'quiet'].includes(one.state))) {
+      const { elements } = await drawn($, surface, row)
+      const coloured = elements.filter(element => element.type === 'Text' && [STRINGS.states[row.state], STRINGS.row.mark].includes(String(element.text)))
+      expect([surface, row.state, coloured.length > 0, coloured.map(element => element.props.color)]).toEqual([
+        surface,
+        row.state,
+        true,
+        coloured.map(() => colour[row.state]),
+      ])
+    }
+  }
+})
+
 test("a row's four lines: description, then role, model and effort, the activity, and the numbers", async ($, on) => {
   drawRows(on)
   const working = ROWS.find(row => row.state === 'working') as RowData

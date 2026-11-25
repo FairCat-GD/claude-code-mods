@@ -3,12 +3,16 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 
 import { FINISHED_KEPT, NEST_INDENT, NEST_LEVELS_DRAWN } from '../hooks/config'
 import { rolledUp } from '../hooks/model/nesting'
-import { NO_RUNS, type Spawn, spawnOpened, spawnSettled, stepped, turnEnded } from '../hooks/model/runs'
+import type { Runs } from '../types/index'
+import { listed, NO_RUNS, type Spawn, spawnOpened, spawnSettled, stepped, turnEnded } from '../hooks/model/runs'
 import { STRINGS } from '../hooks/strings'
 import { nested } from '../hooks/view/panel'
 import type { RowData } from '../hooks/view/row'
-import { engine, MOUNT, SURFACES, store } from './engine'
+import { engine, MOUNT, SURFACES, store, turnEnds } from './engine'
 import { PERMISSION_FROM_AGENT, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
+
+// A turn's end as the engine's list settles it when it no longer lists the agent: the kept ending, at the turn's end.
+const endedNow = (runs: Runs, agentId: string, ending: Parameters<typeof turnEnded>[2], at: number) => listed(turnEnded(runs, agentId, ending, at), new Map())
 
 type Surface = (typeof SURFACES)[number]
 
@@ -89,7 +93,7 @@ test("a helper's helper sits a level deeper, and a helper whose state's section 
     expect([surface, indents['agent-b'], indents['agent-c'], withTokens('600')]).toEqual([surface, NEST_INDENT, 2 * NEST_INDENT, 1])
   }
   // The middle helper ends: it is drawn in Finished, and its own helper, still running, starts a branch of Running.
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-b' })
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-b' })
   // A helper that waits on the person is drawn in Needs you.
   await started($, 'agent-d', WEIGH, 'agent-a')
   await $.classic.PermissionRequest({ ...PERMISSION_FROM_AGENT, agent_id: 'agent-d' } as never)
@@ -142,11 +146,11 @@ test("a helper Finished no longer keeps still counts in its parent's totals, thr
   let runs = settled(NO_RUNS, spawn('toolu_t', undefined, true), 'agent-t', 0)
   runs = settled(runs, spawn('toolu_m', 'agent-t'), 'agent-m', 1)
   runs = settled(runs, spawn('toolu_g', 'agent-m'), 'agent-g', 2)
-  runs = turnEnded(runs, 'agent-g', { reason: 'answer', hasText: true }, 3)
-  runs = turnEnded(runs, 'agent-m', { reason: 'answer', hasText: true }, 4)
+  runs = endedNow(runs, 'agent-g', { reason: 'answer', hasText: true }, 3)
+  runs = endedNow(runs, 'agent-m', { reason: 'answer', hasText: true }, 4)
   for (let i = 0; i < FINISHED_KEPT; i++) {
     runs = settled(runs, spawn(`toolu_${i}`, 'agent-t'), `agent-${i}`, 10 + i)
-    runs = turnEnded(runs, `agent-${i}`, { reason: 'answer', hasText: true }, 100 + i)
+    runs = endedNow(runs, `agent-${i}`, { reason: 'answer', hasText: true }, 100 + i)
   }
   expect([runs.rows['agent-g'], runs.rows['agent-m']]).toEqual([undefined, undefined])
   const teammate = runs.rows['agent-t']
@@ -197,11 +201,11 @@ test('a kept helper of a dropped agent moves under the nearest agent still kept,
   // A top-level agent with a helper of its own, which ends before it.
   runs = settled(runs, spawn('toolu_q'), 'agent-q', 3)
   runs = settled(runs, spawn('toolu_r', 'agent-q'), 'agent-r', 4)
-  runs = turnEnded(runs, 'agent-p', { reason: 'answer', hasText: true }, 5)
-  runs = turnEnded(runs, 'agent-q', { reason: 'answer', hasText: true }, 6)
+  runs = endedNow(runs, 'agent-p', { reason: 'answer', hasText: true }, 5)
+  runs = endedNow(runs, 'agent-q', { reason: 'answer', hasText: true }, 6)
   for (let i = 0; i < FINISHED_KEPT; i++) {
     runs = settled(runs, spawn(`toolu_${i}`, 'agent-t'), `agent-${i}`, 10 + i)
-    runs = turnEnded(runs, `agent-${i}`, { reason: 'answer', hasText: true }, 100 + i)
+    runs = endedNow(runs, `agent-${i}`, { reason: 'answer', hasText: true }, 100 + i)
   }
   expect([runs.rows['agent-p'], runs.rows['agent-q'], runs.rows['agent-h']?.parentId, runs.rows['agent-r']?.parentId]).toEqual([
     undefined,

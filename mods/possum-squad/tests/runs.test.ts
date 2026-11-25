@@ -4,7 +4,7 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 
 import { runs } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
-import { hooksOf, MOUNT, SURFACES, store } from './engine'
+import { hooksOf, MOUNT, SURFACES, store, turnEnds } from './engine'
 import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 
 type Surface = (typeof SURFACES)[number]
@@ -45,7 +45,7 @@ const start = ($: Engine, agentId = AGENT) => $.turn.start({ ...TURN_START, agen
 // A subagent's turn ending; the endings the test names are wider than the fixture's own.
 type Ending = { reason: string; answer: string; refusal?: { category: null; explanation: null } }
 const complete = ($: Engine, ending: Ending, agentId = AGENT) =>
-  $.turn.complete({ ...TURN_COMPLETE, isAborted: ending.reason === 'aborted', ...ending, agentId } as never)
+  turnEnds($, { ...TURN_COMPLETE, isAborted: ending.reason === 'aborted', ...ending, agentId } as never)
 
 async function drawn($: Engine, surface: Surface) {
   const pane = await $.ui.mount({ ...MOUNT, surface })
@@ -282,7 +282,7 @@ test("the main session's turn start and steps write nothing; its end writes the 
   await drain($.turn.step(mainStep))
   expect(await versions()).toEqual([0, 0])
   const { agentId: ___, ...mainEnd } = TURN_COMPLETE
-  await $.turn.complete(mainEnd)
+  await turnEnds($, mainEnd)
   const [runsVersion, leadVersion] = await versions()
   expect(runsVersion).toBe(0)
   expect(leadVersion).toBeGreaterThan(0)

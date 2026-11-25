@@ -32,10 +32,10 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.13.0). The Lead, header, sections, roles with the person's picker, sprites in every
+**Built** (0.14.0). The Lead, header, sections, roles with the person's picker, sprites in every
 set with every state's animation, the gallery in parts the desktop draws, auto-open, Needs you,
 quiet and toasts, Peek, the collapsed view, which a minimized pane draws too, the plan's limits,
-the estimate, and helpers drawn under their parents.
+the estimate, helpers drawn under their parents, and agents waiting on their own work.
 `hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `roles`, `set` and `settings`;
 - toggles and draws the pane: the Lead row and the session line (the plan's limits, the totals,
@@ -46,7 +46,9 @@ the estimate, and helpers drawn under their parents.
   row's Peek opens under it; the collapsed view, the Lead carrying its joeys with the counts,
   takes the whole pane's place while `prefs.collapsed` is set or the pane sits in the desktop's
   `widget` seat;
-- turns subagents' spawns, turns and steps into records, and keeps the runs in `runs`;
+- turns subagents' spawns, turns and steps into records, and keeps the runs in `runs`; holds a
+  subagent's turn's end until the engine's agent list (`$.agent.list()`, read unawaited) says
+  whether it waits on its own work or has ended;
 - settles each run's role from the person's pick remembered for its custom type, its type, its
   description and its first calls, and Helper at T-04 or at its end; a row's role button opens
   a picker whose choice reassigns that run, and is remembered for a custom type;
@@ -57,7 +59,7 @@ the estimate, and helpers drawn under their parents.
   needs the person and a long run's end;
 - keeps the main session's context, tokens, time and estimate, and the plan's limits, in `lead`;
 - runs the one-second clock while the pane is open and a run is live, or a run's role may still
-  fall back to Helper;
+  fall back to Helper; while a turn's end is held or a run waits, each beat reads the list;
 - empties `runs` and `lead` when the session is cleared, resumed or forked;
 - keeps the settings, Finished's flag and the collapsed view's in the store under `prefs`, and
   each custom type's picked role under `role:<agent type>`; in `view`, a close by the person,
@@ -463,7 +465,10 @@ How it is held:
    and the main session's `turn.complete` among them, with a `$` whose state and clock refuse
    every call, and gets back what `next` gave. The role rules read anything that is not text as
    empty, so a malformed event never throws there, and they run inside the reading guard. The
-   clock's beat settles Helper inside a guard of its own, which leaves the clock running.
+   clock's beat settles Helper inside a guard of its own, which leaves the clock running. The
+  list's read (`readList`) catches every fault inside, and a list it cannot read ends the held
+  and waiting runs as their turns did; `tests/pass-through.test.ts` raises a subagent's turn end
+  with a list that never answers and one that refuses, and gets back what `next` gave.
 9. **I-06: a state is never shown by colour or sprite alone;** each row carries its state word.
    *Why:* accessibility, and the terminal has no sprites. *Enforced by* `tests/row.test.ts`
    (every fixture row, in each state, on both surfaces) and `tests/runs.test.ts` (rows drawn
@@ -490,8 +495,9 @@ How it is held:
     by* review. Arming the clock calls `$.clock.every`, which is synchronous: nothing waits on it.
     Auto-open asks for the panes and opens one, which N-07 does not allow a hook to await, so
     the spawn's hook starts it unawaited (`void autoOpen`), its every fault caught inside; a
-    toast does the same (`void toastUnseen`). A subagent's `turn.step` awaits the clock's time
-    once before its stream.
+    toast does the same (`void toastUnseen`), and so does the engine's agent list, read after a
+    record that leaves a turn's end held or a run waiting (`void readList`). A subagent's
+    `turn.step` awaits the clock's time once before its stream.
     The role rules read a shell command whole: a subagent's step whose call ran a 1 MB command
     took 2.0 to 2.6 ms in the kit, and the rules alone 3.8 ms on it (CLI 2.1.329).
 14. **Nothing private enters the repository.** *Why:* the repository's whole history will be
@@ -579,10 +585,10 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     the pane is open (*The panel*): `$.clock.every` is synchronous, and a no-op while a timer
     is armed.
   - `agent.spawn`'s opening carries the input's `prompt`, when it is text, as the run's brief.
-  - `turn.complete` with `agentId` ends its row, keeping its `answer` when it has text, and
-    settles Helper on it if no rule has, unless
-    it is a teammate's or its turn left work in the background (`fellBack`). A run that was live,
-    and whose turn ran past T-10, starts its toast, unawaited (*Attention*). Without `agentId`, it is the main session's, and
+  - `turn.complete` with `agentId` holds its row's end (`turnEnded`, *The run model*), keeping its
+    `answer` when it has text, and settles Helper only on runs past T-04 (`fellBack`): Helper at
+    the end, and the toast of a run whose turn ran past T-10 (*Attention*), come with the end the
+    engine's list gives. Without `agentId`, it is the main session's, and
     `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`). A malformed
     one never gets that far: the engine refuses its `next(e)` first (*Context*).
   - `session.measure` awaits `next(e)`, then records the Lead's context and the plan's limits
@@ -594,6 +600,13 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   `decision`, it reads the time and records `asked` through `record`; the change learns whether
   the run moved, and a move starts its toast, unawaited (*Attention*). It returns what `next`
   gave.
+- **The engine's agent list** (0.14.0): `record` and `recordAt` start `readList`, unawaited,
+  after any write whose runs hold a turn's end (`hasKept`), so every subagent event reads the
+  list while a run is held or waits, and the pane closed needs no beat for it. `readList` reads
+  `$.agent.list()` (a refusal, a throw or an answer that is no list reads as unread; an entry
+  without a text `id` and `status` is left out), the time, then `runs`, and writes only when
+  `listed` changes a run, through `update`, with `fellBack` at that time; then one
+  `toastUnseen` per run it ended (`endedToasts`). It is the only caller of `$.agent.list`.
 - Every hook but `command.run` and `ui.render` carries `.catch((_$, e, next) => next(e))`
   (`turn.step`'s a generator doing `return yield* next(e)`), gating or not, so the rule is one
   line to check. The engine's `next` there replays what the hook's own call settled to, so
@@ -601,8 +614,7 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   `classic.SessionStart` and `classic.PermissionRequest`. `command.run` reads no `next`, so it
   is not gating; its body catches its own faults (*The command and settings*).
 
-Not yet: the list read at a subagent's turn end (Session 12a); the main loop's `turn.start`
-keeping its turn's start (Session 12c).
+Not yet: the main loop's `turn.start` keeping its turn's start (Session 12c).
 
 ## Values: `$.state` and `$.store`
 
@@ -668,11 +680,13 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
   The pane reads it while drawing, so each write redraws it; a refused read draws the list.
   `autoOpen` reads `isClosedByPerson`.
 - `runs` (0.4.0; `past` 0.5.0; roles 0.6.0; a role's moment 0.9.0; attention 0.11.0; Peek
-  0.12.0; the estimate and pruned helpers 0.13.0) is `Runs`, `{ rows, pending, next, past }`,
-  the atom `runs` with the shape tag `runs-7`, starting as
+  0.12.0; the estimate and pruned helpers 0.13.0; the kept ending 0.14.0) is `Runs`,
+  `{ rows, pending, next, past }`, the atom `runs` with the shape tag `runs-8`, starting as
   `NO_RUNS`. *The run model*'s Built part
-  has its fields and rules; `quiet` is never kept there, only worked out where a row is drawn. The recording hooks write it, `classic.PermissionRequest` among them, and the clock's beat when it settles
-  Helper, each through `update`, so concurrent writes retry rather than lose one another; the
+  has its fields and rules; `quiet` is never kept there, only worked out where a row is drawn;
+  `waiting` is. The recording hooks write it, `classic.PermissionRequest` among them, the
+  clock's beat when it settles Helper or ends a held turn past its bound, and the list's read,
+  each through `update`, so concurrent writes retry rather than lose one another; the
   pane reads it while drawing, which redraws it on every write. The beat reads it too, outside
   any drawing.
 - `lead` (0.5.0; the estimate and the limits 0.13.0) is `Lead`, `{ context?, tokens, workedMs,
@@ -773,7 +787,9 @@ each returning the same object when the record changes nothing.
   role once settled and its reads and searches until then, its model and effort, its start
   and end times, its current turn's start (`turnAt`), the time it was last heard (`heardAt`),
   its four token counts, its last request's size (input, cache reads and cache writes), its
-  activity (tool and target) and its calls in flight, and, while it needs the person, its
+  activity (tool and target) and its calls in flight, once its turn has ended and until the
+  engine's list ends it, its kept ending (`keptEnding`, `KeptEnding`: `{ state, at }`, the
+  state it ends in and its turn's end, 0.14.0), and, while it needs the person, its
   call's request (`ask`, `Ask`: `{ at }`, or `{}` when the clock could not be read). For Peek
   (0.12.0) it holds its brief, its last T-07 actions, the files it changed and its answer. It
   holds its estimate in dollars (`usd`, 0.13.0) and, once Finished drops a helper of its, what
@@ -794,11 +810,31 @@ each returning the same object when the record changes nothing.
   - `turnStarted` and `stepped` for an id no row has keep a pending entry, at most 50. An entry
     keeps its place as it changes, so the one dropped first is the loop that began longest
     ago. `turnEnded` drops it: that loop was the engine's own.
-  - `turnStarted` puts a known row back to Working, its end cleared, so a teammate's next turn
+  - `turnStarted` puts a known row back to Working, its end and any kept ending cleared, so a teammate's next turn
     or a resumed agent's continues its row, its time counted from its first start; `turnAt`
     is that turn's start (a resume's, its result), which a toast times the turn by.
   - A spawn whose description equals a Finished run's gets that run's round plus one.
-- **Ending:** `turnEnded` applies `endingOf` (Decided above) and clears the calls in flight.
+- **Ending** (the hold and `waiting`, 0.14.0):
+  - `turnEnded` keeps `endingOf`'s state (Decided above) and the turn's end on a live row as
+    `keptEnding`, drops `ask`, clears the calls in flight and keeps the answer, and leaves the
+    row as it was, a `needs-you` one `working`: no `endedAt`, no prune, so no ending's moment.
+    A row already ended ends again at once, and a pending entry is dropped, as before.
+  - `listed(runs, statuses, now)` applies the engine's list, `id` to `status`, to each row with
+    `keptEnding`: `waiting` makes it `waiting`, its ending still kept; `running` and `pending`
+    leave it as it is, since its next turn's own events tell; `completed`, `failed`, `killed`,
+    `idle` (a teammate between turns) or no entry end it with the kept state (`endedWith`), at
+    its turn's end, or, for a `waiting` row, at `now` (else the turn's end), so its time counts
+    the wait. A list that could not be read (`undefined`) ends every one. Then `pruned`. A row
+    with nothing kept is left alone, and with nothing to change it returns the same object.
+  - `heldOut(runs, now)` ends with its kept ending, at its turn's end, every row held (kept and
+    not `waiting`) for `LIST_ANSWER_MS` (5 s) or more since its turn's end: the bound for a list
+    that never answers. A `waiting` row is the list's to end. `hasKept` says whether any row
+    holds a kept ending.
+  - Measured before building (CLI 2.1.330, a probe plugin): a read made inside `turn.complete`,
+    before or after `next`, already lists a plain subagent `completed`, and one that started a
+    background shell, or a background helper, `waiting`; when that work ends the engine resumes
+    the agent (a spawn under the same id, then a turn), and its next end lists `completed`. An
+    ended subagent stays listed about 30 s; `taskStatus` reads `completed` throughout.
 - **Needs you** (0.11.0): `asked` moves a starting or working row to `needs-you`, heard then,
   with its `ask`; on a row that needs the person already, the later request replaces the
   earlier, since a call asked while the next step still streams must outlast that step's
@@ -827,7 +863,7 @@ each returning the same object when the record changes nothing.
 - **Heard** (0.11.0): `heardAt` is the opening's time, then the spawn's result's, each turn
   start's and each step's, when the clock could be read.
 - **Quiet** (0.11.0): `quietMs` is how long a starting or working run with no call in flight
-  has heard nothing, once that is T-05 (`QUIET_AFTER_MS`, 90 s) or more. `rowData` draws such
+  and no kept ending has heard nothing, once that is T-05 (`QUIET_AFTER_MS`, 90 s) or more. `rowData` draws such
   a run as `quiet`, so its section, colour, word and pose follow; nothing stores it. A step's
   calls are in flight until the next step's record, so a run is never quiet during a call or
   the reply after it.
@@ -837,8 +873,9 @@ each returning the same object when the record changes nothing.
   seen. `fellBack` settles Helper on every run with no role that is T-04 past its start, or
   has ended and is neither a teammate's nor one whose turn left work in the background
   (`hasBackgroundWork`, set by a step with a call whose input has `run_in_background`, and
-  cleared when its next turn starts). `keepsClock` is true for a live run, or one with no
-  role.
+  cleared when its next turn starts). A held or `waiting` run has not ended, so the end's rule
+  waits for the end the list gives. `keepsClock` is true for a live run, a held or `waiting` one
+  included, or one with no role.
 - **Numbers:** `figures` gives fresh tokens (input, cache writes and output), the elapsed time
   (to the end, or now) and the context percent, the last request over `windowOf` its model.
   `hooks/data/models.ts` holds the windows measured on 2026-11-20 (Haiku, Opus and Sonnet 5.5,
@@ -886,8 +923,8 @@ each returning the same object when the record changes nothing.
   never drops either; a teammate's helpers among them. `cleared` and `isEmpty` read a `past`
   holding anything, dollars alone included, as not empty.
 
-Not yet: `waiting` (Session 12a); a path's end and the engine's progress summary in the
-activity (Session 12b); a failed run's reason, kept for its toast (Session 12d).
+Not yet: a path's end and the engine's progress summary in the activity (Session 12b); a
+failed run's reason, kept for its toast (Session 12d).
 
 ## Roles
 
@@ -944,7 +981,9 @@ for custom types.
   It is read, never stored.
 - **Settling:** at the spawn, the type and description (`atSpawn`); at each step, the calls;
   Helper (`HELPER`, source `fallback`) from `fellBack` at a subagent's step, at its end and at
-  the clock's beat. Words outrank calls: a role settled at the spawn stands over any evidence
+  the clock's beat. Its end is the one the engine's list gives (0.14.0): a turn's end that the
+  list says leaves the agent waiting settles nothing, and the list's read, or the beat ending a
+  held turn past its bound, settles Helper on the run it ends. Words outrank calls: a role settled at the spawn stands over any evidence
   its pending entry carried.
 - **The moment it settled** (0.9.0): `Role.at`, the clock's time, which cues the hop into the
   outfit (*Sprites and sets*). The spawn stamps its own time, a step its time (`Step.at`), the
@@ -1133,7 +1172,10 @@ every state's recipe, in the set `prefs.theme` names.
   (*Context*). At Session 9a, installed 0.10.1: the gallery's six parts in turn and round, in
   either motion and in `prehistoric`, and its close. The rest is unseen (`docs/BACKLOG.md`).
 
-Not yet: `waiting` drawn in quiet's pose (Session 12a).
+`waiting` (0.14.0) is quiet's pose: `STILL.waiting` is the blink, `BOB_PACE.waiting` 4, and it is
+among `LIVE`, so it arrives and is dressed as quiet does. Its sprites are written apart in the
+cache, the same sources as quiet's (`tests/sprites.test.ts`). The gallery does not draw it: the
+owner's choice at Session 12a's plan, since it would repeat quiet's cell for every role.
 
 ## The panel
 
@@ -1164,7 +1206,7 @@ Not yet: `waiting` drawn in quiet's pose (Session 12a).
   files it changed and the answer's first T-09 (600) characters; pressing it again closes it
   (Decision log, 2026-11-25).
 - **The gallery** (`/possums roles`) replaces the list while open: every role of the current set
-  in every state, each with its role name and costume name, three roles at a time, with
+  in every state but `waiting`, which is quiet's pose (Decision log, 2026-11-25), each with its role name and costume name, three roles at a time, with
   `previous` and `next` between the parts on every surface. Its sprites animate, framed like the
   rows', so they follow reduced motion. A part frames at most 18; if the owner's look finds them
   not smooth, the choice returns to the owner.
@@ -1217,7 +1259,7 @@ refusal never puts the engine's error in the pane's place. The drawing writes no
   The Lead is no run, so it has no state word; until a measure it reads `–`.
 - **The sections** come from each row's state (`SECTIONS`):
   - Needs you: `needs-you`;
-  - Running: `starting`, `working`, `quiet`;
+  - Running: `starting`, `working`, `quiet`, `waiting`;
   - Finished: `finished`, `failed`, `stopped`.
 
   Each is headed `Running · 2` in bold. Running is drawn whenever any run exists, the others
@@ -1249,7 +1291,10 @@ cancels its timer.
   24 sprite sources again for the header's time alone, so the header's time moves only on
   events until the gallery closes. A real session showed it: a
   subagent whose only call was a foreground `ping` of 70 s read Helper at about 1:00 while
-  still working (CLI 2.1.330). Otherwise it invalidates the
+  still working (CLI 2.1.330). While a run holds a kept ending (`hasKept`), it ends any held
+  past `LIST_ANSWER_MS` (`settleHeld`, through `update`, with Helper and the toasts of what it
+  ends), then starts `readList`, unawaited: one read of the engine's list a beat while a turn's
+  end is held or a run waits, and none otherwise. Otherwise it invalidates the
   drawing, but only if the pane is shown. Any other fault stops it. Each arming has its own generation, so a beat in flight from a
   replaced timer stops nothing.
 - **Stopping:** at a close, whatever its origin; at a clear-type session start; and when a
@@ -1280,7 +1325,7 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
   plain while unsettled) in its state's pose, in `prefs.theme`'s set, with `prefs.motion`; its alt is
   "Builder, working", or "Opossum, starting" while plain. With its moment (`RowData.moment`,
   0.9.0), a moving sprite with `motion` `auto` is framed (`isInteractive`): a working,
-  needs-you or quiet one, and any row inside its arrival, hop or ending; every other one is an
+  needs-you, quiet or waiting one, and any row inside its arrival, hop or ending; every other one is an
   image. The terminal's table answers `Svg`
   in the kit too, so `panel` asks for it only off the terminal. Beside it are the same lines,
   the second and third in footnote
@@ -1297,8 +1342,8 @@ The row (0.3.0; the round 0.4.0), in `hooks/view/row.tsx`:
 - **Lines cut to one:** the description, the model and effort, and the activity carry
   `wrap="end"`, so a long one ends in an ellipsis.
 - **Colours** are theme keys, the same for the mark and the word: working `success`, needs-you
-  `permission`, quiet `warning`, failed `error`, finished `subtle`, starting and stopped
-  `inactive`.
+  `permission`, quiet `warning`, failed `error`, finished `subtle`, starting, waiting and stopped
+  `inactive` (waiting's the owner's choice at Session 12a's plan).
 - **Numbers** come from `hooks/view/format.ts`:
   - tokens: `640`, `9.5k`, `38k`, `1.2M`;
   - time: `0:42`, then `1:02:05` from an hour;
@@ -1427,7 +1472,7 @@ The collapsed view (0.12.0), in `hooks/view/collapsed.tsx`, chosen by `panel`:
   nothing until the gallery closed. Its press,
   and the collapsed view's own `expand`, write `prefs.collapsed` through `writeStore`, then
   invalidate the drawing (`collapse` in `hooks/register.tsx`).
-- **The counts** (`countsOf`): the rows in Running's states (starting, working, quiet) and in
+- **The counts** (`countsOf`): the rows in Running's states (starting, working, quiet, waiting) and in
   Needs you's, every row drawn or not. An agent that needs the person counts there alone, as
   the headings count: the owner left the choice to the session.
 - **`desktopCollapsed`:** the Lead carrying `min(running, T-14)` joeys (`leadWith`, *Sprites and
@@ -1522,13 +1567,15 @@ that decided one, its every fault caught inside:
   you: waiting on a permission prompt`, or `An agent` for an entry no row has claimed;
   `endedToast` when a run that was live ended a turn longer than T-10 (`TOAST_AFTER_MS`,
   60 s), timed from `turnAt`, so a teammate's or a resumed agent's turn is timed alone:
-  `· finished after 2:14`, `· failed after 2:14` or `· stopped after 1:05`;
+  `· finished after 2:14`, `· failed after 2:14` or `· stopped after 1:05`. Since 0.14.0 a
+  run ends where the engine's list says so, so `endedToasts` gives one for each run that a
+  record of the list's read, or the beat's bound, ended, in spawn order; a waiting run's is
+  timed to the read that ended it, its wait included;
 - the description is cut as the row's (`shortened`, 100 characters), I-04's toast line;
 - a later request while the run waits keeps it waiting, so it toasts nothing; the toast's own
   timeout is the engine's default. No toast arms a timer (N-03).
 
-Not yet: `prefs.toasts`, the failed toast's reason and the tab title (Session 12d); a waiting
-run's toast at its real end (Session 12a).
+Not yet: `prefs.toasts`, the failed toast's reason and the tab title (Session 12d).
 
 ## The command and settings
 
@@ -1588,12 +1635,12 @@ mods API calls allowed (I-02): `$.ui.resolve`, `$.ui.invalidate`, `$.ui.open`, `
 `$.agent.list`. A change to this list is the owner's. The converter in `tools/` reads `art/` and writes one file, by hand,
 outside the engine; it is never part of the mod's running code.
 
-**Built** (0.8.0; the toast 0.11.0; unchanged by 0.13.0's limits, estimate and nesting, which read events and price from a table in the code). `validate` lists `$.clock.every`, `$.clock.now`, `$.command.register`,
+**Built** (0.8.0; the toast 0.11.0; unchanged by 0.13.0's limits, estimate and nesting, which read events and price from a table in the code; the agent list 0.14.0). `validate` lists `$.agent.list`, `$.clock.every`, `$.clock.now`, `$.command.register`,
 `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`,
 `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast`; the sprites, being pure, added none. The state calls come through `update` and `read`;
-the clock through `armClock`, `recordAt`, `settleHelpers` and `drawPane`; the store calls through `writeStore`,
+the agent list through `readList`; the clock through `armClock`, `recordAt`, `settleHeld`, `settleHelpers` and `drawPane`; the store calls through `writeStore`,
 `listSettings` and `prefsOrDefaults`; the pane calls through `showPane`, `tick` and `redraw`; the toast through `toastUnseen`.
-Each is on the allow-list; neither `$.session.usage` nor `$.agent.list` is called. No network, process or file access,
+Each is on the allow-list; `$.session.usage` is not called. No network, process or file access,
 no model call, no tool registration. `tools/art.ts`, run by hand on Node, reads `art/` (its
 JSON and PNGs) and writes `hooks/sprites/data.ts`, nothing else; its specs write fictional art
 into a temporary folder, and read `art/` and the committed `data.ts`.
@@ -1662,8 +1709,14 @@ unread.
   the clock beat on after such a drawing with the old code too, for a reason not found.
 - **The Lead's time grows when each main turn ends,** not during it: the main loop's turn start
   and steps make no `$` call.
-- **A subagent waiting on its own background shell reads finished:** its turn ended, which is
-  how a run ends here. Seen by hand in Session 5; the owner decides (`docs/BACKLOG.md`).
+- **A waiting run's end, with the pane closed, shows at the next subagent event or the pane's
+  next open:** no beat runs then (N-03), and the main session's events read no list. Its time
+  and its toast run to that read, so they are long by the gap.
+- **A waiting run's end is timed at the read that saw it,** up to a beat late with the pane
+  open.
+- **A turn's end the list never answers is held, drawn as it was,** until a beat finds it past
+  `LIST_ANSWER_MS`: with the pane closed, until it opens. Every read measured answered at once
+  (CLI 2.1.330).
 - **A teammate's or resumed agent's time counts from its first start,** its rests included, in
   its row and in the header's work time.
 - **A remote workflow agent's row** (internal builds only) has no local loop; its spawn names
@@ -1756,15 +1809,15 @@ unread.
 - **The session line wraps at 46 columns** in the terminal's dock with two limits and the
   estimate on, since it is one `Text` beside the `collapse` button.
 
-## Baseline (v0.13.0)
+## Baseline (v0.14.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 285 pass, in 24 files: attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 50, nesting 6, pane-sprites 9, panel 10, pass-through 6, peek 12, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 14; about 14 s |
+| `claude plugin test mods/possum-squad` | 303 pass, in 25 files: attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 54, nesting 6, pane-sprites 9, panel 10, pass-through 7, peek 12, picker 12, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, waiting 11; about 17 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
-| `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |
+| `validate`: calls | `$.agent.list`, `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |
 | `validate` warnings | none but the allowed "CLAUDE.md at the plugin root is not loaded as project context" |
 | `tsc` and the import scan | clean |
 
@@ -1937,3 +1990,17 @@ one moves, that is the finding.
 - 2026-11-25, *Roles* and *Values*: the picker's first entry, `detect`, puts a run back on the
   rules and, for a custom type, deletes its `role:<agent type>`. The owner's choice at
   Session 13's plan, over a `/possums forget` command.
+- 2026-11-25, *The run model* and *The hooks*: a subagent's turn end is held, its row as it was
+  with the turn's ending kept, no toast, no ending's moment and no Helper, until the engine's
+  list answers: `waiting` makes it wait; an end, `idle` or no entry ends it as kept; `running`
+  reads again; a list that cannot be read ends it at once; a held end the list never answers is
+  ended by the clock's beat 5 s after the turn's end, or at the pane's next open. The owner's
+  choice at Session 12a's plan.
+- 2026-11-25, *The hooks* and *Attention*: with the pane closed, any subagent's event reads the
+  list while a turn's end is held or a run waits, and so does the pane's next open, through its
+  first beat; a waiting run's toast comes then. The owner's choice at Session 12a's plan,
+  confirming the proposal of Session 13's.
+- 2026-11-25, *The panel*: a waiting row's mark and word are `inactive`, as a starting one's.
+  The owner's choice at Session 12a's plan.
+- 2026-11-25, *The panel* and *Sprites and sets*: the gallery does not draw `waiting`, which is
+  quiet's pose. The owner's choice at Session 12a's plan.

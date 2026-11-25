@@ -182,3 +182,41 @@ test('a toast that cannot be shown never changes what the engine gave (I-05)', a
   for (let i = 0; i < 100; i++) await Promise.resolve()
   expect(tries).toEqual({ panes: 2, toasts: 1 })
 })
+
+// A subagent's turn end reads the engine's list without waiting on it: with a list that never answers, or one that
+// refuses, the hook still gives back what `next` gave, and the read was started.
+test("a subagent's turn end never waits on the engine's list, whatever it answers (N-07, I-05)", async () => {
+  const { hooks } = hooksOf()
+  type Plain = ($: unknown, e: unknown, next: (e: unknown) => Promise<unknown>) => Promise<unknown>
+  const plain = (event: string) => hooks.get(event) as unknown as Plain
+  const lists = [() => new Promise<never>(() => {}), async () => Promise.reject(new Error('the fixture refuses the list'))]
+  for (const list of lists) {
+    const values = new Map<string, { value: unknown; version: number }>()
+    let reads = 0
+    const $ = {
+      clock: { now: async () => 1_000 },
+      state: {
+        get: async (ref: object) => values.get(JSON.stringify(ref)) ?? { value: undefined, version: 0 },
+        set: async (ref: object, value: unknown, options?: { ifVersion?: number }) => {
+          const held = values.get(JSON.stringify(ref))?.version ?? 0
+          if (options?.ifVersion !== undefined && options.ifVersion !== held) return { isSet: false, version: held }
+          values.set(JSON.stringify(ref), { value, version: held + 1 })
+          return { isSet: true, version: held + 1 }
+        },
+      },
+      agent: {
+        list: () => {
+          reads++
+          return list()
+        },
+      },
+      store: { get: async () => Promise.reject(new Error('the fixture store refuses reads')) },
+      ui: { panes: async () => [], toast: () => {} },
+    }
+    expect(await plain('agent.spawn')($, SPAWN, async () => SPAWNED)).toEqual(SPAWNED)
+    expect(await plain('turn.start')($, TURN_START, async () => TURN_STARTED)).toEqual(TURN_STARTED)
+    expect(reads).toBe(0)
+    expect(await plain('turn.complete')($, TURN_COMPLETE, async () => TURN_COMPLETED)).toEqual(TURN_COMPLETED)
+    expect(reads).toBeGreaterThan(0)
+  }
+})

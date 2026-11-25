@@ -57,7 +57,7 @@ test('the tongue of a run that failed sits beside the turned-over nose', () => {
 
 test('the prop is held only with no extra and not on its back; the plain opossum wears nothing', () => {
   const holding = (pose: Pose) => keys(still(pose)).has('G')
-  expect(POSES.filter(holding).sort()).toEqual(['idle', 'planned', 'quiet', 'starting', 'working'])
+  expect(POSES.filter(holding).sort()).toEqual(['idle', 'planned', 'quiet', 'starting', 'waiting', 'working'])
   expect(at(still('idle'), 2, 20)).toBe('G')
   for (const pose of POSES) {
     const plain = keys(still(pose, 'plain'))

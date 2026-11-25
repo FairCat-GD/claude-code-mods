@@ -23,7 +23,7 @@ import type { Art, RecipeFrame } from './types'
 export type Pose = StateId | 'planned' | 'idle'
 
 // Each pose's still frame, from the art's recipes. A state the art has no recipe for takes the nearest:
-// arriving is idle, and dozing is the blink, eyes closed.
+// arriving is idle, and dozing, quiet or waiting, is the blink, eyes closed.
 export const STILL: Readonly<Record<Pose, string>> = {
   idle: 'idle',
   planned: 'planned',
@@ -31,6 +31,7 @@ export const STILL: Readonly<Record<Pose, string>> = {
   working: 'working',
   'needs-you': 'needs-you',
   quiet: 'blink',
+  waiting: 'blink',
   finished: 'finished',
   failed: 'failed',
   stopped: 'stopped',
@@ -130,13 +131,13 @@ export const STARTLE_STEPS = 5
 // The gallery's one-offs rest this many steps, then play again.
 export const REST_STEPS = 10
 // The poses that bob whole, held prop or sign with them: the steps on each frame of the bob.
-export const BOB_PACE: Readonly<Partial<Record<Pose, number>>> = { 'needs-you': 2, quiet: 4 }
+export const BOB_PACE: Readonly<Partial<Record<Pose, number>>> = { 'needs-you': 2, quiet: 4, waiting: 4 }
 
 // Each one-off's steps before it holds: an arrival's with its hop, an ending's by the pose it ends in.
 export const MOMENT_STEPS = { arrival: SLIDE.length + 2, dressing: 1, finished: CHEER_HOPS.length + Z_RISE.length, stopped: STARTLE_STEPS } as const
 
 // The poses a run is live in, which arrive and are dressed.
-const LIVE: readonly Pose[] = ['starting', 'working', 'needs-you', 'quiet']
+const LIVE: readonly Pose[] = ['starting', 'working', 'needs-you', 'quiet', 'waiting']
 
 // The moment a pose plays: an arrival or a dressing while live, an ending when finished or stopped.
 export function playable(pose: Pose, moment: Moment | undefined): Moment | undefined {

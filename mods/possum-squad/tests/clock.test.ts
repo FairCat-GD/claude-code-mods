@@ -4,7 +4,7 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 import { PANE } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
 import { elapsed, tokens } from '../hooks/view/format'
-import { engine, MOUNT, POSSUMS, possums, SURFACES } from './engine'
+import { engine, MOUNT, POSSUMS, possums, SURFACES, turnEnds } from './engine'
 import { SESSION_START, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 
 // Another plugin, beside the mod, counting the periods the mod's timers ask for (one ahead of the beats run, while
@@ -100,7 +100,7 @@ test('no timer while the pane is open and nothing runs, or only ended runs (N-03
   const pane = await $.ui.mount({ ...MOUNT, surface: 'desktop' })
   await clock.advance(5_000)
   await $.agent.spawn(SPAWN)
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-1' })
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-1' })
   await clock.advance(5_000)
   expect(await periods($)).toBeLessThanOrEqual(1)
   expect(redraws()).toBe(0)
@@ -109,7 +109,7 @@ test('no timer while the pane is open and nothing runs, or only ended runs (N-03
 
 test('the clock stops at once when the last run ends and when the pane closes (N-03)', { plugins: [PERIODS] }, async ($, on) => {
   const { clock, redraws } = world(on)
-  const stops = [async () => $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-1' }), async () => $.command.run(POSSUMS)]
+  const stops = [async () => turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-1' }), async () => $.command.run(POSSUMS)]
   for (const [i, stop] of stops.entries()) {
     await $.command.run(possums('open'))
     await working($, i + 1)
@@ -168,7 +168,7 @@ test('three working runs redraw the pane once a second, their arrivals and an en
   expect(redraws() - before).toBe(3)
   // A fourth arrives and the first ends: the arrival and the cheer play inside their sprites.
   await working($, 4)
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-1' })
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-1' })
   const after = redraws()
   await clock.advance(3_000)
   expect(redraws() - after).toBe(3)
@@ -256,7 +256,7 @@ test('a beat that finds the pane open behind another lets later runs start the c
   seen.panes = [{ id: PANE, isShown: false, isPlaced: true }]
   await $.session.start(SESSION_START)
   await clock.advance(1_000)
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-1' })
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-1' })
   await clock.advance(1_000)
   await working($, 2)
   seen.panes = [{ id: PANE, isShown: true, isPlaced: true }]

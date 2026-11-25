@@ -2321,6 +2321,91 @@ collapsed view), *Attention* (the toasts), *Reach*, *Known debt*; the declaratio
   declarations make hookable; check what the kit answers unhooked before relying on it.
 - **A late read may see the next turn already running** (`running`): that is not an end either.
 
+**Done (2026-11-25, 0.14.0).**
+- **Decided with the user, at the plan** (the block's three asks, and two it left open):
+  - **the hold:** a turn's end keeps the row as it was (a needs-you one working), with its
+    ending kept, no toast, no ending's moment, no Helper; the list then makes it `waiting`, ends
+    it as kept (an end, `idle` or no entry), or leaves it held (`running`, `pending`); a list
+    that cannot be read ends it at once; a held end no list answers is ended by the clock's
+    beat 5 s after the turn's end, or at the pane's next open;
+  - **the pane closed:** any subagent's event reads the list while a turn's end is held or a run
+    waits, and so does the pane's next open, through its first beat (Session 13's proposal,
+    confirmed);
+  - **the colour:** `waiting` is `inactive`, as starting;
+  - **the gallery:** unchanged, since `waiting` is quiet's pose.
+- **Measured first** (CLI 2.1.330), with a throwaway probe plugin in the scratchpad, never in the
+  repository, driven through `screen`:
+  - a read inside `turn.complete`, before or after `next`, already listed a plain subagent
+    `completed`;
+  - a subagent that started a background `ping` listed `waiting` at its turn's end; at the
+    shell's end the engine resumed it (a spawn under the same id, then a turn), and its next
+    end listed `completed`;
+  - a subagent that started a background helper listed `waiting`; the helper's end resumed it
+    the same way;
+  - an ended subagent stayed listed about 30 s; `taskStatus` read `completed` throughout;
+  - the kit answers an unhooked `$.agent.list()` with a rejection ("no implementation"), which
+    reads as a list that cannot be read; a hook on `agent.list` stands in, and a deny rejects.
+- **Shipped:**
+  - **The model:** `runs-8` (`Run.keptEnding`, `KeptEnding`), `StateId` `waiting`;
+    `turnEnded` holds a live row, `listed`, `heldOut`, `hasKept` and `endedWith` in
+    `hooks/model/runs.ts`; `turnStarted` drops the kept ending; `quietMs` none while one is
+    kept; `LIST_ANSWER_MS` (5 s) in `hooks/config.ts`.
+  - **The hooks:** `readList`, the one caller of `$.agent.list`, started unawaited by `record`
+    and `recordAt` after a write that keeps a turn's end, so `turn.complete` and every subagent
+    event read it; the beat's `settleHeld` (the bound, then a read); `turn.complete` toasts
+    nothing itself; `endedToasts` in `hooks/view/toasts.ts`.
+  - **The view:** Running holds `waiting`; `STRINGS.states.waiting`; `COLOURS.waiting`
+    `inactive`; quiet's pose (`STILL`, `BOB_PACE`, `LIVE`).
+  - **Tests:** `tests/waiting.test.ts` (11), new, its world standing in for `agent.list`; model
+    +4, pass-through +1 (a list that never answers, and one that refuses), row +1 (the
+    colours), sprites +1 (waiting is quiet's source); a waiting fixture row; Running's counts
+    in header and pane-sprites; the N-02 count's arrivals and dressings. `tests/engine.ts` gains
+    `settled` and `turnEnds`, which the tests that end a run now use, since the end lands with
+    the unawaited read; the model tests end a run through `listed` with an empty list.
+  - **Docs:** `CHANGELOG.md` 0.14.0; `README.md`; `USER-GUIDE.md` (Running, the poses, the
+    row's states, *Waiting*, the toasts, Helpers, roles, the collapsed view, the gallery);
+    the mod's `CLAUDE.md` (`runs-8`); `docs/BACKLOG.md`; `ARCHITECTURE.md`: *Overview*, I-05,
+    N-07, *The hooks*, *Values*, *The run model* (the measurement among it), *Roles*,
+    *Sprites and sets*, *The panel* (the gallery's Decided line, the sections, the colours, the
+    beat, the counts), *Attention*, *Reach*, three known-debt lines for the one removed, the
+    baseline, four Decision log lines.
+- **Amendments:**
+  - `endedToast` became `endedToasts`, one per run a record ended: a list's answer may end
+    several at once.
+  - `hasBackgroundWork` stays: the list's `waiting` is the guard at a turn's end, and the flag
+    still keeps Helper off a run a failed read ends, as before (Decision log, 2026-11-22).
+  - The tests that end a run let the unawaited read land (`turnEnds`); their expectations are
+    unchanged.
+  - Decided by the session: the bound's constant, `LIST_ANSWER_MS`; a list entry without a text
+    `id` and `status` left out; a read that changes nothing writes nothing.
+- **Checked by hand,** in the terminal: `claude --plugin-dir mods/possum-squad` driven through
+  `screen`, auto mode, the `@inline` store's settings left as they were.
+  - A subagent asked to start `ping -c 40 127.0.0.1` in the background and hand back read
+    `working`, then `waiting` in Running with no role, its time counting (0:08, 0:11, 0:15).
+  - At the shell's end the agent took another turn (its tokens rose from 41k to 63k), then read
+    finished at 0:44, the engine's own "finished · 44s", as Helper. The working moment between
+    was not caught on screen.
+  - No `claude --plugin-dir` was left running.
+  - **Not checked by hand:** everything in the desktop app; a waiting parent with its helper
+    drawn under it; a toast at a waiting agent's real end; an end shown at another agent's
+    event with the pane closed (`docs/BACKLOG.md`).
+- **Falsified,** each failing at its own test (17): the list's `waiting` misread; `waiting` out
+  of Running; the next turn keeping the ending; no read at events; no read at the beat; a
+  waiting run ended at its turn's time; a refused list keeping the hold; `running` read as an
+  end; no bound at the beat; the bound one past its edge; `idle` not an end; a needs-you row
+  kept so; a held run going quiet; waiting dozing faster than quiet; the beat reading with
+  nothing kept; the turn's end awaiting the list (the pass-through test times out); waiting's
+  colour `warning`.
+- **Numbers:**
+  - 303 tests (+18) in 25 files (+1): model 54 (+4), pass-through 7 (+1), row 9 (+1), sprites
+    15 (+1), waiting 11 (new), the rest unchanged; about 17 s;
+  - the tools' specs unchanged: 10 in 2 files;
+  - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys; the calls line gains
+    `$.agent.list`;
+  - the gate green on CLI 2.1.330.
+- **Confirms** (*The run model*: `waiting`): confirmed with the user at the plan, the hold and
+  its ends as above; the desktop look waits for a push and an update.
+
 ---
 
 ## 12b: The activity line

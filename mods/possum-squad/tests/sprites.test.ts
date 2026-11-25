@@ -12,9 +12,10 @@ const SETS = Object.keys(ART.sets)
 const ROLES = [undefined, ...Object.keys(ART.sets.classic?.roles ?? {})]
 const MOTIONS = ['auto', 'off'] as const
 // The motion table's poses: those a live run is in, which arrive and are dressed; those with an ending.
-const LIVE: readonly Pose[] = ['starting', 'working', 'needs-you', 'quiet']
+const LIVE: readonly Pose[] = ['starting', 'working', 'needs-you', 'quiet', 'waiting']
 const ENDINGS: readonly Pose[] = ['finished', 'stopped']
-// Each look a sprite is drawn in: every pose, then the moments it plays, once and again.
+// Each look a sprite is drawn in: every pose, then the moments it plays, once and again: ten arrivals and four endings,
+// and five dressings for a role.
 function looksOf(set: string, role: string | undefined, motion: Look['motion']): Look[] {
   const base = { set, motion, ...(role === undefined ? {} : { role }) }
   const moments: { pose: Pose; moment: Moment; isRepeated?: boolean }[] = [
@@ -205,7 +206,13 @@ function scriptOf(look: Look): Script | undefined {
       ),
     )
   const own = (pose: Pose): Grid[] | undefined =>
-    pose === 'working' ? work() : pose === 'needs-you' ? bobbing(still('needs-you'), 2) : pose === 'quiet' ? bobbing(still('quiet'), 4) : undefined
+    pose === 'working'
+      ? work()
+      : pose === 'needs-you'
+        ? bobbing(still('needs-you'), 2)
+        : pose === 'quiet' || pose === 'waiting'
+          ? bobbing(still(pose), 4)
+          : undefined
   const slide = [placedAt(plain, -24, 0), placedAt(plain, -16, 0), placedAt(plain, -8, 0)]
   const oneOff = (): Script | undefined => {
     if (look.moment === 'arrival' && LIVE.includes(look.pose)) {
@@ -240,7 +247,7 @@ const frameAt = (script: Script, step: number) => {
 
 test('every look of every set, the moments included, in either motion, is under 16,000 characters (N-02)', () => {
   const sizes = MOTIONS.flatMap(every).map(look => sprite(look).source.length)
-  expect(sizes).toHaveLength(2 * SETS.length * (POSES.length + 12) * ROLES.length + 2 * SETS.length * 4 * (ROLES.length - 1))
+  expect(sizes).toHaveLength(2 * SETS.length * (POSES.length + 14) * ROLES.length + 2 * SETS.length * 5 * (ROLES.length - 1))
   expect(Math.max(...sizes)).toBeLessThan(16_000)
   expect(squad().source.length).toBeLessThan(16_000)
 })
@@ -267,7 +274,7 @@ test('with motion on, a pose with its own loop moves, and so does every moment i
     expect([look, moving(look)]).toEqual([look, scriptOf(look) !== undefined])
   }
   const looping = every('auto').filter(look => look.moment === undefined && moving(look))
-  expect(new Set(looping.map(look => look.pose))).toEqual(new Set(['working', 'needs-you', 'quiet']))
+  expect(new Set(looping.map(look => look.pose))).toEqual(new Set(['working', 'needs-you', 'quiet', 'waiting']))
   for (const pose of ['failed', 'planned', 'idle'] as const) {
     for (const moment of ['arrival', 'dressing', 'ending'] as const)
       expect([pose, moment, moving({ set: 'classic', role: 'builder', pose, motion: 'auto', moment })]).toEqual([pose, moment, false])
@@ -353,6 +360,14 @@ test("each moving look shows its recipe's frame at every step as its SMIL plays,
       const shown = show(moving, step)
       expect([look, step, shown.pixels]).toEqual([look, step, colours(frameAt(script, step))])
       expect([look, step, sorted(shown.outline)]).toEqual([look, step, sorted(exactOutline(shown))])
+    }
+  }
+})
+
+test('a waiting opossum is drawn as a quiet one: the same doze, in every set, role, motion and moment', () => {
+  for (const motion of MOTIONS) {
+    for (const look of every(motion).filter(one => one.pose === 'waiting')) {
+      expect([look, drawSprite(ART, look).source]).toEqual([look, drawSprite(ART, { ...look, pose: 'quiet' }).source])
     }
   }
 })

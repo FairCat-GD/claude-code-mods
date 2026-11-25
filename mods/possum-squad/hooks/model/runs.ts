@@ -1,5 +1,5 @@
-import type { Activity, Ask, Excerpt, Past, Pending, Role, Run, Runs, StateId, Tally, Tokens } from '../../types/index'
-import { ACTIONS_KEPT, FILES_KEPT, FINISHED_KEPT, PEEK_CHARS, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../config'
+import type { Activity, Ask, Excerpt, KeptEnding, Past, Pending, Role, Run, Runs, StateId, Tally, Tokens } from '../../types/index'
+import { ACTIONS_KEPT, FILES_KEPT, FINISHED_KEPT, LIST_ANSWER_MS, PEEK_CHARS, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../config'
 import { windowOf } from '../data/models'
 import { costOf } from '../data/prices'
 import { TARGET_CHARS } from './tools'
@@ -64,7 +64,7 @@ export const keepsClock = (run: Run) => isLive(run) || run.role === undefined
 
 // An answer with text is Finished; aborted is Stopped; an error, a refusal or an empty answer is Failed. A teammate's
 // turn that ends without text (it answered with a message) rests as Finished until its next turn.
-export function endingOf(ending: Ending, isTeammate: boolean): StateId {
+export function endingOf(ending: Ending, isTeammate: boolean): KeptEnding['state'] {
   if (ending.reason === 'aborted') return 'stopped'
   if (ending.reason === 'answer' && (ending.hasText || isTeammate)) return 'finished'
   return 'failed'
@@ -300,8 +300,8 @@ export function spawnSettled(runs: Runs, spawn: Spawn, settled: Settled, at: num
 export function turnStarted(runs: Runs, agentId: string, at?: number): Runs {
   const held = runs.rows[agentId]
   if (held !== undefined) {
-    if (held.state === 'working' && held.endedAt === undefined && (at === undefined || at === held.heardAt)) return runs
-    const { endedAt: _, hasBackgroundWork: __, ask: ___, ...run } = held
+    if (held.state === 'working' && held.endedAt === undefined && held.keptEnding === undefined && (at === undefined || at === held.heardAt)) return runs
+    const { endedAt: _, hasBackgroundWork: __, ask: ___, keptEnding: ____, ...run } = held
     return { ...runs, rows: { ...runs.rows, [agentId]: { ...run, state: 'working', ...(at === undefined ? {} : { heardAt: at, turnAt: at }) } } }
   }
   return runs.pending[agentId] === undefined ? withPending(runs, agentId, NO_PENDING) : runs
@@ -348,15 +348,67 @@ export function asked(runs: Runs, agentId: string, at?: number): Runs {
   return pending === undefined ? runs : withPending(runs, agentId, { ...pending, ask })
 }
 
-// A run's turn ends it; a loop no spawn claimed by its end is dropped and never drawn. An answer with text is kept for
-// Peek; one without leaves the last that had it, a teammate's earlier turn's.
+// A run ends with its kept ending: at the turn's end, or, for a run that waited, at the time the list said it ended.
+function endedWith(run: Run, kept: KeptEnding, at: number): Run {
+  const { keptEnding: _, ask: __, ...rest } = run
+  return { ...rest, state: kept.state, endedAt: at, inFlight: 0 }
+}
+
+// A run's turn ends, but whether the run has is the engine's list's to say: the agent may wait on its own background
+// work. So a live run keeps the ending and stays as it was until the list answers (`listed`). A run already ended ends
+// again at once; a loop no spawn claimed by its end is dropped and never drawn. An answer with text is kept for Peek;
+// one without leaves the last that had it, a teammate's earlier turn's.
 export function turnEnded(runs: Runs, agentId: string, ending: Ending, at: number): Runs {
   const held = runs.rows[agentId]
   if (held === undefined) return runs.pending[agentId] === undefined ? runs : { ...runs, pending: without(runs.pending, agentId) }
+  const kept: KeptEnding = { state: endingOf(ending, held.isTeammate), at }
   const { ask: _, ...rest } = held
-  const run: Run = { ...rest, state: endingOf(ending, held.isTeammate), endedAt: at, inFlight: 0 }
+  const run: Run = hasEnded(held)
+    ? endedWith(held, kept, at)
+    : { ...rest, state: held.state === 'needs-you' ? 'working' : held.state, keptEnding: kept, inFlight: 0 }
   if (ending.hasText && ending.answer !== undefined && ending.answer.trim() !== '') run.answer = excerptOf(ending.answer)
-  return pruned({ ...runs, rows: { ...runs.rows, [agentId]: run } })
+  const next = { ...runs, rows: { ...runs.rows, [agentId]: run } }
+  return hasEnded(run) ? pruned(next) : next
+}
+
+// What the engine's list says of an agent: `waiting` holds it; `running` or `pending` is a turn under way, which its own
+// events will tell; anything else, or its absence, is its end.
+const ENDS: readonly string[] = ['completed', 'failed', 'killed', 'idle']
+const WAITS = 'waiting'
+
+// Any run whose turn's end is kept, held or waiting: the list has yet to settle it.
+export const hasKept = (runs: Runs) => Object.values(runs.rows).some(run => run.keptEnding !== undefined)
+
+// The engine's list, read after a turn's end, settles each run whose ending is kept: listed waiting, it waits; listed
+// ended or not listed, it ends with that ending, at its turn's end, or at `now` for a run that waited, whose time ran
+// on. A list that could not be read (`undefined`) ends them all, so none waits for good.
+export function listed(runs: Runs, statuses: ReadonlyMap<string, string> | undefined, now?: number): Runs {
+  let rows: Record<string, Run> | undefined
+  for (const [key, run] of Object.entries(runs.rows)) {
+    const kept = run.keptEnding
+    if (kept === undefined) continue
+    const status = run.agentId === undefined ? undefined : statuses?.get(run.agentId)
+    let next = run
+    if (statuses !== undefined && status === WAITS) next = run.state === 'waiting' ? run : { ...run, state: 'waiting' }
+    else if (statuses === undefined || status === undefined || ENDS.includes(status))
+      next = endedWith(run, kept, run.state === 'waiting' ? (now ?? kept.at) : kept.at)
+    if (next === run) continue
+    rows ??= { ...runs.rows }
+    rows[key] = next
+  }
+  return rows === undefined ? runs : pruned({ ...runs, rows })
+}
+
+// A turn's end the list has not answered within `LIST_ANSWER_MS` ends as the turn did: a read that never comes back
+// must not keep a run live for good. A run the list said waits is the list's to end.
+export function heldOut(runs: Runs, now: number): Runs {
+  const due = Object.entries(runs.rows).filter(
+    ([, run]) => run.keptEnding !== undefined && run.state !== 'waiting' && now - run.keptEnding.at >= LIST_ANSWER_MS,
+  )
+  if (due.length === 0) return runs
+  const rows = { ...runs.rows }
+  for (const [key, run] of due) if (run.keptEnding !== undefined) rows[key] = endedWith(run, run.keptEnding, run.keptEnding.at)
+  return pruned({ ...runs, rows })
 }
 
 // A run no rule settled is Helper once T-04 has passed since its start, or once it ends: no rule can fire after. A
@@ -400,9 +452,9 @@ export const shownRuns = (runs: Runs): Run[] => Object.values(runs.rows).sort((a
 
 // How long a live run with no call in flight has heard nothing, once that is T-05 or more: it shows as quiet, which is
 // worked out where it is drawn and never kept. A time that cannot be read says none. A step's calls are in flight until
-// the loop's next step is recorded.
+// the loop's next step is recorded; a run whose turn has ended is held or waiting, never quiet.
 export function quietMs(run: Run, now: number): number | undefined {
-  if ((run.state !== 'starting' && run.state !== 'working') || run.inFlight > 0) return undefined
+  if ((run.state !== 'starting' && run.state !== 'working') || run.inFlight > 0 || run.keptEnding !== undefined) return undefined
   const quiet = now - run.heardAt
   return quiet >= QUIET_AFTER_MS ? quiet : undefined
 }

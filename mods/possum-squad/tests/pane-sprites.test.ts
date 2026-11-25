@@ -5,7 +5,7 @@ import { SPRITE_SCALE } from '../hooks/config'
 import { sprite, squad } from '../hooks/sprites/index'
 import { STRINGS } from '../hooks/strings'
 import { panel } from '../hooks/view/panel'
-import { engine, MOUNT, possums, SURFACES, store } from './engine'
+import { engine, MOUNT, possums, SURFACES, store, turnEnds } from './engine'
 import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 import { ROWS } from './fixtures/rows'
 
@@ -114,8 +114,8 @@ test('a finished run cheers then sleeps, and a stopped one startles, around thei
     await $.turn.start({ ...TURN_START, agentId: id })
   }
   await clock.advance(SETTLED_MS)
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-1' })
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-2', reason: 'aborted', isAborted: true })
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-1' })
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-2', reason: 'aborted', isAborted: true })
   const ending = await spritesOn($, 'desktop')
   await clock.advance(SETTLED_MS)
   const after = await spritesOn($, 'desktop')
@@ -142,7 +142,7 @@ test('with motion off no sprite in the pane holds an animation element or is fra
     queue([])
     await step($, id)
   }
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-3' } as never)
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-3' } as never)
   const still = Object.fromEntries(await Promise.all(SURFACES.map(async surface => [surface, await spritesOn($, surface)] as const)))
   await clock.advance(SETTLED_MS)
   await $.command.run(possums('set motion auto'))
@@ -180,9 +180,9 @@ test('each state a run reaches by its events draws that state in its row, past i
   // Explore agents are Scouts from their spawn: one starting, one working, then three ended each its own way.
   for (let i = 1; i <= 5; i++) await $.agent.spawn({ ...SPAWN, tool_use_id: `toolu-${i}`, description: `Tend bed ${i}` })
   for (let i = 2; i <= 5; i++) await $.turn.start({ ...TURN_START, agentId: `agent-${i}` })
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-3' })
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-4', reason: 'error' } as never)
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-5', reason: 'aborted', isAborted: true })
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-3' })
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-4', reason: 'error' } as never)
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-5', reason: 'aborted', isAborted: true })
   await clock.advance(SETTLED_MS)
   const states = ['starting', 'working', 'finished', 'failed', 'stopped'] as const
   const drawn = (await spritesOn($, 'desktop')).slice(1)
@@ -233,7 +233,7 @@ test('every state draws its own frame in its row, on every surface that draws sp
     }
     const bySection = [
       ...ROWS.filter(row => row.state === 'needs-you'),
-      ...ROWS.filter(row => ['starting', 'working', 'quiet'].includes(row.state)),
+      ...ROWS.filter(row => ['starting', 'working', 'quiet', 'waiting'].includes(row.state)),
       ...ROWS.filter(row => ['finished', 'failed', 'stopped'].includes(row.state)),
     ]
     expect(drawn.slice(1).map(one => one.source)).toEqual(
@@ -248,7 +248,7 @@ test('a role the person picks dresses a live row with a hop, then stands in it; 
   await $.turn.start({ ...TURN_START, agentId: 'agent-1' })
   await $.agent.spawn({ ...GENERIC, tool_use_id: 'toolu_done', description: 'Stack the pots' })
   await $.turn.start({ ...TURN_START, agentId: 'agent-2' })
-  await $.turn.complete({ ...TURN_COMPLETE, agentId: 'agent-2' })
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-2' })
   await clock.advance(SETTLED_MS)
   const pane = await $.ui.mount({ ...MOUNT, surface: 'desktop' })
   for (const agentId of ['agent-1', 'agent-2']) {

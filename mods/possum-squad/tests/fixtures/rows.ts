@@ -67,6 +67,19 @@ export const ROWS: readonly RowData[] = [
     elapsedMs: 600_000,
   },
   { id: 'row-stopped', order: 6, state: 'stopped', description: 'Rake the leaves', tokens: 120, elapsedMs: 5_000 },
+  {
+    id: 'row-waiting',
+    order: 10,
+    state: 'waiting',
+    description: 'Let the compost settle',
+    role: 'Operator',
+    roleId: 'operator',
+    model: 'claude-haiku-5-5',
+    activity: 'Running ping -c 40 127.0.0.1',
+    contextPercent: 4,
+    tokens: 2_100,
+    elapsedMs: 95_000,
+  },
 ]
 
 // A description carrying markdown, a link and a tag, which must draw as the same plain text.
