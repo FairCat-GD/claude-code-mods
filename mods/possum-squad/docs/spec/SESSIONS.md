@@ -2239,18 +2239,24 @@ agent held by its own background work, a shell or a helper, reads finished: its 
 which is how a run ends here (`docs/BACKLOG.md`'s deferred item, seen at Sessions 5, 8 and 12).
 The owner chose that such a run stays in Running, dozing, with the word `waiting`.
 
-**Read:** `SPEC.md` §2 decisions 13 and 14, with their amendments; `ARCHITECTURE.md` *The
+**Read:** `SPEC.md` §2 decisions 13, with its amendment, and 14; `ARCHITECTURE.md` *The
 hooks*, *Values* (the state ids, `runs`), *The run model* (its `waiting` lines), *Roles* (Helper
 at a run's end), *Sprites and sets* (the poses), *The panel* (the clock, the sections, the
 collapsed view), *Attention* (the toasts), *Reach*, *Known debt*; the declarations' `$.agent.list`,
 `AgentInfo` and `AgentStatus`.
 
 - **A turn's end that leaves the agent waiting** (*The run model*, amended).
-  - `turn.complete` (`hooks/register.tsx:613-627`) ends a run through `turnEnded`
-    (`hooks/model/runs.ts:353-360`), by `endingOf` (`runs.ts:65-71`). After it, and unawaited
-    (N-07), the hook reads `$.agent.list()`, which is async and takes no argument. When the
-    engine lists that agent's `status` as `waiting`, the run goes to `waiting`. It keeps the
-    ending and the answer its turn gave, to apply later.
+  - `turn.complete` (`hooks/register.tsx:613-627`) ends a run in one `recordAt`, through
+    `turnEnded` (`hooks/model/runs.ts:353-360`) by `endingOf` (`runs.ts:65-71`), then
+    `fellBack`, with `endedToast` worked out against the state before the write. The hook
+    reads `$.agent.list()` (async, no argument) unawaited (N-07), so that read cannot come
+    before that write.
+  - So the end is not written as an end at the turn's close any more. The run is kept live
+    with its turn's ending and answer held, no toast, no ending's moment and no Helper; the
+    list read then makes it `waiting`, or applies the held ending, its toast and its moment.
+    A run whose read never settles must not stay live for good: the session decides how (Ask
+    at the start).
+  - When the engine lists that agent's `status` as `waiting`, the run goes to `waiting`.
   - The declarations say `waiting` covers background work the agent owns, a plan's approval,
     and a background subagent waiting on an Agent call alone. `taskStatus` reads `completed`
     for a subagent whose turn ended, whatever holds it, so the run reads `status`.
@@ -2264,8 +2270,11 @@ collapsed view), *Attention* (the toasts), *Reach*, *Known debt*; the declaratio
   - `waiting` sits in Running (`hooks/view/panel.tsx:53-57`), with its own word and quiet's
     pose (`STILL.quiet`, `BOB_PACE.quiet`, `LIVE` in `hooks/sprites/recipes.ts`).
   - Its time keeps counting, and `quiet` never applies to it (`quietMs`, `runs.ts:404-408`).
-  - Helper at the end does not settle it, as for a turn that left background work (`fellBack`,
-    `runs.ts:364-376`).
+  - Helper at the end does not settle it (`fellBack`, `runs.ts:364-376`). Today only
+    `hasBackgroundWork` keeps Helper off such an end, and it is set only by a call whose input
+    asks `run_in_background` (`hooks/model/tools.ts:52`); an Agent call the engine moved to the
+    background without that (Session 12's hand check) sets nothing. So the guard is the list's
+    `waiting`, not that flag.
   - The collapsed view counts it among the running.
   - A waiting parent and its working helper both sit in Running, so the helper is drawn under
     it, the case nesting was built for.
@@ -2282,6 +2291,8 @@ collapsed view), *Attention* (the toasts), *Reach*, *Known debt*; the declaratio
   - `README.md`; the mod's `CLAUDE.md` if `runs` changes its tag.
 - **Confirms:** *The run model* (`waiting`).
 - **Ask at the start of 12a:**
+  - How the turn's end is held until the list read settles, and what ends a run whose read
+    never comes back.
   - What 2.1.330 lists for a subagent waiting on a background shell, and for one waiting on a
     background helper; and how long an ended subagent stays listed. Measure before building.
   - How a waiting run ends while the pane is closed and the clock stopped (N-03). Proposed at
@@ -2291,7 +2302,8 @@ collapsed view), *Attention* (the toasts), *Reach*, *Known debt*; the declaratio
 **Gates:**
 - `npm run verify -- possum-squad`, with these tests on both surfaces, the clock pinned:
   - a subagent's turn ending while the list says `waiting` leaves its row in Running as
-    `waiting`, with no ending toast and no Helper;
+    `waiting`, with no ending toast, no ending's moment and no Helper, for a run that ran past
+    T-10 and for one with no `hasBackgroundWork`;
   - its next turn puts it back to `working`;
   - the list's later `completed`, or the agent's absence from it, ends it with its kept ending,
     and a long one toasts then;
@@ -2299,7 +2311,10 @@ collapsed view), *Attention* (the toasts), *Reach*, *Known debt*; the declaratio
   - a waiting parent draws its working helper under it;
   - the hook passes the event on unchanged and never awaits the list.
 - A hand check in the terminal (`screen`): a subagent starts `ping -c 40 127.0.0.1` in the
-  background and ends its turn; its row reads `waiting` until the shell ends.
+  background and ends its turn; its row reads `waiting` until the shell ends. Never seen yet,
+  and the check must show it: whether the shell's end brings the agent a new turn, putting the
+  row back to `working`. Seen at Session 12 for a helper: the parent went back to working when
+  the helper's report came, and the two were drawn nested once both had ended.
 
 **Watch for:**
 - **The kit stands in for the engine's list** through a hook on `agent.list`, which the
@@ -2340,8 +2355,12 @@ bound), *Known debt*; 12a's done-note; the declarations' `AgentInfo.label`.
 - **The engine's progress summary.**
   - `AgentInfo.label` is the agent's latest progress summary as the engine stores it, else its
     description. It is a model's text.
-  - It is read through 12a's list on the clock's beat and drawn as plain `Text` (I-04). It is
-    kept in `runs` only (I-03) and cut like a brief.
+  - 12a reads the engine's list on a beat only while a run waits. 12b widens that: a beat reads
+    the list once while any live run shows, and takes each one's summary. The read is the
+    beat's, never an event hook's, and costs one call a second while the pane is open: measure
+    it, and keep the beat light.
+  - The summary is drawn as plain `Text` (I-04), kept in `runs` only (I-03) and cut like a
+    brief.
   - It adds no node, so the fullest list stays within the desktop's bound
     (`tests/size.test.ts`).
 - **Docs.**
@@ -2546,3 +2565,18 @@ The amendments below are from the review, and the owner chose the order of the l
 - **`CHANGELOG.md` gets a link reference for every version,** as the workflow's *Versions and
   the changelog* asks; 1.0.0's points at its tag only once the tag is pushed.
 - **Ask before the `@inline` copy's stored values change** for a check, and show them.
+
+**Review of the insert (`/code-review high`), 8 findings: all fixed, the owner's choice.**
+- **12a's order would toast before `waiting` was known:** the end, its toast and its moment
+  are written in the turn's own `recordAt`, before any unawaited read. 12a's block now holds
+  the end until the list read settles, and asks how.
+- **The handoff said `hasBackgroundWork` keeps Helper off a waiting run:** it is set only by
+  an asked `run_in_background`, so a parent waiting on its helper is not covered. Corrected
+  there and in 12a's block, whose guard is the list's `waiting`.
+- **The hooks table's `turn.start` and `turn.complete` rows** still told the old contract;
+  amended for 12a and 12c.
+- **12b leaned on a list read 12a does not build:** 12b now widens the beat's read itself.
+- **The desktop engine's version at the look was not read:** the handoff no longer claims it.
+- Smaller: the not-yet notes moved from Decided into each section's Built part; two facts of
+  the backlog item 12a picked up carried into its hand check; 12a's Read line named an
+  amendment decision 14 does not have.

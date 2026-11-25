@@ -19,22 +19,28 @@ Release 0.14.0.
   owner had that plan reviewed adversarially and accepted all eight of the review's ideas, so
   1.0.0 waits for them (the header of `SESSIONS.md`, and `SPEC.md` decision 1's amendment).
   Session 13's block carries amendments from that review for when it runs.
-- **Push status:** `origin/main` holds everything through Session 12's review commit (`bafcd85`),
-  0.13.0 among it. Waiting locally: `docs(possum-squad): insert sessions 12a to 12d before 1.0.0`
-  and its review commit, if any. List `origin/main..HEAD` before any push, and name any commit
-  that is not the session's.
+- **Push status:** pushed on 2026-11-25 with the owner's approval: `origin/main` holds
+  everything through `review(possum-squad): 12a's order toasted before waiting, and 7 smaller`,
+  the insert of 12a to 12d and its review, with 0.13.0 (`bafcd85`) before them. Nothing waits
+  locally. List `origin/main..HEAD` before any push, and name any commit that is not the
+  session's.
 - **The owner looked at the installed 0.13.0 in the desktop app** at Session 13's plan (dark
-  theme, engine 2.1.330), with four subagents and a helper of one of them: sprites in their outfits,
-  finished ones dozing with their "z", the crown, the role buttons, the session line with the
-  limits, and a helper indented under its parent in Finished, all as expected. **A defect:** a
+  theme; the desktop engine's version was not read), with four subagents and a helper of one
+  of them: sprites in their outfits, finished ones dozing with their "z", the crown, the role
+  buttons, the session line with the limits, and a helper indented under its parent in
+  Finished, all as expected. **A defect:** a
   long activity pushes each row's `peek` button out of the pane, so Peek cannot be opened from
   most subagent rows there. It is in 12b's scope. The rest is still unseen (`docs/BACKLOG.md`).
 - **What 12a builds on:**
   - `turn.complete` (`hooks/register.tsx:613-627`) ends a run in one `recordAt`: `turnEnded`
     (`hooks/model/runs.ts:353-360`) by `endingOf` (`runs.ts:65-71`), then `fellBack`
     (`runs.ts:364-376`), and `endedToast` (`hooks/view/toasts.ts:25-37`) against the state
-    before. `hasBackgroundWork` (set from a step's `hasBackground`, cleared by `turnStarted`)
-    already keeps Helper off such a turn's end.
+    before. So an unawaited list read after it comes too late to hold the toast: 12a's block
+    says how the end is held.
+  - `hasBackgroundWork` (set from a step's `hasBackground`, cleared by `turnStarted`) keeps
+    Helper off a turn's end only when a call's input asked `run_in_background`
+    (`hooks/model/tools.ts:52`). An Agent call the engine moved to the background on its own
+    sets nothing, so a parent waiting on its helper still gets Helper today.
   - The clock: `keepsClock` (`runs.ts:63`) is a live run or one with no role; `tick`
     (`register.tsx:107-121`) stops with no pane or no such run; `keepTime` arms only while the
     pane is open and is not called at `turn.complete`.
@@ -54,7 +60,8 @@ Release 0.14.0.
   characters where *The panel* and Session 12 say 87%; one line gives 225,793 characters where
   another gives 227,422; *Known debt* still calls the sprites unseen in the desktop app; the
   baseline says about 14 s where Session 12's numbers say about 15 s.
-- **The engines:** CLI 2.1.330; the desktop app ran engine 2.1.330 on 2026-11-25.
+- **The engines:** CLI 2.1.330; the desktop app ran engine 2.1.330 on 2026-11-23, the last
+  reading; it was not read at the look on 2026-11-25.
 - **Baseline** (ARCHITECTURE's table, v0.13.0, CLI 2.1.330): 285 tests in 24 files; the tools'
   specs 10 in 2; `validate` 11 hooks, 4 gating each with a `.catch`, 3 state keys, and the
   calls line of the table. 12a adds `$.agent.list` to that line.
