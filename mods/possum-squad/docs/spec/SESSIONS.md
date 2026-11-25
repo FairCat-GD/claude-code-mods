@@ -1987,6 +1987,93 @@ panel* (Peek, the collapsed view, seats), *The run model*, *Values: `$.state` an
   - four running agents give three joeys and "4" (F-16);
   - a mount in the `widget` seat draws the collapsed view.
 
+**Done (2026-11-25, 0.12.0).**
+- **Asked at the start:** the joey was not redrawn; the user asked for it to be redrawn in the
+  session.
+- **Decided with the user, at the plan:**
+  - **Peek opens from a dim `peek` button** at the end of a row's third line (`hide` while
+    open), not from the task's line drawn as the app's button;
+  - **Peek's files are the files a run changed** (Write, Edit, MultiEdit, NotebookEdit), the
+    latest ten;
+  - **the collapsed view counts the Running section,** an agent that needs the person said
+    apart: left to the session, chosen to match the headings;
+  - **the redrawn joey is kept,** after the user's look at a preview of the Lead carrying none
+    to three in every set, dark and light, beside the first pass;
+  - the plan's own choices, approved with it: the brief, the answer and Peek's description cut
+    at 600 characters; one Peek at a time, dropped at any close; the collapse button at the
+    session line's end, `expand` on the collapsed view but not in the `widget` seat; the
+    gallery over a collapsed dock; the numeral always drawn; the collapsed view out of view
+    for toasts; the joey's spots as constants beside the tongue's.
+- **Shipped:**
+  - **The joey:** redrawn 7 by 6 (dark ears with pink inside, a grey crown, pink paws), with
+    three spots, (23, 9), (23, 17), (25, 23). Written to
+    `art/extras/joey.png` with `tools/png.ts`'s encoder from a scratch script, then the
+    converter. `JOEY_SPOTS` in `recipes.ts`; `drawLeadWith` and `leadWith` in `index.ts`.
+  - **The model:** `runs-6`. `Run.brief` and `Run.answer` are `Excerpt`s (`cutTo`,
+    `excerptOf`, `PEEK_CHARS`); `Run.actions` (`ACTIONS_KEPT`, T-07) and `Run.files`
+    (`FILES_KEPT`), also on `Pending` and claimed with it. `callsOf` gives `actions` and
+    `files`; the spawn carries its prompt and the end its answer.
+  - **Peek:** `view-5` (`peekFor`, `togglePeek`, dropped at a close); `RowData.peek` from
+    `peekData`; the activity line with its `peek-<row id>` button and `peekLines` under the
+    row, on both surfaces.
+  - **The collapsed view:** `hooks/view/collapsed.tsx` (`desktopCollapsed`,
+    `terminalCollapsed`), `countsOf` and `collapsedPanel` in `panel.tsx`, the header's
+    `collapse` button, `collapse` in `hooks/register.tsx` writing `prefs.collapsed`;
+    `drawPane` reads `e.props.placement`. `toastUnseen` also toasts while collapsed
+    (`prefsOrDefaults`, renamed from `prefsWhileDrawing`).
+  - **Tests:** `tests/peek.test.ts` (8) and `tests/collapsed.test.ts` (12), new; model +5,
+    attention +1, sprites +1; `row.test.ts` holds a fixture row with Peek open to I-04,
+    `prefs.test.ts` presses Peek, `collapse` and `expand` (I-03), and `size.test.ts` holds the
+    fullest list with Peek open. Three tests that took the first button now find it by key.
+  - **Docs:** `CHANGELOG.md` 0.12.0; `USER-GUIDE.md` (Peek, *The collapsed view*, the toasts);
+    `README.md`; the mod's `CLAUDE.md` (`view-5`, `runs-6`); `docs/BACKLOG.md`;
+    `ARCHITECTURE.md`: *Overview*, *Layout and boundaries*, I-03 and I-04, *The hooks*,
+    *Values*, *The run model*, *Sprites and sets*, *The panel* (Peek, the collapsed view, the
+    worst list), *Attention*, five known-debt lines, the baseline, four Decision log lines.
+- **Amendments:**
+  - **"A row press toggles it" became a `peek` button on the row:** a `Button` is the only
+    element a press reaches and holds only text. Decided with the user at the plan.
+  - **The check that a refused store leaves the list was dropped** before the commit: no
+    plausible break of the code made it fail. The session's own call.
+- **Measured** (CLI 2.1.330):
+  - **the kit** mounts a `Pane` with `placement: 'widget'` on both surfaces;
+  - **the fullest list with a Peek at its longest:** 1,845 nodes, 8 deep, at most 225,783
+    characters (horror), against 1,613 and 218,861 before; 92% and 86% of the desktop's bound;
+  - **the collapsed Lead:** 2.6k to 4.4k characters (prehistoric's with three joeys);
+  - `validate` unchanged: 11 hooks, 4 gating each with a `.catch`, 3 state keys, the same calls.
+- **Checked by hand,** in the terminal: `claude --plugin-dir mods/possum-squad` driven through
+  `screen` at 120 columns, auto mode, its settings unchanged but `collapsed`, left at false.
+  - A Haiku subagent read three files and answered. Its row showed `[ peek ]` at the end of
+    its activity line; pressed, it read `[ hide ]`, and under the row came the task, `Brief`
+    wrapping over its lines, `Last actions` with the three reads, and `Answer`; no
+    `Files changed`, since it only read. Each read's path, absolute, was cut at 80 characters
+    from its start and lost its file name (known debt).
+  - `[ collapse ]` at the session line's end folded the pane to `● 0 running [ expand ]`; two
+    Haiku subagents running `ping -c 20` made it `● 2 running`; `[ expand ]` brought the list
+    back with both finished.
+  - A pane's focus stops on the pane itself before its first button.
+  - No `claude --plugin-dir` was left running.
+  - **Not checked by hand:** everything in the desktop app (`docs/BACKLOG.md`), the needs-you
+    mark in the collapsed view, `Files changed`, and a toast while collapsed.
+- **Falsified,** each failing at its own test:
+  - a read counted as a change; seven actions kept; a file seen again not moved; twelve files
+    kept; an excerpt never cut; an empty answer replacing the last; a resume taking the new
+    prompt; a pending entry's actions not claimed;
+  - Peek's actions folded into one `Text`; a close keeping Peek; a second press keeping it
+    open; its press writing the store; Peek not drawn;
+  - one joey short; needs-you counted as running; a spot moved; no cap at three; no joeys
+    drawn as another look;
+  - the widget drawn in full; the widget keeping `expand`; the collapse writing another flag;
+    the collapsed view winning over the gallery; the collapsed view counting as seen for a
+    toast.
+- **Numbers:**
+  - 259 tests (+27) in 22 files (+2): collapsed 12 and peek 8 (new), model 44 (+5),
+    attention 15 (+1), sprites 14 (+1), the rest unchanged; about 14 s;
+  - the tools' specs unchanged: 10 in 2 files;
+  - the gate green on CLI 2.1.330.
+- **Confirms** (*The panel*: the `widget` seat draws the collapsed view): waits for the user's
+  look in the desktop app after a push and an update.
+
 ---
 
 ## 12: Limits, cost and nested helpers

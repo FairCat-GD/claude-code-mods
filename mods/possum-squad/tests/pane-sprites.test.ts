@@ -200,6 +200,8 @@ const NO_ACTIONS = {
   onToggleRole: () => {},
   onPickRole: () => {},
   onCancelRole: () => {},
+  onTogglePeek: () => {},
+  onCollapse: () => {},
 }
 
 test('every state draws its own frame in its row, on every surface that draws sprites (F-08)', async ($, on) => {

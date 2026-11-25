@@ -32,6 +32,11 @@ up, it moves out of this file.
   `role:<agent type>` until another pick replaces it; nothing removes one, so going back to
   detection for that type has no way in v1. `$.store.delete` is on the allow-list. Named at
   Session 9.
+- **A long path cut from its start loses its file name.** A call's target is kept to its first
+  80 characters, for the row's activity line and for Peek's actions and files. A subagent's
+  paths are absolute, so Session 11's hand check saw reads end `…/claude-code-mods/package.jso`.
+  Keeping a path's end instead (`…/possum-squad/README.md`) would change what the activity line
+  shows too. Needs the owner's decision. Named at Session 11.
 
 ## Not yet checked by hand
 
@@ -84,6 +89,15 @@ these are the parts only a person can see.
   while the pane is open behind another pane's tab, or over the gallery; quiet, which no hand
   check can bring about (an agent silent for 90 s with no call running), so only the kit
   checks it.
+- **Peek and the collapsed view (0.12.0).** Seen in the terminal at Session 11 (see its
+  done-note). Unseen in the desktop app until 0.12.0 is installed and looked at: a row's `peek`
+  button at the end of its third line, in its small type, and `hide`; Peek's lines under the row,
+  wrapping, in the small type; the header's `collapse` at the end of the session line; the
+  collapsed view, the Lead carrying one to three joeys at panel size on both themes (the
+  redrawn joey's light-theme outline), the count and `1 needs you` beside it, and `expand`; a
+  pane minimized in the app showing the collapsed view with no button, and a toast while it
+  is minimized (`$.ui.panes()` does not say the seat, so a minimized pane toasts only if the
+  app reports it not shown).
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.

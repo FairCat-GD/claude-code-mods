@@ -37,9 +37,9 @@ import { askedToast, endedToast } from './view/toasts'
 export const PANE = 'possum-squad'
 // Bump the shape when View's fields change: an older value then reads as absent.
 export const NO_FLAGS: View = { isClosedByPerson: false, isGalleryOpen: false }
-export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-4' })
+export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-5' })
 // Bump the shape when Runs or Run change their fields.
-export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-5' })
+export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-6' })
 // Bump the shape when Lead changes its fields.
 export const lead = atom({ plugin: 'possum-squad', key: 'lead' } as const, NO_LEAD, { shape: 'lead-1' })
 
@@ -204,11 +204,12 @@ async function autoOpen($: Pick<EngineInterface, 'store' | 'state' | 'ui' | 'clo
 }
 
 // A toast only where the person cannot see the list: the pane closed, behind another's tab, waiting undrawn, or showing
-// the gallery. The event that raised it does not wait for it (N-07), so every fault here ends quietly.
-async function toastUnseen($: Pick<EngineInterface, 'ui' | 'state'>, text: string) {
+// the gallery or the collapsed view. The event that raised it does not wait for it (N-07), so every fault here ends
+// quietly.
+async function toastUnseen($: Pick<EngineInterface, 'ui' | 'state' | 'store'>, text: string) {
   try {
     const isShown = (await $.ui.panes()).some(one => one.id === PANE && one.isShown)
-    if (isShown && !(await read($, view).catch(() => NO_FLAGS)).isGalleryOpen) return
+    if (isShown && !(await read($, view).catch(() => NO_FLAGS)).isGalleryOpen && !(await prefsOrDefaults($)).collapsed) return
     $.ui.toast(text)
   } catch {
     // the row says it when the pane is next seen
@@ -216,6 +217,7 @@ async function toastUnseen($: Pick<EngineInterface, 'ui' | 'state'>, text: strin
 }
 
 const withoutPicker = ({ pickerFor: _, ...flags }: View): View => flags
+const withoutPeek = ({ peekFor: _, ...flags }: View): View => flags
 const withoutGallery = ({ galleryPart: _, ...flags }: View): View => ({ ...flags, isGalleryOpen: false })
 
 // A row's role button opens its picker, or closes it when it is that row's already.
@@ -224,6 +226,15 @@ async function toggleRole($: Pick<EngineInterface, 'state'>, order: number) {
     await update($, view, flags => (flags.pickerFor === order ? withoutPicker(flags) : { ...flags, pickerFor: order }))
   } catch {
     // the picker stays as it was
+  }
+}
+
+// A row's Peek button opens its Peek, or closes it when it is that row's already; one is open at a time.
+async function togglePeek($: Pick<EngineInterface, 'state'>, order: number) {
+  try {
+    await update($, view, flags => (flags.peekFor === order ? withoutPeek(flags) : { ...flags, peekFor: order }))
+  } catch {
+    // Peek stays as it was
   }
 }
 
@@ -316,6 +327,16 @@ async function moveGallery($: Pick<EngineInterface, 'state'>, step: 1 | -1) {
   }
 }
 
+// The header's collapse button and the collapsed view's way back: the person's choice, kept across sessions.
+async function collapse($: Pick<EngineInterface, 'store' | 'ui'>, isCollapsed: boolean) {
+  try {
+    await writeStore($, { key: 'prefs', change: { collapsed: isCollapsed } })
+  } catch {
+    return
+  }
+  redraw($)
+}
+
 // Finished's show button: the person's choice, kept across sessions.
 async function showFinished($: Pick<EngineInterface, 'store' | 'ui'>, isOpen: boolean) {
   try {
@@ -387,6 +408,7 @@ function spawnOf(e: AgentSpawnInput): Spawn {
     description: e.description,
     isTeammate: e.isTeammate === true,
   }
+  if (typeof e.prompt === 'string') spawn.brief = e.prompt
   if (e.parentAgentId !== undefined) spawn.parentId = e.parentAgentId
   if (e.resume !== undefined) spawn.resumes = e.resume.agentId
   return spawn
@@ -404,7 +426,7 @@ const usageOf = (result: TurnStepResult): Tokens | undefined =>
         cacheWrite: result.usage.cache_creation_input_tokens,
       }
 
-async function prefsWhileDrawing($: Pick<EngineInterface, 'store'>): Promise<Prefs> {
+async function prefsOrDefaults($: Pick<EngineInterface, 'store'>): Promise<Prefs> {
   try {
     return readPrefs(await $.store.get('prefs'))
   } catch {
@@ -416,7 +438,7 @@ async function prefsWhileDrawing($: Pick<EngineInterface, 'store'>): Promise<Pre
 // cannot be read leaves times unknown. Drawing never arms the clock: a drawing's `$` may not serve a later beat.
 async function drawPane(
   $: Pick<EngineInterface, 'state' | 'clock' | 'ui' | 'store'>,
-  e: Parameters<EngineInterface['ui']['resolve']>[0] & { surface: string },
+  e: Parameters<EngineInterface['ui']['resolve']>[0] & { surface: string; props?: { placement?: unknown } },
 ) {
   isPaneOpen = true
   const table = $.ui.resolve(e)
@@ -424,7 +446,7 @@ async function drawPane(
   const held = readRuns ?? NO_RUNS
   const main = await read($, lead).catch(() => NO_LEAD)
   const flags = await read($, view).catch(() => NO_FLAGS)
-  const prefs = await prefsWhileDrawing($)
+  const prefs = await prefsOrDefaults($)
   const now = await $.clock.now().catch(() => Number.NaN)
   const shown = shownRuns(held)
   if (shown.some(keepsClock)) noteBeat(now)
@@ -437,11 +459,15 @@ async function drawPane(
     {
       lead: leadFigures(main),
       session: totals(main, held, now),
-      rows: shown.map(run => rowData(run, keyOf(run), figures(run, now), now)),
+      rows: shown.map(run => rowData(run, keyOf(run), figures(run, now), now, run.order === flags.peekFor)),
       isFinishedOpen: prefs.finishedOpen,
       look: { set: prefs.theme, motion: prefs.motion },
       ...(flags.isGalleryOpen ? { gallery: galleryOf(ART, prefs.theme), galleryPart: flags.galleryPart ?? 0 } : {}),
       ...(flags.pickerFor === undefined ? {} : { pickerFor: flags.pickerFor }),
+      ...(flags.peekFor === undefined ? {} : { peekFor: flags.peekFor }),
+      isCollapsed: prefs.collapsed,
+      // Any seat but the minimized pane draws in full.
+      isWidget: e.props?.placement === 'widget',
     },
     {
       onToggleFinished: () => void showFinished($, !prefs.finishedOpen),
@@ -450,6 +476,8 @@ async function drawPane(
       onToggleRole: order => void toggleRole($, order),
       onPickRole: (order, value) => void pickRole($, order, value),
       onCancelRole: () => void closePicker($),
+      onTogglePeek: order => void togglePeek($, order),
+      onCollapse: isCollapsed => void collapse($, isCollapsed),
     },
   )
 }
@@ -498,13 +526,13 @@ export const register: Register = on => {
     if (closed.deny !== undefined) return closed
     isPaneOpen = false
     stopClock()
-    // Any close ends the gallery and the role picker, so the pane opens on the list; the person's is also kept. A close
-    // that changes none of them writes nothing.
+    // Any close ends the gallery, the role picker and Peek, so the pane opens on the list; the person's is also kept. A
+    // close that changes none of them writes nothing.
     const isPerson = e.origin.kind === 'person'
     try {
       const held = isPerson ? undefined : await read($, view)
-      if (held === undefined || held.isGalleryOpen || held.pickerFor !== undefined) {
-        await update($, view, flags => ({ ...withoutGallery(withoutPicker(flags)), ...(isPerson ? { isClosedByPerson: true } : {}) }))
+      if (held === undefined || held.isGalleryOpen || held.pickerFor !== undefined || held.peekFor !== undefined) {
+        await update($, view, flags => ({ ...withoutGallery(withoutPeek(withoutPicker(flags))), ...(isPerson ? { isClosedByPerson: true } : {}) }))
       }
     } catch {
       // the close stands; only the flags are lost
@@ -564,7 +592,7 @@ export const register: Register = on => {
       // A run no rule settled is Helper at its end. A long run's end toasts while the pane is out of view.
       let toast: string | undefined
       await recordAt($, (held, at) => {
-        const ended = fellBack(turnEnded(held, agentId, { reason: e.reason, hasText: e.answer.trim() !== '' }, at), at, HELPER)
+        const ended = fellBack(turnEnded(held, agentId, { reason: e.reason, hasText: e.answer.trim() !== '', answer: e.answer }, at), at, HELPER)
         toast = endedToast(held, ended, agentId)
         return ended
       })
@@ -628,6 +656,8 @@ export const register: Register = on => {
           effort,
           usage: usageOf(result),
           activity: calls.activity,
+          actions: calls.actions,
+          files: calls.files,
           calls: calls.count,
           tools: toolsSeen(weakOf(due, agentId), calls.clues),
           hasBackground: calls.hasBackground,

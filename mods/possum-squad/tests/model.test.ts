@@ -6,6 +6,7 @@ import { DEFAULT_WINDOW, WINDOWS } from '../hooks/data/models'
 import {
   asked,
   cleared,
+  cutTo,
   endingOf,
   fellBack,
   figures,
@@ -201,6 +202,11 @@ test("a step's activity is its last shown call, with what it names, cut to one l
     ]),
   ).toEqual({
     activity: { tool: 'Read', target: 'shed/rack.txt' },
+    actions: [
+      { tool: 'Grep', target: 'rake' },
+      { tool: 'Read', target: 'shed/rack.txt' },
+    ],
+    files: [],
     count: 2,
     clues: ['Grep', 'Read'],
     hasBackground: false,
@@ -209,9 +215,9 @@ test("a step's activity is its last shown call, with what it names, cut to one l
   expect(callsOf([{ name: 'Bash', input: { command: long } }]).activity?.target).toHaveLength(TARGET_CHARS)
   expect(callsOf([{ name: 'mcp__garden__water', input: { bed: 3 } }]).activity).toEqual({ tool: 'mcp__garden__water' })
   // The hand-back of a report is no work to show, and odd input is no call.
-  expect(callsOf([{ name: 'SubagentHandback', input: {} }])).toEqual({ count: 0, clues: [], hasBackground: false })
-  expect(callsOf(undefined)).toEqual({ count: 0, clues: [], hasBackground: false })
-  expect(callsOf([null, 7, { input: {} }])).toEqual({ count: 0, clues: [], hasBackground: false })
+  expect(callsOf([{ name: 'SubagentHandback', input: {} }])).toEqual({ actions: [], files: [], count: 0, clues: [], hasBackground: false })
+  expect(callsOf(undefined)).toEqual({ actions: [], files: [], count: 0, clues: [], hasBackground: false })
+  expect(callsOf([null, 7, { input: {} }])).toEqual({ actions: [], files: [], count: 0, clues: [], hasBackground: false })
 })
 
 test("a step's calls read as the role rules' clues: the tool's name, and a shell command whole after it", () => {
@@ -544,4 +550,91 @@ test("a turn's start is the turn's: the opening, a resume's result and each turn
   expect(turnStarted(ended, 'agent-1', 500).rows['agent-1']).toMatchObject({ startedAt: 100, turnAt: 500 })
   const resumed = spawnSettled(ended, { ...SHOVELS, resumes: 'agent-1' }, { agentId: 'agent-1', isDenied: false }, 900)
   expect(resumed.rows['agent-1']).toMatchObject({ startedAt: 100, turnAt: 900 })
+})
+
+// Peek's record, by its own numbers: the last five calls, the last ten files changed, and 600 characters of a brief or
+// an answer.
+const read = (path: string) => ({ name: 'Read', input: { file_path: path } })
+const edit = (path: string) => ({ name: 'Edit', input: { file_path: path, old_string: 'a', new_string: 'b' } })
+const stepOf = (uses: unknown[]): Step => {
+  const calls = callsOf(uses)
+  return { ...STEP, ...(calls.activity === undefined ? {} : { activity: calls.activity }), actions: calls.actions, files: calls.files, calls: calls.count }
+}
+
+test("a step's calls each become an action, and only the changing tools' paths are files", () => {
+  const calls = callsOf([
+    read('shed/rack.txt'),
+    edit('shed/list.md'),
+    { name: 'Write', input: { file_path: 'shed/new.md' } },
+    { name: 'Bash', input: { command: 'ls' } },
+  ])
+  expect(calls.actions.map(action => action.tool)).toEqual(['Read', 'Edit', 'Write', 'Bash'])
+  expect(calls.files).toEqual(['shed/list.md', 'shed/new.md'])
+  expect(
+    callsOf([
+      { name: 'NotebookEdit', input: { notebook_path: 'beds.ipynb' } },
+      { name: 'MultiEdit', input: { file_path: 'a.md' } },
+    ]).files,
+  ).toEqual(['beds.ipynb', 'a.md'])
+})
+
+test('after seven calls a run keeps the last five, oldest first, over steps and a pending entry', () => {
+  let runs = spawned(NO_RUNS, SHOVELS, 'agent-1')
+  runs = stepped(runs, 'agent-1', stepOf([read('one.txt'), read('two.txt'), read('three.txt')]))
+  runs = stepped(runs, 'agent-1', stepOf([read('four.txt')]))
+  runs = stepped(runs, 'agent-1', stepOf([read('five.txt'), read('six.txt'), read('seven.txt')]))
+  expect(runs.rows['agent-1']?.actions?.map(action => action.target)).toEqual(['three.txt', 'four.txt', 'five.txt', 'six.txt', 'seven.txt'])
+
+  // Calls seen before the re-key are the claimed row's.
+  let early = turnStarted(spawnOpened(NO_RUNS, RAKES, 0), 'agent-2')
+  early = stepped(early, 'agent-2', stepOf([read('bed.txt'), edit('bed.txt')]))
+  early = spawnSettled(early, RAKES, { agentId: 'agent-2', isDenied: false }, 5)
+  expect(early.rows['agent-2']).toMatchObject({
+    actions: [
+      { tool: 'Read', target: 'bed.txt' },
+      { tool: 'Edit', target: 'bed.txt' },
+    ],
+    files: ['bed.txt'],
+  })
+})
+
+test('a run keeps the files it changed each once, where last changed, at most ten', () => {
+  let runs = spawned(NO_RUNS, SHOVELS, 'agent-1')
+  runs = stepped(runs, 'agent-1', stepOf([edit('a.md'), edit('b.md'), read('c.md'), edit('a.md')]))
+  expect(runs.rows['agent-1']?.files).toEqual(['b.md', 'a.md'])
+  const twelve = Array.from({ length: 12 }, (_, at) => edit(`bed-${at}.md`))
+  runs = stepped(runs, 'agent-1', stepOf(twelve))
+  expect(runs.rows['agent-1']?.files).toEqual(Array.from({ length: 10 }, (_, at) => `bed-${at + 2}.md`))
+})
+
+test("a brief is the spawn's prompt and an answer its turn's, each its first 600 characters", () => {
+  const brief = `  ${'Weed the north bed, then the south. '.repeat(20)}`
+  const runs = spawned(NO_RUNS, { ...SHOVELS, brief }, 'agent-1')
+  const kept = runs.rows['agent-1']?.brief
+  expect(kept?.isCut).toBe(true)
+  expect(Array.from(kept?.text ?? '')).toHaveLength(600)
+  expect(kept?.text.startsWith('Weed the north bed')).toBe(true)
+  expect(spawned(NO_RUNS, { ...SHOVELS, brief: 'Count them.\n' }, 'agent-1').rows['agent-1']?.brief).toEqual({ text: 'Count them.' })
+  expect(spawned(NO_RUNS, { ...SHOVELS, brief: '  ' }, 'agent-1').rows['agent-1']?.brief).toBeUndefined()
+
+  // An emoji is never split; 601 of them are cut to 600.
+  const answer = '🌱'.repeat(601)
+  const ended = turnEnded(runs, 'agent-1', { reason: 'answer', hasText: true, answer }, 50)
+  expect(ended.rows['agent-1']?.answer).toEqual({ text: '🌱'.repeat(600), isCut: true })
+  expect(cutTo('🌱🌱', 1)).toEqual({ text: '🌱', isCut: true })
+})
+
+test("an end without text keeps the last answer that had it, and a resume keeps its row's brief", () => {
+  let runs = spawned(NO_RUNS, { ...SHOVELS, isTeammate: true, brief: 'Count the shovels.' }, 'agent-1')
+  runs = turnEnded(runs, 'agent-1', { reason: 'answer', hasText: true, answer: 'Seven.' }, 50)
+  runs = turnEnded(turnStarted(runs, 'agent-1', 60), 'agent-1', { reason: 'answer', hasText: false, answer: '' }, 70)
+  expect(runs.rows['agent-1']?.answer).toEqual({ text: 'Seven.' })
+
+  const resume: Spawn = { ...SHOVELS, key: 'toolu_resume', resumes: 'agent-1', brief: 'Now count the rakes.' }
+  const resumed = spawnSettled(runs, resume, { agentId: 'agent-1', isDenied: false }, 80)
+  expect(resumed.rows['agent-1']?.brief).toEqual({ text: 'Count the shovels.' })
+  // A resume no row has opens one with its own prompt.
+  expect(spawnSettled(NO_RUNS, { ...resume, resumes: 'agent-9' }, { agentId: 'agent-9', isDenied: false }, 5).rows['agent-9']?.brief).toEqual({
+    text: 'Now count the rakes.',
+  })
 })

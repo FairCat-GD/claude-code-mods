@@ -1,8 +1,8 @@
 import type { RoleId } from '../../types/index'
 import { ANIMATION_STEP_MS } from '../config'
-import { blank, type Dress, frameGrid, over } from './compose'
+import { blank, type Dress, frameGrid, layerGrid, over } from './compose'
 import { ART } from './data'
-import { animationOf, COLOURINGS, type Moment, type Pose, playable, STILL, settledFrame, stillFrame } from './recipes'
+import { animationOf, COLOURINGS, JOEY_SPOTS, type Moment, type Pose, playable, STILL, settledFrame, stillFrame } from './recipes'
 import { greyed, loopSvg, stillSvg } from './svg'
 import type { Art, ArtRole } from './types'
 
@@ -100,4 +100,28 @@ export function drawSquad(art: Art): Sprite {
 export function squad(): Sprite {
   squadSprite ??= drawSquad(ART)
   return squadSprite
+}
+
+// The collapsed view's Lead, still in its set's outfit, carrying a joey at each of its first spots.
+export function drawLeadWith(art: Art, set: string, joeys: number): Sprite {
+  const lead = frameGrid(art, dressOf(art, set, 'lead'), stillFrame(art, 'idle'))
+  const joey = art.extras.joey
+  const rows = joey?.rows.split('\n').slice(1) ?? []
+  const grid = joey === undefined ? undefined : layerGrid(joey, Math.max(0, ...rows.map(row => row.length)), joey.top + rows.length)
+  const carried = grid === undefined ? lead : JOEY_SPOTS.slice(0, joeys).reduce((all, spot) => over(all, grid, spot), lead)
+  return { source: stillSvg(carried, key => art.palette[key] ?? '#000000'), isAnimated: false, width: art.canvas.width, height: art.canvas.height }
+}
+
+const carrying = new Map<string, Sprite>()
+
+// Up to as many joeys as there are spots; with none, the header's own Lead, the same string.
+export function leadWith(set: string, joeys: number, motion: 'auto' | 'off'): Sprite {
+  const count = Math.min(Math.max(0, Math.floor(joeys)), JOEY_SPOTS.length)
+  if (count === 0 || Number.isNaN(count)) return sprite({ set, role: 'lead', pose: 'idle', motion })
+  const key = `${own(ART.sets, set) === undefined ? ART.defaultSet : set}|${count}`
+  const known = carrying.get(key)
+  if (known !== undefined) return known
+  const drawn = drawLeadWith(ART, set, count)
+  carrying.set(key, drawn)
+  return drawn
 }

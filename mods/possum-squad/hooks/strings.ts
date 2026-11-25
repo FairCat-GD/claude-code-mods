@@ -102,6 +102,25 @@ export const STRINGS = {
     states: 'States',
     roles: 'Roles',
   },
+  // A row's Peek: its button, then the headings of what it shows under the row.
+  peek: {
+    open: 'peek',
+    close: 'hide',
+    brief: 'Brief',
+    actions: 'Last actions',
+    files: 'Files changed',
+    answer: 'Answer',
+  },
+  // The header's button between the list and the collapsed view, and what the collapsed view says.
+  collapse: 'collapse',
+  expand: 'expand',
+  collapsed: {
+    running: 'running',
+    between: '·',
+    needsYou: (count: number) => `${count} needs you`,
+    // The Lead's sprite, carrying a joey per running agent.
+    alt: (joeys: number) => (joeys === 0 ? 'Lead' : `Lead, carrying ${joeys} ${joeys === 1 ? 'joey' : 'joeys'}`),
+  },
   // A row's role picker: its button while the row is plain, the picker's label, and its way out.
   picker: {
     pick: 'Pick a role',

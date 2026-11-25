@@ -42,3 +42,15 @@ export const QUIET_AFTER_MS = 90_000
 
 // T-10: a run that ends after running longer than this toasts while the pane is out of view.
 export const TOAST_AFTER_MS = 60_000
+
+// T-07: the calls a run keeps for Peek.
+export const ACTIONS_KEPT = 5
+
+// The files a run keeps for Peek, the latest it changed.
+export const FILES_KEPT = 10
+
+// T-09: the characters of an answer Peek draws, and of a brief and a description there.
+export const PEEK_CHARS = 600
+
+// T-14: the joeys the collapsed Lead carries; the numeral counts every running agent.
+export const JOEYS_DRAWN = 3

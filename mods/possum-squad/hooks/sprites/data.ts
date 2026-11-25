@@ -88,10 +88,12 @@ export const ART: Art = {
     joey: {
       top: 0,
       rows: `
-KK..KK
-WWWWWW
-WKWWKW
-.WPPW.`,
+KK...KK
+KPGGGPK
+WWWGWWW
+WKWWWKW
+.WWPWW.
+.PP.PP.`,
     },
     sign: {
       top: 9,

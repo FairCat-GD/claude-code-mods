@@ -22,6 +22,8 @@ const NO_ACTIONS = {
   onToggleRole: () => {},
   onPickRole: () => {},
   onCancelRole: () => {},
+  onTogglePeek: () => {},
+  onCollapse: () => {},
 }
 
 // The panels a fixture draws, by request id.
@@ -198,7 +200,7 @@ test("Finished's show button opens the section, remembers it, and a second press
   for (const surface of SURFACES) {
     const pane = await $.ui.mount({ ...MOUNT, surface })
     const texts = async () => (await pane.findAll({ type: 'Text' })).map(text => text.text)
-    const label = async () => (await pane.find({ type: 'Button' }))?.props.label
+    const label = async () => (await pane.find({ type: 'Button', key: 'finished' }))?.props.label
 
     expect(await label()).toBe(STRINGS.show)
     expect(await texts()).not.toContain(SPAWN.description)

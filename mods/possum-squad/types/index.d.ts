@@ -8,6 +8,8 @@ export type View = {
   galleryPart?: number
   // The run whose role picker is open, by its spawn order, which its re-key leaves alone.
   pickerFor?: number
+  // The run whose Peek is open, by its spawn order; any close of the pane drops it.
+  peekFor?: number
 }
 
 // A call's request to the person: its time, or none when the clock could not be read. Only a step begun after it moves
@@ -22,6 +24,9 @@ export type Tokens = { input: number; output: number; cacheRead: number; cacheWr
 
 // The last tool a run's model asked for, and what the call names: a path, a command's first line, a pattern.
 export type Activity = { tool: string; target?: string }
+
+// A text's first characters, as Peek draws them; `isCut` when it went on.
+export type Excerpt = { text: string; isCut?: true }
 
 // The seventeen roles, by id; `lead` is the main session's alone.
 export type RoleId =
@@ -56,6 +61,8 @@ export type Run = {
   parentId?: string
   type: string
   description: string
+  // The spawn's prompt, its first characters.
+  brief?: Excerpt
   // 2 and up when a finished run had the same description.
   round: number
   isTeammate: boolean
@@ -80,6 +87,11 @@ export type Run = {
   // The last request's size: its input, cache reads and cache writes.
   lastRequest?: number
   activity?: Activity
+  // The last calls it asked for, oldest first, and the files it changed, each once, the latest last.
+  actions?: Activity[]
+  files?: string[]
+  // Its latest turn's answer that had text, its first characters.
+  answer?: Excerpt
   // Calls the last step asked for, until the loop's next step or its end.
   inFlight: number
   // Spawn order, so rows keep their places.
@@ -99,6 +111,8 @@ export type Pending = {
   tokens: Tokens
   lastRequest?: number
   activity?: Activity
+  actions?: Activity[]
+  files?: string[]
   inFlight: number
 }
 

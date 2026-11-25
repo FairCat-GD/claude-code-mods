@@ -92,3 +92,21 @@ export const LONG_ROW: RowData = {
   tokens: 4_000,
   elapsedMs: 61_000,
 }
+
+// A row with its Peek open, every part of it carrying markdown, a link or a tag.
+export const PEEKED_ROW: RowData = {
+  id: 'row-peeked',
+  order: 9,
+  state: 'finished',
+  description: '**Water** the [ferns](https://example.test/ferns)',
+  activity: 'Editing ferns/`schedule`.md',
+  tokens: 3_000,
+  elapsedMs: 30_000,
+  peek: {
+    description: '**Water** the [ferns](https://example.test/ferns)',
+    brief: '# Water the ferns\n\nSee <a href="https://example.test/care">the care sheet</a>.',
+    actions: ['Reading ferns/[care](https://example.test/care).md', 'Editing ferns/`schedule`.md'],
+    files: ['ferns/_schedule_.md'],
+    answer: '**Done**: [three ferns](https://example.test/done) watered.',
+  },
+}

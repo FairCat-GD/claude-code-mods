@@ -1,5 +1,5 @@
-import type { Activity, Ask, Past, Pending, Role, Run, Runs, StateId, Tokens } from '../../types/index'
-import { FINISHED_KEPT, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../config'
+import type { Activity, Ask, Excerpt, Past, Pending, Role, Run, Runs, StateId, Tokens } from '../../types/index'
+import { ACTIONS_KEPT, FILES_KEPT, FINISHED_KEPT, PEEK_CHARS, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../config'
 import { windowOf } from '../data/models'
 
 // Each function takes `runs` and an event's record, and returns `runs` as it should now be. An event it cannot
@@ -18,6 +18,8 @@ export type Spawn = {
   key: string
   type: string
   description: string
+  // The prompt the agent is given.
+  brief?: string
   isTeammate: boolean
   parentId?: string
   // The agent a resume continues.
@@ -34,6 +36,9 @@ export type Step = {
   effort?: string
   usage?: Tokens
   activity?: Activity
+  // Every call it asked for, and the files those change.
+  actions?: readonly Activity[]
+  files?: readonly string[]
   calls: number
   tools?: { weak: number; role?: Role }
   // A call went to the background.
@@ -44,7 +49,8 @@ export type Step = {
   began?: number
 }
 
-export type Ending = { reason: string; hasText: boolean }
+// `answer` is the turn's answer, kept when it has text.
+export type Ending = { reason: string; hasText: boolean; answer?: string }
 
 const ENDED: readonly StateId[] = ['finished', 'failed', 'stopped']
 export const hasEnded = (run: Run) => ENDED.includes(run.state)
@@ -63,6 +69,32 @@ export function endingOf(ending: Ending, isTeammate: boolean): StateId {
 const without = <T>(record: Record<string, T>, key: string) => {
   const { [key]: _, ...rest } = record
   return rest
+}
+
+// A text's first characters, counted whole so an emoji is never split.
+export function cutTo(text: string, characters: number): { text: string; isCut: boolean } {
+  const all = Array.from(text)
+  return all.length > characters ? { text: all.slice(0, characters).join(''), isCut: true } : { text, isCut: false }
+}
+
+// What Peek keeps of a brief or an answer: nothing more than it draws, since any plugin can read `runs`.
+export function excerptOf(text: string): Excerpt {
+  const cut = cutTo(text.trim(), PEEK_CHARS)
+  return cut.isCut ? { text: cut.text, isCut: true } : { text: cut.text }
+}
+
+// The latest calls, oldest first.
+const withActions = (held: readonly Activity[] | undefined, actions: readonly Activity[]) => [...(held ?? []), ...actions].slice(-ACTIONS_KEPT)
+
+// Each file once, at the place it was last changed, so the latest stay.
+function withFiles(held: readonly string[] | undefined, files: readonly string[]): string[] {
+  const order = [...(held ?? [])]
+  for (const file of files) {
+    const at = order.indexOf(file)
+    if (at !== -1) order.splice(at, 1)
+    order.push(file)
+  }
+  return order.slice(-FILES_KEPT)
 }
 
 export const add = (a: Tokens, b: Tokens): Tokens => ({
@@ -96,6 +128,7 @@ function opened(runs: Runs, spawn: Spawn, at: number, agentId?: string): Run {
   }
   if (agentId !== undefined) run.agentId = agentId
   if (spawn.parentId !== undefined) run.parentId = spawn.parentId
+  if (spawn.brief !== undefined && spawn.brief.trim() !== '') run.brief = excerptOf(spawn.brief)
   if (spawn.role !== undefined) run.role = { ...spawn.role, at }
   return run
 }
@@ -122,6 +155,8 @@ function withStep<T extends Run | Pending>(held: T, step: Step): T {
   if (step.model !== undefined) next.model = step.model
   if (step.effort !== undefined) next.effort = step.effort
   if (step.activity !== undefined) next.activity = step.activity
+  if (step.actions !== undefined && step.actions.length > 0) next.actions = withActions(held.actions, step.actions)
+  if (step.files !== undefined && step.files.length > 0) next.files = withFiles(held.files, step.files)
   if (step.hasBackground === true) next.hasBackgroundWork = true
   return step.tools === undefined ? next : withEvidence(next, step.tools, step.at)
 }
@@ -135,6 +170,8 @@ function claimed(run: Run, pending: Pending | undefined): Run {
   if (pending.model !== undefined) next.model = pending.model
   if (pending.effort !== undefined) next.effort = pending.effort
   if (pending.activity !== undefined) next.activity = pending.activity
+  if (pending.actions !== undefined) next.actions = withActions(run.actions, pending.actions)
+  if (pending.files !== undefined) next.files = withFiles(run.files, pending.files)
   if (pending.hasBackgroundWork === true) next.hasBackgroundWork = true
   return withEvidence(next, {
     ...(pending.weakCalls === undefined ? {} : { weak: pending.weakCalls }),
@@ -251,12 +288,14 @@ export function asked(runs: Runs, agentId: string, at?: number): Runs {
   return pending === undefined ? runs : withPending(runs, agentId, { ...pending, ask })
 }
 
-// A run's turn ends it; a loop no spawn claimed by its end is dropped and never drawn.
+// A run's turn ends it; a loop no spawn claimed by its end is dropped and never drawn. An answer with text is kept for
+// Peek; one without leaves the last that had it, a teammate's earlier turn's.
 export function turnEnded(runs: Runs, agentId: string, ending: Ending, at: number): Runs {
   const held = runs.rows[agentId]
   if (held === undefined) return runs.pending[agentId] === undefined ? runs : { ...runs, pending: without(runs.pending, agentId) }
   const { ask: _, ...rest } = held
   const run: Run = { ...rest, state: endingOf(ending, held.isTeammate), endedAt: at, inFlight: 0 }
+  if (ending.hasText && ending.answer !== undefined && ending.answer.trim() !== '') run.answer = excerptOf(ending.answer)
   return pruned({ ...runs, rows: { ...runs.rows, [agentId]: run } })
 }
 

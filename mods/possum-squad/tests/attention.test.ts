@@ -17,9 +17,9 @@ const usage = { input_tokens: 120, output_tokens: 30, cache_read_input_tokens: 4
 // agent ids in turn, the toasts shown, a held spawn while the test says so, the answer a permission request gets, and
 // each step asking for the calls the test names. A subagent's asked call finds nobody to answer it in a test, so the
 // kit refuses it.
-function world(on: On) {
+function world(on: On, prefs: Record<string, unknown> = {}) {
   const seen = engine(on)
-  store(on, { prefs: { autoOpen: 'never', finishedOpen: true } })
+  store(on, { prefs: { autoOpen: 'never', finishedOpen: true, ...prefs } })
   const clock = mock.clock(on, { now: 1_000 })
   const toasts: string[] = []
   const given = {
@@ -339,6 +339,19 @@ test('with the gallery shown in the pane, the list is out of view, so there are 
   await request($, 1)
   await settled()
   expect(toasts).toEqual(['Count the shovels 1 · needs you: waiting on a permission prompt'])
+})
+
+test('with the pane shown collapsed, the list is out of view, so there are toasts (F-14)', async ($, on) => {
+  const { clock, seen, toasts } = world(on, { collapsed: true })
+  await $.command.run(POSSUMS)
+  expect(seen.panes).toEqual([{ id: PANE, isShown: true, isPlaced: true }])
+  await working($, 1)
+  await request($, 1)
+  await step($, 1)
+  await clock.advance(TOAST_AFTER_MS + 1_000)
+  await complete($, 1)
+  await settled()
+  expect(toasts).toEqual(['Count the shovels 1 · needs you: waiting on a permission prompt', 'Count the shovels 1 · finished after 1:01'])
 })
 
 // Another plugin, beside the mod, counting the periods the mod's timers ask for.

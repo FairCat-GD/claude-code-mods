@@ -6,6 +6,35 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-11-25
+
+A row opens to show what its agent was asked, did and answered, and the pane folds down to a
+glance.
+
+### Added
+
+- **Peek:** each row has a `peek` button at the end of its third line. It opens, under the
+  row, the agent's task in full, the brief it was given, its last five tool calls, the files it
+  wrote or edited (the latest ten) and the start of its answer once it has one. The brief and
+  the answer are cut at 600 characters. `hide` closes it. One row's Peek is open at a time, and
+  closing the pane closes it. All of it is plain text: markdown or a link in what an agent
+  wrote shows as written.
+- **The collapsed view:** a `collapse` button at the end of the session line folds the pane to
+  the main session's opossum carrying a joey for each running agent, up to three, beside how
+  many run (`4 running`) and, when any agent waits on you, `1 needs you`. `expand` brings the
+  list back. Your choice is kept between sessions. `/possums roles` still shows the gallery
+  over it.
+- **A minimized pane** in the desktop app always shows the collapsed view, without the button.
+- **Toasts while collapsed:** with the pane folded, an agent that needs you, or a long turn's
+  end, toasts as it does while the pane is closed.
+
+### Changed
+
+- **The joey is redrawn:** a baby opossum with dark ears, a grey crown and pink paws, clinging
+  to the main session's opossum.
+- **A session that loads 0.12.0 while it runs** starts its list of agents over, and forgets
+  which row's role picker was open: their stored shapes changed.
+
 ## [0.11.0] — 2026-11-23
 
 The pane says when an agent needs you, or has gone quiet, and tells you while it is out of sight.

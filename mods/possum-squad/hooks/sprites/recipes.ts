@@ -39,6 +39,14 @@ export const STILL: Readonly<Record<Pose, string>> = {
 // The tongue of a run that failed, by the base's nose row before the flip: red beside the nose, then darker.
 export const TONGUE = { noseRow: 21, marks: { R: [15, -1, 16, -1, 16, -2], r: [16, -3] } } as const
 
+// Where the collapsed Lead carries its joeys, each the joey's top-left on the canvas, in the order they are added: on
+// its right ear, beside its cheek, on its tail. Placed for the joey in `art/extras/`, clear of every set's hat.
+export const JOEY_SPOTS: readonly { x: number; y: number }[] = [
+  { x: 23, y: 9 },
+  { x: 23, y: 17 },
+  { x: 25, y: 23 },
+]
+
 // Marks the art gives in words, drawn here; each takes the frame it is drawn on.
 export const WORDED_MARKS: Readonly<Record<string, (frame: RecipeFrame) => Record<string, string>>> = {
   tongue: frame => {

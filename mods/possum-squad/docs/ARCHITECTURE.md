@@ -32,14 +32,17 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.11.0). The Lead, header, sections, roles with the person's picker, sprites in every
+**Built** (0.12.0). The Lead, header, sections, roles with the person's picker, sprites in every
 set with every state's animation, the gallery in parts the desktop draws, auto-open, Needs you,
-quiet and toasts.
+quiet and toasts, Peek, and the collapsed view, which a minimized pane draws too.
 `hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `roles`, `set` and `settings`;
 - toggles and draws the pane: the Lead row and the session line, then the sections of subagent
   runs, the empty panel's line, or a part of the gallery; on every surface but the terminal,
-  each with its sprite, in the set `prefs.theme` names, within what the desktop app draws;
+  each with its sprite, in the set `prefs.theme` names, within what the desktop app draws. A
+  row's Peek opens under it; the collapsed view, the Lead carrying its joeys with the counts,
+  takes the whole pane's place while `prefs.collapsed` is set or the pane sits in the desktop's
+  `widget` seat;
 - turns subagents' spawns, turns and steps into records, and keeps the runs in `runs`;
 - settles each run's role from the person's pick remembered for its custom type, its type, its
   description and its first calls, and Helper at T-04 or at its end; a row's role button opens
@@ -53,9 +56,9 @@ quiet and toasts.
 - runs the one-second clock while the pane is open and a run is live, or a run's role may still
   fall back to Helper;
 - empties `runs` and `lead` when the session is cleared, resumed or forked;
-- keeps the settings and Finished's flag in the store under `prefs`, and each custom type's
-  picked role under `role:<agent type>`; in `view`, a close by the person, whether the gallery
-  is open and on which part, and which row's picker is;
+- keeps the settings, Finished's flag and the collapsed view's in the store under `prefs`, and
+  each custom type's picked role under `role:<agent type>`; in `view`, a close by the person,
+  whether the gallery is open and on which part, and which row's picker and Peek are;
 - passes every event on unchanged.
 
 Of the pure modules:
@@ -64,8 +67,9 @@ Of the pure modules:
 - `hooks/roles/` holds the role rules and their word lists (`rules.ts`, `words.ts`);
 - `hooks/data/models.ts` holds the dated window table;
 - `hooks/view/` holds the panel and its sections (`panel.tsx`), the gallery (`gallery.tsx`), the
-  Lead row and the session line (`lead.tsx`), a run's row data (`runs.ts`), the row builders for both surfaces (`row.tsx`) and
-  the empty panel's line (`empty.tsx`), and the toasts' texts (`toasts.ts`);
+  Lead row and the session line (`lead.tsx`), a run's row data and Peek's (`runs.ts`), the row
+  builders for both surfaces, Peek's lines among them (`row.tsx`), the collapsed view
+  (`collapsed.tsx`), the empty panel's line (`empty.tsx`), and the toasts' texts (`toasts.ts`);
 - `hooks/sprites/` writes each sprite from the generated art data (`data.ts`), by its recipe
   (`recipes.ts`), composed (`compose.ts`), written as SVG (`svg.ts`) and cached (`index.ts`);
 - `hooks/settings.ts` holds the settings and the command's words;
@@ -329,8 +333,8 @@ checked on CLI 2.1.330, with Node 26.7.0 for `tools/`.
 
 **Built** (0.8.0). In place:
 - the manifest, `.claude-plugin/plugin.json`, naming `types/index.d.ts`;
-- the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-03, T-04, T-06 and
-  T-13) and `hooks/strings.ts`;
+- the hooks: `hooks/hooks.json`, `hooks/register.tsx`, `hooks/config.ts` (T-03 to T-07, T-09,
+  T-10, T-13 and T-14) and `hooks/strings.ts`;
 - `hooks/model/`, pure: `runs.ts` (runs from records, and their figures), `lead.ts` (the Lead
   from measures and main turns, and the header's totals) and `tools.ts` (a step's calls as an
   activity). It uses `config.ts`, `data/` and the types alone;
@@ -353,7 +357,8 @@ checked on CLI 2.1.330, with Node 26.7.0 for `tools/`.
 - `hooks/view/`: `panel.tsx` (the header and the sections), `gallery.tsx` (the gallery, one
   builder per surface), `lead.tsx` (the Lead row, one
   builder per surface, and the session line), `empty.tsx` (the empty panel's line), `runs.ts`
-  (a run's row data and its activity line), `row.tsx` (the row, one builder per surface),
+  (a run's row data, its activity line and its Peek), `row.tsx` (the row and its Peek, one
+  builder per surface), `collapsed.tsx` (the collapsed view, one builder per surface),
   `sprite.tsx` (a sprite as an `Svg`) and `format.ts` (tokens, time, percent and the block
   bar);
 - the contract, `types/index.d.ts`: `View`; `StateId`; `RoleId`, `RoleSource` and `Role`;
@@ -376,7 +381,10 @@ checked on CLI 2.1.330, with Node 26.7.0 for `tools/`.
     loop's SMIL a step at a time; `tests/pane-sprites.test.ts` raises events and reads the
     pane's `Svg` elements;
   - `tests/sets.test.ts` checks the four sets, the switching, and a fictional two-role set's
-    fallback; `tests/gallery.test.ts` runs `/possums roles` and reads the drawn gallery.
+    fallback; `tests/gallery.test.ts` runs `/possums roles` and reads the drawn gallery;
+  - `tests/peek.test.ts` raises spawns, steps and ends and presses a row's Peek;
+    `tests/collapsed.test.ts` draws the collapsed view, collapsed by the person and in the
+    `widget` seat, and reads the Lead's joeys from its SVG.
 
 How it is held:
 - *Enforced by* the gate's `imports` stage (the import scan) and `validate`
@@ -420,13 +428,17 @@ How it is held:
    in the key `role:<agent type>` and a role id as its value. And by `tests/prefs.test.ts`:
    after fixture agent events, a press of Finished's show button on each surface and a change
    of every setting, every write holds only those fields, and no fixture brief, description,
-   answer or path; a pick on each surface for a custom type writes only its key and the role
+   answer or path; so do a press of a row's Peek, which writes nothing there, and of the
+   collapse button and `expand`; a pick on each surface for a custom type writes only its key and the role
    id, and neither the agent's brief nor its description.
 7. **I-04: agent-supplied text is drawn only as plain `Text`,** or in the engine's plain toast
    line, never inside an `Svg`, never as `Markdown`. *Why:* it may carry markup or links.
    *Enforced by* `tests/row.test.ts`, on both surfaces. Every fixture row's description and activity is drawn whole, in a `Text` of its
    own; no other element's props hold agent text; and a description with markdown, a link and a
-   tag draws as that plain text, with no `Markdown` or `Link`. The desktop's one `Svg` is the
+   tag draws as that plain text, with no `Markdown` or `Link`. A fixture row with its Peek open
+   draws each of Peek's texts the same way, and `tests/peek.test.ts` raises a description and
+   a brief with markup through the events and reads them back as plain text. The desktop's one
+   `Svg` is the
    row's sprite: its source is what the sprite module writes from the mod's own art, and its
    other props hold no agent text. A toast carries a run's description, cut as its row's, in
    `$.ui.toast`'s one line of text (`tests/attention.test.ts`).
@@ -488,10 +500,10 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 | `command.run` `{ command: 'possums' }` | Answers the command (*The command and settings*) | 1 |
 | `ui.render` `{ component: 'Pane' }`, its `requestId` `possum-squad` | Draws the pane from state; never writes state | 1 |
 | `ui.close` | Stops the clock; when `origin.kind` is `person`, records it in `view` | 1, 5 |
-| `agent.spawn` | Opens a row from the input; re-keys it from the result | 2, 4 |
+| `agent.spawn` | Opens a row from the input, its brief from the prompt; re-keys it from the result | 2, 4, 11 |
 | `turn.start` | Marks the loop's row working, heard at its time | 4, 10 |
 | `turn.step` (streaming) | Yields every chunk through untouched; from the input, the model and effort; from the result, the usage and the calls it asks for (`toolUses`): the activity line, the last actions, files touched, calls in flight, the role's tool evidence | 2, 4, 8, 10, 11 |
-| `turn.complete` | Ends the row (*The run model*), and toasts a long run's end (*Attention*); the main session's adds its tokens and time to the Lead | 4, 5, 10 |
+| `turn.complete` | Ends the row (*The run model*), keeping its answer for Peek, and toasts a long run's end (*Attention*); the main session's adds its tokens and time to the Lead | 4, 5, 10, 11 |
 | `session.measure` | The Lead's context and the plan limits | 2, 5, 12 |
 | `classic.SessionStart` | On `clear`, `resume` or `fork`, cancels the clock and redraws from the reset state | 4 |
 | `classic.PermissionRequest` | Needs you begins for the run its `agent_id` names (*Attention*) | 2, 10 |
@@ -542,14 +554,17 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     loses only when the run was last heard.
   - `turn.step`, for a subagent, first reads the time (`began`, guarded), then delegates every
     chunk (`const result = yield* next(e)`), then records the
-    step's model (the usage's, else the input's), its effort, its usage and its calls, and
-    returns `result`. In the same change it first settles Helper on any run past T-04
+    step's model (the usage's, else the input's), its effort, its usage and its calls (the
+    activity, each call as an action, and the files the changing tools name), and returns
+    `result`. In the same change it first settles Helper on any run past T-04
     (`fellBack`), then reads the step's calls as role evidence (`toolsSeen`, from the run's
     reads and searches so far).
   - A subagent's `agent.spawn` opening, `turn.start` and `turn.step` each arm the clock when
     the pane is open (*The panel*): `$.clock.every` is synchronous, and a no-op while a timer
     is armed.
-  - `turn.complete` with `agentId` ends its row, and settles Helper on it if no rule has, unless
+  - `agent.spawn`'s opening carries the input's `prompt`, when it is text, as the run's brief.
+  - `turn.complete` with `agentId` ends its row, keeping its `answer` when it has text, and
+    settles Helper on it if no rule has, unless
     it is a teammate's or its turn left work in the background (`fellBack`). A run that was live,
     and whose turn ran past T-10, starts its toast, unawaited (*Attention*). Without `agentId`, it is the main session's, and
     `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`). A malformed
@@ -609,26 +624,31 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 `PluginState['possum-squad']` with `view` as `Shaped<View>`, `runs` as `Shaped<Runs>` and `lead`
 as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `types`, and
 `validate` holds the module's state keys to it.
-- `view` (gallery 0.8.0; the picker 0.10.0; the gallery's part 0.10.1) is `{ isClosedByPerson,
-  isGalleryOpen, galleryPart?, pickerFor? }`: two booleans, default false (`NO_FLAGS`); the
-  gallery's part from 0, absent for the first; and the spawn order of the run whose role
-  picker is open, absent while none is. It is the atom in `hooks/register.tsx` with the shape
-  tag `view-4`. A reload of the mod's code that names another tag reads the value as
-  absent, so the tag changes whenever `View`'s fields do. Peek's run joins it in Session 11.
+- `view` (gallery 0.8.0; the picker 0.10.0; the gallery's part 0.10.1; Peek 0.12.0) is
+  `{ isClosedByPerson, isGalleryOpen, galleryPart?, pickerFor?, peekFor? }`: two booleans,
+  default false (`NO_FLAGS`); the gallery's part from 0, absent for the first; and the spawn
+  order of the run whose role picker is open, and of the run whose Peek is, each absent while
+  none is. It is the atom in `hooks/register.tsx` with the shape tag `view-5`. A reload of the
+  mod's code that names another tag reads the value as absent, so the tag changes whenever
+  `View`'s fields do.
 - Its writers, each through `update`:
-  - the `ui.close` hook (*The hooks*), which also drops `pickerFor` and `galleryPart`;
+  - the `ui.close` hook (*The hooks*), which also drops `pickerFor`, `peekFor` and `galleryPart`,
+    writing only when one of them, or the gallery, is set;
   - `/possums roles`, which sets `isGalleryOpen`, and the gallery's close button, which clears
     it and drops `galleryPart`;
   - the gallery's `previous` and `next`, which set `galleryPart` (`moveGallery`);
   - an open or a raise by `/possums`, `open` or `roles`, which clears `isClosedByPerson` when it
     is set (`forgetClose`);
   - a row's role button, which sets `pickerFor` to its run or, pressed again, drops it; and the
-    picker's pick and `cancel`, which drop it.
+    picker's pick and `cancel`, which drop it;
+  - a row's Peek button (`togglePeek`), which sets `peekFor` to its run or, pressed again,
+    drops it; one Peek is open at a time.
 
   The pane reads it while drawing, so each write redraws it; a refused read draws the list.
   `autoOpen` reads `isClosedByPerson`.
-- `runs` (0.4.0; `past` 0.5.0; roles 0.6.0; a role's moment 0.9.0; attention 0.11.0) is `Runs`,
-  `{ rows, pending, next, past }`, the atom `runs` with the shape tag `runs-5`, starting as
+- `runs` (0.4.0; `past` 0.5.0; roles 0.6.0; a role's moment 0.9.0; attention 0.11.0; Peek
+  0.12.0) is `Runs`, `{ rows, pending, next, past }`, the atom `runs` with the shape tag
+  `runs-6`, starting as
   `NO_RUNS`. *The run model*'s Built part
   has its fields and rules; `quiet` is never kept there, only worked out where a row is drawn. The recording hooks write it, `classic.PermissionRequest` among them, and the clock's beat when it settles
   Helper, each through `update`, so concurrent writes retry rather than lose one another; the
@@ -655,9 +675,11 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
   then sets the change over that value (`mergePrefs`), so a key or value this version does not
   know is kept. A stored value that is not an object is replaced: no version writes one.
   `autoOpen` reads `prefs` at each new agent.
-- **Changes** come from `/possums set` and from Finished's show button, which writes
-  `finishedOpen`; `collapsed` has no writer until its button (Session 11).
-- **The pane reads `prefs` while drawing** (`finishedOpen`), so each change calls
+- **Changes** come from `/possums set`, from Finished's show button, which writes
+  `finishedOpen`, and from the header's collapse button and the collapsed view's `expand`
+  (`collapse`, 0.12.0), which write `collapsed`.
+- **The pane reads `prefs` while drawing** (`finishedOpen`, `collapsed`), and a toast reads
+  `collapsed` (*Attention*), so each change calls
   `$.ui.invalidate('ui.render')` after its write, since the store is not reactive. A change
   another session makes shows at this pane's next redraw. A store that refuses a read while
   drawing draws the defaults.
@@ -712,10 +734,11 @@ each returning the same object when the record changes nothing.
   and end times, its current turn's start (`turnAt`), the time it was last heard (`heardAt`),
   its four token counts, its last request's size (input, cache reads and cache writes), its
   activity (tool and target) and its calls in flight, and, while it needs the person, its
-  call's request (`ask`, `Ask`: `{ at }`, or `{}` when the clock could not be read). A pending
-  entry holds the same numbers and role evidence, and `ask` when a call of its waits on the
-  person; its loop's turn has begun, so a claimed row is
-  Working, or Needs you when it was asking. The brief, the answer, past actions and files touched wait for Peek (Session 11).
+  call's request (`ask`, `Ask`: `{ at }`, or `{}` when the clock could not be read). For Peek
+  (0.12.0) it holds its brief, its last T-07 actions, the files it changed and its answer. A
+  pending entry holds the same numbers, actions, files and role evidence, and `ask` when a
+  call of its waits on the person; its loop's turn has begun, so a claimed row is
+  Working, or Needs you when it was asking.
 - **Joining:**
   - `spawnOpened` opens a starting row at the spawn's input, keyed by its `tool_use_id`, plus
     `#<agentIndex>` for a workflow's agent, since all of a workflow run's agents share the
@@ -744,6 +767,20 @@ each returning the same object when the record changes nothing.
   recorded after the request. A request whose time is unknown waits out the next record, as
   the asking step's, and then takes that record's time. `turnStarted` and `turnEnded` drop
   `ask`.
+- **Peek's record** (0.12.0), kept no fuller than Peek draws it, since any plugin can read
+  `runs`:
+  - **the brief** is the spawn's prompt, trimmed, as an `Excerpt` (`{ text, isCut? }`, its
+    first `PEEK_CHARS`, 600, characters counted whole: `cutTo`, `excerptOf`). A resume that
+    returns to its row keeps that row's brief; one that opens a row takes its own prompt;
+  - **the actions** are each shown call of each step, as the activity reads it (`callsOf`'s
+    `actions`), the last `ACTIONS_KEPT` (T-07, 5), oldest first; a pending entry's go before
+    the row's own when it is claimed;
+  - **the files** are what Write, Edit, MultiEdit and NotebookEdit name (`callsOf`'s `files`),
+    cut at `TARGET_CHARS` from the start as the activity's are, each kept once at the place it
+    was last changed, the latest `FILES_KEPT` (10). Reads are no file changed: the owner's
+    choice at the plan;
+  - **the answer** is a turn's `answer` with text, as an `Excerpt`; an end without text keeps
+    the last that had it, a teammate's earlier turn's.
 - **Heard** (0.11.0): `heardAt` is the opening's time, then the spawn's result's, each turn
   start's and each step's, when the clock could be read.
 - **Quiet** (0.11.0): `quietMs` is how long a starting or working run with no call in flight
@@ -996,6 +1033,13 @@ every state's recipe, in the set `prefs.theme` names.
   are looked up by their own keys. `costumeOf` falls back with the outfit, and `galleryOf` gives a
   set's title and the default set's 17 roles in order, each with its costume there; an unknown
   set's is the default set's. The empty panel's squad is three plain asleep opossums, 24 px apart, cached once.
+- **The collapsed Lead** (0.12.0, `leadWith` in `index.ts`): the Lead's idle still in the set,
+  with the joey from `art/extras/` laid over it at the first one to three of `JOEY_SPOTS`
+  (`recipes.ts`: (23, 9) on its right ear, (23, 17) beside its cheek, (25, 23) on its tail),
+  always still, cached per set and count. With none it is the header's own Lead, the same
+  string. The joey was redrawn at Session 11 on the owner's word, 7 by 6, with
+  dark ears, a grey crown and pink paws, and kept after the owner's look at it in every set
+  on both themes; its spots came with it. 2.6k to 4.4k characters (prehistoric's with three).
 - **Sizes** (all four sets): a still pose 1.6k–3.4k characters, `planned` 4.0k, the work loop at
   most 8.7k, needs-you 8.1k, quiet 8.3k, an arrival 10.6k, a dressing 10.8k, a startle 10.4k, a
   cheer 13.6k and the gallery's repeating cheer 14.0k; the squad 5.0k. A role's eight gallery
@@ -1033,8 +1077,9 @@ every state's recipe, in the set `prefs.theme` names.
 - **The collapsed view:** the Lead's sprite with one joey per running agent up to T-14 (3), then
   a numeral, and a mark when anyone needs the person. The header's collapse button toggles it
   (`prefs.collapsed`).
-- **Peek:** clicking a row opens, under it, the brief, the last T-07 (5) actions, the files
-  touched and the answer's first T-09 (600) characters; clicking again closes it.
+- **Peek:** a row's `peek` button opens, under it, the brief, the last T-07 (5) actions, the
+  files it changed and the answer's first T-09 (600) characters; pressing it again closes it
+  (Decision log, 2026-11-25).
 - **The gallery** (`/possums roles`) replaces the list while open: every role of the current set
   in every state, each with its role name and costume name, three roles at a time, with
   `previous` and `next` between the parts on every surface. Its sprites animate, framed like the
@@ -1212,8 +1257,9 @@ Within what the desktop draws (0.10.1), in `panel` (`hooks/view/panel.tsx`) and 
 - **The row cap:** rows are drawn in order (Needs you, Running, then Finished while open) up
   to `ROWS_DRAWN` (60). A section that loses rows ends with a dim `Text` keyed `more`, `and 12
   more` (`STRINGS.more`), and its heading still counts every row. Finished closed loses none:
-  its rows are not drawn anyway. A desktop row is 25 to 28 nodes as the kit draws it (its bar
-  about 8), so 60 rows with every extra came to 1,613 nodes.
+  its rows are not drawn anyway. A desktop row is 28 to 31 nodes as the kit draws it (its bar
+  about 8, its activity line with Peek's button 5), so 60 rows with every extra and one Peek
+  at its fullest came to 1,845 nodes.
 - **The sprite budget,** `SPRITE_BUDGET` (160,000 characters of sources, the Lead's counted
   first), fitted on each drawn row's steady look (its pose's own, without a moment), in that
   order (`withinBudget`):
@@ -1237,14 +1283,51 @@ Within what the desktop draws (0.10.1), in `panel` (`hooks/view/panel.tsx`) and 
   characters, counted whole so an emoji is never split, and adds `…`. `runs` keeps it whole, for the round's match. An activity's target is already cut at
   `TARGET_CHARS` (80) in the model.
 - **The worst list:** 60 drawn of 90, every text at its longest, round 2, a moment each,
-  Finished open, a picker open. In any set it came to 1,613 nodes, 8 deep and at most 218,861
-  characters (`tests/size.test.ts`).
+  Finished open, a picker open, and a Peek at its fullest (0.12.0). In any set it came to 1,845
+  nodes, 8 deep and at most 225,783 characters (`tests/size.test.ts`); without Peek and its
+  button it was 1,613 and 218,861.
 
 A quiet row's third line, on both surfaces, is "Quiet for 2 min" in place of its activity
 (`rowData`); a Needs you row keeps its activity, the call it asks about.
 
-Not yet: Session 11 (Peek, the collapsed view, the
-`widget` seat).
+Peek (0.12.0), in `hooks/view/row.tsx` and `hooks/view/runs.ts`:
+- **Its button:** each row's third line is a row `Box`, the activity cut to one line, then a
+  dim `Button` keyed `peek-<row id>`, `peek`, or `hide` while open. A `Button` holds only text
+  and is the only element a press reaches, so the row itself cannot be the press: the owner's
+  choice at the plan, over drawing the task's line as the app's button. `panel` binds its
+  press to the row's spawn order, and `togglePeek` writes `view.peekFor`.
+- **Its data:** `rowData` gives `RowData.peek` for the open row alone (`peekData`): the
+  description cut at `PEEK_CHARS` rather than 100, the brief and the answer with `…` where the
+  model cut them, the actions through `activityText`, and the files.
+- **Its lines,** under the row (on the desktop after the bar, in footnote size; on the terminal
+  after the bar line): the description, wrapping, then `Brief`, `Last actions`, `Files changed`
+  and `Answer`, each a dim heading over one `Text` per line. A part with nothing is left out.
+- **Its size:** the button adds three nodes a row. The fullest list with a Peek at its longest
+  (`tests/size.test.ts`): 1,845 nodes, 8 deep and at most 225,783 characters in any set, against
+  1,613 and 218,861 before.
+
+The collapsed view (0.12.0), in `hooks/view/collapsed.tsx`, chosen by `panel`:
+- **When:** in the `widget` seat (`e.props.placement`, read by `drawPane`; any other value is
+  the full pane, as the declarations say) always; otherwise while `prefs.collapsed` is set and
+  the gallery is closed. The gallery the person asks for draws over a collapsed pane in the
+  dock or inline; the widget draws only the glance.
+- **The header's button:** the session line is a row `Box` with a dim `Button` keyed
+  `collapse` at its end, `collapse`, or `expand` while collapsed (over the gallery). Its press,
+  and the collapsed view's own `expand`, write `prefs.collapsed` through `writeStore`, then
+  invalidate the drawing (`collapse` in `hooks/register.tsx`).
+- **The counts** (`countsOf`): the rows in Running's states (starting, working, quiet) and in
+  Needs you's, every row drawn or not. An agent that needs the person counts there alone, as
+  the headings count: the owner left the choice to the session.
+- **`desktopCollapsed`:** the Lead carrying `min(running, T-14)` joeys (`leadWith`, *Sprites and
+  sets*), alt "Lead, carrying 3 joeys", or the Lead's mark where the surface draws no `Svg`;
+  beside it the numeral in bold and `running` dim, `1 needs you` in `permission` while any
+  agent needs the person, and a dim `Button` keyed `expand`. The numeral is always drawn, so
+  the count is in words (I-06).
+- **`terminalCollapsed`:** one line: the Lead's `●` in `claude`, the numeral, `running`, then
+  `· 1 needs you` and `[ expand ]`.
+- **In the `widget` seat** neither draws `expand`: a click may not reach it there. The kit
+  mounts the seat on both surfaces, and both draw the glance.
+- **Its size** is the Lead's sprite and a few nodes; it draws no row's sprite.
 
 ## Attention
 
@@ -1262,7 +1345,8 @@ Not yet: Session 11 (Peek, the collapsed view, the
     where auto mode's classifier or a hook settles the ask with no prompt shown.
 - **Gone quiet:** a run with no event for T-05 (90 s) and no tool call in flight shows as quiet.
 - **Toasts,** only while the pane is closed: when a run needs the person, and when a run that
-  ran longer than T-10 (60 s) ends.
+  ran longer than T-10 (60 s) ends. The collapsed view counts as the list out of view, as the
+  gallery does (0.12.0, the plan's choice with the owner's approval).
 - **Auto-open** (`prefs.autoOpen`): `first` opens the pane when a session's first agent starts;
   `always` on every new agent; `never` leaves it to `/possums`. A pane the person closed stays
   closed for the rest of the session (`view`).
@@ -1309,7 +1393,10 @@ that decided one, its every fault caught inside:
 - it asks `$.ui.panes()`, and calls `$.ui.toast(text)` unless `possum-squad` is there and
   `isShown` with the list in it: a pane closed, behind another's tab or waiting undrawn is out
   of view (the owner's reading of "closed", Decision log), and so is the list while the gallery
-  takes its place (`view.isGalleryOpen`, a refused read counting as none);
+  takes its place (`view.isGalleryOpen`, a refused read counting as none) or the collapsed view
+  does (`prefs.collapsed`, read through `prefsOrDefaults`, a refused read counting as not
+  collapsed, 0.12.0). The `widget` seat is known only to a drawing, so a minimized pane toasts
+  as `isShown` says;
 - the texts are `hooks/view/toasts.ts`'s, each from `runs` before and after the record:
   `askedToast` when a request moved a run into needing the person, `<description> · needs
   you: waiting on a permission prompt`, or `An agent` for an entry no row has claimed;
@@ -1470,6 +1557,8 @@ unread.
   the engine caps a module's size is not in the declarations.
 - **The tongue's place is the classic base's:** the nose's row (21) and columns (15, 16) are
   constants in `recipes.ts`, so a base drawn anew must move them too.
+- **The joeys' spots are the 7-by-6 joey's:** `JOEY_SPOTS` in `recipes.ts`, so a joey or a Lead
+  drawn anew must move them too, in code.
 - **A pane's first draw writes its sprites:** about 32 ms for 20 new looks, against N-05's
   10 ms for the tree, which the cached builds meet at 0.21 ms. Each look is written once per
   session; a new row's costs about 1–3.5 ms.
@@ -1487,7 +1576,8 @@ unread.
   longer move.
 - **The desktop's bound is read from its code, not seen at its edge:** the gallery's parts and
   the fullest list stay under it by the kit's port of its count, a part at 71% of its
-  characters and the fullest list at 81% of its nodes and 83% of its characters, and a later
+  characters and the fullest list, with a Peek open, at 92% of its nodes and 86% of its
+  characters, and a later
   app may count otherwise. A tree past it would freeze the pane, as the 0.9.0 gallery did, with
   nothing for the mod to hear. The owner's look at 0.10.1 saw every part draw.
 - **A pane past the budget writes each moving row's still look** besides its own: about 1 to
@@ -1521,13 +1611,24 @@ unread.
   comes back one step late.
 - **The failed toast names no reason:** an error, a refusal and an empty answer all read
   `failed after 2:14`.
+- **A minimized pane toasts by `isShown` alone:** `$.ui.panes()` does not say a pane's seat, and
+  only a drawing sees `placement`, so whether a `widget` counts as shown is the app's.
+- **The collapsed view is redrawn by the clock's beat** while a run is live, though nothing in
+  it moves with time; it is a few nodes and its sprite string is cached.
+- **A path in Peek is cut at 80 characters from its start,** as the activity's target is, so a
+  path longer than that loses its file name: a subagent's paths are absolute, and Session 11's
+  hand check saw its reads end `…/claude-code-mods/package.jso`. The row's activity line cuts
+  the same way, and its own width cuts it again.
+- **Peek's records add to every write of `runs`:** a run keeps at most about 2.5k characters
+  more (a brief and an answer of 600, five actions and ten files of 80), and every step
+  rewrites the whole value.
 
-## Baseline (v0.11.0)
+## Baseline (v0.12.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 232 pass, in 20 files: attention 14, auto-open 11, clock 13, command 11, compose 8, gallery 11, header 8, model 39, pane-sprites 9, panel 10, pass-through 6, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 13; about 14 s |
+| `claude plugin test mods/possum-squad` | 259 pass, in 22 files: attention 15, auto-open 11, clock 13, collapsed 12, command 11, compose 8, gallery 11, header 8, model 44, pane-sprites 9, panel 10, pass-through 6, peek 8, picker 12, prefs 5, roles 9, row 8, runs 19, sets 6, settle 12, size 8, sprites 14; about 14 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |
@@ -1660,3 +1761,15 @@ one moves, that is the finding.
 - 2026-11-23, *The invariants* (I-04) and *Attention*: a toast names its run by its
   description, cut to 100 characters as on its row; I-04 allows agent text in the engine's
   plain toast line. The owner's choice at Session 10's plan.
+- 2026-11-25, *The panel*: Peek opens from a dim `peek` button at the end of a row's third
+  line, reading `hide` while open: a `Button` is the only element a press reaches and holds
+  only text, so the row itself cannot be pressed. The owner's choice at Session 11's plan, over
+  drawing the task's line as the app's button.
+- 2026-11-25, *The run model*: Peek's files are the files a run wrote or edited, the latest
+  ten; reads show among its last actions. The owner's choice at Session 11's plan.
+- 2026-11-25, *The panel*: the collapsed view's joeys and numeral count the Running section; an
+  agent that needs the person is said apart, as the headings count. Left to the session by the
+  owner at Session 11's plan.
+- 2026-11-25, *Sprites and sets*: the joey is redrawn, and kept after the owner's
+  look at the Lead carrying one to three in every set on both themes. The owner's choices at
+  Session 11's start.

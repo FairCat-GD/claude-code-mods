@@ -7,14 +7,16 @@ import { NO_TOKENS } from '../hooks/model/runs'
 import { sprite } from '../hooks/sprites/index'
 import { STRINGS } from '../hooks/strings'
 import { BAR_CELLS, bar, elapsed, fill, percent, tokens } from '../hooks/view/format'
-import { desktopRow, type RolePicker, type RowData, terminalRow } from '../hooks/view/row'
+import { desktopRow, type PeekToggle, type RolePicker, type RowData, terminalRow } from '../hooks/view/row'
 import { momentOf } from '../hooks/view/runs'
 import { spriteElement } from '../hooks/view/sprite'
 import { MOUNT, SURFACES } from './engine'
-import { LONG_ROW, MARKUP_ROW, ROWS } from './fixtures/rows'
+import { LONG_ROW, MARKUP_ROW, PEEKED_ROW, ROWS } from './fixtures/rows'
 
-const EVERY_ROW = [...ROWS, MARKUP_ROW, LONG_ROW]
+const EVERY_ROW = [...ROWS, MARKUP_ROW, LONG_ROW, PEEKED_ROW]
 const CLOSED: RolePicker = { isOpen: false, onToggle: () => {}, onPick: () => {}, onCancel: () => {} }
+const UNPEEKED: PeekToggle = { isOpen: false, onToggle: () => {} }
+const PEEKED: PeekToggle = { isOpen: true, onToggle: () => {} }
 
 // A row's sprite as the panel draws it.
 const spriteOf = (row: RowData) => sprite({ set: 'classic', role: row.roleId, pose: row.state, motion: 'auto' })
@@ -26,9 +28,9 @@ function drawRows(on: On) {
     const row = EVERY_ROW.find(one => one.id === e.requestId)
     if (row === undefined) throw new Error(`no fixture row ${e.requestId}`)
     const table = $.ui.resolve(e)
-    if (e.surface === 'terminal') return terminalRow(table, row, CLOSED)
+    if (e.surface === 'terminal') return terminalRow(table, row, CLOSED, row.peek === undefined ? UNPEEKED : PEEKED)
     const alt = STRINGS.sprite.alt(row.role ?? STRINGS.sprite.plain, STRINGS.states[row.state])
-    return desktopRow(table, row, CLOSED, 'Svg' in table ? spriteElement(table.Svg, spriteOf(row), alt) : undefined)
+    return desktopRow(table, row, CLOSED, row.peek === undefined ? UNPEEKED : PEEKED, 'Svg' in table ? spriteElement(table.Svg, spriteOf(row), alt) : undefined)
   })
 }
 
@@ -41,7 +43,9 @@ async function drawn($: Engine, surface: (typeof SURFACES)[number], row: RowData
 }
 
 // Agent text, as the row draws it.
-const agentText = (row: RowData) => [row.description, row.model, row.effort, row.activity].filter(text => text !== undefined)
+const peekText = (row: RowData) =>
+  row.peek === undefined ? [] : [row.peek.description, row.peek.brief, ...row.peek.actions, ...row.peek.files, row.peek.answer]
+const agentText = (row: RowData) => [row.description, row.model, row.effort, row.activity, ...peekText(row)].filter(text => text !== undefined)
 
 test("a row's agent text is drawn only as plain Text, never as markup, a link or another element's prop (I-04)", async ($, on) => {
   drawRows(on)
@@ -49,8 +53,9 @@ test("a row's agent text is drawn only as plain Text, never as markup, a link or
     for (const row of EVERY_ROW) {
       const { elements, texts } = await drawn($, surface, row)
       expect(texts).toContain(row.description)
+      for (const text of peekText(row)) expect(texts).toContain(text)
       // Each in a Text of its own, whole: not folded into a label or another line.
-      for (const whole of [row.description, row.activity]) {
+      for (const whole of [row.description, row.activity, ...peekText(row)]) {
         for (const text of texts.filter(one => whole !== undefined && one.includes(whole))) expect(text).toBe(whole)
       }
       expect(elements.filter(element => element.type === 'Markdown' || element.type === 'Link')).toEqual([])
@@ -115,7 +120,7 @@ test('the terminal draws the context bar in block characters, with no element it
   const working = ROWS.find(row => row.state === 'working') as RowData
   const { elements, texts } = await drawn($, 'terminal', working)
   expect(texts.some(text => text.startsWith(bar(working.contextPercent)))).toBe(true)
-  expect(elements.map(element => element.type).filter(type => type !== 'Box' && type !== 'Text')).toEqual(['Button'])
+  expect(elements.map(element => element.type).filter(type => type !== 'Box' && type !== 'Text')).toEqual(['Button', 'Button'])
 })
 
 test('token counts, times, percents and bars read as the row shows them', () => {

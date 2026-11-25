@@ -235,7 +235,7 @@ test("the gallery's close button draws the list again, on both surfaces", async 
     const pane = await $.ui.mount({ ...MOUNT, surface })
     const texts = async () => (await pane.findAll({ type: 'Text' })).map(text => text.text)
     expect(await texts()).toContain(STRINGS.gallery.heading('Classic'))
-    expect((await pane.find({ type: 'Button' }))?.props.label).toBe(STRINGS.gallery.close)
+    expect((await pane.find({ type: 'Button', key: 'gallery' }))?.props.label).toBe(STRINGS.gallery.close)
     await pane.press({ key: 'gallery' })
     await clock.advance(100)
     expect([surface, await texts()]).toEqual([surface, expect.arrayContaining([STRINGS.empty])])

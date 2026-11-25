@@ -1,13 +1,14 @@
 import type { ElementConstructor, RenderElement, SvgProps } from 'claude-code'
 
 import type { StateId } from '../../types/index'
-import { MOMENT_ROOM, ROWS_DRAWN, SPRITE_BUDGET } from '../config'
-import { type Gallery, type Sprite, sprite, squad } from '../sprites'
+import { JOEYS_DRAWN, MOMENT_ROOM, ROWS_DRAWN, SPRITE_BUDGET } from '../config'
+import { type Gallery, leadWith, type Sprite, sprite, squad } from '../sprites'
 import { STRINGS } from '../strings'
+import { type Counts, desktopCollapsed, terminalCollapsed } from './collapsed'
 import { emptyPanel } from './empty'
 import { desktopGallery, terminalGallery } from './gallery'
 import { desktopLead, type LeadData, type SessionData, sessionLine, terminalLead } from './lead'
-import { type DesktopTable, desktopRow, type RolePicker, type RowData, type RowTable, terminalRow } from './row'
+import { type DesktopTable, desktopRow, type PeekToggle, type RolePicker, type RowData, type RowTable, terminalRow } from './row'
 import { spriteElement } from './sprite'
 
 export type PanelTable = RowTable
@@ -25,6 +26,11 @@ export type PanelData = {
   galleryPart?: number
   // The run whose role picker is open, by its spawn order.
   pickerFor?: number
+  // The run whose Peek is open, by its spawn order.
+  peekFor?: number
+  // The person's collapsed view, and the desktop's minimized pane, which draws it whatever the person chose.
+  isCollapsed?: boolean
+  isWidget?: boolean
 }
 
 export type PanelActions = {
@@ -35,6 +41,10 @@ export type PanelActions = {
   onToggleRole: (order: number) => void
   onPickRole: (order: number, value: string) => void
   onCancelRole: () => void
+  // A row's Peek button, naming the run by its spawn order.
+  onTogglePeek: (order: number) => void
+  // The header's button, and the collapsed view's way back.
+  onCollapse: (isCollapsed: boolean) => void
 }
 
 export type SectionId = keyof typeof STRINGS.sections
@@ -45,6 +55,12 @@ export const SECTIONS: readonly { id: SectionId; states: readonly StateId[] }[] 
   { id: 'running', states: ['starting', 'working', 'quiet'] },
   { id: 'finished', states: ['finished', 'failed', 'stopped'] },
 ]
+
+// The agents in Running, and in Needs you, quiet ones running: every row, drawn or not.
+export function countsOf(rows: readonly RowData[]): Counts {
+  const [needsYou, running] = SECTIONS.slice(0, 2).map(section => rows.filter(one => section.states.includes(one.state)).length)
+  return { running: running ?? 0, needsYou: needsYou ?? 0 }
+}
 
 const sizeOf = (sprites: readonly (Sprite | undefined)[]) => sprites.reduce((sum, one) => sum + (one?.source.length ?? 0), 0)
 
@@ -94,13 +110,33 @@ export function withMoments(
   })
 }
 
+// The collapsed view: the Lead carrying a joey per running agent up to T-14, the count and the needs-you mark; with
+// the way back to the list except in the minimized pane, where a press may not reach.
+function collapsedPanel(table: PanelTable, asText: boolean, Svg: ElementConstructor<SvgProps> | undefined, data: PanelData, actions: PanelActions) {
+  const counts = countsOf(data.rows)
+  const onExpand = data.isWidget === true ? undefined : () => actions.onCollapse(false)
+  if (asText) return terminalCollapsed(table, counts, onExpand)
+  const joeys = Math.min(counts.running, JOEYS_DRAWN)
+  const lead = Svg && spriteElement(Svg, leadWith(data.look.set, joeys, data.look.motion), STRINGS.collapsed.alt(joeys))
+  return desktopCollapsed(table, counts, lead, onExpand)
+}
+
 // The header (the Lead and the session's totals), then the gallery, the sections, or the empty panel's line when no
-// agent has run. The terminal draws text rows and block bars; other surfaces the app's own bar.
+// agent has run; or the collapsed view in their place. The terminal draws text rows and block bars; other surfaces
+// the app's own bar.
 export function panel(table: PanelTable | (PanelTable & DesktopTable), isTerminal: boolean, data: PanelData, actions: PanelActions): RenderElement {
   const { Box, Text, Button } = table
   const asText = isTerminal || !('Progress' in table)
   // Sprites wherever the surface draws an Svg; the terminal's table answers one too, so it is never asked.
   const Svg = asText || !('Svg' in table) ? undefined : (table as { Svg: ElementConstructor<SvgProps> }).Svg
+  // The gallery the person asked for draws over their collapsed view; the minimized pane draws only the glance.
+  if (data.isWidget === true || (data.isCollapsed === true && data.gallery === undefined)) {
+    return (
+      <Box flexDirection="column" gap={1}>
+        {collapsedPanel(table, asText, Svg, data, actions)}
+      </Box>
+    )
+  }
   const { set, motion } = data.look
   const lead = Svg && sprite({ set, role: 'lead', pose: 'idle', motion })
   const pickerOf = (one: RowData): RolePicker => ({
@@ -109,6 +145,7 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
     onPick: value => actions.onPickRole(one.order, value),
     onCancel: actions.onCancelRole,
   })
+  const peekOf = (one: RowData): PeekToggle => ({ isOpen: data.peekFor === one.order, onToggle: () => actions.onTogglePeek(one.order) })
   // Rows past the cap are not drawn, in drawing order: Needs you, Running, then Finished while open.
   let drawable = ROWS_DRAWN
   const sections = SECTIONS.map(section => {
@@ -144,7 +181,8 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
     const state = one.moment === 'arrival' && drawn === playing[at] ? 'starting' : one.state
     return spriteElement(Svg, drawn, STRINGS.sprite.alt(one.role ?? STRINGS.sprite.plain, STRINGS.states[state]))
   }
-  const row = (one: RowData) => (asText ? terminalRow(table, one, pickerOf(one)) : desktopRow(table, one, pickerOf(one), rowSprite(one)))
+  const row = (one: RowData) =>
+    asText ? terminalRow(table, one, pickerOf(one), peekOf(one)) : desktopRow(table, one, pickerOf(one), peekOf(one), rowSprite(one))
   const drawSection = (section: (typeof sections)[number]) => {
     const isFinished = section.id === 'finished'
     const hidden = section.isOpen ? section.rows.length - section.shown.length : 0
@@ -176,7 +214,17 @@ export function panel(table: PanelTable | (PanelTable & DesktopTable), isTermina
     <Box flexDirection="column" gap={1}>
       <Box key="header" flexDirection="column">
         {asText ? terminalLead(table, data.lead) : desktopLead(table, data.lead, Svg && lead && spriteElement(Svg, lead, STRINGS.roles.lead))}
-        {sessionLine(table, data.session)}
+        <Box flexDirection="row" gap={1}>
+          <Box flexGrow={1} flexShrink={1}>
+            {sessionLine(table, data.session)}
+          </Box>
+          <Button
+            key="collapse"
+            label={data.isCollapsed === true ? STRINGS.expand : STRINGS.collapse}
+            dimColor
+            onPress={() => actions.onCollapse(data.isCollapsed !== true)}
+          />
+        </Box>
       </Box>
       {list()}
     </Box>

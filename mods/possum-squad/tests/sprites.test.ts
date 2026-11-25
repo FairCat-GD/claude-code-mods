@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { ANIMATION_STEP_MS } from '../hooks/config'
 import { blank, bobbed, frameGrid, type Grid, layerGrid, NONE, over } from '../hooks/sprites/compose'
 import { ART } from '../hooks/sprites/data'
-import { drawSprite, dressOf, type Look, type Moment, type Sprite, sprite, squad } from '../hooks/sprites/index'
+import { drawSprite, dressOf, type Look, leadWith, type Moment, type Sprite, sprite, squad } from '../hooks/sprites/index'
 import { BLINK_STEP, COLOURINGS, LOOP_STEPS, type Pose, resolved, STILL, stillFrame, WORDED_MARKS } from '../hooks/sprites/recipes'
 import { STRINGS } from '../hooks/strings'
 
@@ -419,4 +419,20 @@ test('planned is the idle frame greyed and faded inside its own group, its outli
   const look: Look = { set: 'classic', role: 'helper', pose: 'planned', motion: 'off' }
   const outlined = (one: Look) => show(parse(sprite(one).source), 0).outline.size
   expect(outlined(look)).toBeGreaterThan(outlined({ ...look, pose: 'idle' }))
+})
+
+test("the collapsed Lead carries up to three joeys in every set, still and under 16,000 characters; with none it is the header's Lead", () => {
+  for (const set of ['classic', 'steampunk', 'horror', 'prehistoric']) {
+    const header = sprite({ set, role: 'lead', pose: 'idle', motion: 'auto' })
+    expect(leadWith(set, 0, 'auto')).toBe(header)
+    const carried = [1, 2, 3].map(joeys => leadWith(set, joeys, 'auto'))
+    for (const one of carried) {
+      expect(one.isAnimated).toBe(false)
+      expect(one.source.length).toBeLessThan(16_000)
+      expect(one.source).not.toBe(header.source)
+    }
+    expect(new Set(carried.map(one => one.source)).size).toBe(3)
+    // Past three the numeral counts on; the Lead carries no more.
+    expect(leadWith(set, 7, 'auto')).toBe(carried[2])
+  }
 })

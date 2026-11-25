@@ -2,7 +2,7 @@ import type { ElementTable, On, RenderElement } from 'claude-code'
 import { type Engine, expect, mock, test } from 'claude-code/testing'
 
 import type { RoleId, StateId } from '../types/index'
-import { DESCRIPTION_CHARS, SPRITE_BUDGET } from '../hooks/config'
+import { DESCRIPTION_CHARS, FILES_KEPT, PEEK_CHARS, SPRITE_BUDGET } from '../hooks/config'
 import { TARGET_CHARS } from '../hooks/model/tools'
 import { PICKABLE } from '../hooks/roles/rules'
 import { sprite } from '../hooks/sprites/index'
@@ -21,6 +21,8 @@ const NO_ACTIONS = {
   onToggleRole: () => {},
   onPickRole: () => {},
   onCancelRole: () => {},
+  onTogglePeek: () => {},
+  onCollapse: () => {},
 }
 const SETS = ['classic', 'steampunk', 'horror', 'prehistoric'] as const
 const MOTIONS = ['auto', 'off'] as const
@@ -53,6 +55,15 @@ function rowsIn(states: readonly StateId[]): RowData[] {
       moment: state === 'finished' || state === 'stopped' ? 'ending' : state === 'failed' ? undefined : 'dressing',
     } satisfies RowData
   })
+}
+// Peek at its fullest: each text as long as the model keeps it, every call and file at its longest target.
+const LONGEST = (words: string) => `${words.repeat(Math.ceil(PEEK_CHARS / words.length)).slice(0, PEEK_CHARS)}${STRINGS.cut}`
+const FULLEST_PEEK = {
+  description: LONGEST('Sort the seed trays by colour, then label each for the spring beds. '),
+  brief: LONGEST('Walk every bed, list what needs water, and leave the gate shut behind you. '),
+  actions: Array.from({ length: 5 }, () => LONG_ACTIVITY),
+  files: Array.from({ length: FILES_KEPT }, (_, at) => `${'beds/north/rows/'.repeat(5)}${at}`.slice(-TARGET_CHARS)),
+  answer: LONGEST('The north bed is weeded and watered, and the labels are on every tray. '),
 }
 const times = (count: number, state: StateId): StateId[] => Array.from({ length: count }, () => state)
 const LIVE: readonly StateId[] = ['working', 'needs-you', 'quiet', 'starting']
@@ -148,18 +159,20 @@ test("every part of the gallery, in every set and either motion, is within the d
   }
 })
 
-test("the pane with the most rows it draws is within the desktop's bound: sixty of ninety, long texts, moments, Finished and a picker open", async ($, on) => {
+test("the pane with the most rows it draws is within the desktop's bound: sixty of ninety, long texts, moments, Finished, a picker and Peek open", async ($, on) => {
   const draw = drawing(on)
   const states = [
     ...Array.from({ length: 70 }, (_, at) => LIVE[at % LIVE.length] ?? 'working'),
     ...Array.from({ length: 20 }, (_, at) => ENDED[at % ENDED.length] ?? 'finished'),
   ]
+  const listed = rowsIn(states).map(row => (row.order === 3 ? { ...row, peek: FULLEST_PEEK } : row))
   for (const set of SETS) {
-    draw(listOf(rowsIn(states), { set, motion: 'auto' }, { pickerFor: 3 }))
+    draw(listOf(listed, { set, motion: 'auto' }, { pickerFor: 3, peekFor: 3 }))
     for (const surface of SURFACES) {
       const { size, elements } = await drawnOn($, surface, LIST)
       const rows = elements.filter(element => element.type === 'Button' && String((element.props as { key?: string }).key).startsWith('role-row-'))
-      expect([set, surface, rows.length, within(size)]).toEqual([set, surface, 60, [true, true, true]])
+      const peeks = elements.filter(element => element.type === 'Text' && element.text === STRINGS.peek.actions)
+      expect([set, surface, rows.length, peeks.length, within(size)]).toEqual([set, surface, 60, 1, [true, true, true]])
     }
   }
 })

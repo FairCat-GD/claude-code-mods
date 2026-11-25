@@ -42,7 +42,7 @@ From the top:
    and its own tokens. The context reads "–" until Claude's first reply in the session, and
    again after a `/clear`, until the next reply.
 2. **The session line:** tokens and time over the main session and every agent, such as
-   `254k tokens · 4:12`.
+   `254k tokens · 4:12`, then the `collapse` button (*The collapsed view*, below).
 3. **The sections,** each headed with its count, such as `Running · 2`:
    - **Needs you:** agents waiting on a permission prompt (*When an agent needs you*, below);
    - **Running:** agents starting, working or quiet. It is always there once an agent has
@@ -128,7 +128,8 @@ Each subagent Claude starts gets a row the moment it starts, in the order they s
    effort, once its first request names them;
 3. what it is doing: the last tool it asked for and what that names, such as "Reading
    notes.md", "Running npm test" or "Searching for TODO", cut to one line; "No tool calls yet"
-   before its first; while it is quiet, how long, such as "Quiet for 2 min";
+   before its first; while it is quiet, how long, such as "Quiet for 2 min"; then the `peek`
+   button (*Peek*, below);
 4. how full its context is, as a bar and a percent, then its tokens and its time.
 
 The tokens are what the agent read and wrote fresh; what it read back from the cache is left
@@ -140,6 +141,35 @@ working agents, the later rows' opossums stand still while the first ones keep m
 arriving or finishing never stops another, though its own slide or cheer may be skipped. With many more, the last rows show only
 their state's coloured mark. Past sixty rows, the rest are not drawn: their section ends with a
 line such as `and 12 more`, and its heading still counts every agent.
+
+**Peek.** The `peek` button at the end of a row's third line opens, under the row:
+- its task in full, wrapped over as many lines as it needs, up to 600 characters;
+- **Brief:** what Claude asked the agent to do, its first 600 characters;
+- **Last actions:** its last five tool calls, oldest first, read as the third line reads them;
+- **Files changed:** the files it wrote or edited, each once, the latest ten; files it only
+  read show among its last actions;
+- **Answer:** the start of its answer, 600 characters, once it has one. An agent that answers
+  more than once shows its latest answer with text.
+
+A part with nothing in it yet is left out. The button reads `hide` while Peek is open; press it
+to close Peek. Opening another row's Peek closes the first, and closing the pane closes it too.
+Everything in Peek is plain text: markdown, a link or a tag in what an agent wrote shows as
+written, never as formatting. Peek keeps nothing: what it shows lives with the session, and is
+gone after a `/clear`.
+
+## The collapsed view
+
+The `collapse` button at the end of the session line folds the pane down to a glance: the main
+session's opossum carrying a joey for each running agent, up to three, beside how many are
+running, such as `4 running`, and `1 needs you` in the permission colour while any agent waits
+on you. Running counts what the Running section holds (starting, working and quiet agents);
+one that needs you is counted there instead. In a terminal it is one line of text. `expand`
+brings the list back. Your choice is kept between sessions, and shared by every session you have
+open. `/possums roles` still shows the gallery over a collapsed pane, and the header's button
+then reads `expand`.
+
+**A minimized pane** in the desktop app always shows the collapsed view, whatever you chose,
+with no button, since a click may not reach it there; the app's own control brings it back.
 
 ## When an agent needs you
 
@@ -158,7 +188,7 @@ running, however long, never makes it quiet, nor does the reply that follows one
 the agent does brings it back to working.
 
 **Toasts.** While the list is out of sight (the pane closed, behind another pane's tab, waiting
-to be drawn, or showing the gallery), a small toast tells you instead:
+to be drawn, collapsed, or showing the gallery), a small toast tells you instead:
 - when an agent needs you: "Find where reports are built · needs you: waiting on a permission
   prompt";
 - when an agent ends a turn that took more than a minute: "… · finished after 2:14", "… ·

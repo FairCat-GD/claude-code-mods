@@ -1,64 +1,55 @@
-Read what Session 11's **Read** line in mods/possum-squad/docs/spec/SESSIONS.md names, the root
+Read what Session 12's **Read** line in mods/possum-squad/docs/spec/SESSIONS.md names, the root
 CLAUDE.md, then mods/possum-squad/CLAUDE.md, *The session cycle* in docs/DEVELOPMENT-WORKFLOW.md,
 mods/possum-squad/docs/ARCHITECTURE.md's overview, invariants and baseline, the header of
-mods/possum-squad/docs/spec/SESSIONS.md, Session 11's block and Session 10's done-note, then this
-file, and do Session 11: Peek and the collapsed view.
+mods/possum-squad/docs/spec/SESSIONS.md, Session 12's block and Session 11's done-note, then this
+file, and do Session 12: limits, the cost estimate and nested helpers.
 
-Session 11 covers:
-- Peek: a row press toggles it (`view`); the brief, the last actions, files touched, the
-  answer's start, all plain text;
-- the collapsed view: the header's button (`prefs.collapsed`), the Lead with joeys and a
-  numeral, the needs-you mark, drawn in the `widget` seat too.
+Session 12 covers:
+- the plan limits in the header, from `session.measure`;
+- the estimate: `hooks/data/`'s dated price table (T-12), "est." on rows and header with `cost`
+  at `estimate`, no currency sign with it `off`;
+- nested helpers: a spawn whose `parentAgentId` names a known run is drawn under it, its totals
+  rolled up.
 
-Release 0.12.0. Session 12 (plan limits, the cost estimate, nested helpers, 0.13.0) follows it.
-Ask at its start whether the owner has redrawn the joey (the block's *Ask at the start*).
+Release 0.13.0. Session 13 (the documentation pass and the close, 1.0.0) follows it.
 
 ## State you need that is not in the specs
 
-- **Round 1 is the agents panel:** Sessions 0–10, 7a and 9a are done; Sessions 11–13 remain.
-- **Push status:** pushed on 2026-11-23 with the user's approval: `origin/main` holds
-  everything through Session 10's review commit, 0.11.0 among it. Nothing waits locally but
-  what a later commit records. List `origin/main..HEAD` before any push, and name any commit
+- **Round 1 is the agents panel:** Sessions 0–11, 7a and 9a are done; Sessions 12 and 13
+  remain.
+- **Push status:** `origin/main` holds everything through Session 10's review commit. Waiting
+  locally: Session 10's docs commit (the desktop check), and Session 11's commits. Nothing is
+  pushed without the user's OK; list `origin/main..HEAD` before any push, and name any commit
   that is not the session's.
-- **0.11.0 is installed** (`claude plugin update possum-squad`, with the user's OK), and the
-  owner saw Needs you and its toast in the desktop app (Session 10's done-note). The desktop
-  runs the installed release only; each later update changes the owner's setup, so ask first.
-- **Session 10's last commit records that check,** a docs commit made after the push: it waits
-  locally until the next approved push.
-- **The desktop's bound** (*Context* in ARCHITECTURE, read from the app's own code, app
-  6.28899.6): a pane's answer draws only with fewer than 2,000 nodes, 32 levels and 262,144
-  characters by its count; past it the app drops the answer silently and keeps the last tree.
-  `tests/size.ts` ports the count. The fullest list is at 1,613 nodes and 218,861 characters;
-  Session 10 added nothing to a row. Peek adds lines under a row: hold the size test to the
-  fullest list with a Peek open.
-- **Testing the desktop:** a session cannot see it (computer use refuses Claude's own window).
-  The owner looks at a chat's pane while the session starts agents. The desktop runs the
-  installed release only, so every check there needs a push and an update, each with the
-  owner's OK.
-- **What Session 10 left for Session 11:**
-  - **Needs you is a stored state** (`needs-you`, with its `ask`), so the collapsed view's
-    mark reads it from `runs`. **Quiet is not stored:** `quietMs(run, now)` in
-    `hooks/model/runs.ts` works it out where a row is drawn.
-  - **`runs` is `runs-5`.** Peek's last actions, files and answer are new `Run` fields: the tag
-    moves again, and `view` gains Peek's run (`view-5`).
-  - **A step's record comes after the engine has checked its calls** (*Context*, Session 10):
-    don't read a step's end as "its calls have not started".
-  - **The toasts** are `toastUnseen` and `hooks/view/toasts.ts`; a toast names a run by its
-    cut description (I-04, widened at Session 10's plan).
-  - **The kit raises `classic.PermissionRequest`** from `$.tool.call({ …, agentId })` with a
-    `tool.check` stand-in answering `ask` (`tests/attention.test.ts`).
+- **0.11.0 is installed;** 0.12.0 is not. The desktop runs the installed release only, so
+  Peek, the collapsed view and the minimized pane are unseen there until a push and
+  `claude plugin update possum-squad`, each with the user's OK (`docs/BACKLOG.md`, *Not yet
+  checked by hand*). Session 11's *Confirms* (the `widget` seat draws the collapsed view) waits
+  for that look.
+- **The desktop's bound** (*Context* in ARCHITECTURE): fewer than 2,000 nodes, 32 levels and
+  262,144 characters. The fullest list, with a Peek open at its longest, is at 1,845 nodes and
+  225,783 characters (92% and 86%). A row is now 28 to 31 nodes. Nesting draws rows under rows
+  and the header gains the limits and the estimate: hold `tests/size.test.ts` to the fullest
+  list with nesting at its deepest, and stop and ask before cutting `ROWS_DRAWN` if it passes.
+- **What Session 11 left for Session 12:**
+  - **`runs` is `runs-6`, `view` is `view-5`.** A run's new fields move the `runs` tag again.
+    `Run.parentId` is already kept from the spawn's `parentAgentId`.
+  - **The header** is `lead.tsx`'s Lead row, then a row `Box`: `sessionLine` and the `collapse`
+    button. The limits and the estimate go into that line or beside it.
+  - **The collapsed view counts** the Running section (`countsOf` in `hooks/view/panel.tsx`);
+    a nested helper there counts as its own agent unless the session decides otherwise.
+  - **Peek's record** keeps a brief, five actions, ten files and an answer per run (*The run
+    model*, *Peek's record*); a roll-up of totals reads tokens and time, never these.
 - **The engines:** CLI 2.1.330, which laid every folder's declarations. The desktop app ran
   engine 2.1.330 on 2026-11-23.
 - **For the user to decide, when they choose:**
   - a subagent waiting on its own background shell reads "finished" (`docs/BACKLOG.md`,
     *Deferred*);
-  - forgetting a remembered role (`docs/BACKLOG.md`, *Deferred*).
-- **Baseline** (ARCHITECTURE's table, v0.11.0, CLI 2.1.330):
-  - 232 tests in 20 files, about 14 s, and 10 tool specs in 2 files;
-  - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys;
-  - calls: `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`,
-    `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`,
-    `$.ui.resolve`, `$.ui.toast`.
+  - forgetting a remembered role (`docs/BACKLOG.md`, *Deferred*);
+  - a long path cut from its start, losing its file name, on the activity line and in Peek
+    (`docs/BACKLOG.md`, *Deferred*), seen at Session 11's hand check.
+- **Baseline** (ARCHITECTURE's table, v0.12.0, CLI 2.1.330): see the table; `validate` is
+  unchanged at 11 hooks, 4 gating each with a `.catch`, 3 state keys, and the same calls line.
 
 ## Watch for
 
@@ -67,17 +58,13 @@ Ask at its start whether the owner has redrawn the joey (the block's *Ask at the
   (mods/possum-squad/CLAUDE.md, *Watch for*).
   - Type with `-X stuff $'…\r'`; a prompt needs a second `\r`, and `$'\025'` clears a
     suggested prompt first.
-  - Add `--permission-mode default` when the check needs a subagent's call to ask.
-  - A toast lasts 4 s: catch it with a background loop of `-X hardcopy` while the tab is
-    attached, grepping `-a -A3` for the `possum-squad` box (a toast wraps across lines).
-  - A pane's `Button` can be pressed: ctrl+x (`$'\030'`), then tab to it, then Enter.
-- **A scratch probe plugin** in the scratchpad, loaded with a second `--plugin-dir`, can toast
-  what events carry; `$.ui.toast`'s `timeoutMs` is at most 60,000, or the toast is dropped.
+  - A pane's `Button` can be pressed: ctrl+x (`$'\030'`), then tab to it, then Enter. Each
+    row now has two buttons (its role and `peek`), and the header one (`collapse`).
 - **The `@inline` copy keeps its own store,** and its `theme` is `horror`: a terminal check
-  reads that set, not `classic`. Put back anything a check changes.
+  reads that set, not `classic`. Put back anything a check changes, `collapsed` included.
 - **The sprite frame check is the slow test** (about 7 s, given `timeoutMs: 30_000`): a new
   look multiplies it; keep its reader's memos (`rectanglesOf`, `faintness`).
-- **A new row's sprite names `starting` in its alt during its arrival:** a test reading alts
-  moves the clock past it first (`ARRIVED` in `tests/attention.test.ts`).
 - **A check that builds its expectation from the module it checks cannot fail:** state each
   expectation in the test, and falsify each new check.
+- **A test that takes "the first Button" breaks when a button is added before it:** find a
+  button by its `key`.

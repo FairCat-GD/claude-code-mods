@@ -71,18 +71,23 @@ test('every store write holds only setting values and panel flags, never what an
   await $.classic.SessionStart({ source: 'clear' })
   await $.turn.complete(TURN_COMPLETE)
   await $.session.measure(MEASURE)
-  // A run that ends after the clear, so Finished's show button is drawn and pressed on each surface.
+  // A run that ends after the clear, so Finished's show button is drawn and pressed on each surface, then its Peek,
+  // which keeps its brief and answer in state alone, and the header's collapse and the way back.
   await $.agent.spawn(SPAWN)
   await $.turn.complete(TURN_COMPLETE)
   for (const surface of SURFACES) {
     const pane = await $.ui.mount({ ...MOUNT, surface })
-    await pane.press({ key: 'finished' })
+    // Finished opens on the first surface and closes on the second, so its row's Peek is pressed while it is open.
+    const presses = ['finished', `peek-${SPAWNED.agentId}`]
+    for (const key of surface === SURFACES[0] ? presses : presses.reverse()) await pane.press({ key })
+    await pane.press({ key: 'collapse' })
+    await pane.press({ key: 'expand' })
     await pane.unmount()
   }
   const sets = SETTING_NAMES.flatMap(name => SETTINGS[name].values.map(value => `set ${name} ${value}`))
   for (const args of ['open', 'settings', ...sets, '']) await $.command.run(possums(args))
 
-  expect(kept.writes).toHaveLength(SURFACES.length + sets.length)
+  expect(kept.writes).toHaveLength(SURFACES.length * 3 + sets.length)
   const agentText = [SPAWN.prompt, SPAWN.description, TURN_START.text, TURN_COMPLETE.answer, SESSION_START.cwd, PERMISSION.tool_input.command]
   for (const write of kept.writes) {
     expect(write.key).toBe('prefs')
