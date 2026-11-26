@@ -68,7 +68,8 @@ let endedTurnId: string | undefined
 // What the beat, the recording hooks and the list's read reach; a toast needs the panes and the store.
 type Watching = Pick<EngineInterface, 'agent' | 'clock' | 'state' | 'store' | 'ui'>
 
-// The needs-you count a retitle was last started for: unknown after a load or a fault, so the next write checks it.
+// The needs-you count a retitle was last started for: unknown after a load, a fault, or a stale title it could not mend,
+// so the next write checks it.
 let wanted: number | undefined
 // Closes the `ui.close` hook heard, at their start and their end, and opens the person or auto-open made, so a retitle
 // under way leaves no pane open that was closed meanwhile, as far as the mod can hear.
@@ -529,16 +530,24 @@ const titleOf = (held: Runs) => STRINGS.paneTitle(needingYou(held))
 
 // The pane's tab counts the agents that need the person. Only a placed pane is retitled: an open of a closed one opens
 // it, and of an undrawn one may place it. A close heard before the open skips it; one heard while the open was under
-// way closes the pane again, unless the person or auto-open opened it meanwhile. Every fault ends here.
+// way closes the pane again, unless the person or auto-open opened it meanwhile. A stale title left open is tried again
+// at the next write. Every fault ends here.
 async function retitle($: Pick<EngineInterface, 'ui' | 'state'>) {
   const closes = closesHeard
   const opens = opensMade
+  let sent: string | undefined
   try {
     for (let tries = 0; tries < RETITLES; tries++) {
       const pane = (await $.ui.panes()).find(one => one.id === PANE)
-      if (pane === undefined || !pane.isPlaced) return
+      if (pane === undefined) return
       const title = titleOf(await read($, runs))
-      if (pane.title === title || closesHeard !== closes) return
+      // Another plugin's `ui.open` hook may rewrite the title: an open that did not take is not sent again.
+      if (pane.title === title || title === sent) return
+      if (!pane.isPlaced || closesHeard !== closes) {
+        wanted = undefined
+        return
+      }
+      sent = title
       await $.ui.open({ id: PANE, title, columns: PANE_COLUMNS })
       if (closesHeard !== closes) {
         if (opensMade === opens) await $.ui.close({ id: PANE })

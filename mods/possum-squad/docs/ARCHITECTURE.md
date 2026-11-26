@@ -1318,8 +1318,9 @@ owner's choice at Session 12a's plan, since it would repeat quiet's cell for eve
 - **Words** are plain and short, with no exclamation marks and no jokes in error text.
 
 **Built** (0.1.0; the row 0.3.0): the pane, the toggle and the empty panel.
-- `/possums` opens `possum-squad` with `{ id, title: 'Possum Squad', columns: PANE_COLUMNS }`
-  (T-13, 46, in `hooks/config.ts`). It sets no `placement`, so the surface seats it: docked in
+- `/possums` opens `possum-squad` with `{ id, title, columns: PANE_COLUMNS }` (T-13, 46, in
+  `hooks/config.ts`), the title "Possum Squad" while no run needs the person, counted otherwise
+  (`STRINGS.paneTitle`, 0.17.0, *Attention*). It sets no `placement`, so the surface seats it: docked in
   a fullscreen terminal from 110 columns, inline above the prompt otherwise.
 - With no run, the pane draws the header, then `emptyPanel` from `hooks/view/empty.tsx`: a
   column `Box` holding one dim `Text` with the empty panel's line from `hooks/strings.ts`. Off
@@ -1703,14 +1704,16 @@ started unawaited (N-07) by the hook that decided one, its every fault caught in
 The tab title (0.17.0), `retitle` in `hooks/register.tsx`:
 - **When:** after every write of `runs` (`record` and `recordAt` through `listAfter`, the beat's
   `settleHeld`, the list's `readList`), `titleAfter` compares `needingYou` with the count a
-  retitle was last started for (`wanted`, module memory, unknown after a load or a fault), and
-  starts `void retitle` on a change. `listed` and `heldOut` can end a row asked while its end
+  retitle was last started for (`wanted`, module memory, unknown after a load, a fault, or a
+  stale title the retitle could not mend), and starts `void retitle` on a change. `listed` and `heldOut` can end a row asked while its end
   was held, so their writes count too.
-- **What:** it reads `$.ui.panes()`; a pane that is not listed, or not placed (an open of a
-  closed pane opens it, and of an undrawn one may place it), is left alone. It reads `runs`, and
-  opens `{ id, title, columns }` with no `focus` only when the pane's title differs from
-  `STRINGS.paneTitle`'s (`Possum Squad`, or `Possum Squad · 2 needs you`), up to three times
-  while the count moves during its own open.
+- **What:** it reads `$.ui.panes()` and leaves alone a pane that is not listed. It reads `runs`
+  and stops when the pane's title is `STRINGS.paneTitle`'s (`Possum Squad`, or `Possum Squad · 2
+  needs you`). A pane not placed (an open of an undrawn one may place it), or one a close was
+  heard for, it leaves stale with `wanted` unknown, so the next write of `runs` tries again;
+  once the engine places it, or the refused close passes, that write mends it. Otherwise it
+  opens `{ id, title, columns }` with no `focus`, up to three times while the count moves during
+  its own open, and never sends one title twice: another plugin's `ui.open` hook may rewrite it.
 - **The race with a close:** the `ui.close` hook counts each close at its start and, unless
   refused, after its `next` (`closesHeard`); `showPane` and `autoOpen` count their opens
   (`opensMade`). A retitle that hears a close before its open does not open; one that hears a
@@ -1958,8 +1961,11 @@ unread.
   itself; another plugin that refuses closes would refuse that one too.
 - **The tab title is unseen in the desktop app;** the terminal showed it (`docs/BACKLOG.md`).
   A docked terminal tab cuts it ("Possum Squad · 1 needs yo…" beside one other tab).
-- **A pane waiting undrawn is not retitled:** once placed, it shows the title of its last open
-  until the count next changes or the person opens it.
+- **A stale title in a pane waiting undrawn is tried at every write of `runs`:** one panes read
+  and one state read each, unawaited, until the pane is placed or the count comes back to its
+  title; only on a terminal narrower than an unasked pane needs.
+- **A title another plugin's `ui.open` hook rewrites stays rewritten:** the mod sends its title
+  once per change of the count, and leaves the result to that hook.
 - **A minimized pane toasts by `isShown` alone:** `$.ui.panes()` does not say a pane's seat, and
   only a drawing sees `placement`, so whether a `widget` counts as shown is the app's.
 - **The collapsed view is redrawn by the clock's beat** while a run is live or a main turn runs,
@@ -2005,7 +2011,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 355 pass, in 27 files: activity 8, attention 20, auto-open 11, clock 23, collapsed 14, command 12, compose 8, estimate 6, gallery 11, header 10, model 65, nesting 6, pane-sprites 9, panel 10, pass-through 10, peek 12, picker 18, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, title 8, waiting 11; about 19 s |
+| `claude plugin test mods/possum-squad` | 361 pass, in 27 files: activity 8, attention 20, auto-open 11, clock 23, collapsed 14, command 12, compose 8, estimate 6, gallery 11, header 10, model 65, nesting 6, pane-sprites 9, panel 10, pass-through 10, peek 12, picker 18, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, title 14, waiting 11; about 19 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.agent.list`, `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.delete`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |

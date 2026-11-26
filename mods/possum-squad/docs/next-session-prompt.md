@@ -14,10 +14,10 @@ Release 1.0.0, tagged `possum-squad-v1.0.0` only on the owner's yes.
 
 - **Round 1 is the agents panel:** Sessions 0–12, 7a, 9a and 12a–12d are done; 13 remains, then
   1.0.0 (the header of `SESSIONS.md`, and `SPEC.md` decision 1's amendment).
-- **Push status:** `origin/main` holds everything through Session 12c's review, pushed on
-  2026-11-26 with the owner's approval. Session 12d's commits wait locally until the owner
-  approves a push. List `origin/main..HEAD` before any push, and name any commit that is not the
-  session's.
+- **Push status:** pushed on 2026-11-26 with the owner's approval: `origin/main` holds
+  everything through `review(possum-squad): a stale tab title never mended, and 6 smaller`,
+  Session 12d's review, with 0.17.0 before it. Nothing waits locally. List `origin/main..HEAD`
+  before any push, and name any commit that is not the session's.
 - **What 12d left for the cold read:**
   - `runs` is `runs-10` (`Run.failure`); `lead` is `lead-2`; `view` is `view-5`. The mod's
     `CLAUDE.md` names each tag.
@@ -35,7 +35,7 @@ Release 1.0.0, tagged `possum-squad-v1.0.0` only on the owner's yes.
   the sprites unseen in the desktop app.
 - **The engines:** CLI 2.1.330; the desktop app ran engine 2.1.330 on 2026-11-23, the last
   reading.
-- **Baseline** (ARCHITECTURE's table, v0.17.0, CLI 2.1.330): 355 tests in 27 files, about 19 s;
+- **Baseline** (ARCHITECTURE's table, v0.17.0, CLI 2.1.330): 361 tests in 27 files, about 19 s;
   the tools' specs 10 in 2; `validate` 11 hooks, 4 gating each with a `.catch`, 3 state keys,
   the calls line with `$.store.delete`.
 

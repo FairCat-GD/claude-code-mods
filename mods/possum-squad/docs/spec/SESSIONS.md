@@ -2915,6 +2915,28 @@ owner chose `detect` in the role picker over a command for forgetting a remember
   - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys; the calls line adds
     `$.store.delete` (via `writeStore`);
   - the gate green on CLI 2.1.330.
+- **Review (`/code-review high`), 7 findings: all fixed, the user's choice.**
+  - **A stale title could stay stale:** a retitle that heard a close another hook refused, or
+    found the pane waiting undrawn, returned with `wanted` set, so nothing tried again until the
+    count changed. Those returns now leave `wanted` unknown, so the next write of `runs` mends
+    the title once the close has passed or the engine has placed the pane. A closed pane still
+    stops it with `wanted` kept, since an open counts the title itself.
+  - **A title another plugin's `ui.open` hook rewrote made each retitle open three times:** a
+    retitle now never sends the same title twice.
+  - **Two paths had no test:** the beat's `settleHeld` ending a held turn that had asked, and
+    auto-open opening with the count, its open counted against a retitle's close.
+  - **Two docs overstated:** *The panel*'s Built line still named a fixed "Possum Squad" title,
+    and the user guide said a closed pane is always left closed, which the known-debt race
+    does not keep; both corrected.
+  - **Known debt** gains a stale title tried at every write while the pane waits undrawn, and a
+    rewritten title left to the hook that rewrote it; the undrawn line it replaces is out.
+  - **Falsified,** each failing at its own test (6): a refused close not tried again; an undrawn
+    pane not tried again; a rewritten title sent again; `settleHeld` not retitling; auto-open
+    opening with the plain title; auto-open's open not counted. The last first passed: the test
+    read its result before the retitle ended, since the spawn inside the open settles its own
+    work first; the test now waits for it.
+  - **Numbers after the review:** 361 tests (+6) in 27 files: title 14 (+6), the rest unchanged;
+    about 19 s. `validate` unchanged.
 
 ---
 

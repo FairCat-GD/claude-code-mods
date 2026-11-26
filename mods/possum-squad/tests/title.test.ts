@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { type Engine, expect, mock, test } from 'claude-code/testing'
 
-import { PANE_COLUMNS } from '../hooks/config'
+import { LIST_ANSWER_MS, PANE_COLUMNS } from '../hooks/config'
 import { PANE } from '../hooks/register'
 import { engine, hooksOf, POSSUMS, settled, store, turnEnds } from './engine'
 import { PERMISSION_FROM_AGENT, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START, WAITING } from './fixtures/events'
@@ -9,11 +9,11 @@ import { PERMISSION_FROM_AGENT, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE
 // Another plugin's pane, shown in front of the mod's: the tabs draw their titles only while more than one is open.
 const OTHER = { id: 'shed-board', isShown: true, isPlaced: true }
 
-// The engine beneath the mod: its panes, a store that opens no pane by itself, a pinned clock, agent ids from their
+// The engine beneath the mod: its panes, a store that opens no pane by itself unless told, a pinned clock, agent ids from their
 // tool calls, the toasts shown, and the agent list the test gives.
-function world(on: On) {
+function world(on: On, autoOpen = 'never') {
   const seen = engine(on)
-  store(on, { prefs: { autoOpen: 'never' } })
+  store(on, { prefs: { autoOpen } })
   const clock = mock.clock(on, { now: 1_000 })
   const given = { listed: {} as Record<string, string> }
   on('agent.spawn', (_, e) => ({ model: 'claude-haiku-5-5', agentId: e.tool_use_id.replace('toolu_', 'agent-') }))
@@ -107,13 +107,52 @@ test('/possums while an agent needs the person opens the pane with the count', a
   expect(seen.opens.map(open => open.title)).toEqual(['Possum Squad · 1 needs you'])
 })
 
+test('a pane that waited undrawn gets the count at the next write once it is placed (F-12)', async ($, on) => {
+  const { seen } = world(on)
+  seen.panes = [{ id: PANE, isShown: false, isPlaced: false }, OTHER]
+  await working($, 1)
+  await working($, 2)
+  await asks($, 1)
+  expect(seen.opens).toEqual([])
+  // The terminal widens and the engine places the pane; another agent's step is the next write.
+  seen.panes = [{ id: PANE, isShown: false, isPlaced: true }, OTHER]
+  await steps($, 2)
+  expect(seen.opens.map(open => open.title)).toEqual(['Possum Squad · 1 needs you'])
+})
+
+test("a run asked while its turn's end is held, then ended by the beat past the list's bound, retitles the pane (F-12)", async ($, on) => {
+  const { seen, clock, given } = world(on)
+  await behindOther($, seen)
+  await working($, 1)
+  given.listed = { 'agent-1': 'running' }
+  await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-1' } as never)
+  await asks($, 1)
+  expect(seen.titles.get(PANE)).toBe('Possum Squad · 1 needs you')
+  // The list keeps saying running, so only the beat's bound ends the held turn.
+  await clock.advance(LIST_ANSWER_MS + 1_000)
+  await settled()
+  expect(seen.titles.get(PANE)).toBe('Possum Squad')
+})
+
+test('an agent opening the pane by itself while another needs the person opens it with the count (F-10, F-12)', async ($, on) => {
+  const { seen } = world(on, 'always')
+  await working($, 1)
+  await settled()
+  // Hidden with /possums, so the next agent opens it again.
+  await $.command.run(POSSUMS)
+  await asks($, 1)
+  await working($, 2)
+  await settled()
+  expect(seen.opens.map(open => open.title)).toEqual(['Possum Squad', 'Possum Squad · 1 needs you'])
+})
+
 // The kit's `$` cannot close a pane as the person, so the races run the mod's own hooks over a stand-in engine: its
-// state, a store that refuses reads (so every default holds), a pinned clock, and panes whose open and close the test
-// steers.
+// state, a store that refuses reads (so every default holds) or holds `autoOpen`, a pinned clock, and panes whose open
+// and close the test steers; an open may land with a title another plugin's hook rewrote (`rewrite`).
 type Hook = (...args: unknown[]) => Promise<unknown>
 type Pane = { id: string; title: string; isShown: boolean; isFocused: boolean; isPlaced: boolean }
 
-function standIn() {
+function standIn(given: { autoOpen?: string; rewrite?: (title: string) => string } = {}) {
   const values = new Map<string, { value: unknown; version: number }>()
   const keyOf = (ref: object) => JSON.stringify(ref)
   const { hooks } = hooksOf()
@@ -132,7 +171,15 @@ function standIn() {
         return { isSet: true, version: held + 1 }
       },
     },
-    store: { get: async () => Promise.reject(new Error('the fixture store refuses reads')), set: async () => {} },
+    store: {
+      get: async (key: string) =>
+        given.autoOpen === undefined
+          ? Promise.reject(new Error('the fixture store refuses reads'))
+          : key === 'prefs'
+            ? { autoOpen: given.autoOpen }
+            : undefined,
+      set: async () => {},
+    },
     clock: { now: async () => 1_000, every: () => ({ cancel: () => {} }) },
     ui: {
       panes: async () => {
@@ -149,7 +196,8 @@ function standIn() {
         await act?.()
         // The open lands: it opens a closed pane, or retitles an open one.
         const held = panes.find(one => one.id === pane.id)
-        panes = [{ id: pane.id, title: pane.title, isShown: held?.isShown ?? true, isFocused: false, isPlaced: true }]
+        const title = given.rewrite?.(pane.title) ?? pane.title
+        panes = [{ id: pane.id, title, isShown: held?.isShown ?? true, isFocused: false, isPlaced: true }]
         return { isPlaced: true }
       },
       close: async () => {
@@ -168,13 +216,25 @@ function standIn() {
       await settles
       return { value: undefined }
     })
+  // A close of the given kind that another plugin's hook refuses: the pane stays.
+  const closesRefused = (kind: 'person' | 'plugin') =>
+    hook('ui.close')($, { id: PANE, origin: { kind } }, async () => ({ deny: 'a fixture hook keeps the pane' }))
+  // The mod's own `/possums` hiding the pane: the hook hears a close of the plugin's.
+  const pluginCloses = () =>
+    hook('ui.close')($, { id: PANE, origin: { kind: 'plugin' } }, async () => {
+      panes = []
+      return { value: undefined }
+    })
   return {
     log,
     during,
     panes: () => panes,
     personCloses,
-    spawn: async () => {
-      await hook('agent.spawn')($, { ...SPAWN, tool_use_id: 'toolu_race' }, async () => ({ model: 'claude-haiku-5-5', agentId: 'agent-race' }))
+    closesRefused,
+    pluginCloses,
+    spawn: async (n = 1) => {
+      const e = { ...SPAWN, tool_use_id: n === 1 ? 'toolu_race' : `toolu_race_${n}`, description: `Mend gate ${n}` }
+      await hook('agent.spawn')($, e, async () => ({ model: 'claude-haiku-5-5', agentId: n === 1 ? 'agent-race' : `agent-race-${n}` }))
       await settled()
     },
     asks: async () => {
@@ -224,6 +284,40 @@ test('a pane the person closes and opens again while the retitle opens stays ope
     await engine.possums()
   }
   await engine.asks()
+  expect(engine.log.closes).toBe(0)
+  expect(engine.panes().map(pane => [pane.id, pane.title])).toEqual([[PANE, 'Possum Squad · 1 needs you']])
+})
+
+test('a close another hook refuses, heard as the retitle reads, leaves the title to the next write, which mends it (F-12)', async () => {
+  const engine = standIn()
+  await engine.spawn()
+  engine.during.read = () => void engine.closesRefused('person')
+  await engine.asks()
+  expect([engine.log.opens, engine.panes().map(pane => pane.title)]).toEqual([[], ['Possum Squad']])
+  // The agent asks again: the count is the same, and the write tries the title once more.
+  await engine.asks()
+  expect(engine.log.opens).toEqual([{ title: 'Possum Squad · 1 needs you' }])
+})
+
+test("an open whose title another plugin's hook rewrites is sent once, not again for the same count (F-12)", async () => {
+  const engine = standIn({ rewrite: title => `Shed · ${title}` })
+  await engine.spawn()
+  await engine.asks()
+  expect(engine.log.opens).toEqual([{ title: 'Possum Squad · 1 needs you' }])
+})
+
+test('a pane the plugin hides and auto-open opens again while the retitle opens stays open (F-10, F-12)', async () => {
+  const engine = standIn({ autoOpen: 'always' })
+  await engine.spawn()
+  engine.during.open = async () => {
+    await engine.pluginCloses()
+    await engine.spawn(2)
+  }
+  await engine.asks()
+  // The spawn inside the open settles its own work first, so the retitle ends a while later.
+  await settled()
+  await settled()
+  expect(engine.log.opens).toHaveLength(2)
   expect(engine.log.closes).toBe(0)
   expect(engine.panes().map(pane => [pane.id, pane.title])).toEqual([[PANE, 'Possum Squad · 1 needs you']])
 })

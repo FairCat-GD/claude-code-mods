@@ -233,8 +233,7 @@ hook answers for you, since nobody asks you.
 **The pane's tab** counts the agents under Needs you: "Possum Squad · 1 needs you", then "Possum
 Squad" again once none is. Claude Code draws a pane's tab title only while another pane is open
 beside it, so this is for a pane sitting behind another's tab: the count shows there without
-bringing it forward. The title changes only while the pane is open; a pane you closed is left
-closed. In a terminal narrower than an unasked pane needs, where the pane waits to be drawn, the
+bringing it forward. The title is not changed while the pane is closed. In a terminal narrower than an unasked pane needs, where the pane waits to be drawn, the
 title waits too.
 
 **Quiet.** An agent that is starting or working, with no call running and nothing heard from it
