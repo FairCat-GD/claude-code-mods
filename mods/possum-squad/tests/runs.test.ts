@@ -5,7 +5,7 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 import { runs } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
 import { hooksOf, MOUNT, SURFACES, store, turnEnds } from './engine'
-import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
+import { MAIN_COMPLETE, MAIN_START, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 
 type Surface = (typeof SURFACES)[number]
 const AGENT = 'agent-fixture-1'
@@ -277,13 +277,11 @@ test("the main session's turn start and steps write nothing; its end writes the 
     String((await $.command.run({ command: 'read-versions', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 120 } })).text)
       .split(' ')
       .map(Number)
-  const { agentId: _, ...main } = TURN_START
-  await $.turn.start(main)
+  await $.turn.start(MAIN_START)
   const { agentId: __, ...mainStep } = STEP
   await drain($.turn.step(mainStep))
   expect(await versions()).toEqual([0, 0])
-  const { agentId: ___, ...mainEnd } = TURN_COMPLETE
-  await turnEnds($, mainEnd)
+  await turnEnds($, MAIN_COMPLETE)
   const [runsVersion, leadVersion] = await versions()
   expect(runsVersion).toBe(0)
   expect(leadVersion).toBeGreaterThan(0)

@@ -5,7 +5,7 @@ import { costOf, PRICES } from '../hooks/data/prices'
 import { STRINGS } from '../hooks/strings'
 import { dollars } from '../hooks/view/format'
 import { engine, MOUNT, possums, SURFACES, store, turnEnds } from './engine'
-import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
+import { MAIN_COMPLETE, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_START } from './fixtures/events'
 
 // Dollars as millionths, to the hundredth: a token count times its price per million, stated by hand.
 const micro = (usd: number) => Math.round(usd * 100_000_000) / 100
@@ -84,8 +84,7 @@ async function session($: Engine) {
   await $.turn.start({ ...TURN_START, agentId: 'agent-a' })
   await drain($.turn.step({ ...STEP, agentId: 'agent-a', index: 0 }))
   await drain($.turn.step({ ...STEP, agentId: 'agent-a', index: 1 }))
-  const { agentId: _, ...main } = TURN_COMPLETE
-  await turnEnds($, { ...main, usage: MAIN_USAGE })
+  await turnEnds($, { ...MAIN_COMPLETE, usage: MAIN_USAGE })
 }
 
 // Every string a surface's tree holds, each element's text and each of its props' string values; and the texts alone,

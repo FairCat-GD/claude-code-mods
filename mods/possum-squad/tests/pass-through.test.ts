@@ -3,6 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { hooksOf, settled } from './engine'
 import {
   CLEARED,
+  MAIN_COMPLETE,
   MAIN_START,
   MEASURE,
   MEASURED,
@@ -158,7 +159,6 @@ test('a fault in reading or recording an event never changes what the engine gav
   }
   type Plain = ($: unknown, e: unknown, next: (e: unknown) => Promise<unknown>) => Promise<unknown>
   const plain = (event: string) => hooks.get(event) as unknown as Plain
-  const { agentId: _, ...mainEnd } = TURN_COMPLETE
   const cases: [string, unknown, unknown][] = [
     ['session.start', SESSION_START, STARTED],
     ['agent.spawn', SPAWN, SPAWNED],
@@ -167,7 +167,7 @@ test('a fault in reading or recording an event never changes what the engine gav
     ['turn.start', TURN_START, TURN_STARTED],
     ['turn.start', MAIN_START, TURN_STARTED],
     ['turn.complete', TURN_COMPLETE, TURN_COMPLETED],
-    ['turn.complete', mainEnd, TURN_COMPLETED],
+    ['turn.complete', MAIN_COMPLETE, TURN_COMPLETED],
     ['session.measure', MEASURE, MEASURED],
     ['classic.SessionStart', { source: 'clear' }, CLEARED],
     ['classic.PermissionRequest', PERMISSION_FROM_AGENT, WAITING],

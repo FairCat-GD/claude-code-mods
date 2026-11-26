@@ -60,7 +60,7 @@ From the top:
 **The time is work time:** the main session's turns added up, plus each agent's time, so with
 several agents at once it runs faster than the clock on the wall. The main session's part grows
 while Claude works on a turn; when the turn ends, the time Claude Code counted for it takes the
-running time's place, and the line never steps back. An agent that answers more than once (a
+running time's place, and the line does not step back when it does. An agent that answers more than once (a
 teammate, or one Claude resumes) counts from its first start, its rests included. Agents that
 dropped out of the list (it keeps the latest 30 ended runs) still count.
 

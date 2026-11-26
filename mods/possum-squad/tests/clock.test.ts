@@ -4,8 +4,20 @@ import { type Engine, expect, mock, test } from 'claude-code/testing'
 import { PANE } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
 import { elapsed, tokens } from '../hooks/view/format'
-import { engine, MOUNT, POSSUMS, possums, SURFACES, turnEnds } from './engine'
-import { MAIN_COMPLETE, MAIN_START, SESSION_START, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
+import { engine, hooksOf, MOUNT, POSSUMS, possums, SURFACES, settled, turnEnds } from './engine'
+import {
+  MAIN_COMPLETE,
+  MAIN_START,
+  SESSION_START,
+  SPAWN,
+  STEP,
+  STEP_CHUNKS,
+  STEPPED,
+  TURN_COMPLETE,
+  TURN_COMPLETED,
+  TURN_START,
+  TURN_STARTED,
+} from './fixtures/events'
 
 // Another plugin, beside the mod, counting the periods the mod's timers ask for (one ahead of the beats run, while
 // armed) and its looks at the panes, which each beat makes before anything else.
@@ -354,4 +366,122 @@ test('a clear during a main turn starts the time over: it reads 0:00 and stands 
     expect(await textsOf(pane)).toContain(STRINGS.session(tokens(0), elapsed(2_000)))
     await pane.unmount()
   }
+})
+
+// Another plugin that refuses, while `/refuse <what>` has it on, the clock's time or the reads of `runs`.
+const REFUSER = {
+  name: 'refuser',
+  register: (on: On) => {
+    let refusing = ''
+    on('command.run', { command: 'refuse' }, async (_, e) => {
+      refusing = e.args
+      return { text: refusing }
+    })
+    on('clock.now', (_, e, next) => (refusing === 'clock' ? { deny: 'the fixture refuses the time' } : next(e)))
+    on('state.get', (_, e, next) => (refusing === 'runs' && e.key === 'runs' ? { deny: 'the fixture refuses runs' } : next(e)))
+  },
+}
+const refuse = ($: Engine, what: string) => $.command.run({ ...POSSUMS, command: 'refuse', args: what })
+
+test('a main turn whose start time cannot be read is not timed: nothing ticks until its end counts it', { plugins: [PERIODS, REFUSER] }, async ($, on) => {
+  const { clock } = world(on)
+  await $.command.run(POSSUMS)
+  await refuse($, 'clock')
+  await $.turn.start(MAIN_START)
+  await refuse($, '')
+  const pane = await $.ui.mount({ ...MOUNT, surface: 'terminal' })
+  await clock.advance(3_000)
+  expect(await textsOf(pane)).toContain(STRINGS.session(tokens(0), elapsed(0)))
+  expect(await periods($)).toBe(0)
+  await turnEnds($, { ...MAIN_COMPLETE, durationMs: 4_200 })
+  await clock.advance(100)
+  expect(await textsOf(pane)).toContain(STRINGS.session(tokens(150), elapsed(4_200)))
+  await pane.unmount()
+})
+
+test("a main turn's time keeps moving while the reads of runs are refused", { plugins: [REFUSER] }, async ($, on) => {
+  const { clock } = world(on)
+  await $.command.run(POSSUMS)
+  const panes = await Promise.all(SURFACES.map(surface => $.ui.mount({ ...MOUNT, surface })))
+  await $.turn.start(MAIN_START)
+  await refuse($, 'runs')
+  await clock.advance(3_000)
+  for (const pane of panes) {
+    expect(await textsOf(pane)).toContain(STRINGS.session(tokens(0), elapsed(3_000)))
+    await pane.unmount()
+  }
+})
+
+test('a main turn start heard after its own end keeps no time', { plugins: [PERIODS] }, async ($, on) => {
+  const { clock } = world(on)
+  await $.command.run(POSSUMS)
+  const pane = await $.ui.mount({ ...MOUNT, surface: 'desktop' })
+  await turnEnds($, { ...MAIN_COMPLETE, durationMs: 4_200 })
+  await $.turn.start(MAIN_START)
+  await clock.advance(3_000)
+  expect(await textsOf(pane)).toContain(STRINGS.session(tokens(150), elapsed(4_200)))
+  expect(await periods($)).toBe(0)
+  await pane.unmount()
+})
+
+test('a main turn end whose engine call fails still drops its start: the time stands and the clock stops', { plugins: [PERIODS] }, async ($, on) => {
+  engine(on)
+  const clock = mock.clock(on, { now: 1_000 })
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  on('turn.complete', () => {
+    throw new Error('the fixture engine fails the turn end')
+  })
+  await $.command.run(POSSUMS)
+  const pane = await $.ui.mount({ ...MOUNT, surface: 'terminal' })
+  await $.turn.start(MAIN_START)
+  await clock.advance(2_000)
+  await $.turn.complete(MAIN_COMPLETE).catch(() => undefined)
+  await clock.advance(1_000)
+  const asked = await periods($)
+  await clock.advance(3_000)
+  expect(await textsOf(pane)).toContain(STRINGS.session(tokens(0), elapsed(2_000)))
+  expect(await periods($)).toBe(asked)
+  await pane.unmount()
+})
+
+// The hooks run here on their own, with a `$` whose state can hold a write back, as a slow engine would.
+test("a main turn's end drops only its own start: a turn begun while that end's write waited keeps its time", async () => {
+  const { hooks } = hooksOf()
+  const values = new Map<string, { value: unknown; version: number }>()
+  let now = 1_000
+  let held: Promise<void> | undefined
+  let release = () => {}
+  const $ = {
+    clock: { now: async () => now },
+    state: {
+      get: async (ref: object) => values.get(JSON.stringify(ref)) ?? { value: undefined, version: 0 },
+      set: async (ref: object, value: unknown, options?: { ifVersion?: number }) => {
+        if (held !== undefined) await held
+        const version = values.get(JSON.stringify(ref))?.version ?? 0
+        if (options?.ifVersion !== undefined && options.ifVersion !== version) return { isSet: false, version }
+        values.set(JSON.stringify(ref), { value, version: version + 1 })
+        return { isSet: true, version: version + 1 }
+      },
+    },
+    ui: { panes: async () => [] },
+  }
+  type Plain = ($: unknown, e: unknown, next: (e: unknown) => Promise<unknown>) => Promise<unknown>
+  const plain = (event: string) => hooks.get(event) as unknown as Plain
+  await plain('turn.start')($, { ...MAIN_START, turnId: 'turn-a' }, async () => TURN_STARTED)
+  now = 3_000
+  held = new Promise(resolve => {
+    release = resolve
+  })
+  const endA = plain('turn.complete')($, { ...MAIN_COMPLETE, turnId: 'turn-a', durationMs: 2_000 }, async () => TURN_COMPLETED)
+  await settled()
+  now = 4_000
+  await plain('turn.start')($, { ...MAIN_START, turnId: 'turn-b' }, async () => TURN_STARTED)
+  held = undefined
+  release()
+  await endA
+  // Turn b's end, at 9,000: its 5 s span outlasts the 100 ms the engine gives it.
+  now = 9_000
+  await plain('turn.complete')($, { ...MAIN_COMPLETE, turnId: 'turn-b', durationMs: 100 }, async () => TURN_COMPLETED)
+  const lead = [...values.entries()].find(([ref]) => ref.includes('"lead"'))?.[1].value
+  expect(JSON.stringify(lead)).toContain('"workedMs":7000')
 })

@@ -577,10 +577,11 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     try the engine keeps decides it, and agents spawned together open the pane once.
   - `turn.start` and `turn.step` record only an event that carries `agentId`. Each reads the
     time apart (`timeOrNone`), so a clock that cannot be read loses only when the run was last
-    heard. The main loop's `turn.step` makes no `$` call. Its `turn.start` keeps the clock's time
-    in module memory (`mainTurnAt`, 0.16.0), not in `lead`, so a turn costs no write, and, when
-    the time was read, arms the clock where the pane is open (`keepTime`); a clock that cannot
-    be read leaves the turn untimed, counted at its end as before.
+    heard. The main loop's `turn.step` makes no `$` call. Its `turn.start` keeps the turn's id
+    and the clock's time in module memory (`mainTurn`, 0.16.0), not in `lead`, so a turn costs
+    no write, and arms the clock where the pane is open (`keepTime`). A clock that cannot be
+    read leaves the turn untimed, counted at its end as before, and a start whose turn's end was
+    already heard (`endedTurnId`: a start held past its bound) is not kept.
   - `turn.step`, for a subagent, first reads the time (`began`, guarded), then delegates every
     chunk (`const result = yield* next(e)`), then records the
     step's model (the usage's, else the input's), its effort, its usage with the part of its
@@ -597,9 +598,11 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     `answer` when it has text, and settles Helper only on runs past T-04 (`fellBack`): Helper at
     the end, and the toast of a run whose turn ran past T-10 (*Attention*), come with the end the
     engine's list gives. Without `agentId`, it is the main session's, and
-    `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`), or, when a start
-    is kept and the clock's span since it is longer, that span (0.16.0), then drops the start if
-    no later turn replaced it. A malformed one never gets that far: the engine refuses its
+    `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`), or, when that
+    turn's start is kept and the clock's span since it is longer, that span (0.16.0). It notes
+    the turn's id as ended before `next`, and drops the start it found, whatever `next` does,
+    unless a later turn's start has replaced it; a start from a turn whose end went unheard is
+    dropped and times nothing. A malformed one never gets that far: the engine refuses its
     `next(e)` first (*Context*).
   - `session.measure` awaits `next(e)`, then records the Lead's context and the plan's limits
     (`rateLimits`) through `recordLead` (`measured`).
@@ -726,7 +729,7 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
   forgets them only until the pane draws.
 
   The running main turn's start is not in `lead` (0.16.0): `hooks/register.tsx` keeps it in
-  module memory (`mainTurnAt`), set by the main loop's `turn.start` and dropped at its
+  module memory (`mainTurn`, with the turn's id), set by the main loop's `turn.start` and dropped at its
   `turn.complete` and at a clear-type `classic.SessionStart`, so a turn costs no write and `lead`
   keeps `lead-2`; a reload mid-turn loses only that turn's running time (Decision log,
   2026-11-26).
@@ -933,8 +936,8 @@ each returning the same object when the record changes nothing.
   until it ends.
 - **The Lead** (`hooks/model/lead.ts`): `measured` takes a measure's context, and `turnCounted`
   adds a main turn's tokens and duration: the engine's `durationMs`, or the clock's span since
-  the turn's kept start when that is longer (0.16.0), so the session line never steps back from
-  the running time it showed. A count, window, duration or span that is not a finite
+  the turn's kept start when that is longer (0.16.0), so the counted time never falls short of
+  the running time the line showed. A count, window, duration or span that is not a finite
   number of 0 or more is not counted, so a malformed or interrupted turn, whose `usage` is
   absent, never makes a figure NaN. Its context percent is the engine's `percent`, else its
   tokens over its window. Each returns the same object when nothing changes.
@@ -1352,7 +1355,8 @@ cancels its timer.
   - `session.start`, when a run is live. The pane is not known there, so the first beat looks:
     after a reload with the pane closed, one beat runs.
 - **The beat** asks `$.ui.panes()`, and marks the pane open or closed by what it finds. With no
-  pane it stops. With no main turn and no live run in `runs` it stops. While a run has no role, it reads the
+  pane it stops. With no main turn and no live run in `runs` it stops; a refused read of `runs`
+  stops it too, but not while a main turn runs, which a drawing likewise reads as no runs. While a run has no role, it reads the
   clock and settles Helper on any run past T-04 (`settleHelpers`), writing `runs` through
   `update` only when one is due; that write redraws the pane, so it skips its own
   invalidation, and a fault there leaves the clock running. While `view.isGalleryOpen` is
@@ -1925,7 +1929,7 @@ unread.
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 323 pass, in 26 files: activity 8, attention 15, auto-open 11, clock 18, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 60, nesting 6, pane-sprites 9, panel 10, pass-through 8, peek 12, picker 12, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, waiting 11; about 18 s |
+| `claude plugin test mods/possum-squad` | 328 pass, in 26 files: activity 8, attention 15, auto-open 11, clock 23, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 60, nesting 6, pane-sprites 9, panel 10, pass-through 8, peek 12, picker 12, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, waiting 11; about 18 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.agent.list`, `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |

@@ -57,9 +57,11 @@ const STARTS_OVER = new Set(['clear', 'resume', 'fork'])
 // account's, so the Lead starts over with them. A reload drops them until a measure or a drawing brings them back.
 let knownLimits: Limit[] | undefined
 
-// The running main turn's start, by the clock, in module memory: no state write per turn. A reload or a clear drops it;
-// the turn's end counts the turn all the same.
-let mainTurnAt: number | undefined
+// The running main turn and its start by the clock, in module memory: no state write per turn. A reload or a clear
+// drops it; the turn's end counts the turn all the same.
+let mainTurn: { turnId: string; at: number } | undefined
+// The main turn whose end was heard last, so a start that lands after its own end is not kept.
+let endedTurnId: string | undefined
 
 // What the beat, the recording hooks and the list's read reach; a toast needs the panes and the store.
 type Watching = Pick<EngineInterface, 'agent' | 'clock' | 'state' | 'store' | 'ui'>
@@ -114,7 +116,7 @@ function stopClock(own = generation) {
 }
 
 // The clock runs while a main turn runs, or a run is live or may still fall back to Helper.
-const keepsTime = (held: Runs) => mainTurnAt !== undefined || shownRuns(held).some(keepsClock)
+const keepsTime = (held: Runs) => mainTurn !== undefined || shownRuns(held).some(keepsClock)
 
 // A closed pane, or nothing that keeps time, stops the clock. A pane open behind another keeps it, undrawn, so its times are right
 // the moment it shows. A role settled here redraws the pane by its write. The gallery's sprites move inside themselves,
@@ -126,7 +128,11 @@ async function tick($: Watching, own: number) {
     const pane = (await $.ui.panes()).find(one => one.id === PANE)
     isPaneOpen = pane !== undefined
     if (pane === undefined) return stopClock(own)
-    const held = await read($, runs)
+    // A refused read says nothing of the runs: a main turn still keeps time, as a drawing does.
+    const held = await read($, runs).catch(error => {
+      if (mainTurn === undefined) throw error
+      return NO_RUNS
+    })
     if (!keepsTime(held)) return stopClock(own)
     const flags = await read($, view).catch(() => NO_FLAGS)
     const hasSettled = await settleHelpers($, held)
@@ -239,7 +245,7 @@ function keepTime($: Watching) {
 }
 
 async function armIfLive($: Watching, isFresh = false) {
-  if (mainTurnAt === undefined && !keepsTime(await read($, runs))) return
+  if (mainTurn === undefined && !keepsTime(await read($, runs))) return
   // The person asking for the pane starts a fresh timer, in case the engine ended the last one.
   if (isFresh) stopClock()
   armClock($)
@@ -557,7 +563,7 @@ async function drawPane(
   const keyOf = (run: (typeof shown)[number]) => run.agentId ?? `spawn-${run.order}`
   // The estimate is drawn only when asked for, so with `cost` off no dollar figure is in the tree at all.
   const isEstimate = prefs.cost === 'estimate'
-  const sum = totals(main, held, now, mainTurnAt)
+  const sum = totals(main, held, now, mainTurn?.at)
   const parents = parentsOf(held.rows)
   const family = rolledUp(held)
   const rowOf = (run: (typeof shown)[number]) => {
@@ -702,8 +708,11 @@ export const register: Register = on => {
       await record($, held => turnStarted(held, agentId, at))
       keepTime($)
     } else {
-      mainTurnAt = await timeOrNone($)
-      if (mainTurnAt !== undefined) keepTime($)
+      const at = await timeOrNone($)
+      if (at !== undefined && e.turnId !== endedTurnId) {
+        mainTurn = { turnId: e.turnId, at }
+        keepTime($)
+      }
     }
     return started
   }).catch((_$, e, next) => next(e))
@@ -711,25 +720,32 @@ export const register: Register = on => {
   // The main session's turn counts once, at its end: its tokens and time are the Lead's, its running time dropped. A
   // subagent's end, its Helper and its toast wait for the engine's list.
   on('turn.complete', async ($, e, next) => {
-    const completed = await next(e)
     const { agentId } = e
     if (agentId !== undefined) {
+      const completed = await next(e)
       await recordAt($, (held, at) =>
         fellBack(turnEnded(held, agentId, { reason: e.reason, hasText: e.answer.trim() !== '', answer: e.answer }, at), at, HELPER),
       )
-    } else {
-      const startedAt = mainTurnAt
+      return completed
+    }
+    // The start kept is dropped whatever `next` does; one from a turn whose end went unheard times nothing.
+    endedTurnId = e.turnId
+    const kept = mainTurn
+    try {
+      const completed = await next(e)
+      const startedAt = kept?.turnId === e.turnId ? kept.at : undefined
       const now = startedAt === undefined ? undefined : await timeOrNone($)
       await recordLead($, held => turnCounted(held, e.usage, e.durationMs, now === undefined || startedAt === undefined ? undefined : now - startedAt))
-      if (mainTurnAt === startedAt) mainTurnAt = undefined
+      return completed
+    } finally {
+      if (mainTurn === kept) mainTurn = undefined
     }
-    return completed
   }).catch((_$, e, next) => next(e))
 
   on('classic.SessionStart', async ($, e, next) => {
     const started = await next(e)
     if (STARTS_OVER.has(e.source)) {
-      mainTurnAt = undefined
+      mainTurn = undefined
       stopClock()
       await record($, held => cleared(held))
       await recordLead($, () => startedOver(knownLimits))

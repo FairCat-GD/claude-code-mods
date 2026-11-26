@@ -2739,6 +2739,29 @@ debt*.
   - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys, the calls line
     unchanged;
   - the gate green on CLI 2.1.330.
+- **Review (`/code-review high`), 5 findings: all fixed, the user's choice.**
+  - **A main turn's start could outlive its end:** it was dropped only after `next(e)` in the
+    main `turn.complete`, so a rejecting `next` left it, and a `turn.start` body finishing after
+    its own turn's end (a start held past its bound) set one no end would drop. The line would
+    tick between turns, then fall back at the next turn. The start is now `mainTurn`, its turn's
+    id beside its time; the end notes its id as ended (`endedTurnId`) before `next`, and drops
+    the start it found in a `finally`, unless a later turn's start replaced it. A start whose
+    turn already ended is not kept, and a start from a turn whose end went unheard times
+    nothing.
+  - **A refused read of `runs` stopped the beat during a main turn:** `tick` now reads it as no
+    runs while a main turn runs, as a drawing does.
+  - **"Never steps back" overstated it,** given the one-frame race in *Known debt*: the
+    changelog and the guide now say the line does not step back when the counted time takes the
+    running time's place.
+  - **No test covered the end's same-turn guard, or a start whose time could not be read:** both
+    now do, beside a start heard after its end, a failing engine end and the refused reads.
+  - **The older tests rebuilt the main turn's events** that `MAIN_START` and `MAIN_COMPLETE` now
+    give: header, estimate, runs and pass-through use them.
+  - **Falsified,** each failing at its own test (5): every end dropping the start; a start heard
+    after its end kept; the start dropped only after a good end; a refused `runs` read stopping
+    the beat; a start whose time could not be read kept.
+  - **Numbers after the review:** 328 tests (+5) in 26 files: clock 23 (+5), the rest unchanged;
+    about 18 s. `validate` unchanged.
 
 ---
 

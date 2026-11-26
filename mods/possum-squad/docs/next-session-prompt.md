@@ -18,15 +18,15 @@ Release 0.17.0.
 - **Round 1 is the agents panel:** Sessions 0–12, 7a, 9a and 12a–12c are done; 12d and 13
   remain, then 1.0.0 (the header of `SESSIONS.md`, and `SPEC.md` decision 1's amendment).
   Session 13's block carries amendments from the review of its plan for when it runs.
-- **Push status:** `origin/main` holds everything through `review(possum-squad): the engine's
-  description shown as a summary, and 5 smaller`, Session 12b's review, pushed on 2026-11-25.
-  Session 12c's commit, `feat(possum-squad): the Lead's time during a main turn (0.16.0)`, is
-  local, and so is its review's commit, if the review changed anything. List `origin/main..HEAD` before any push, and name
-  any commit that is not the session's.
+- **Push status:** pushed on 2026-11-26 with the owner's approval: `origin/main` holds
+  everything through `review(possum-squad): a main turn's start outliving its end, and 4
+  smaller`, Session 12c's review, with 0.16.0 before it. Nothing waits locally. List `origin/main..HEAD` before any push, and name any commit that is not the
+  session's.
 - **What 12d builds on, from 12c:**
-  - The running main turn's start is `mainTurnAt`, module memory in `hooks/register.tsx`;
-    `keepsTime(held)` (a main turn, or a shown run that `keepsClock`) is the clock's one
-    condition, in `tick`, `armIfLive` and `drawPane`.
+  - The running main turn is `mainTurn` (its id and start), module memory in
+    `hooks/register.tsx`, with `endedTurnId` beside it; `keepsTime(held)` (a main turn, or a
+    shown run that `keepsClock`) is the clock's one condition, in `tick`, `armIfLive` and
+    `drawPane`.
   - The main loop's `turn.start` reads the clock and arms it while the pane is open; its
     `turn.complete` reads the clock when a start is kept. Its `turn.step` makes no `$` call, and
     a test checks that.
@@ -42,7 +42,7 @@ Release 0.17.0.
   still calls the sprites unseen in the desktop app.
 - **The engines:** CLI 2.1.330; the desktop app ran engine 2.1.330 on 2026-11-23, the last
   reading.
-- **Baseline** (ARCHITECTURE's table, v0.16.0, CLI 2.1.330): 323 tests in 26 files, about 18 s;
+- **Baseline** (ARCHITECTURE's table, v0.16.0, CLI 2.1.330): 328 tests in 26 files, about 18 s;
   the tools' specs 10 in 2; `validate` 11 hooks, 4 gating each with a `.catch`, 3 state keys,
   the calls line unchanged. 12d's `$.store.delete` will add to the calls line: record it.
 

@@ -5,7 +5,7 @@ import { STRINGS } from '../hooks/strings'
 import { elapsed, tokens } from '../hooks/view/format'
 import { type PanelData, panel, type SectionId } from '../hooks/view/panel'
 import { engine, MOUNT, possums, SURFACES, store, turnEnds } from './engine'
-import { SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
+import { MAIN_COMPLETE, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 import { ROWS } from './fixtures/rows'
 
 type Surface = (typeof SURFACES)[number]
@@ -186,9 +186,8 @@ test('the header totals the Lead and every run, in tokens and in time (F-03)', a
   await clock.set(3_000)
   await turnEnds($, { ...TURN_COMPLETE, agentId: 'agent-b' })
   // A main turn of 4.2 s: 1,000 in, 300 written to the cache, 200 out; its cache reads are not fresh.
-  const { agentId: _, ...main } = TURN_COMPLETE
   await turnEnds($, {
-    ...main,
+    ...MAIN_COMPLETE,
     durationMs: 4_200,
     usage: { ...TURN_COMPLETE.usage, input_tokens: 1_000, cache_creation_input_tokens: 300, output_tokens: 200 },
   })
@@ -278,12 +277,11 @@ test("a clear starts the main session's numbers over but keeps the plan's limits
   const clock = world(on)
   on('classic.SessionStart', () => ({}))
   const measure = (rateLimits: unknown) => $.session.measure({ context: { window: 1_000_000 }, rateLimits, changed: ['rateLimits'] } as never)
-  const { agentId: _, ...main } = TURN_COMPLETE
   await measure([
     { kind: 'five_hour', percentUsed: 40 },
     { kind: 'constructor', percentUsed: 3 },
   ])
-  await turnEnds($, { ...main, durationMs: 4_200 })
+  await turnEnds($, { ...MAIN_COMPLETE, durationMs: 4_200 })
   await clock.set(10_000)
   const sessionOf = async (surface: Surface) => (await drawn($, surface)).texts.find(text => text.includes(' tokens · ')) ?? ''
   for (const surface of SURFACES) expect([surface, await sessionOf(surface)]).toEqual([surface, `5h 40% · constructor 3% · ${tokens(150)} tokens · 0:04`])
