@@ -1,12 +1,17 @@
-import type { RoleId, StateId } from '../types/index'
+import type { Failure, RoleId, StateId } from '../types/index'
 
 // "a, b and c", or "a, b or c".
 const list = (items: readonly string[], joiner: 'and' | 'or') =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} ${joiner} ${items[items.length - 1]}`
 
+const TITLE = 'Possum Squad'
+const needsYou = (count: number) => `${count} needs you`
+
 // Every string the mod shows, in one English table.
 export const STRINGS = {
-  title: 'Possum Squad',
+  title: TITLE,
+  // The pane's tab, counting the agents that need the person.
+  paneTitle: (count: number) => (count === 0 ? TITLE : `${TITLE} · ${needsYou(count)}`),
   commandDescription: 'Show or hide the Possum Squad pane',
   commandHint: '[open | roles | settings | set <name> <value>]',
   empty: 'No agents yet. They show up here when Claude starts one.',
@@ -147,13 +152,15 @@ export const STRINGS = {
   collapsed: {
     running: 'running',
     between: '·',
-    needsYou: (count: number) => `${count} needs you`,
+    needsYou,
     // The Lead's sprite, carrying a joey per running agent.
     alt: (joeys: number) => (joeys === 0 ? 'Lead' : `Lead, carrying ${joeys} ${joeys === 1 ? 'joey' : 'joeys'}`),
   },
   // A row's role picker: its button while the row is plain, the picker's label, and its way out.
   picker: {
     pick: 'Pick a role',
+    // The first entry: the role worked out again, and a remembered pick forgotten.
+    detect: 'Detect',
     label: 'Role',
     cancel: 'cancel',
   },
@@ -163,7 +170,9 @@ export const STRINGS = {
     someone: 'An agent',
     needsYou: (who: string) => `${who} · needs you: waiting on a permission prompt`,
     finished: (who: string, time: string) => `${who} · finished after ${time}`,
-    failed: (who: string, time: string) => `${who} · failed after ${time}`,
+    // A failed run's toast says why, where its turn did.
+    failed: (who: string, time: string, why?: string) => `${who} · failed after ${time}${why === undefined ? '' : `: ${why}`}`,
+    failures: { error: 'an error', refusal: 'a refusal', empty: 'an empty answer' } satisfies Record<Failure, string>,
     stopped: (who: string, time: string) => `${who} · stopped after ${time}`,
   },
   // What a sprite shows, for a reader that cannot see it.

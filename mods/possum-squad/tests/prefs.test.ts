@@ -17,7 +17,7 @@ import {
   TURN_STARTED,
 } from './fixtures/events'
 
-const DEFAULTS = { autoOpen: 'first', cost: 'off', motion: 'auto', theme: 'classic', collapsed: false, finishedOpen: false }
+const DEFAULTS = { autoOpen: 'first', cost: 'off', motion: 'auto', theme: 'classic', toasts: 'all', collapsed: false, finishedOpen: false }
 const FLAGS = ['collapsed', 'finishedOpen']
 const SUMMARY = 'Weighing the north bed'
 

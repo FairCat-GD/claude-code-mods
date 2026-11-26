@@ -6,6 +6,8 @@ export const SETTINGS = {
   cost: { values: ['off', 'estimate'], initial: 'off' },
   motion: { values: ['auto', 'off'], initial: 'auto' },
   theme: { values: ['classic', 'steampunk', 'horror', 'prehistoric'], initial: 'classic' },
+  // Which toasts show: every one, Needs you only, or none.
+  toasts: { values: ['all', 'needs', 'off'], initial: 'all' },
 } as const
 
 export type SettingName = keyof typeof SETTINGS
@@ -28,6 +30,7 @@ export function readPrefs(stored: unknown): Prefs {
     cost: pick('cost', fields.cost),
     motion: pick('motion', fields.motion),
     theme: pick('theme', fields.theme),
+    toasts: pick('toasts', fields.toasts),
     collapsed: fields.collapsed === true,
     finishedOpen: fields.finishedOpen === true,
   }

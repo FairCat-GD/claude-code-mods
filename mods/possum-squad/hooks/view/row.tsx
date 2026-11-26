@@ -1,7 +1,7 @@
 import type { ButtonProps, Color, ElementConstructor, ProgressProps, RenderElement, SelectProps } from 'claude-code'
 
 import type { RoleId, StateId } from '../../types/index'
-import { isPickable, PICKABLE } from '../roles/rules'
+import { DETECT, isPickable, PICKABLE } from '../roles/rules'
 import type { Moment } from '../sprites'
 import { STRINGS } from '../strings'
 import type { Shared } from './empty'
@@ -58,7 +58,8 @@ export type RolePicker = { isOpen: boolean; onToggle: () => void; onPick: (value
 // The row's Peek button, beside its activity.
 export type PeekToggle = { isOpen: boolean; onToggle: () => void }
 
-const ROLE_OPTIONS = PICKABLE.map(id => ({ value: id, label: STRINGS.roles[id] }))
+// `detect` first, then the roles.
+const ROLE_OPTIONS = [{ value: DETECT, label: STRINGS.picker.detect }, ...PICKABLE.map(id => ({ value: id, label: STRINGS.roles[id] }))]
 
 // Each state's colour, from the app's theme; the word beside it says the same (I-06).
 export const COLOURS: Record<StateId | 'planned', Color> = {

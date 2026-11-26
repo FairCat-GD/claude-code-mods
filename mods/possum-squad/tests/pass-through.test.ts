@@ -187,13 +187,13 @@ test('a fault in reading or recording an event never changes what the engine gav
 
 // The same, with a `$` whose state and clock serve, so a toast is due, but whose panes and toast refuse: the toast is not
 // awaited, so its fault must end inside it.
-test('a toast that cannot be shown never changes what the engine gave (I-05)', async () => {
-  const { hooks } = hooksOf()
+// A `$` holding state, a clock and a store that refuses reads, with the panes, the open and the toast a test gives:
+// enough for the recording hooks, their toasts and their retitles.
+function standIn(ui: Record<string, unknown>) {
   const values = new Map<string, { value: unknown; version: number }>()
-  let now = 1_000
-  const tries = { panes: 0, toasts: 0 }
+  const clock = { now: 1_000 }
   const $ = {
-    clock: { now: async () => now },
+    clock: { now: async () => clock.now },
     state: {
       get: async (ref: object) => values.get(JSON.stringify(ref)) ?? { value: undefined, version: 0 },
       set: async (ref: object, value: unknown, options?: { ifVersion?: number }) => {
@@ -204,23 +204,65 @@ test('a toast that cannot be shown never changes what the engine gave (I-05)', a
       },
     },
     store: { get: async () => Promise.reject(new Error('the fixture store refuses reads')) },
-    ui: {
-      // The first look is refused; the second finds no pane, and the toast then throws.
-      panes: async () => (++tries.panes === 1 ? Promise.reject(new Error('the fixture refuses the panes')) : []),
-      toast: () => {
-        tries.toasts++
-        throw new Error('the fixture refuses the toast')
-      },
-    },
+    ui,
   }
-  type Plain = ($: unknown, e: unknown, next: (e: unknown) => Promise<unknown>) => Promise<unknown>
+  return { $, clock }
+}
+
+type Plain = ($: unknown, e: unknown, next: (e: unknown) => Promise<unknown>) => Promise<unknown>
+
+// An agent that asks the person, then ends a turn longer than T-10: a toast for each, and a retitle at each.
+async function askThenEnd($: unknown, clock: { now: number }) {
+  const { hooks } = hooksOf()
   const plain = (event: string) => hooks.get(event) as unknown as Plain
   expect(await plain('agent.spawn')($, SPAWN, async () => SPAWNED)).toEqual(SPAWNED)
   expect(await plain('classic.PermissionRequest')($, PERMISSION_FROM_AGENT, async () => WAITING)).toEqual(WAITING)
-  now += 61_000
+  clock.now += 61_000
   expect(await plain('turn.complete')($, TURN_COMPLETE, async () => TURN_COMPLETED)).toEqual(TURN_COMPLETED)
   await settled()
-  expect(tries).toEqual({ panes: 2, toasts: 1 })
+}
+
+test('a toast whose panes cannot be read never changes what the engine gave (I-05)', async () => {
+  const tries = { panes: 0, toasts: 0 }
+  const { $, clock } = standIn({
+    panes: async () => {
+      tries.panes++
+      return Promise.reject(new Error('the fixture refuses the panes'))
+    },
+    toast: () => {
+      tries.toasts++
+    },
+  })
+  await askThenEnd($, clock)
+  expect([tries.panes > 0, tries.toasts]).toEqual([true, 0])
+})
+
+test('a toast that throws never changes what the engine gave (I-05)', async () => {
+  const tries = { toasts: 0 }
+  const { $, clock } = standIn({
+    panes: async () => [],
+    toast: () => {
+      tries.toasts++
+      throw new Error('the fixture refuses the toast')
+    },
+  })
+  await askThenEnd($, clock)
+  // The pane is closed: the request's toast and the long end's are both tried, and both throw.
+  expect(tries.toasts).toEqual(2)
+})
+
+test('a retitle the engine refuses never changes what the engine gave (I-05)', async () => {
+  const tries = { opens: 0 }
+  const { $, clock } = standIn({
+    panes: async () => [{ id: 'possum-squad', title: 'Possum Squad', isShown: false, isFocused: false, isPlaced: true }],
+    open: async () => {
+      tries.opens++
+      return Promise.reject(new Error('the fixture refuses the open'))
+    },
+    toast: () => undefined,
+  })
+  await askThenEnd($, clock)
+  expect(tries.opens).toBeGreaterThan(0)
 })
 
 // A subagent's turn end reads the engine's list without waiting on it: with a list that never answers, or one that

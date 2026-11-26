@@ -12,7 +12,7 @@ const SHOWN = [{ id: PANE, isShown: true, isPlaced: true }]
 // What `/possums settings` should answer for these values.
 const listing = (values: Record<SettingName, string>) =>
   [STRINGS.settingsHeading, ...SETTING_NAMES.map(name => STRINGS.setting(name, values[name], SETTINGS[name].values)), STRINGS.howToChange].join('\n')
-const DEFAULTS = { autoOpen: 'first', cost: 'off', motion: 'auto', theme: 'classic' }
+const DEFAULTS = { autoOpen: 'first', cost: 'off', motion: 'auto', theme: 'classic', toasts: 'all' }
 
 test('/possums open opens the pane, raises a hidden one, and never closes it', async ($, on) => {
   const seen = engine(on)
@@ -126,4 +126,13 @@ test('a store that cannot be read answers in one line, for a change and for the 
   expect((await $.command.run(possums('settings'))).text).toBe(STRINGS.cannotStore)
   expect((await $.command.run(possums('set theme horror'))).text).toBe(STRINGS.cannotStore)
   expect(kept.writes).toEqual([])
+})
+
+test('/possums settings lists toasts and the values it takes, and /possums set toasts changes it', async ($, on) => {
+  engine(on)
+  const kept = store(on)
+  expect((await $.command.run(possums('settings'))).text?.split('\n')).toContain('toasts: all (all, needs, off)')
+  expect((await $.command.run(possums('set Toasts NEEDS'))).text).toBe('toasts is now needs.')
+  expect(kept.held.get('prefs')).toEqual({ toasts: 'needs' })
+  expect((await $.command.run(possums('set toasts loud'))).text).toBe('toasts can be all, needs or off.')
 })

@@ -19,9 +19,12 @@ export type Ask = { at?: number }
 // A run's state, by its id; `planned` is reserved.
 export type StateId = 'starting' | 'working' | 'needs-you' | 'quiet' | 'waiting' | 'finished' | 'failed' | 'stopped'
 
-// A turn's ending, kept while the engine's list may yet say the agent waits on its own work: the state it ends in, and
-// the turn's end.
-export type KeptEnding = { state: 'finished' | 'failed' | 'stopped'; at: number }
+// Why a run failed: an API error, the model's refusal, or an answer with no text.
+export type Failure = 'error' | 'refusal' | 'empty'
+
+// A turn's ending, kept while the engine's list may yet say the agent waits on its own work: the state it ends in, why
+// it failed when it did, and the turn's end.
+export type KeptEnding = { state: 'finished' | 'failed' | 'stopped'; failure?: Failure; at: number }
 
 // The token counts a run's model requests reported, summed.
 export type Tokens = { input: number; output: number; cacheRead: number; cacheWrite: number }
@@ -84,6 +87,8 @@ export type Run = {
   hasBackgroundWork?: boolean
   // Its turn has ended: the ending it takes once the engine's list says it ended, kept while held or waiting.
   keptEnding?: KeptEnding
+  // Why it failed, while it is Failed and the turn said why.
+  failure?: Failure
   model?: string
   effort?: string
   startedAt: number

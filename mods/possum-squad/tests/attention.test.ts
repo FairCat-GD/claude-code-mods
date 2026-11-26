@@ -280,8 +280,47 @@ test('with the pane closed, one toast when a run needs the person and one when a
   // A run that has ended already ends no more.
   await complete($, 5, 'aborted', '')
   await settled()
-  expect(toasts.slice(2)).toEqual(['Count the shovels 4 · failed after 1:05', 'Count the shovels 5 · stopped after 1:05'])
+  expect(toasts.slice(2)).toEqual(['Count the shovels 4 · failed after 1:05: an error', 'Count the shovels 5 · stopped after 1:05'])
 })
+
+test("a failed run's toast names why its turn failed; a reason the mod does not know names none (F-14)", async ($, on) => {
+  const { clock, toasts } = world(on)
+  for (const n of [1, 2, 3, 4]) await working($, n)
+  await clock.advance(TOAST_AFTER_MS + 5_000)
+  await complete($, 1, 'error', '')
+  await turnEnds($, { ...TURN_COMPLETE, reason: 'refusal', refusal: { category: null, explanation: null }, answer: '', agentId: 'agent-2' } as never)
+  await complete($, 3, 'answer', '')
+  await complete($, 4, 'mislaid', '')
+  await settled()
+  expect(toasts).toEqual([
+    'Count the shovels 1 · failed after 1:05: an error',
+    'Count the shovels 2 · failed after 1:05: a refusal',
+    'Count the shovels 3 · failed after 1:05: an empty answer',
+    'Count the shovels 4 · failed after 1:05',
+  ])
+})
+
+// What each `toasts` value lets through, for a run that needs the person and then ends a long turn; a value this
+// version does not know reads as `all`.
+const LET_THROUGH: Record<string, string[]> = {
+  all: ['Count the shovels 1 · needs you: waiting on a permission prompt', 'Count the shovels 1 · finished after 1:01'],
+  needs: ['Count the shovels 1 · needs you: waiting on a permission prompt'],
+  off: [],
+  loud: ['Count the shovels 1 · needs you: waiting on a permission prompt', 'Count the shovels 1 · finished after 1:01'],
+}
+
+for (const [value, expected] of Object.entries(LET_THROUGH)) {
+  test(`with toasts at ${value}, the pane closed shows ${expected.length} of the two toasts (F-14)`, async ($, on) => {
+    const { clock, toasts } = world(on, { toasts: value })
+    await working($, 1)
+    await request($, 1)
+    await step($, 1)
+    await clock.advance(TOAST_AFTER_MS + 1_000)
+    await complete($, 1)
+    await settled()
+    expect(toasts).toEqual(expected)
+  })
+}
 
 test("a teammate's later turn is timed on its own: a short one ends with no toast (F-14)", async ($, on) => {
   const { clock, toasts } = world(on)

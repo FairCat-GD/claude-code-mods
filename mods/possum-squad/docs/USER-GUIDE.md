@@ -230,6 +230,13 @@ you allowed that takes a while keeps the row in Needs you until it is done. A pr
 main session moves no row, since you see it already, and neither does a call another plugin or
 hook answers for you, since nobody asks you.
 
+**The pane's tab** counts the agents under Needs you: "Possum Squad · 1 needs you", then "Possum
+Squad" again once none is. Claude Code draws a pane's tab title only while another pane is open
+beside it, so this is for a pane sitting behind another's tab: the count shows there without
+bringing it forward. The title changes only while the pane is open; a pane you closed is left
+closed. In a terminal narrower than an unasked pane needs, where the pane waits to be drawn, the
+title waits too.
+
 **Quiet.** An agent that is starting or working, with no call running and nothing heard from it
 for a minute and a half, shows as quiet: its opossum dozes on its feet, its state reads "quiet"
 in amber, and its third line says for how long, such as "Quiet for 2 min". A call that is
@@ -252,7 +259,9 @@ to be drawn, collapsed, or showing the gallery), a small toast tells you instead
 - when an agent needs you: "Find where reports are built · needs you: waiting on a permission
   prompt";
 - when an agent ends a turn that took more than a minute: "… · finished after 2:14", "… ·
-  failed after 2:14" or "… · stopped after 1:05". For a teammate, or an agent Claude resumes,
+  failed after 2:14: an error" or "… · stopped after 1:05". A failed agent's toast says why:
+  "an error" (Claude Code gave up on an error), "a refusal" (the model refused), or "an empty
+  answer" (it ended with no text). For a teammate, or an agent Claude resumes,
   only that turn counts, not the time since it first started. A waiting agent toasts when it
   really ends, its wait counted in the time, not when it hands back.
 
@@ -260,6 +269,9 @@ Each names the agent by its task, cut at 100 characters as on its row; one that 
 row has appeared is "An agent". There is one toast each time an agent comes to need you: a
 second prompt while its row is still under Needs you adds none, and keeps the row there. With the pane in view there are none, since the
 row says it.
+
+The `toasts` setting chooses which show: `all` (the default), `needs` for only the toast saying an
+agent needs you, or `off` for none.
 
 ## How roles are chosen
 
@@ -289,8 +301,8 @@ change it.
 ## Changing a role
 
 A row's role name, or "Pick a role" while it has none, is a button (`[ Builder ]` in a
-terminal). Press it and a list of the sixteen roles opens under the row, the current one
-selected; Lead stays the main session's. Choose one and the row takes it at once: a working
+terminal). Press it and a list opens under the row: Detect, then the sixteen roles, the current
+one selected; Lead stays the main session's. Choose one and the row takes it at once: a working
 opossum hops into the new outfit, and a finished one simply wears it. Choosing the role it
 already has changes nothing on the row. `cancel`, a second press of the button, or closing the
 pane closes the list without a change. Nothing the agent does
@@ -301,6 +313,16 @@ also remembered: every later agent of that type starts in the role you chose, be
 else is read, in this session and the next. The type's name and the role are all that is
 kept. For the built-in types and the general-purpose one, which most agents share, the choice
 applies to that run alone, and the next agent's role is worked out as usual.
+
+**Detect** puts the row back on the rules (*How roles are chosen*): its type, then its task's
+words, then its latest calls, the five Peek keeps. A role they give is worn at once, and a
+working opossum hops into it; the role it already wears stays as it is. If none fires, an agent
+that has ended or has worked a minute or more becomes a Helper, and a younger one goes plain until
+its next calls or its first minute settle it. Only its five latest calls are read, so an agent
+that only read files comes back as a Helper rather than a Scout, and a shell call whose test run
+is not on its first line may not make it a Tester. For an agent type of your own, Detect also
+forgets the role you picked for the type, so its next agents are worked out as usual too; it
+changes no other row.
 
 The opossum itself cannot be pressed: Claude Code draws it as a picture that takes no click.
 
@@ -333,6 +355,7 @@ nothing; `/possums set` alone names the settings. Names and values can be typed 
 | `cost` | `off`, `estimate` | `off` | Show an estimate in dollars on the session line and each row (*Limits and the estimate*). |
 | `motion` | `auto`, `off` | `auto` | Animate the opossums, following your system's reduced-motion setting, or keep them still. |
 | `theme` | `classic`, `steampunk`, `horror`, `prehistoric` | `classic` | The set of costumes the opossums wear, in the rows and the gallery. |
+| `toasts` | `all`, `needs`, `off` | `all` | Which toasts show while the list is out of sight: all of them, only an agent needing you, or none (*When an agent needs you*). |
 
 The settings are kept between sessions and shared by every session you have open, and each
 takes effect at once. If two sessions change a setting at the same moment, one change may be

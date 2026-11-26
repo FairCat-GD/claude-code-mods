@@ -2827,6 +2827,95 @@ owner chose `detect` in the role picker over a command for forgetting a remember
 **Watch for:**
 - **The title shows only beside another pane:** check it with a second plugin's pane open.
 
+**Done (2026-11-26, 0.17.0).**
+- **Decided with the user, at the plan:**
+  - **the retitle's race** (the block's ask): the declarations say an open of an id that is not
+    open opens it (unasked, placed from 144 columns once the person has closed it by hand), so
+    a retitle can reopen a pane closed between its read and its open. The owner kept the title,
+    guarded, over dropping it; what the mod cannot hear is known debt;
+  - **what `detect` does at once** (the block's ask): a run keeps no calls but Peek's five, so
+    the rules run on its type and description, then those calls; with none, an ended run or
+    one past T-04 is Helper, a young live one plain; one hop when the role changes;
+  - **an adversarial review of the plan,** before approval; its findings were folded in (below).
+- **Measured first** (CLI 2.1.330), with a throwaway probe plugin in the scratchpad, never in the
+  repository, beside the mod in a terminal: an unasked open of an open id, from a clock tick,
+  kept a pane behind another's tab behind and unfocused and drew nothing; kept a shown one shown
+  and unfocused, drawn once; kept `columns`; and showed the new title on its tab, which
+  `$.ui.panes()` gave at once. So the plan's stop condition did not hold.
+- **Shipped:**
+  - **The model:** `Failure` and `failureOf` (`error`, `refusal`, `empty`; none for an unknown
+    reason or a teammate's), kept in `KeptEnding` and set on a failed run by `endedWith`, dropped
+    by `turnStarted` and a resume; `needingYou`; `detected`. `runs` is `runs-10`.
+  - **The rules:** `DETECT` and `redetected`, reading the kept actions as clues.
+  - **The hooks:** `toastUnseen` reads `prefs` first and drops by `toasts`; `titleAfter` after
+    every write of `runs` and `retitle` (listed and placed panes only, comparing `UiPane.title`,
+    up to three opens, `closesHeard` and `opensMade` guarding the race); `showPane` and
+    `autoOpen` open with the counted title; `detectRole`, deleting `role:<agent type>` through
+    `writeStore`'s new `forget`.
+  - **The view and strings:** "Detect" first in the picker; `paneTitle`; the failed toast's
+    reasons; the `toasts` setting.
+  - **Tests:** a new `title.test.ts` (8); attention +5 (each reason, each `toasts` value);
+    picker +6 (Detect on each surface: a remembered pick forgotten, built-in and generic types
+    untouched, the worn role keeping its moment with a refusing store); model +5; command +1;
+    pass-through +2 (the toast test split in two, so it no longer counts `panes()` reads, and
+    a refused retitle). The engine stand-in keeps each pane's title apart and raises an open
+    pane only for `focus`, as measured; the store stand-in hears `store.delete`.
+  - **Docs:** `CHANGELOG.md` 0.17.0; `README.md`; `USER-GUIDE.md` (the toasts, their reasons and
+    setting, the tab title, Detect, the settings table); `docs/BACKLOG.md`; the mod's
+    `CLAUDE.md` (the identifiers, `runs-10`, two hand-check lessons); `ARCHITECTURE.md`:
+    *Overview*, I-03, I-07, N-07, *The hooks* (`ui.close`), *Values*, *The run model*,
+    *Roles*, *The panel*, *Attention*, *The command and settings*, *Reach*, *Known debt* (two
+    lines out, five in), the baseline, two Decision log lines.
+- **Amendments:**
+  - The gate "a retitle never opens a closed pane" holds up to the race *Known debt* names: a
+    close the engine handles wholly between the retitle's open and its answer, with neither of
+    the mod's two counts heard in time. The owner's choice to keep the title, guarded.
+  - "The rules run again on the run's type, description and calls seen" reads as Peek's five
+    kept calls, a shell call by its first line as kept: a run stores no others. The owner's
+    choice at the plan.
+  - Decided by the session, in the approved plan: an ended teammate's or background-holding
+    run takes Helper at once on Detect, though `fellBack` would leave it plain, since nothing
+    re-arms the clock from a drawing's `$`; a young run's kept reads seed its weak calls; a
+    retitle skips a pane waiting undrawn; a failed turn with a reason the mod does not know
+    names none.
+  - The plan's review (8 findings above the low ones), each folded into the approved plan: the
+    probe retitled unasked; the I-05 toast test that counted `panes()` reads was split; the
+    `isPlaced` check; the close counted around `next` alone, not on a refusal; Helper at once
+    for an ended run; the reads seeded; `UiPane.title` compared instead of a module count; the
+    count checked after every write of `runs`, since `listed` and `heldOut` can end a row asked
+    while its end was held.
+  - The block's line numbers had drifted; the code it named was found by name.
+- **Checked by hand,** in the terminal: `claude --plugin-dir mods/possum-squad --plugin-dir
+  <probe>` with `--permission-mode default`, driven through `screen -U`, the probe's pane in
+  front of the mod's, the `@inline` store's settings left as they were. A general-purpose
+  subagent's `ping` waited on its prompt: the tab read "Possum Squad · 1 needs yo…", cut by the
+  tab's width. The prompt was refused, never allowed, and the tab read "Possum Squad"; the
+  probe's pane stayed in front throughout. `/possums settings` listed `toasts: all (all, needs,
+  off)`. No `claude --plugin-dir` was left running.
+  - The detached session took no keys and its `hardcopy -h` stood still until attached in a
+    Terminal-panel tab, from which it was read.
+  - **Not checked by hand** (`docs/BACKLOG.md`): the desktop app; the failed toast's reason (an
+    agent failing after a minute); `toasts` at `needs` or `off`; Detect pressed. The text read
+    does not show which element holds the pane's keys, and a wrong press could change the
+    `@inline` store's `collapsed`.
+- **Falsified,** each failing at its own test (22): `failureOf` naming nothing; `turnStarted`
+  and a resume keeping the reason; `needs` and `off` ignored; `toasts` not read; a retitle
+  opening an undrawn pane, ignoring a close before its open, never closing again, ignoring the
+  person's open, and raising; the close hook's start not counted (by a new test whose close's
+  hook is answered after the retitle's open); `readList`'s write not retitling; `/possums`
+  opening with the plain title; `needingYou` counting pending asks; Detect hopping on the worn
+  role, leaving an ended run plain, seeding no reads, reading no kept calls, forgetting
+  nothing, forgetting a built-in type's; no Detect in the picker. The first falsification of
+  the read's close check failed nothing: it repeated the check before the open, so it was
+  removed and that one falsified.
+- **Numbers:**
+  - 355 tests (+27) in 27 files: attention 20 (+5), command 12 (+1), model 65 (+5),
+    pass-through 10 (+2), picker 18 (+6), title 8 (new), the rest unchanged; about 19 s;
+  - the tools' specs unchanged: 10 in 2 files;
+  - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys; the calls line adds
+    `$.store.delete` (via `writeStore`);
+  - the gate green on CLI 2.1.330.
+
 ---
 
 ## 13: Documentation pass, and the close

@@ -7,6 +7,7 @@ import { leadFigures, limitsOf, measured, NO_LEAD, startedOver, totals, turnCoun
 import {
   asked,
   cleared,
+  detected,
   fellBack,
   figures,
   hasKept,
@@ -16,6 +17,7 @@ import {
   keepsClock,
   listed,
   NO_RUNS,
+  needingYou,
   parentsOf,
   reassigned,
   runOf,
@@ -31,7 +33,7 @@ import {
 } from './model/runs'
 import { rolledUp } from './model/nesting'
 import { callsOf } from './model/tools'
-import { atSpawn, HELPER, isCustomType, isPickable, rememberedOf, toolsSeen } from './roles/rules'
+import { atSpawn, DETECT, HELPER, isCustomType, isPickable, redetected, rememberedOf, toolsSeen } from './roles/rules'
 import { changeOf, mergePrefs, type Prefs, parseWords, readPrefs, SETTING_NAMES, SETTINGS, settingsText } from './settings'
 import { galleryOf } from './sprites'
 import { ART } from './sprites/data'
@@ -46,7 +48,7 @@ export const PANE = 'possum-squad'
 export const NO_FLAGS: View = { isClosedByPerson: false, isGalleryOpen: false }
 export const view = atom({ plugin: 'possum-squad', key: 'view' } as const, NO_FLAGS, { shape: 'view-5' })
 // Bump the shape when Runs or Run change their fields.
-export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-9' })
+export const runs = atom({ plugin: 'possum-squad', key: 'runs' } as const, NO_RUNS, { shape: 'runs-10' })
 // Bump the shape when Lead changes its fields.
 export const lead = atom({ plugin: 'possum-squad', key: 'lead' } as const, NO_LEAD, { shape: 'lead-2' })
 
@@ -66,18 +68,32 @@ let endedTurnId: string | undefined
 // What the beat, the recording hooks and the list's read reach; a toast needs the panes and the store.
 type Watching = Pick<EngineInterface, 'agent' | 'clock' | 'state' | 'store' | 'ui'>
 
+// The needs-you count a retitle was last started for: unknown after a load or a fault, so the next write checks it.
+let wanted: number | undefined
+// Closes the `ui.close` hook heard, at their start and their end, and opens the person or auto-open made, so a retitle
+// under way leaves no pane open that was closed meanwhile, as far as the mod can hear.
+let closesHeard = 0
+let opensMade = 0
+// A retitle opens again while the count moved during its open, at most this often.
+const RETITLES = 3
+
 // The person's answer, kept out of every request the engine lets it be.
 const say = (text: string): CommandRunResult => ({ text, isTextDisplayOnly: true })
 
 // The key a custom agent type's remembered pick is kept under.
 const roleKey = (type: string) => `role:${type}` as const
 
-type StoreWrite = { key: 'prefs'; change: Partial<Prefs> } | { key: ReturnType<typeof roleKey>; role: RoleId }
+type StoreWrite =
+  | { key: 'prefs'; change: Partial<Prefs> }
+  | { key: ReturnType<typeof roleKey>; role: RoleId }
+  | { key: ReturnType<typeof roleKey>; forget: true }
 
-// The one door to the store (I-03): a write holds only setting values, panel flags, agent type names and role ids.
-// `prefs` is read just before it is written, since another session may have changed it meanwhile.
+// The one door to the store (I-03): a write holds only setting values, panel flags, agent type names and role ids, and
+// the one deletion is a remembered pick. `prefs` is read just before it is written, since another session may have
+// changed it meanwhile.
 async function writeStore($: Pick<EngineInterface, 'store'>, write: StoreWrite) {
   if ('change' in write) await $.store.set(write.key, mergePrefs(await $.store.get(write.key), write.change))
+  else if ('forget' in write) await $.store.delete(write.key)
   else await $.store.set(write.key, write.role)
 }
 
@@ -165,13 +181,14 @@ async function settleHeld($: Watching, held: Runs) {
     const now = await $.clock.now()
     if (heldOut(held, now) !== held) {
       let toasts: string[] = []
-      await update($, runs, latest => {
+      const written = await update($, runs, latest => {
         const ended = heldOut(latest, now)
         const next = ended === latest ? latest : fellBack(ended, now, HELPER)
         toasts = endedToasts(latest, next)
         return next
       })
-      for (const text of toasts) void toastUnseen($, text)
+      titleAfter($, written)
+      for (const text of toasts) void toastUnseen($, text, false)
     }
   } catch {
     // the next beat tries again
@@ -216,15 +233,18 @@ async function readList($: Watching) {
   try {
     const held = await read($, runs)
     if (settle(held) === held) return
-    await update($, runs, latest => {
-      const next = settle(latest)
-      toasts = endedToasts(latest, next)
-      return next
-    })
+    titleAfter(
+      $,
+      await update($, runs, latest => {
+        const next = settle(latest)
+        toasts = endedToasts(latest, next)
+        return next
+      }),
+    )
   } catch {
     return
   }
-  for (const text of toasts) void toastUnseen($, text)
+  for (const text of toasts) void toastUnseen($, text, false)
 }
 
 const isListed = (agent: unknown): agent is { id: string; status: string; label?: unknown; description?: unknown } =>
@@ -266,7 +286,12 @@ async function showPane($: Watching, mayClose: boolean): Promise<CommandRunResul
       await $.ui.close({ id: PANE })
       return {}
     }
-    if (!pane?.isShown) await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS, ...(pane === undefined ? {} : ({ focus: true } as const)) })
+    if (!pane?.isShown) {
+      const title = titleOf(await read($, runs).catch(() => NO_RUNS))
+      opensMade++
+      await $.ui.open({ id: PANE, title, columns: PANE_COLUMNS, ...(pane === undefined ? {} : ({ focus: true } as const)) })
+      void retitle($)
+    }
     isPaneOpen = true
   } catch {
     return say(STRINGS.cannotToggle)
@@ -298,7 +323,10 @@ async function autoOpen($: Watching, isFirst: boolean) {
     if (when === 'never' || (when === 'first' && !isFirst)) return
     if ((await read($, view)).isClosedByPerson) return
     if ((await $.ui.panes()).some(one => one.id === PANE)) return
-    await $.ui.open({ id: PANE, title: STRINGS.title, columns: PANE_COLUMNS })
+    const title = titleOf(await read($, runs).catch(() => NO_RUNS))
+    opensMade++
+    await $.ui.open({ id: PANE, title, columns: PANE_COLUMNS })
+    void retitle($)
     isPaneOpen = true
     await armIfLive($)
   } catch {
@@ -306,13 +334,15 @@ async function autoOpen($: Watching, isFirst: boolean) {
   }
 }
 
-// A toast only where the person cannot see the list: the pane closed, behind another's tab, waiting undrawn, or showing
-// the gallery or the collapsed view. The event that raised it does not wait for it (N-07), so every fault here ends
-// quietly.
-async function toastUnseen($: Pick<EngineInterface, 'ui' | 'state' | 'store'>, text: string) {
+// A toast only as `prefs.toasts` allows, and where the person cannot see the list: the pane closed, behind another's
+// tab, waiting undrawn, or showing the gallery or the collapsed view. The event that raised it does not wait for it
+// (N-07), so every fault here ends quietly.
+async function toastUnseen($: Pick<EngineInterface, 'ui' | 'state' | 'store'>, text: string, isNeedsYou: boolean) {
   try {
+    const prefs = await prefsOrDefaults($)
+    if (prefs.toasts === 'off' || (prefs.toasts === 'needs' && !isNeedsYou)) return
     const isShown = (await $.ui.panes()).some(one => one.id === PANE && one.isShown)
-    if (isShown && !(await read($, view).catch(() => NO_FLAGS)).isGalleryOpen && !(await prefsOrDefaults($)).collapsed) return
+    if (isShown && !(await read($, view).catch(() => NO_FLAGS)).isGalleryOpen && !prefs.collapsed) return
     $.ui.toast(text)
   } catch {
     // the row says it when the pane is next seen
@@ -352,7 +382,8 @@ async function closePicker($: Pick<EngineInterface, 'state'>) {
 // The person's pick applies to that run at once, timed so a live row hops into it, and is remembered for a custom type
 // only. A store that refuses loses only the memory.
 async function pickRole($: Pick<EngineInterface, 'state' | 'store' | 'clock'>, order: number, value: string) {
-  if (isPickable(value)) {
+  if (value === DETECT) await detectRole($, order)
+  else if (isPickable(value)) {
     const at = await timeOrNone($)
     let type: string | undefined
     try {
@@ -375,6 +406,27 @@ async function pickRole($: Pick<EngineInterface, 'state' | 'store' | 'clock'>, o
     }
   }
   await closePicker($)
+}
+
+// `detect`: the run back on the rules, at once, and for a custom type its remembered pick deleted, so its next spawn is
+// detected too. A store that refuses keeps the memory; the run is detected all the same.
+async function detectRole($: Pick<EngineInterface, 'state' | 'store' | 'clock'>, order: number) {
+  const at = await timeOrNone($)
+  let type: string | undefined
+  try {
+    await update($, runs, held => {
+      type = runOf(held, order)?.type
+      return detected(held, order, run => redetected(run.type, run.description, run.actions), HELPER, at)
+    })
+  } catch {
+    type = undefined
+  }
+  if (type === undefined || !isCustomType(type)) return
+  try {
+    await writeStore($, { key: roleKey(type), forget: true })
+  } catch {
+    // the next spawn of the type still wears the remembered pick
+  }
 }
 
 async function listSettings($: Pick<EngineInterface, 'store'>): Promise<CommandRunResult> {
@@ -461,7 +513,41 @@ async function record($: Watching, change: (held: Runs) => Runs) {
 }
 
 function listAfter($: Watching, written: Runs) {
+  titleAfter($, written)
   if (hasKept(written)) void readList($)
+}
+
+// After a write of `runs`: a change in how many need the person retitles the pane, unawaited (N-07).
+function titleAfter($: Watching, written: Runs) {
+  const count = needingYou(written)
+  if (count === wanted) return
+  wanted = count
+  void retitle($)
+}
+
+const titleOf = (held: Runs) => STRINGS.paneTitle(needingYou(held))
+
+// The pane's tab counts the agents that need the person. Only a placed pane is retitled: an open of a closed one opens
+// it, and of an undrawn one may place it. A close heard before the open skips it; one heard while the open was under
+// way closes the pane again, unless the person or auto-open opened it meanwhile. Every fault ends here.
+async function retitle($: Pick<EngineInterface, 'ui' | 'state'>) {
+  const closes = closesHeard
+  const opens = opensMade
+  try {
+    for (let tries = 0; tries < RETITLES; tries++) {
+      const pane = (await $.ui.panes()).find(one => one.id === PANE)
+      if (pane === undefined || !pane.isPlaced) return
+      const title = titleOf(await read($, runs))
+      if (pane.title === title || closesHeard !== closes) return
+      await $.ui.open({ id: PANE, title, columns: PANE_COLUMNS })
+      if (closesHeard !== closes) {
+        if (opensMade === opens) await $.ui.close({ id: PANE })
+        return
+      }
+    }
+  } catch {
+    wanted = undefined
+  }
 }
 
 // The same for the Lead.
@@ -648,7 +734,14 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: PANE }, ($, e) => drawPane($, e))
 
   on('ui.close', { id: PANE }, async ($, e, next) => {
-    const closed = await next(e)
+    closesHeard++
+    let closed: Awaited<ReturnType<typeof next>> | undefined
+    try {
+      closed = await next(e)
+    } finally {
+      // Its end is heard too, so a retitle whose open it straddles closes the pane again; a refused close is none.
+      if (closed?.deny === undefined) closesHeard++
+    }
     if (closed.deny !== undefined) return closed
     isPaneOpen = false
     stopClock()
@@ -775,7 +868,7 @@ export const register: Register = on => {
         toast = askedToast(held, moved, agentId)
         return moved
       })
-      if (toast !== undefined) void toastUnseen($, toast)
+      if (toast !== undefined) void toastUnseen($, toast, true)
     }
     return answered
   }).catch((_$, e, next) => next(e))

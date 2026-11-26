@@ -142,7 +142,8 @@ test("with the pane closed, another agent's event reads the list: a waiting run 
   expect(toasts).toEqual([
     STRINGS.toasts.finished('Water the seedlings', ran),
     STRINGS.toasts.stopped('Rake the leaves', ran),
-    STRINGS.toasts.failed('Weigh the pumpkins', ran),
+    // The turn's error is kept through the wait.
+    `Weigh the pumpkins · failed after ${ran}: an error`,
   ])
   for (const surface of SURFACES) {
     const { texts, count } = await drawn($, surface)

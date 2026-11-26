@@ -1,4 +1,4 @@
-import type { Role, RoleId } from '../../types/index'
+import type { Activity, Role, RoleId } from '../../types/index'
 import { WEAK_CALLS_FOR_SCOUT } from '../config'
 import { BUILTIN_TYPES, DESIGN_AS_PLANNING, DESIGN_VERBS, GENERIC_TYPES, GIT_SHIP, GUARD, KEYWORDS, STRONG_VERBS, TEST_RUNNERS } from './words'
 
@@ -6,6 +6,9 @@ import { BUILTIN_TYPES, DESIGN_AS_PLANNING, DESIGN_VERBS, GENERIC_TYPES, GIT_SHI
 // out. A value that is not a string reads as empty, so a malformed event never throws here.
 
 export const HELPER: Role = { id: 'helper', source: 'fallback' }
+
+// The picker's first entry: the run back on the rules, and a custom type's remembered pick forgotten.
+export const DETECT = 'detect'
 
 // The roles the person can pick for a run, in the art's order; Lead is the main session's alone.
 export const PICKABLE: readonly RoleId[] = [
@@ -134,6 +137,17 @@ export function detect(detection: Detection): Role | undefined {
   const called = fromTools(detection.tools ?? [])
   if (called !== undefined) return { id: called, source: 'tools' }
   return detection.timedOut ? HELPER : undefined
+}
+
+// A kept call as the rules read it: a shell command by its first line as kept, any other call by its tool.
+const clueOfAction = (action: Activity) => (action.tool === 'Bash' && action.target !== undefined ? `Bash:${action.target}` : action.tool)
+
+// `detect` in the picker: the rules again on the run's type and description, then the last calls it keeps, with no
+// remembered pick; with none, the reads and searches among those calls.
+export function redetected(type: unknown, description: unknown, actions: readonly Activity[] = []): { role?: Role; weak: number } {
+  const tools = actions.map(clueOfAction)
+  const role = detect({ type, description, tools, timedOut: false })
+  return role === undefined ? { weak: toolsSeen(0, tools).weak } : { role, weak: 0 }
 }
 
 // What a spawn's type, the person's pick remembered for it, and its description settle, before any call.

@@ -19,14 +19,14 @@ These keep their spelling, because installs and stored data live under them:
 - the mod's name, `possum-squad`: its folder, its `plugin.json` `name` and its install id,
   `possum-squad@claude-code-mods`;
 - its slash command, `/possums`, with the words `open`, `set`, `settings` and `roles`; its pane
-  id, `possum-squad`;
-- its settings and their values, its set ids, role ids and state ids (`docs/ARCHITECTURE.md`,
-  *Values*);
+  id, `possum-squad`; the role picker's first entry, `detect`;
+- its settings and their values (`toasts`, with `all`, `needs` and `off`, among them), its set
+  ids, role ids and state ids (`docs/ARCHITECTURE.md`, *Values*);
 - its `$.state` keys, `runs`, `lead`, `view`, declared in `types/index.d.ts` (`view` under the
-  shape tag `view-5`, `runs` under `runs-9` and `lead` under `lead-2`, each changing with its
+  shape tag `view-5`, `runs` under `runs-10` and `lead` under `lead-2`, each changing with its
   fields);
 - its `$.store` keys, `prefs` and `role:<agent type>` (a custom type's picked role, keyed by
-  the type as the engine spells it), both built;
+  the type as the engine spells it, which the picker's `detect` deletes), both built;
 - reserved for a later round: the tools `step` and `plan`, the setting `stepReports`, the state
   key `planned`.
 
@@ -85,5 +85,11 @@ first line copies it.
   `hardcopy` came back empty, and one after a `width` command empty or stale. Without `-U` the
   drawing is garbled (`0:20` read as `20:00`). `/exit` ends it; check no `claude --plugin-dir`
   is left.
+  - At Session 12d a detached session took no keys and its `hardcopy -h` stood still until it
+    was attached in a Terminal-panel tab (`screen -U -r <name>`); typed with `-X stuff`, it was
+    read from the tab then.
+  - ctrl+x tab shows the next pane's tab; it does not give a pane the keys. A text read does not
+    show which element holds them, so a press by Tab and Enter is a guess: never one that could
+    land on a button that writes the store (`collapse`, Finished's `show`).
 - **`docs/spec/research/` is input** for round 1: copy from it, never edit it. Its corpus labels
   are fixed, and the role table is never tuned on `holdout`.

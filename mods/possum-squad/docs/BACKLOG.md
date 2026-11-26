@@ -105,6 +105,15 @@ these are the parts only a person can see.
   `ping`, then settled on the counted time with the turn's tokens, a second forward, never back.
   Unseen: the same in the desktop app; a turn with the pane closed and then opened mid-turn
   (the kit checks it); a reload of the mod mid-turn.
+- **Toasts, the tab title and Detect (0.17.0).** Seen in the terminal at Session 12d (CLI
+  2.1.330): with another plugin's pane in front, the tab read "Possum Squad · 1 needs yo…" while
+  a subagent's call waited on its prompt, and "Possum Squad" once the prompt was refused, the
+  other pane staying in front; `/possums settings` listed `toasts: all (all, needs, off)`.
+  Unseen: the title in the desktop app; the failed toast's reason in either (an agent failing
+  after a minute); `toasts` at `needs` or `off` by hand; Detect pressed by hand in either, and
+  whether a plain row's picker shows Detect as chosen (a text read of the terminal does not say
+  which element holds the keys, and a wrong press could change the `@inline` store's
+  `collapsed`).
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.

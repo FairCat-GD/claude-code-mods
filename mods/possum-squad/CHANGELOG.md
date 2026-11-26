@@ -6,6 +6,29 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-11-26
+
+Toasts say why an agent failed and can be quieted, the pane's tab says when agents need you,
+and a row's role can go back to being worked out by itself.
+
+### Added
+
+- **The `toasts` setting:** `all` (the default) shows every toast, `needs` only the one for an
+  agent that needs you, and `off` none. `/possums set toasts needs` changes it.
+- **The pane's tab counts the agents that need you,** "Possum Squad · 1 needs you", while
+  another pane sits beside it (Claude Code draws tab titles only then), and reads "Possum
+  Squad" again once none does. Retitling never brings the pane forward, and is skipped while the
+  pane is closed.
+- **Detect in the role picker:** the first entry works the row's role out again from its type,
+  its task and its latest calls, so the opossum hops into what it finds, or takes Helper once
+  the agent has ended or worked over a minute. For an agent type of your own, it also forgets
+  the role you picked for the type, so its next agents are worked out as usual.
+
+### Changed
+
+- **A failed agent's toast says why:** "… · failed after 2:14: an error", ": a refusal" or ": an
+  empty answer".
+
 ## [0.16.0] — 2026-11-26
 
 The session line's time moves while Claude works on a turn, not only when the turn ends.

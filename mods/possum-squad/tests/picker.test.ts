@@ -10,9 +10,9 @@ type Surface = (typeof SURFACES)[number]
 
 // The engine beneath the mod: its panes, a store (refusing writes when asked), a pinned clock, and the next agent id
 // for each spawn.
-function world(on: On, refuse?: 'set') {
+function world(on: On, refuse?: 'set', entries: Record<string, unknown> = {}) {
   engine(on)
-  const kept = store(on, { prefs: { finishedOpen: true } }, refuse)
+  const kept = store(on, { prefs: { finishedOpen: true }, ...entries }, refuse)
   const clock = mock.clock(on, { now: 1_000 })
   let next = 0
   on('agent.spawn', async () => ({ model: 'claude-haiku-5-5', agentId: `agent-${++next}` }))
@@ -57,7 +57,7 @@ for (const surface of SURFACES) {
     await spawn($, KEEPER, 'Take care of it')
     expect(await roleOf($, surface, 'Take care of it')).toBeUndefined()
     const { picker, after } = await pick($, clock, surface, 'agent-1', 'tester')
-    expect(picker?.props.options).toEqual(PICKABLE.map(id => ({ value: id, label: STRINGS.roles[id] })))
+    expect(picker?.props.options).toEqual([{ value: 'detect', label: 'Detect' }, ...PICKABLE.map(id => ({ value: id, label: STRINGS.roles[id] }))])
     expect(after).toBeUndefined()
     expect(await roleOf($, surface, 'Take care of it')).toBe(STRINGS.roles.tester)
     expect(kept.held.get(`role:${KEEPER}`)).toBe('tester')
@@ -124,6 +124,65 @@ for (const surface of SURFACES) {
     expect(await roleOf($, surface, 'Take care of it')).toBe(STRINGS.roles.guard)
     expect(kept.held.get(`role:${KEEPER}`)).toBeUndefined()
   })
+}
+
+// Another plugin, beside the mod, that shows the role the mod keeps for agent-1, as stored under its shape.
+const ROLE_READER = {
+  name: 'role-reader',
+  register: (on: On) => {
+    on('command.run', { command: 'read-role' }, async $ => {
+      const held = (await $.state.get({ plugin: 'possum-squad', key: 'runs' })).value
+      return { text: JSON.stringify(held?.value.rows['agent-1']?.role ?? 'none') }
+    })
+  },
+}
+const keptRole = async ($: Engine) => JSON.parse((await $.command.run({ ...POSSUMS, command: 'read-role' })).text ?? '"none"')
+
+for (const surface of SURFACES) {
+  test(
+    `${surface}: Detect on a custom type's remembered pick forgets it, and puts the run and the next one back on the rules (F-07)`,
+    { plugins: [ROLE_READER] },
+    async ($, on) => {
+      const { kept, clock } = world(on, undefined, { [`role:${KEEPER}`]: 'tester' })
+      await spawn($, KEEPER, 'Build the potting bench')
+      expect(await roleOf($, surface, 'Build the potting bench')).toBe(STRINGS.roles.tester)
+      await pick($, clock, surface, 'agent-1', 'detect')
+      // Its words make it a Builder, timed at the pick so a live row hops into it.
+      expect(await roleOf($, surface, 'Build the potting bench')).toBe(STRINGS.roles.builder)
+      expect(await keptRole($)).toEqual({ id: 'builder', source: 'keywords', at: 1_100 })
+      expect([kept.deletes, kept.held.has(`role:${KEEPER}`), kept.writes.filter(write => write.key !== 'prefs')]).toEqual([[`role:${KEEPER}`], false, []])
+      await spawn($, KEEPER, 'Build the trellis')
+      expect(await roleOf($, surface, 'Build the trellis')).toBe(STRINGS.roles.builder)
+    },
+  )
+
+  test(`${surface}: Detect on a built-in or generic agent's row deletes nothing; with no rule to fire a young run goes plain (F-07)`, async ($, on) => {
+    const { kept, clock } = world(on)
+    await spawn($, 'Explore', 'Find the trowel')
+    await spawn($, 'general-purpose', 'Take care of it')
+    await pick($, clock, surface, 'agent-1', 'tester')
+    await pick($, clock, surface, 'agent-2', 'tester')
+    await pick($, clock, surface, 'agent-1', 'detect')
+    await pick($, clock, surface, 'agent-2', 'detect')
+    expect([await roleOf($, surface, 'Find the trowel'), await roleOf($, surface, 'Take care of it')]).toEqual([STRINGS.roles.scout, undefined])
+    expect([kept.deletes, kept.writes.filter(write => write.key !== 'prefs')]).toEqual([[], []])
+  })
+
+  test(
+    `${surface}: Detect on a row that already wears what the rules give keeps its moment, and a store that refuses keeps the memory`,
+    { plugins: [ROLE_READER] },
+    async ($, on) => {
+      const { kept, clock } = world(on, 'set', { [`role:${KEEPER}`]: 'builder' })
+      await spawn($, KEEPER, 'Build the potting bench')
+      const before = await keptRole($)
+      await pick($, clock, surface, 'agent-1', 'detect')
+      expect([before, await keptRole($)]).toEqual([
+        { id: 'builder', source: 'remembered', at: 1_000 },
+        { id: 'builder', source: 'keywords', at: 1_000 },
+      ])
+      expect([kept.deletes, kept.held.get(`role:${KEEPER}`)]).toEqual([[], 'builder'])
+    },
+  )
 }
 
 test('the picker offers every role but Lead; only a custom type remembers, and a stored role no version knows is ignored', () => {

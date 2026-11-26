@@ -33,7 +33,7 @@ export function endedToast(before: Runs, after: Runs, key: string): string | und
   const time = elapsed(ranMs)
   if (run.state === 'finished') return STRINGS.toasts.finished(who, time)
   if (run.state === 'stopped') return STRINGS.toasts.stopped(who, time)
-  return STRINGS.toasts.failed(who, time)
+  return STRINGS.toasts.failed(who, time, run.failure === undefined ? undefined : STRINGS.toasts.failures[run.failure])
 }
 
 // Every run a record ended, in spawn order: the list's answer may end several at once.

@@ -1,4 +1,4 @@
-import type { Activity, Ask, Excerpt, KeptEnding, Past, Pending, Role, Run, Runs, StateId, Tally, Tokens } from '../../types/index'
+import type { Activity, Ask, Excerpt, Failure, KeptEnding, Past, Pending, Role, Run, Runs, StateId, Tally, Tokens } from '../../types/index'
 import { ACTIONS_KEPT, DESCRIPTION_CHARS, FILES_KEPT, FINISHED_KEPT, LIST_ANSWER_MS, PEEK_CHARS, QUIET_AFTER_MS, ROLE_SETTLES_MS } from '../config'
 import { windowOf } from '../data/models'
 import { costOf } from '../data/prices'
@@ -68,6 +68,20 @@ export function endingOf(ending: Ending, isTeammate: boolean): KeptEnding['state
   if (ending.reason === 'aborted') return 'stopped'
   if (ending.reason === 'answer' && (ending.hasText || isTeammate)) return 'finished'
   return 'failed'
+}
+
+// Why a failed turn failed, by its reason; an unknown reason names none.
+export function failureOf(ending: Ending, isTeammate: boolean): Failure | undefined {
+  if (ending.reason === 'refusal' || ending.reason === 'error') return ending.reason
+  if (ending.reason === 'answer' && !ending.hasText && !isTeammate) return 'empty'
+  return undefined
+}
+
+// A kept ending: the state the turn ends in, and why, when it failed and said why.
+function keptOf(ending: Ending, isTeammate: boolean, at: number): KeptEnding {
+  const state = endingOf(ending, isTeammate)
+  const failure = state === 'failed' ? failureOf(ending, isTeammate) : undefined
+  return failure === undefined ? { state, at } : { state, failure, at }
 }
 
 const without = <T>(record: Record<string, T>, key: string) => {
@@ -270,7 +284,7 @@ export function spawnSettled(runs: Runs, spawn: Spawn, settled: Settled, at: num
       return { ...runs, rows: { ...runs.rows, [id]: run }, pending: without(runs.pending, id), next: runs.next + 1 }
     }
     if (!hasEnded(held)) return runs
-    const { endedAt: _, ...resumed } = held
+    const { endedAt: _, failure: __, ...resumed } = held
     return { ...runs, rows: { ...runs.rows, [id]: { ...resumed, state: 'starting', heardAt: at, turnAt: at } } }
   }
   const held = runs.rows[spawn.key] ?? (spawn.key === '' ? opened(runs, spawn, at) : undefined)
@@ -289,7 +303,7 @@ export function turnStarted(runs: Runs, agentId: string, at?: number): Runs {
   const held = runs.rows[agentId]
   if (held !== undefined) {
     if (held.state === 'working' && held.endedAt === undefined && held.keptEnding === undefined && (at === undefined || at === held.heardAt)) return runs
-    const { endedAt: _, hasBackgroundWork: __, ask: ___, keptEnding: ____, ...run } = held
+    const { endedAt: _, hasBackgroundWork: __, ask: ___, keptEnding: ____, failure: _____, ...run } = held
     return { ...runs, rows: { ...runs.rows, [agentId]: { ...run, state: 'working', ...(at === undefined ? {} : { heardAt: at, turnAt: at }) } } }
   }
   return runs.pending[agentId] === undefined ? withPending(runs, agentId, NO_PENDING) : runs
@@ -338,8 +352,9 @@ export function asked(runs: Runs, agentId: string, at?: number): Runs {
 
 // A run ends with its kept ending. Once the list says it ended, its background work is done, so Helper may settle it.
 function endedWith(run: Run, kept: KeptEnding, at: number, isConfirmed = false): Run {
-  const { keptEnding: _, ask: __, summary: ___, ...rest } = run
+  const { keptEnding: _, ask: __, summary: ___, failure: ____, ...rest } = run
   const ended: Run = { ...rest, state: kept.state, endedAt: at, inFlight: 0 }
+  if (kept.state === 'failed' && kept.failure !== undefined) ended.failure = kept.failure
   if (isConfirmed) delete ended.hasBackgroundWork
   return ended
 }
@@ -348,7 +363,7 @@ function endedWith(run: Run, kept: KeptEnding, at: number, isConfirmed = false):
 export function turnEnded(runs: Runs, agentId: string, ending: Ending, at: number): Runs {
   const held = runs.rows[agentId]
   if (held === undefined) return runs.pending[agentId] === undefined ? runs : { ...runs, pending: without(runs.pending, agentId) }
-  const kept: KeptEnding = { state: endingOf(ending, held.isTeammate), at }
+  const kept = keptOf(ending, held.isTeammate, at)
   const { ask: _, ...rest } = held
   const run: Run = hasEnded(held)
     ? endedWith(held, kept, at)
@@ -443,6 +458,24 @@ export function reassigned(runs: Runs, order: number, role: Role): Runs {
   return { ...runs, rows: { ...runs.rows, [key]: { ...picked, role } } }
 }
 
+// `detect`, from the picker alone (I-07): a role the rules give hops in unless worn already; with none, an ended or old
+// run takes the fallback, as nothing else would settle it, and a young live one waits plain, its kept reads counted.
+export function detected(runs: Runs, order: number, found: (run: Run) => { role?: Role; weak: number }, fallback: Role, at?: number): Runs {
+  const entry = Object.entries(runs.rows).find(([, run]) => run.order === order)
+  if (entry === undefined) return runs
+  const [key, run] = entry
+  const { role: worn, weakCalls: _, ...plain } = run
+  const { role, weak } = found(run)
+  const isDue = at !== undefined && (hasEnded(run) || at - run.startedAt >= ROLE_SETTLES_MS)
+  const settled = role ?? (isDue ? fallback : undefined)
+  let next: Run = plain
+  if (settled !== undefined) {
+    const when = settled.id === worn?.id ? worn.at : at
+    next = { ...plain, role: when === undefined ? { id: settled.id, source: settled.source } : { id: settled.id, source: settled.source, at: when } }
+  } else if (weak > 0) next = { ...plain, weakCalls: weak }
+  return { ...runs, rows: { ...runs.rows, [key]: next } }
+}
+
 const isPastEmpty = (past: Past) => past.tokens === 0 && past.workedMs === 0 && past.usd === 0
 
 // A clear, a resume or a fork of the session starts the list and its totals over.
@@ -451,6 +484,9 @@ export const cleared = (runs: Runs): Runs =>
 
 // No agent has had a row since the session began or was cleared.
 export const isEmpty = (runs: Runs) => Object.keys(runs.rows).length === 0 && isPastEmpty(runs.past)
+
+// How many rows need the person, as the Needs you section counts them.
+export const needingYou = (runs: Runs) => Object.values(runs.rows).filter(run => run.state === 'needs-you').length
 
 // The rows to draw, in spawn order.
 export const shownRuns = (runs: Runs): Run[] => Object.values(runs.rows).sort((a, b) => a.order - b.order)
