@@ -3,6 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { hooksOf, settled } from './engine'
 import {
   CLEARED,
+  MAIN_START,
   MEASURE,
   MEASURED,
   PERMISSION,
@@ -97,6 +98,44 @@ test('watching leaves every tool call alone: the mod hooks neither tool.call nor
   expect(hooks.has('tool.run')).toBe(false)
 })
 
+// Every member of `$` asked for, by area and name, each call answering the time 1,000.
+function watched() {
+  const asked: string[] = []
+  const $ = new Proxy(
+    {},
+    {
+      get: (_, area) =>
+        new Proxy(
+          {},
+          {
+            get: (_, name) => {
+              asked.push(`${String(area)}.${String(name)}`)
+              return async () => 1_000
+            },
+          },
+        ),
+    },
+  )
+  return { $, asked }
+}
+
+test("the main loop's model request asks nothing of the engine, and its turn start with the pane closed only reads the clock (N-07)", async () => {
+  const { hooks } = hooksOf()
+  const { $, asked } = watched()
+  type Streaming = ($: unknown, e: unknown, next: (e: unknown) => AsyncGenerator<unknown, unknown>) => AsyncGenerator<unknown, unknown>
+  const engineStep = async function* () {
+    for (const chunk of STEP_CHUNKS) yield chunk
+    return STEPPED
+  }
+  const { agentId: _, ...mainStep } = STEP
+  const { chunks, result } = await drain((hooks.get('turn.step') as unknown as Streaming)($, mainStep, engineStep))
+  expect([asked, chunks, result]).toEqual([[], STEP_CHUNKS, STEPPED])
+
+  type Plain = ($: unknown, e: unknown, next: (e: unknown) => Promise<unknown>) => Promise<unknown>
+  expect(await (hooks.get('turn.start') as unknown as Plain)($, MAIN_START, async () => TURN_STARTED)).toEqual(TURN_STARTED)
+  expect(asked).toEqual(['clock.now'])
+})
+
 // The hooks run here on their own, with a `$` whose state, store, clock and panes refuse every call, and a `next` standing
 // for the engine.
 test('a fault in reading or recording an event never changes what the engine gave (I-05)', async () => {
@@ -126,6 +165,7 @@ test('a fault in reading or recording an event never changes what the engine gav
     // A custom type reads its remembered pick from the store first.
     ['agent.spawn', { ...SPAWN, subagentType: 'shed-keeper' }, SPAWNED],
     ['turn.start', TURN_START, TURN_STARTED],
+    ['turn.start', MAIN_START, TURN_STARTED],
     ['turn.complete', TURN_COMPLETE, TURN_COMPLETED],
     ['turn.complete', mainEnd, TURN_COMPLETED],
     ['session.measure', MEASURE, MEASURED],

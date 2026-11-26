@@ -67,15 +67,16 @@ export type TurnUsage = {
 }
 
 // A main turn's end: its requests' tokens, their estimate at the model that answered last, and its length, each counted
-// only when the engine gave a number.
-export function turnCounted(lead: Lead, usage: TurnUsage | undefined, durationMs: unknown): Lead {
+// only when the engine gave a number. The length is the clock's span since the turn's start when that is longer, so the
+// session line never steps back from the time it showed.
+export function turnCounted(lead: Lead, usage: TurnUsage | undefined, durationMs: unknown, spanMs?: number): Lead {
   const spent: Tokens = {
     input: count(usage?.input_tokens) ?? 0,
     output: count(usage?.output_tokens) ?? 0,
     cacheRead: count(usage?.cache_read_input_tokens) ?? 0,
     cacheWrite: count(usage?.cache_creation_input_tokens) ?? 0,
   }
-  const worked = count(durationMs) ?? 0
+  const worked = Math.max(count(durationMs) ?? 0, count(spanMs) ?? 0)
   if (worked === 0 && spent.input + spent.output + spent.cacheRead + spent.cacheWrite === 0) return lead
   const hourWrites = count(usage?.ephemeral_1h_input_tokens)
   const usd = costOf(typeof usage?.model === 'string' ? usage.model : undefined, spent, hourWrites === undefined ? {} : { hourWrites })
@@ -95,13 +96,21 @@ export function leadFigures(lead: Lead): LeadFigures {
 
 export type Totals = { tokens: number; workedMs: number; usd: number }
 
-// The header's figures: the Lead, every run kept by its own figures, and what pruned runs had counted.
-export function totals(lead: Lead, runs: Runs, now: number): Totals {
+// The main turn running since `turnAt`, by the clock: none before its start is kept; unknown when the clock is.
+const runningMs = (turnAt: number | undefined, now: number) => (turnAt === undefined ? 0 : Math.max(0, now - turnAt))
+
+// The header's figures: the Lead with its running turn, every run kept by its own figures, and what pruned runs had
+// counted.
+export function totals(lead: Lead, runs: Runs, now: number, turnAt?: number): Totals {
   return Object.values(runs.rows).reduce(
     (sum, run) => {
       const counted = figures(run, now)
       return { tokens: sum.tokens + counted.tokens, workedMs: sum.workedMs + counted.elapsedMs, usd: sum.usd + run.usd }
     },
-    { tokens: fresh(lead.tokens) + runs.past.tokens, workedMs: lead.workedMs + runs.past.workedMs, usd: lead.usd + runs.past.usd },
+    {
+      tokens: fresh(lead.tokens) + runs.past.tokens,
+      workedMs: lead.workedMs + runningMs(turnAt, now) + runs.past.workedMs,
+      usd: lead.usd + runs.past.usd,
+    },
   )
 }

@@ -5,7 +5,7 @@ import { PANE } from '../hooks/register'
 import { STRINGS } from '../hooks/strings'
 import { elapsed, tokens } from '../hooks/view/format'
 import { engine, MOUNT, POSSUMS, possums, SURFACES, turnEnds } from './engine'
-import { SESSION_START, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
+import { MAIN_COMPLETE, MAIN_START, SESSION_START, SPAWN, STEP, STEP_CHUNKS, STEPPED, TURN_COMPLETE, TURN_START } from './fixtures/events'
 
 // Another plugin, beside the mod, counting the periods the mod's timers ask for (one ahead of the beats run, while
 // armed) and its looks at the panes, which each beat makes before anything else.
@@ -262,4 +262,96 @@ test('a beat that finds the pane open behind another lets later runs start the c
   seen.panes = [{ id: PANE, isShown: true, isPlaced: true }]
   await clock.advance(2_000)
   expect(redraws()).toBe(2)
+})
+
+// The main session's turn alone, with no agent: its start is timed, so the session line moves on the beat.
+test(
+  "a main turn's time moves once a second while the pane shows, with no event and no list read, and stands on its counted time at its end",
+  { plugins: [PERIODS] },
+  async ($, on) => {
+    const { clock } = world(on)
+    let reads = 0
+    on('agent.list', () => {
+      reads++
+      return { value: [] } as never
+    })
+    await $.command.run(POSSUMS)
+    const panes = await Promise.all(SURFACES.map(surface => $.ui.mount({ ...MOUNT, surface })))
+    await $.turn.start(MAIN_START)
+    for (const second of [1, 2, 3]) {
+      await clock.advance(1_000)
+      for (const pane of panes) expect(await textsOf(pane)).toContain(STRINGS.session(tokens(0), elapsed(second * 1_000)))
+    }
+    // The engine's length, longer than the clock's span of 3.5 s, replaces the running time; the clock stops.
+    await clock.advance(500)
+    await turnEnds($, { ...MAIN_COMPLETE, durationMs: 4_200 })
+    await clock.advance(100)
+    const asked = await periods($)
+    const looked = await looks($)
+    await clock.advance(5_000)
+    for (const pane of panes) {
+      expect(await textsOf(pane)).toContain(STRINGS.session(tokens(150), elapsed(4_200)))
+      await pane.unmount()
+    }
+    expect([await periods($), await looks($), reads]).toEqual([asked, looked, 0])
+  },
+)
+
+test("a main turn's end never steps the time back: an engine length shorter than the clock's span keeps the span", async ($, on) => {
+  const { clock } = world(on)
+  await $.command.run(POSSUMS)
+  const panes = await Promise.all(SURFACES.map(surface => $.ui.mount({ ...MOUNT, surface })))
+  await $.turn.start(MAIN_START)
+  await clock.advance(3_500)
+  for (const pane of panes) expect(await textsOf(pane)).toContain(STRINGS.session(tokens(0), elapsed(3_500)))
+  await turnEnds($, { ...MAIN_COMPLETE, durationMs: 2_000 })
+  await clock.advance(100)
+  for (const pane of panes) {
+    expect(await textsOf(pane)).toContain(STRINGS.session(tokens(150), elapsed(3_500)))
+    await pane.unmount()
+  }
+})
+
+test('no timer while the pane is closed, though a main turn runs (N-03)', { plugins: [PERIODS] }, async ($, on) => {
+  const { clock, redraws } = world(on)
+  await $.turn.start(MAIN_START)
+  await clock.advance(5_000)
+  expect(await periods($)).toBe(0)
+  expect(redraws()).toBe(0)
+})
+
+test("opening the pane during a main turn starts the clock, the time counted from the turn's start", async ($, on) => {
+  const { clock, redraws } = world(on)
+  await $.turn.start(MAIN_START)
+  await clock.advance(2_000)
+  await $.command.run(POSSUMS)
+  await clock.advance(2_000)
+  expect(redraws()).toBe(2)
+  for (const surface of SURFACES) {
+    const pane = await $.ui.mount({ ...MOUNT, surface })
+    expect(await textsOf(pane)).toContain(STRINGS.session(tokens(0), elapsed(4_000)))
+    await pane.unmount()
+  }
+})
+
+test('a clear during a main turn starts the time over: it reads 0:00 and stands until the next turn', { plugins: [PERIODS] }, async ($, on) => {
+  const { clock } = world(on)
+  await $.command.run(POSSUMS)
+  const panes = await Promise.all(SURFACES.map(surface => $.ui.mount({ ...MOUNT, surface })))
+  await $.turn.start(MAIN_START)
+  await clock.advance(3_000)
+  for (const pane of panes) expect(await textsOf(pane)).toContain(STRINGS.session(tokens(0), elapsed(3_000)))
+  await $.classic.SessionStart({ source: 'clear' })
+  await clock.advance(100)
+  const asked = await periods($)
+  await clock.advance(3_000)
+  for (const pane of panes) expect(await textsOf(pane)).toContain(STRINGS.session(tokens(0), elapsed(0)))
+  expect(await periods($)).toBe(asked)
+  // The next main turn moves from zero.
+  await $.turn.start({ ...MAIN_START, turnId: 'turn-main-2' })
+  await clock.advance(2_000)
+  for (const pane of panes) {
+    expect(await textsOf(pane)).toContain(STRINGS.session(tokens(0), elapsed(2_000)))
+    await pane.unmount()
+  }
 })

@@ -32,11 +32,12 @@ builds the pane's element trees, one builder for the desktop app and one for the
 art's source is the PNG layers in `art/`, which a Node script in `tools/` turns into
 `hooks/sprites/data.ts`, outside the engine.
 
-**Built** (0.15.0). The Lead, header, sections, roles with the person's picker, sprites in every
+**Built** (0.16.0). The Lead, header, sections, roles with the person's picker, sprites in every
 set with every state's animation, the gallery in parts the desktop draws, auto-open, Needs you,
 quiet and toasts, Peek, the collapsed view, which a minimized pane draws too, the plan's limits,
-the estimate, helpers drawn under their parents, agents waiting on their own work, and the
-activity line with a file named first, the engine's progress summary and the past tense.
+the estimate, helpers drawn under their parents, agents waiting on their own work, the
+activity line with a file named first, the engine's progress summary and the past tense, and the
+session line's time moving through a main turn.
 `hooks/register.tsx`, named by `hooks/hooks.json`, does the following:
 - registers `/possums` with its words `open`, `roles`, `set` and `settings`;
 - toggles and draws the pane: the Lead row and the session line (the plan's limits, the totals,
@@ -58,10 +59,11 @@ activity line with a file named first, the engine's progress summary and the pas
 - moves a subagent's row to Needs you while its call waits on a permission prompt, shows a run
   quiet past T-05 with no call in flight, and, while the pane is out of view, toasts a run that
   needs the person and a long run's end;
-- keeps the main session's context, tokens, time and estimate, and the plan's limits, in `lead`;
-- runs the one-second clock while the pane is open and a run is live, or a run's role may still
-  fall back to Helper; each beat reads the list while a turn's end is held or a run waits, or,
-  for the progress summaries, while a live run shows in the shown pane;
+- keeps the main session's context, tokens, time and estimate, and the plan's limits, in `lead`,
+  and its running turn's start in module memory;
+- runs the one-second clock while the pane is open and a main turn runs, a run is live, or a
+  run's role may still fall back to Helper; each beat reads the list while a turn's end is held
+  or a run waits, or, for the progress summaries, while a live run shows in the shown pane;
 - empties `runs` and `lead` when the session is cleared, resumed or forked;
 - keeps the settings, Finished's flag and the collapsed view's in the store under `prefs`, and
   each custom type's picked role under `role:<agent type>`; in `view`, a close by the person,
@@ -464,8 +466,8 @@ How it is held:
    `hooks/register.tsx`, `record` and `recordLead`, which read the time and write `runs` or
    `lead` inside `try`, apart from the event's result. The clock is armed inside a guard too.
    `tests/pass-through.test.ts` runs each recording hook, `session.start`, `session.measure`
-   and the main session's `turn.complete` among them, with a `$` whose state and clock refuse
-   every call, and gets back what `next` gave. The role rules read anything that is not text as
+   and the main session's `turn.start` and `turn.complete` among them, with a `$` whose state
+   and clock refuse every call, and gets back what `next` gave. The role rules read anything that is not text as
    empty, so a malformed event never throws there, and they run inside the reading guard. The
    clock's beat settles Helper inside a guard of its own, which leaves the clock running. The
   list's read (`readList`) catches every fault inside, and a list it cannot read ends the held
@@ -520,7 +522,7 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 | `ui.render` `{ component: 'Pane' }`, its `requestId` `possum-squad` | Draws the pane from state; never writes state | 1 |
 | `ui.close` | Stops the clock; when `origin.kind` is `person`, records it in `view` | 1, 5 |
 | `agent.spawn` | Opens a row from the input, its brief from the prompt; re-keys it from the result | 2, 4, 11 |
-| `turn.start` | Marks the loop's row working, heard at its time; the main loop's keeps its turn's start (12c) | 4, 10, 12c |
+| `turn.start` | Marks the loop's row working, heard at its time; the main loop's keeps its turn's start and arms the clock while the pane is open | 4, 10, 12c |
 | `turn.step` (streaming) | Yields every chunk through untouched; from the input, the model and effort; from the result, the usage and its estimate and the calls it asks for (`toolUses`): the activity line, the last actions, files touched, calls in flight, the role's tool evidence | 2, 4, 8, 10, 11, 12 |
 | `turn.complete` | Ends the row (*The run model*), keeping its answer for Peek, and toasts a long run's end (*Attention*), unless `$.agent.list()` lists the agent `waiting`, which leaves the row waiting (12a); the main session's adds its tokens and time to the Lead | 4, 5, 10, 11, 12a |
 | `session.measure` | The Lead's context and the plan limits | 2, 5, 12 |
@@ -538,16 +540,17 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
 - **A subagent ends on its `turn.complete`,** which carries the reason the endings need.
   `classic.SubagentStop` also fires for the engine's own helpers and can fire twice, and
   `agent.report` misses teammates and workflow agents; neither is hooked.
-- **The main loop's `turn.step` makes no `$` call, and its `turn.start` only reads the clock's
-  time** to keep the turn's start, so the session line's time moves during a main turn
-  (Decision log, 2026-11-25); its `turn.complete` makes one write to `lead`, once per main turn,
-  beside the one `session.measure` makes then.
+- **The main loop's `turn.step` makes no `$` call, and its `turn.start` reads the clock's time**
+  to keep the turn's start and, while the pane is open, arms the clock, so the session line's
+  time moves during a main turn (Decision log, 2026-11-25 and 2026-11-26); its `turn.complete`
+  reads the clock's time when a start is kept and makes one write to `lead`, once per main
+  turn, beside the one `session.measure` makes then.
 - **A subagent's `turn.complete` reads `$.agent.list()`, unawaited,** to tell a turn that left
   the agent waiting from its end (*The run model*; Decision log, 2026-11-25).
 - Session 1 hooks every event marked 2 as a pass-through, so Session 2 only reads.
 - The spike's hooks that no later session needs are gone: `tool.check` and `tool.call`.
 
-**Built** (0.5.0). Eleven hooks, in `hooks/register.tsx`:
+**Built** (0.5.0; the main turn's start 0.16.0). Eleven hooks, in `hooks/register.tsx`:
 - `session.start` registers `/possums` with `immediate` and its argument hint, awaits
   `next(e)`, then, inside a guard, arms the clock if `runs` holds a live run (*The panel*). It
   awaits only the state's read for that; the Lead is not seeded from `$.session.usage()`.
@@ -572,9 +575,12 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     spawn opens nothing. Whether its row starts the list is set inside the change of the write
     that opens the row (the opening, or the settling for a fork no tool call starts), so the
     try the engine keeps decides it, and agents spawned together open the pane once.
-  - `turn.start` and `turn.step` record only an event that carries `agentId`: the main loop's
-    make no `$` call. Each reads the time apart (`timeOrNone`), so a clock that cannot be read
-    loses only when the run was last heard.
+  - `turn.start` and `turn.step` record only an event that carries `agentId`. Each reads the
+    time apart (`timeOrNone`), so a clock that cannot be read loses only when the run was last
+    heard. The main loop's `turn.step` makes no `$` call. Its `turn.start` keeps the clock's time
+    in module memory (`mainTurnAt`, 0.16.0), not in `lead`, so a turn costs no write, and, when
+    the time was read, arms the clock where the pane is open (`keepTime`); a clock that cannot
+    be read leaves the turn untimed, counted at its end as before.
   - `turn.step`, for a subagent, first reads the time (`began`, guarded), then delegates every
     chunk (`const result = yield* next(e)`), then records the
     step's model (the usage's, else the input's), its effort, its usage with the part of its
@@ -583,20 +589,23 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
     `result`. In the same change it first settles Helper on any run past T-04
     (`fellBack`), then reads the step's calls as role evidence (`toolsSeen`, from the run's
     reads and searches so far).
-  - A subagent's `agent.spawn` opening, `turn.start` and `turn.step` each arm the clock when
-    the pane is open (*The panel*): `$.clock.every` is synchronous, and a no-op while a timer
-    is armed.
+  - A subagent's `agent.spawn` opening, `turn.start` and `turn.step`, and the main loop's
+    `turn.start`, each arm the clock when the pane is open (*The panel*): `$.clock.every` is
+    synchronous, and a no-op while a timer is armed.
   - `agent.spawn`'s opening carries the input's `prompt`, when it is text, as the run's brief.
   - `turn.complete` with `agentId` holds its row's end (`turnEnded`, *The run model*), keeping its
     `answer` when it has text, and settles Helper only on runs past T-04 (`fellBack`): Helper at
     the end, and the toast of a run whose turn ran past T-10 (*Attention*), come with the end the
     engine's list gives. Without `agentId`, it is the main session's, and
-    `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`). A malformed
-    one never gets that far: the engine refuses its `next(e)` first (*Context*).
+    `recordLead` adds its `usage` and `durationMs` to the Lead (`turnCounted`), or, when a start
+    is kept and the clock's span since it is longer, that span (0.16.0), then drops the start if
+    no later turn replaced it. A malformed one never gets that far: the engine refuses its
+    `next(e)` first (*Context*).
   - `session.measure` awaits `next(e)`, then records the Lead's context and the plan's limits
     (`rateLimits`) through `recordLead` (`measured`).
-  - `classic.SessionStart` with `source` `clear`, `resume` or `fork` stops the clock, empties
-    `runs` and resets `lead`, keeping the plan's limits (*Values*). The engine resets `$.state` on a clear already (*Context*); the
+  - `classic.SessionStart` with `source` `clear`, `resume` or `fork` drops the main turn's kept
+    start, stops the clock, empties `runs` and resets `lead`, keeping the plan's limits
+    (*Values*). The engine resets `$.state` on a clear already (*Context*); the
     mod's own reset keeps the list right wherever it does not.
 - `classic.PermissionRequest` awaits `next(e)`. With `agent_id`, and an answer that carries no
   `decision`, it reads the time and records `asked` through `record`; the change learns whether
@@ -622,8 +631,6 @@ an event but the command's (I-01); each awaits `next(e)`, reads what it needs, a
   nothing beneath runs twice. `validate` lists four as gating: `ui.close`, `agent.spawn`,
   `classic.SessionStart` and `classic.PermissionRequest`. `command.run` reads no `next`, so it
   is not gating; its body catches its own faults (*The command and settings*).
-
-Not yet: the main loop's `turn.start` keeping its turn's start (Session 12c).
 
 ## Values: `$.state` and `$.store`
 
@@ -717,6 +724,12 @@ as `Shaped<Lead>`, and exports their types; `plugin.json` names the file under `
   Session 12's review, CLI 2.1.330). `hooks/register.tsx` keeps them in module memory
   (`knownLimits`), set by each measure's `rateLimits` and by each drawing's `lead`, so a reload
   forgets them only until the pane draws.
+
+  The running main turn's start is not in `lead` (0.16.0): `hooks/register.tsx` keeps it in
+  module memory (`mainTurnAt`), set by the main loop's `turn.start` and dropped at its
+  `turn.complete` and at a clear-type `classic.SessionStart`, so a turn costs no write and `lead`
+  keeps `lead-2`; a reload mid-turn loses only that turn's running time (Decision log,
+  2026-11-26).
 
 `prefs` (0.3.0), in `$.store`:
 - **Its shape** is one flat object, as Decided. `hooks/settings.ts` holds each setting's values,
@@ -914,13 +927,22 @@ each returning the same object when the record changes nothing.
   estimate with every helper's under it, at any depth, and its `prunedHelpers`, memoised; a
   loop of parents counts each run once.
 - **The header's totals** (`totals`, in `hooks/model/lead.ts`): the Lead's fresh tokens,
-  `workedMs` and `usd`, plus every kept run's own `figures` and `usd`, so a helper counts once,
-  plus `past`. A run is live (`isLive`) until it ends.
+  `workedMs` and `usd`, plus the running main turn's time since its start (`turnAt`, 0.16.0;
+  none for a clock read before it, unknown for a clock that cannot be read), plus every kept
+  run's own `figures` and `usd`, so a helper counts once, plus `past`. A run is live (`isLive`)
+  until it ends.
 - **The Lead** (`hooks/model/lead.ts`): `measured` takes a measure's context, and `turnCounted`
-  adds a main turn's tokens and duration. A count, window or duration that is not a finite
+  adds a main turn's tokens and duration: the engine's `durationMs`, or the clock's span since
+  the turn's kept start when that is longer (0.16.0), so the session line never steps back from
+  the running time it showed. A count, window, duration or span that is not a finite
   number of 0 or more is not counted, so a malformed or interrupted turn, whose `usage` is
   absent, never makes a figure NaN. Its context percent is the engine's `percent`, else its
   tokens over its window. Each returns the same object when nothing changes.
+  - Measured before building (CLI 2.1.330, a probe plugin timing three main turns: a one-word
+    answer, a 10-second ping, and one interrupted): the engine's `durationMs` ran 11 to 35 ms
+    past the clock's span from just after `turn.start`'s `next`, and 3 to 12 ms past it from
+    just before; that `next` took 7 to 23 ms. So a turn's end steps the line forward a little,
+    and the span is kept only where the engine's figure is shorter.
 - **The activity** is the last call a step asked for, in `hooks/model/tools.ts`: its tool and
   the argument that names what it works on (a path, the command's first line, a pattern, a URL,
   a query, a description), cut to `TARGET_CHARS` (80) and marked `isCut` (0.15.0). A path of
@@ -1278,7 +1300,8 @@ refusal never puts the engine's error in the pane's place. The drawing writes no
 - **The header:** the Lead row, then the session line (dim), one `Text` joined by ` · `: each
   of `lead.limits` as `5h 40%` (0.13.0; `STRINGS.limits` names `five_hour` 5h, `seven_day` 7d
   and `spend_limit` spend, and another kind reads as given), then `254k tokens · 4:12` from
-  `totals`, then, with `prefs.cost` at `estimate`, `est. $1.20` (0.13.0). `drawPane` gives the
+  `totals`, the running main turn's time included (0.16.0), then, with `prefs.cost` at
+  `estimate`, `est. $1.20` (0.13.0). `drawPane` gives the
   session and each row `usd` only then, so with `off` no dollar figure is in the tree.
   - **`terminalLead`:** a `●` in the theme's `claude` colour and "Main session", then, indented,
     the block bar and `ctx 31% · 120k`.
@@ -1316,18 +1339,20 @@ refusal never puts the engine's error in the pane's place. The drawing writes no
   the live verb. A waiting row is live, so it keeps "Running …": what it waits on still runs.
   Peek's last actions read as the live line does.
 
-The clock (0.5.0; roles 0.6.0), in module memory in `hooks/register.tsx`: a reload drops it, and the engine
+The clock (0.5.0; roles 0.6.0; the main turn 0.16.0), in module memory in `hooks/register.tsx`: a reload drops it, and the engine
 cancels its timer.
 - **Arming:** `armClock` creates the timer only when none is set, so arming is idempotent. It is
   armed only from dispatches that are not drawings, since a drawing's `$` may not serve a later
-  beat. "A run is live" below means `keepsClock`: live, or with no role yet.
+  beat. "A run is live" below means `keepsTime`: a main turn's start is kept, or a run
+  `keepsClock`, live or with no role yet.
   - `/possums` or `/possums open`, when a run is live, whether it opened, raised or left the
     pane: it stops any timer first, so the person can always start a fresh one;
-  - a subagent's spawn, turn start or step, when the pane is open (`keepTime`);
+  - a subagent's spawn, turn start or step, and the main loop's turn start, when the pane is
+    open (`keepTime`);
   - `session.start`, when a run is live. The pane is not known there, so the first beat looks:
     after a reload with the pane closed, one beat runs.
 - **The beat** asks `$.ui.panes()`, and marks the pane open or closed by what it finds. With no
-  pane it stops. With no live run in `runs` it stops. While a run has no role, it reads the
+  pane it stops. With no main turn and no live run in `runs` it stops. While a run has no role, it reads the
   clock and settles Helper on any run past T-04 (`settleHelpers`), writing `runs` through
   `update` only when one is due; that write redraws the pane, so it skips its own
   invalidation, and a fault there leaves the clock running. While `view.isGalleryOpen` is
@@ -1338,14 +1363,16 @@ cancels its timer.
   still working (CLI 2.1.330). While a run holds a kept ending (`hasKept`), it ends any held
   past `LIST_ANSWER_MS` (`settleHeld`, through `update`, with Helper and the toasts of what it
   ends), then starts `readList`, unawaited. Otherwise, while the pane is shown, the gallery
-  closed and a run live (0.15.0), it starts `readList` for the summaries. So the list is read
+  closed and a run live (0.15.0), it starts `readList` for the summaries; a main turn alone reads
+  none. So the list is read
   once a beat at most, and not while the pane hides behind another tab, shows the gallery, or
   shows only ended runs, whose last beat stops the clock. It reads `view` first. Otherwise it
   invalidates the
   drawing, but only if the pane is shown. Any other fault stops it. Each arming has its own generation, so a beat in flight from a
   replaced timer stops nothing.
 - **Stopping:** at a close, whatever its origin; at a clear-type session start; and when a
-  drawing finds no live run, so the last run's end stops it at once. A drawing whose read of
+  drawing finds no live run, so the last run's end, or the main turn's when no run is live,
+  stops it at once. A drawing whose read of
   `runs` is refused leaves it alone.
 - **A timer the engine ends:** a refused period ends an interval silently (*Context*). A drawing
   that finds no beat for 2.5 s of the clock's time with a live run clears the timer, and the
@@ -1542,8 +1569,6 @@ The collapsed view (0.12.0), in `hooks/view/collapsed.tsx`, chosen by `panel`:
 - **In the `widget` seat** neither draws `expand`: a click may not reach it there. The kit
   mounts the seat on both surfaces, and both draw the glance.
 - **Its size** is the Lead's sprite and a few nodes; it draws no row's sprite.
-
-Not yet: the clock and the session line's time during a main turn (Session 12c).
 
 ## Attention
 
@@ -1759,13 +1784,20 @@ unread.
 - **After a reload with the pane closed and a run live,** the clock beats once before it finds
   the pane closed: `session.start` would have to await `$.ui.panes()` to know, which N-07 does
   not allow.
-- **A timer the engine ends comes back only at a later subagent event,** or at `/possums open`:
-  a drawing notices it (2.5 s without a beat), and the next spawn, turn start or step arms
-  another. In between, times move only on events.
+- **A timer the engine ends comes back only at a later subagent event,** the next main turn's
+  start, or `/possums open`: a drawing notices it (2.5 s without a beat), and the next spawn,
+  turn start or step arms another. In between, times move only on events, and a main turn's
+  time not at all until its end.
 - **A drawing whose read of `runs` is refused leaves the clock alone, untested:** in the kit,
   the clock beat on after such a drawing with the old code too, for a reason not found.
-- **The Lead's time grows when each main turn ends,** not during it: the main loop's turn start
-  and steps make no `$` call.
+- **A reload of the mod during a main turn loses that turn's running time:** its start lived in
+  module memory, so the session line stands until the turn's end counts it.
+- **A main turn that spans a clear counts whole at its end:** the clear drops its running time,
+  but its end adds the engine's length and tokens, as it did before the time moved. A clear is
+  queued between turns in practice.
+- **At a main turn's end, a drawing already in flight may count the turn twice, or leave it out,
+  for one frame:** the counted turn is in `lead` and the running start in module memory, read
+  at different moments; the write's own redraw follows at the redraw rate.
 - **A waiting run's end, with the pane closed, shows at the next subagent event or the pane's
   next open:** no beat runs then (N-03), and the main session's events read no list. Its time
   and its toast run to that read, so they are long by the gap.
@@ -1850,8 +1882,9 @@ unread.
   `failed after 2:14`.
 - **A minimized pane toasts by `isShown` alone:** `$.ui.panes()` does not say a pane's seat, and
   only a drawing sees `placement`, so whether a `widget` counts as shown is the app's.
-- **The collapsed view is redrawn by the clock's beat** while a run is live, though nothing in
-  it moves with time; it is a few nodes and its sprite string is cached.
+- **The collapsed view is redrawn by the clock's beat** while a run is live or a main turn runs,
+  so through most of a session, though nothing in it moves with time; it is a few nodes and its
+  sprite string is cached.
 - **`peek` keeping its room on the desktop is unseen** until the owner's look after a push:
   the kit lays the row out its own way, and drew the button the desktop pushed out at 0.13.0.
   The fix is `minWidth` 0 on the shrinking Boxes, which assumes the desktop lays them out as
@@ -1887,12 +1920,12 @@ unread.
 - **The session line wraps at 46 columns** in the terminal's dock with two limits and the
   estimate on, since it is one `Text` beside the `collapse` button.
 
-## Baseline (v0.15.0)
+## Baseline (v0.16.0)
 
 | Check | Expected |
 |---|---|
 | `npm run verify -- possum-squad` | green: the 6 repo stages, then `validate`, `types`, `tests` and `imports` for possum-squad, `types` and `tests` taking `tools/` |
-| `claude plugin test mods/possum-squad` | 315 pass, in 26 files: activity 8, attention 15, auto-open 11, clock 13, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 58, nesting 6, pane-sprites 9, panel 10, pass-through 7, peek 12, picker 12, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, waiting 11; about 18 s |
+| `claude plugin test mods/possum-squad` | 323 pass, in 26 files: activity 8, attention 15, auto-open 11, clock 18, collapsed 14, command 11, compose 8, estimate 6, gallery 11, header 10, model 60, nesting 6, pane-sprites 9, panel 10, pass-through 8, peek 12, picker 12, prefs 5, roles 9, row 9, runs 19, sets 6, settle 12, size 8, sprites 15, waiting 11; about 18 s |
 | `node scripts/tools.ts specs mods/possum-squad` | 10 pass, in 2 files: art 6, png 4 |
 | `validate`: hooks / gating / state keys | 11 / 4 (each with a `.catch`) / 3 (`lead`, `runs`, `view`) |
 | `validate`: calls | `$.agent.list`, `$.clock.every`, `$.clock.now`, `$.command.register`, `$.state.get`, `$.state.set`, `$.store.get`, `$.store.set`, `$.ui.close`, `$.ui.invalidate`, `$.ui.open`, `$.ui.panes`, `$.ui.resolve`, `$.ui.toast` |
@@ -2094,3 +2127,13 @@ one moves, that is the finding.
   theirs. The owner's choice at Session 12b's plan.
 - 2026-11-25, *The panel* and *Sprites and sets*: the gallery does not draw `waiting`, which is
   quiet's pose. The owner's choice at Session 12a's plan.
+- 2026-11-26, *The hooks* and *Values*: the running main turn's start is kept in module memory,
+  not in `lead`: a turn costs no write, and a reload mid-turn loses only that turn's running
+  time. The owner's choice at Session 12c's plan, as Session 13's plan proposed.
+- 2026-11-26, *The run model*: a main turn's end counts the engine's `durationMs`, or the clock's
+  span since the turn's start when that is longer, so the session line never steps back. The
+  owner's choice at Session 12c's plan.
+- 2026-11-26, *The hooks*: the main loop's turn start also arms the clock while the pane is
+  open (one synchronous `$.clock.every`, a no-op while armed), so a pane open with no run live
+  starts beating. Confirmed by the owner at Session 12c's plan; it revises the line of
+  2026-11-25 by which that hook only read the clock's time.

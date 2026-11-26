@@ -5,9 +5,9 @@ their live numbers and state; in the desktop app each one is drawn as a small an
 opossum dressed for its job. It only watches: it changes nothing Claude does and adds nothing
 to what Claude is sent.
 
-This is 0.15.0: the pane opens by itself when a session's first agent starts (the `autoOpen`
+This is 0.16.0: the pane opens by itself when a session's first agent starts (the `autoOpen`
 setting says when; a pane you close stays closed), and `/possums` opens or hides it. The main session heads it, with its context, then a line
-of your plan's limits (such as `5h 40% · 7d 12%`), the session's tokens and work time and, with
+of your plan's limits (such as `5h 40% · 7d 12%`), the session's tokens and work time, which ticks while Claude works, and, with
 `/possums set cost estimate`, an estimate in dollars; under it, every subagent Claude starts is a row in Needs you,
 Running or Finished, with its state, its role (such as Builder, Scout or Researcher,
 worked out from its type, its task's words and its first tool calls), model, what it is doing

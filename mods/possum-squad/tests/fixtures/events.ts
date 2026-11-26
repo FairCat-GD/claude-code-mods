@@ -31,6 +31,11 @@ export const TURN_COMPLETE = {
 } as const
 export const TURN_COMPLETED = { text: 'Seven shovels: four red, three green.', usage }
 
+// The main loop's turn: no `agentId`.
+export const MAIN_START = { text: 'Sort the seed packets', turnId: 'turn-main-1' } as const
+const { agentId: _, ...mainEnd } = TURN_COMPLETE
+export const MAIN_COMPLETE = { ...mainEnd, turnId: 'turn-main-1' } as const
+
 export const MEASURE = {
   context: { tokens: 18000, window: 200000, percent: 9 },
   rateLimits: [{ kind: 'five_hour', percentUsed: 12, resetsAt: '2030-01-01T05:00:00Z' }],

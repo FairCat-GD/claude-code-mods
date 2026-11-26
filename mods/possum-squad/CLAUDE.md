@@ -80,8 +80,10 @@ first line copies it.
 - **A hand check can be driven without the user:** start `screen -U -dmS <name> claude
   --plugin-dir mods/possum-squad` from the repository's root (GNU `screen` 4.0.3; tmux is not
   installed), attach it in a Terminal-panel tab with `screen -U -r <name>`, type with
-  `screen -S <name> -X stuff`, and read the tab. The tab's width docks the pane. Detached alone,
-  `-X hardcopy` came back empty or stale after a `width` command (CLI 2.1.330), and without
-  `-U` the drawing is garbled. `/exit` ends it; check no `claude --plugin-dir` is left.
+  `screen -S <name> -X stuff`, and read the tab. The tab's width docks the pane. Detached, with
+  `-U` and no `width` command, `-X hardcopy -h <file>` reads it (CLI 2.1.330); a plain
+  `hardcopy` came back empty, and one after a `width` command empty or stale. Without `-U` the
+  drawing is garbled (`0:20` read as `20:00`). `/exit` ends it; check no `claude --plugin-dir`
+  is left.
 - **`docs/spec/research/` is input** for round 1: copy from it, never edit it. Its corpus labels
   are fixed, and the role table is never tuned on `holdout`.

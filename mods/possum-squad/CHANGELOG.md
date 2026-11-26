@@ -6,6 +6,17 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-11-26
+
+The session line's time moves while Claude works on a turn, not only when the turn ends.
+
+### Changed
+
+- **The session line's time ticks through Claude's own turns,** once a second while the pane is
+  open, as it already did while an agent works. When the turn ends, the time Claude Code counted
+  for it takes the running time's place; the line never steps back. With the pane closed nothing
+  ticks.
+
 ## [0.15.0] — 2026-11-25
 
 A row's third line says what its agent is doing in Claude Code's own words, names the file it

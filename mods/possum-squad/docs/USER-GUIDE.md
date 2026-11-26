@@ -59,14 +59,15 @@ From the top:
 
 **The time is work time:** the main session's turns added up, plus each agent's time, so with
 several agents at once it runs faster than the clock on the wall. The main session's part grows
-when each of Claude's turns ends, not during it. An agent that answers more than once (a
+while Claude works on a turn; when the turn ends, the time Claude Code counted for it takes the
+running time's place, and the line never steps back. An agent that answers more than once (a
 teammate, or one Claude resumes) counts from its first start, its rests included. Agents that
 dropped out of the list (it keeps the latest 30 ended runs) still count.
 
-**Times tick every second** while an agent runs and the pane is open, even when nothing else
-happens. With nothing running, or the pane closed, nothing ticks. A pane open behind another
+**Times tick every second** while Claude or an agent works and the pane is open, even when
+nothing else happens. With nothing running, or the pane closed, nothing ticks. A pane open behind another
 pane's tab keeps time without redrawing, so its next tick after you bring it back draws it
-right. If the times ever stand still while an agent runs, `/possums open` starts them afresh.
+right. If the times ever stand still while Claude or an agent works, `/possums open` starts them afresh.
 
 In a terminal the pane is all text: block characters for the bars, and a coloured mark beside
 each state word.
@@ -118,7 +119,7 @@ first part, keeps its part while you change the set, and starts again from the f
 closed. In a terminal the gallery is text: each state's mark and word, then the part's roles and
 their costumes. Its `close` button brings the list back, and so does closing the pane: the next
 `/possums` opens on the list. While the gallery is open the pane is not redrawn every second, so
-the session line's time moves only when an agent does something.
+the session line's time moves only when an agent does something or Claude's turn ends.
 
 ## What a row shows
 

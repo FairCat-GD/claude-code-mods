@@ -100,6 +100,11 @@ these are the parts only a person can see.
   package.json in …/mods/possum-squad") on a row and in Peek; Claude Code's progress summary in
   a working row's third line, about half a minute into an agent's work, and whether the desktop
   app's engine gives one at all; an ended row's last call in the past.
+- **The main session's time through a turn (0.16.0).** Seen in the terminal at Session 12c (CLI
+  2.1.330): the session line ticked each second through a main turn running a foreground
+  `ping`, then settled on the counted time with the turn's tokens, a second forward, never back.
+  Unseen: the same in the desktop app; a turn with the pane closed and then opened mid-turn
+  (the kit checks it); a reload of the mod mid-turn.
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
   0.3.0's words wait for its push and the owner's install.

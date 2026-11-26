@@ -314,6 +314,25 @@ test('the totals are the Lead, every run kept, and what pruned runs counted', ()
   expect(micro(usd)).toBe(9_500 + 73.25 + 500_000)
 })
 
+test('a running main turn adds its time since its start to the totals, and an unread clock makes the time unknown', () => {
+  const main = turnCounted(NO_LEAD, turnUsage(1_000, 200, 0, 300), 4_200)
+  // Counted 4,200, then a turn running since 7,500, read at 10,000.
+  expect(totals(main, NO_RUNS, 10_000, 7_500)).toMatchObject({ tokens: 1_500, workedMs: 6_700 })
+  expect(totals(main, NO_RUNS, 10_000)).toMatchObject({ workedMs: 4_200 })
+  // A clock read before the start counts nothing yet.
+  expect(totals(main, NO_RUNS, 7_000, 7_500)).toMatchObject({ workedMs: 4_200 })
+  expect(totals(main, NO_RUNS, Number.NaN, 7_500).workedMs).toBeNaN()
+})
+
+test("a main turn counts the engine's length, or the clock's span since its start when that is longer", () => {
+  expect(turnCounted(NO_LEAD, undefined, 4_200, 4_150).workedMs).toBe(4_200)
+  expect(turnCounted(NO_LEAD, undefined, 4_200, 4_900).workedMs).toBe(4_900)
+  // A span alone counts; one that is not a number of 0 or more is left out.
+  expect(turnCounted(NO_LEAD, undefined, undefined, 900).workedMs).toBe(900)
+  for (const odd of [-5, Number.NaN, Number.POSITIVE_INFINITY]) expect(turnCounted(NO_LEAD, undefined, 4_200, odd).workedMs).toBe(4_200)
+  expect(turnCounted(NO_LEAD, undefined, undefined, -5)).toBe(NO_LEAD)
+})
+
 test('a run Finished no longer keeps still counts in the totals, and a clear starts them over', () => {
   let runs = NO_RUNS
   for (let i = 0; i <= FINISHED_KEPT; i++) {

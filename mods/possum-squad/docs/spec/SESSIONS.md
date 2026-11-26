@@ -2666,6 +2666,80 @@ debt*.
 - **The clock now runs through most of a session** while the pane is open: each beat redraws
   the pane. Keep the beat's work within N-07.
 
+**Done (2026-11-26, 0.16.0).**
+- **Decided with the user, at the plan:**
+  - **where the start lives** (the block's ask): module memory, as proposed (`mainTurnAt`, as
+    `knownLimits` is); `lead` stays `lead-2`;
+  - **the turn's end** (the block's Watch for, put to the owner): never steps back. The turn
+    counts the engine's `durationMs`, or the clock's span since the kept start when that is
+    longer;
+  - **Confirms** (*The hooks*), approved with the plan: the main loop's `turn.start` reads the
+    clock's time and, while the pane is open, arms the clock; its `turn.step` still makes no `$`
+    call.
+- **Measured first** (CLI 2.1.330), with a throwaway probe plugin in the scratchpad timing the
+  main loop's `turn.start` and `turn.complete`, never in the repository, driven through
+  `screen`. Over three main turns (a one-word answer, a 10-second foreground ping, one
+  interrupted at about 9 s), `durationMs` ran 35, 12 and 11 ms past the clock's span from just
+  after `turn.start`'s `next`, and 12, 5 and 3 ms past it from just before; that `next` took
+  23, 7 and 8 ms. So the engine's figure is the longer, and the end steps the line forward.
+- **Shipped:**
+  - **The model:** `totals(lead, runs, now, turnAt?)` adds the running turn's time, none for a
+    clock read before the start, NaN for an unread clock; `turnCounted(…, spanMs?)` counts the
+    larger of `durationMs` and a finite span of 0 or more.
+  - **The hooks:** `mainTurnAt` in module memory; `keepsTime(held)`, a main turn or a shown run
+    that `keepsClock`, in `tick`, `armIfLive` and `drawPane`. The main loop's `turn.start` reads
+    the time after `next` and arms through `keepTime`; its `turn.complete` reads the time only
+    when a start is kept, writes `lead` once, then drops the start if no later turn replaced
+    it; a clear, resume or fork drops it. `drawPane` passes it to `totals`. `tick`'s list read
+    keeps its `isLive` condition, so a main turn alone reads no list.
+  - **Tests:** clock +5 (the line moving each second with no list read and standing on the
+    counted time, the clock stopped after; the end never stepping back; no timer with the pane
+    closed; `/possums` opened mid-turn; a clear mid-turn), pass-through +1 (the main step asks
+    nothing of `$`, its turn start with the pane closed only `clock.now`; a main `turn.start`
+    among the I-05 cases), model +2; the fixtures `MAIN_START` and `MAIN_COMPLETE`.
+  - **Docs:** `CHANGELOG.md` 0.16.0; `README.md` (0.16.0, the time ticking); `USER-GUIDE.md`
+    (*The time is work time*, *Times tick every second*, the gallery's note); `docs/BACKLOG.md`
+    (the main session's time); the mod's `CLAUDE.md` (the screen read); `ARCHITECTURE.md`:
+    *Overview*, I-05, *The hooks* (the Decided line amended, Built, "Not yet" out), *Values*
+    (`lead` and `mainTurnAt`), *The run model* (`totals`, `turnCounted`, the measurement), *The
+    panel* (the session line, the clock, "Not yet" out), *Known debt* (the Lead's-time line out;
+    three in; two widened), the baseline, three Decision log lines.
+- **Amendments:**
+  - The Decided line by which the main loop's `turn.start` "only reads the clock's time" now
+    also arms the clock while the pane is open: without it a pane open with no run live never
+    beats. Confirmed by the owner at the plan.
+  - "A clear mid-turn starts the time over" reads as: the clear drops the kept start with the
+    rest of the Lead, so the line reads `0:00` and stands until the next main turn. A turn that
+    spans a clear counts whole at its end, as before (*Known debt*). The session's reading,
+    stated in the approved plan.
+  - The block's line numbers in `register.tsx` had drifted with 12a and 12b; the code it named
+    was found by name.
+  - Decided by the session: the start is read after `next`, as a subagent's; `armIfLive` skips
+    the `runs` read while a main turn runs; resume and fork drop the start as a clear does.
+- **Checked by hand,** in the terminal: `claude --plugin-dir mods/possum-squad` driven through
+  `screen -U`, auto mode, the `@inline` store's settings left as they were (only `/possums`
+  typed). The pane read `0 tokens · 0:00`; a main turn running a foreground `ping -c 20` showed
+  `0:17` beside the engine's own 17 s, then `22k tokens · 0:22` at its end, the engine's
+  "Crunched for 22s", and stood there. A second turn (`ping -c 8`), read each half second,
+  ticked `0:22` to `0:31`, then settled on `23k tokens · 0:32`: forward, never back. No
+  `claude --plugin-dir` was left running.
+  - Read detached with `-X hardcopy -h` in `-U` mode, with no `width` command; without `-U`
+    the `·` shifted the drawing, and `0:20` read as `20:00`.
+  - **Not checked by hand:** the desktop app (`docs/BACKLOG.md`); a reload mid-turn; the pane
+    closed through a turn (the kit checks it).
+- **Falsified,** each failing at its own test (10): the running time dropped from `totals`; the
+  main turn missing from `tick`'s, `armIfLive`'s and `drawPane`'s condition (three runs); the
+  clock armed with the pane closed; the main step reading the clock; the start kept past the
+  turn's end; the start kept past a clear; the end taking `durationMs` alone; a list read on a
+  main-turn beat.
+- **Numbers:**
+  - 323 tests (+8) in 26 files: clock 18 (+5), model 60 (+2), pass-through 8 (+1), the rest
+    unchanged; about 18 s;
+  - the tools' specs unchanged: 10 in 2 files;
+  - `validate`: 11 hooks, 4 gating each with a `.catch`, 3 state keys, the calls line
+    unchanged;
+  - the gate green on CLI 2.1.330.
+
 ---
 
 ## 12d: Toasts, the tab title and `detect`
