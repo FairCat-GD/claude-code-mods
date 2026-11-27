@@ -11,7 +11,8 @@ holds the rules and practices every mod follows; this file adds only what is thi
 **Read `docs/ARCHITECTURE.md`'s overview, invariants and baseline, and the sections your block
 names, before changing code.** It keeps what is **Decided**, which changes only with the owner,
 apart from what is **Built**, which every session keeps true. `docs/USER-GUIDE.md` is the mod's
-behaviour from the user's side.
+behaviour from the user's side, and `README.md` what it does, its install, its commands, what it
+can call (`validate`'s calls line) and the Claude Code version it was tested on.
 
 ## Machine identifiers
 

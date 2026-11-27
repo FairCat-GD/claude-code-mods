@@ -6,6 +6,17 @@ All notable changes to possum-squad are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-11-27
+
+The first full release: the pane lists the main session and every agent with live numbers and
+state, each drawn as an opossum dressed for its role, as the versions below built it.
+
+### Changed
+
+- **Nothing in the pane changes from 0.17.0.** The README now says what the plugin can call in
+  Claude Code and which Claude Code version it was tested with, and the user guide has been
+  checked against the plugin as it is.
+
 ## [0.17.0] — 2026-11-26
 
 Toasts say why an agent failed and can be quieted, the pane's tab says when agents need you,
@@ -461,3 +472,22 @@ later versions.
 - **The mod watches without changing anything.** It sees agents start, turns run and tools get
   called, and passes every one of them on exactly as it came; watching adds nothing to what
   Claude is sent.
+
+[0.17.0]: https://github.com/FairCat-GD/claude-code-mods/commit/3b0774b739c33be8109d75f10d12e0c915f3a468
+[0.16.0]: https://github.com/FairCat-GD/claude-code-mods/commit/63d7d98a0ab8b57676d9846fde4ad72b81074bfc
+[0.15.0]: https://github.com/FairCat-GD/claude-code-mods/commit/af4109a1b6f924b404985fcb34b4c2fdf3ef7018
+[0.14.0]: https://github.com/FairCat-GD/claude-code-mods/commit/8e74372d749b65ff5cd83c79533a7823ca7dffc1
+[0.13.0]: https://github.com/FairCat-GD/claude-code-mods/commit/cecaf58d6ed854cc462640990c0dc449eb263477
+[0.12.0]: https://github.com/FairCat-GD/claude-code-mods/commit/3ff38f296012c83b0e33424c9a0816009d784dfa
+[0.11.0]: https://github.com/FairCat-GD/claude-code-mods/commit/630a295d64b517a165c78b13f98a1e0cdd411939
+[0.10.1]: https://github.com/FairCat-GD/claude-code-mods/commit/a9609ce68bd1f8738bfb1e95600d122c4c039636
+[0.10.0]: https://github.com/FairCat-GD/claude-code-mods/commit/38897cf2a5d54192b883b806366739388203d5ba
+[0.9.0]: https://github.com/FairCat-GD/claude-code-mods/commit/86e5d008d51361aa9278bdf176631d36fb683dad
+[0.8.0]: https://github.com/FairCat-GD/claude-code-mods/commit/b0df5416d857ec7db21adeb2d9ad882ebae42a99
+[0.7.0]: https://github.com/FairCat-GD/claude-code-mods/commit/59fabdc2245e997a3e2bc87f2f8e709c72d7c0bb
+[0.6.0]: https://github.com/FairCat-GD/claude-code-mods/commit/378056e22fa2eab01711e21d725c35977e6355ba
+[0.5.0]: https://github.com/FairCat-GD/claude-code-mods/commit/4475de3ff48a63dd417ec18661d5dba9c846f249
+[0.4.0]: https://github.com/FairCat-GD/claude-code-mods/commit/856fcc99e60ce472932b5848e0a60b711cfacc20
+[0.3.0]: https://github.com/FairCat-GD/claude-code-mods/commit/0512707dd8dc905076619c9ec6175270d26505c7
+[0.2.0]: https://github.com/FairCat-GD/claude-code-mods/commit/f47801dd5f2b77436ce2c7715fd530ca3bfca774
+[0.1.0]: https://github.com/FairCat-GD/claude-code-mods/commit/64828e916fba4183e6f7b919f10d8c6afb51e4b4

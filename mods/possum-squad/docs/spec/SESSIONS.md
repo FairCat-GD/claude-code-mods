@@ -3013,3 +3013,73 @@ The amendments below are from the review, and the owner chose the order of the l
 - Smaller: the not-yet notes moved from Decided into each section's Built part; two facts of
   the backlog item 12a picked up carried into its hand check; 12a's Read line named an
   amendment decision 14 does not have.
+
+**Done (2026-11-27, 1.0.0).** The release commit; the look from the installed 1.0.0 and the
+close follow, as the amendment above orders them.
+- **Decided with the user, at the plan:**
+  - **the name check** (the block's, "by the owner"): the owner chose that the session search.
+    GitHub had no repository and no code named `possum-squad` or "possum squad"; code with
+    `"/possums"` was one web app's page routes, no Claude Code plugin; two web searches found no
+    mod by either name, only unrelated plugins named for a squad (2026-11-27);
+  - **H1 and H3** go in `docs/BACKLOG.md`'s new *Hypotheses to check*, each its claim and how to
+    check it, saying nothing of what was or was not measured;
+  - **H6 is met** by the owner's look at every set's gallery at 0.10.1, all as expected, nothing
+    sent to polish;
+  - **T-08, the design's context badge,** never planned or built, goes to *Deferred*.
+- **Decided with the user, mid-session:** five Decided lines the code had outgrown, brought in
+  line with it and with the decisions already logged (Decision log, 2026-11-27): `config.ts`'s
+  tunables (but T-08, and T-11 and T-12 in `hooks/data/`); `view/`'s imports (also `config.ts`
+  and the pure helpers of `model/` and `roles/`; amended, not moved in code); the manifest's
+  recipe per drawn pose; the gate taking `tools/`; toasts while the list is out of view and the
+  guarded title.
+- **Shipped:**
+  - **`ARCHITECTURE.md` read cold against the code,** every section; three read-only helpers
+    checked *The panel*, the layout and sprite sections, and the done-notes for open items, and
+    every finding was checked against the code before it changed a line. Corrected: the hooks'
+    clock at `session.start` (`keepsClock`) and the close ending the picker and Peek; the
+    resume clearing a failure; `prefs`' readers; the layout's files, constants, types and tests
+    (`toasts.ts`, twelve test files, `size.ts`); the light outline's count (30 of 32, not 29);
+    the panel's reads, the beat's order and list reads, the arming and stopping lists, `RowData`'s
+    `order`, the `<$0.01` cut (half a cent), rows in spawn order within each branch; size and
+    timing figures labelled with the version they were measured at; the CLIs and engines
+    each version ran on; *Packaging*'s pushes; *Known debt* on what the desktop has and has not
+    shown, a helper's `est.` wrapping, and the size test timing out under load. The overview
+    and the baseline read 1.0.0, the counts unchanged.
+  - **A *Requirement ids* section:** each `F-`, `N-02`–`N-08` and `H` id in one line, so the ids
+    in code comments and test names stay defined once `PDD.md` goes.
+  - **`README.md`:** 1.0.0; *What it can call*, `validate`'s calls line word for word, and what
+    it never does; *Tested with* Claude Code 2.1.330, terminal and desktop (N-08).
+  - **`USER-GUIDE.md`:** read whole against the code and the strings; two lines corrected (a
+    plain row's "Pick a role", the half-cent cut).
+  - **The mod's `CLAUDE.md`** points at the README beside the guide.
+  - **`docs/BACKLOG.md`:** the context badge; *Hypotheses to check*; H5 with step reports; the
+    by-hand checks the done-notes left and the backlog lacked (the terminal's picker and
+    `/possums open`, Peek's files and last actions there, the collapsed view's needs-you mark
+    and a toast while collapsed, a pruned helper's share, the moment between waiting and
+    finished, a summary on a waiting row).
+  - **`CHANGELOG.md`:** 1.0.0, and a link reference for 0.1.0 to 0.17.0, each to the commit
+    that bumped the manifest to it; 0.1.0's to Session 1's release, since the intake's commit
+    only made the folder at that version. 1.0.0's waits for its commit's sha to be final.
+  - **The handoff** is the between-rounds one.
+- **Amendments:**
+  - **H1 and H3 are recorded without a measured status,** the owner's word at the plan, where
+    the block said "as not yet measured".
+  - **The four lines that name `docs/spec/`** (the mod's `CLAUDE.md` on `research/`, and
+    `ARCHITECTURE.md`'s `art/` copied from `research/art/`, the PDD's worked examples and
+    *Packaging*'s "until round 1 closes") are true until the close, so the close rewords them.
+    The block's grep settled every other hit: the ids, by the new section.
+- **Measured** (CLI 2.1.330, 2026-11-27):
+  - the doc checks no test makes, run once from the scratchpad: every backticked path in the
+    README, guide and architecture exists (left: an extension, a module name, and `research/art/`,
+    which the close rewords); the README's calls line is `validate`'s; every quoted pane string
+    is `hooks/strings.ts`'s, directly or through its templates; `hooks/` and `types/` have no
+    diff since 12d's review (`80e90aa`);
+  - before `research/` goes: `art/` equals `research/art/` but for the decided flip of `failed`,
+    the redrawn joey and formatted JSON (the palette equal as data); the corpus fixture holds
+    all 144 cases word for word (102 `dev`, 42 `holdout`, none added); the reference and the
+    four drawing scripts stay in git history, and nothing a later round needs is only there.
+- **Checked by hand:** nothing yet; the looks from the installed 1.0.0 follow the push.
+- **Falsified:** nothing: the session adds no check.
+- **Numbers:** unchanged. 361 tests in 27 files, about 20 s; the tools' specs 10 in 2;
+  `validate` 11 hooks, 4 gating each with a `.catch`, 3 state keys, the same calls; the gate
+  green on CLI 2.1.330.

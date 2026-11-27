@@ -12,12 +12,24 @@ up, it moves out of this file.
   and a `plan` tool with which the main session lists tasks ahead, shown under Planned. Off by
   default, behind the setting `stepReports` (`off`, `tool`, `nudge`). Their names are reserved.
   Left out at the round 1 intake: they add tokens when on, and the panel works without them.
+  Its hypothesis goes with it: step reports are worth their tokens, checked by a week with
+  `stepReports` at `tool`, the bars right and no noticeable change in the plan's use.
 - **Submitting to Anthropic's plugin directory,** after 1.0.0 has a week of use. Left out at the
   round 1 intake.
 - **A preview GIF for the README.** Left out at the round 1 intake.
 - **A finish sound.** Left out at the round 1 intake.
+- **A context badge,** text on a row once its context passes 80% (the design's T-08), with no
+  animation. The row's bar and percent show the fill already. Left out of round 1: no session
+  planned it.
 - **The `modern` set,** drawn in full before the build and not chosen as the first set; its
   layers are outside the repository. Left out at the round 1 intake.
+
+## Hypotheses to check
+
+- **Roles can be guessed from what the mod sees for free.** Check: a week of real sessions;
+  each pick in the role picker counts as a miss. Holds at three outfits in four right.
+- **The panel earns its space.** Check: two weeks of use; it holds if the pane stays open in
+  most sessions.
 
 ## Not yet checked by hand
 
@@ -50,7 +62,7 @@ these are the parts only a person can see.
     part's 18 moving sprites replace the 102 this item first named.
   - **From 0.10.0:** each row's role name as a button beside the model and effort, in the
     second line's small type (seen at Session 13's plan); pressing it opens a list of sixteen roles under the row, the
-    current one selected; a pick dressing a working opossum with one hop; `cancel` and a second
+    current one selected (in the terminal too: a press through `screen` never reached it); a pick dressing a working opossum with one hop; `cancel` and a second
     press closing the list. The pane opening by itself when a session's first agent starts,
     without taking the keyboard; after a close with its close mark, a new agent opening
     nothing; `/possums` then taking that back.
@@ -79,7 +91,8 @@ these are the parts only a person can see.
   `minWidth` 0 on the row's shrinking Boxes. Unseen: `peek` and `hide` in reach on a row reading
   a file under a long path, or running a long command; Peek's lines under the row, wrapping, in the small type; the
   collapsed view, the Lead carrying one to three joeys at panel size on both themes (the
-  redrawn joey's light-theme outline), the count and `1 needs you` beside it, and `expand`; a
+  redrawn joey's light-theme outline), the count and `1 needs you` beside it (in the terminal
+  too), and `expand`; Peek's `Files changed` on either surface; a toast while collapsed; a
   pane minimized in the app showing the collapsed view with no button, and a toast while it
   is minimized (`$.ui.panes()` does not say the seat, so a minimized pane toasts only if the
   app reports it not shown).
@@ -88,18 +101,20 @@ these are the parts only a person can see.
   `off`): the session line with the limits in its dim type (`5h 76% · 7d 64% · 665k tokens ·
   20:16`), wrapping beside `collapse`; a helper's row indented under its parent in Finished, its
   opossum beside it. Unseen: `est.` on the session line and on a row; a helper two levels deep;
-  a helper under a parent that still works.
+  a helper under a parent that still works; a pruned helper's share kept in its parent's
+  tokens.
 - **Waiting (0.14.0).** Seen in the terminal at Session 12a (CLI 2.1.330): a subagent that
   started a 40-second `ping` in the background and handed back read `waiting` in Running, its
   time counting, with no role; when the ping ended it took another turn, then read finished at
-  0:44 as Helper. Unseen: in the desktop app, the waiting row's doze and its dim word; a parent
+  0:44 as Helper; the working moment between was not caught on screen. Unseen: in the desktop app, the waiting row's doze and its dim word; a parent
   waiting on its background helper with the helper drawn under it (the engine listed such a
   parent `waiting` in Session 12a's probe); the toast at a waiting agent's real end with the
   pane closed, and that end shown at another agent's event.
 - **The activity line (0.15.0).** Unseen in the desktop app: a file named first ("Reading
   package.json in …/mods/possum-squad") on a row and in Peek; Claude Code's progress summary in
   a working row's third line, about half a minute into an agent's work, and whether the desktop
-  app's engine gives one at all; an ended row's last call in the past.
+  app's engine gives one at all; an ended row's last call in the past. Unseen in the terminal
+  too: Peek's last actions (the kit checks them), and a summary on a waiting row.
 - **The main session's time through a turn (0.16.0).** Seen in the terminal at Session 12c (CLI
   2.1.330): the session line ticked each second through a main turn running a foreground
   `ping`, then settled on the counted time with the turn's tokens, a second forward, never back.
@@ -116,7 +131,8 @@ these are the parts only a person can see.
   `collapsed`).
 - **`/possums` closing the pane, and `open`, `set` and `settings`, in the desktop app.** The
   desktop run (0.2.0) opened the pane with `/possums`; closing it there was not looked at, and
-  0.3.0's words wait for its push and the owner's install.
+  0.3.0's words wait for its push and the owner's install. In the terminal, `/possums open`
+  leaving a shown pane shown was not seen either.
 - **Whether `/possums`'s answers stay out of requests.** They carry `isTextDisplayOnly`, which
   the declarations say is read "on the queued lanes"; whether an `immediate` command typed
   between turns is on one was not checked. To check: type `/possums settings` between turns,

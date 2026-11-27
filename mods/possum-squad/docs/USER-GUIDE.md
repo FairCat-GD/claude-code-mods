@@ -201,7 +201,7 @@ comes from a price table dated in the plugin, so it goes stale when prices chang
 not see fast mode, the US-only surcharge or web search fees. A model the table does not list,
 one released after it, is priced as Opus 5.5. A main session's turn is priced at
 the model that answered last in it. The session line's estimate is the main session's and every
-agent's; a row's includes its helpers'. Under a cent it reads `<$0.01`. With `cost` at `off`, the
+agent's; a row's includes its helpers'. Under half a cent it reads `<$0.01`. With `cost` at `off`, the
 default, no dollar figure appears anywhere in the pane.
 
 ## The collapsed view
@@ -294,8 +294,8 @@ possum-squad sees anyway, never from asking a model, by the first of these that 
    teammate whose turn ends, or an agent waiting on its own work, keeps its role open for its
    next turn, or the minute.
 
-Until its role settles, a row shows none. Once settled, a run's role changes only when you
-change it.
+Until its role settles, a row names none: its button reads "Pick a role". Once settled, a run's
+role changes only when you change it.
 
 ## Changing a role
 
