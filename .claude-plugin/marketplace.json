@@ -1,7 +1,7 @@
 {
   "name": "claude-code-mods",
   "owner": { "name": "FairCat-GD" },
-  "description": "The owner's Claude Code mods: plugins that change Claude Code's own interface or behaviour through its function-hooks API.",
+  "description": "Mods for Claude Code that change how it looks and behaves.",
   "plugins": [
     {
       "name": "cartoon-fx",

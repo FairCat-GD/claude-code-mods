@@ -1,9 +1,10 @@
 # claude-code-mods
 
-The owner's Claude Code mods: plugins that change Claude Code's own interface or behaviour through
-its function-hooks API. Each mod is an independent plugin in `mods/<name>/`, with its own tests,
-docs and versions. The repository is also the plugin marketplace the mods install from, and its
-tooling holds every mod to the same rules.
+My mods for Claude Code. Each one is a plugin that hooks into Claude Code and changes how it looks
+or behaves, like cartoon animations when you commit, or a side panel of opossums for your agents.
+
+Every mod lives in its own folder under `mods/` and installs separately. This repo is also the
+marketplace you install them from.
 
 ## Mods
 

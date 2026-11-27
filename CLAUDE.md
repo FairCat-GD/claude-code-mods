@@ -1,10 +1,10 @@
 # claude-code-mods
 
-A home for the owner's Claude Code mods: plugins that change Claude Code's own interface or
-behaviour through its function-hooks API. Each mod lives in `mods/<name>/` as an independent
-plugin, with its own tests, docs, versions and development record. The repository's tooling holds
-every mod to the same rules. The repository is also the plugin marketplace the owner installs the
-mods from. It is run by one developer, on macOS, in Claude Code's desktop app and terminal.
+The owner's mods for Claude Code. Each one is a plugin that hooks into Claude Code and changes how
+it looks or behaves. Every mod lives in its own folder, `mods/<name>/`, with its own tests, docs,
+versions and development record, and the repo's tooling checks them all the same way. The repo is
+also the marketplace the owner installs them from. One developer runs it, on macOS, in Claude
+Code's desktop app and terminal.
 
 Machine identifiers keep their spelling, because installs and stored data live under them:
 - the marketplace `claude-code-mods` (installs are `<mod>@claude-code-mods`) and the repository
