@@ -3026,7 +3026,7 @@ close follow, as the amendment above orders them.
   - **H6 is met** by the owner's look at every set's gallery at 0.10.1, all as expected, nothing
     sent to polish;
   - **T-08, the design's context badge,** never planned or built, goes to *Deferred*.
-- **Decided with the user, mid-session:** five Decided lines the code had outgrown, brought in
+- **Decided with the user, mid-session:** six Decided points the code had outgrown, brought in
   line with it and with the decisions already logged (Decision log, 2026-11-27): `config.ts`'s
   tunables (but T-08, and T-11 and T-12 in `hooks/data/`); `view/`'s imports (also `config.ts`
   and the pure helpers of `model/` and `roles/`; amended, not moved in code); the manifest's
@@ -3083,3 +3083,22 @@ close follow, as the amendment above orders them.
 - **Numbers:** unchanged. 361 tests in 27 files, about 20 s; the tools' specs 10 in 2;
   `validate` 11 hooks, 4 gating each with a `.catch`, 3 state keys, the same calls; the gate
   green on CLI 2.1.330.
+- **Review (`/code-review high`), 6 findings: all fixed, the user's choice.**
+  - **The handoff ran ahead of the close:** it called round 1 closed and its spec deleted while
+    neither was so, so a chat ended early would have sent the next session to an intake. It now
+    opens with a line, removed by the close, saying the close is still under way and how to
+    finish Session 13 from where `git log` stops.
+  - **The README claimed a desktop test of 1.0.0** before any: it now says the terminal at
+    2.1.330, and the desktop on its engine 2.1.330 with 0.13.0, the last version looked at
+    there; the look at 1.0.0 updates it.
+  - **Two size figures were worked out, not measured:** measured now, in a scratch copy of the
+    mod whose size test reported its counts (CLI 2.1.330, 2026-11-27, never in the
+    repository): the worst list 1,846 nodes, 8 deep, 232,849 characters (horror; classic
+    229,581, steampunk 231,908, prehistoric 230,657); the heaviest gallery part 147 nodes, 8 deep,
+    186,655 characters (prehistoric's first, `auto`), `off` at most 77,304, the other sets'
+    heaviest 164k to 166k. Both equal what was worked out; *The panel* gives them as measured.
+  - Smaller: the toasts' Decided line dated the gallery's case to 0.12.0, not 0.11.0; the
+    backlog still said this mod's `<path>` sprites had never drawn on the desktop; the done-note
+    said five Decided points where it listed six.
+  - **Falsified:** nothing: the fixes add no check.
+  - **Numbers after the review:** unchanged.

@@ -50,8 +50,9 @@ these are the parts only a person can see.
   and blinking smoothly, and not restarting each second; the Lead's crown; the empty pane's
   sleeping three; on the light theme the dark outline round pale edges, and none on the dark;
   with reduced motion on in the system, and with `/possums set motion off`, every opossum
-  still. These sprites use `<path>` and an `opacity` animation, which the other mod in this
-  repository draws on the desktop but this one has not yet.
+  still. Of what these sprites use, the desktop has drawn their `<path>`s and the work loop;
+  the one-offs' `fill="freeze"` and `begin`, and `planned`'s group `opacity`, it has not been
+  seen to draw.
   - **From 0.9.0:** a new row's opossum sliding in, then hopping into its outfit; a role
     worked out later hopping once; a finished one's cheer, its "z" rising, then still; a
     stopped one startled, then standing; the needs-you sign and the quiet doze bobbing; each

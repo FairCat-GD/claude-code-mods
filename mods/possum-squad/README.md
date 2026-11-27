@@ -61,7 +61,8 @@ types of your own.
 
 ## Tested with
 
-Claude Code 2.1.330, in the terminal and in the desktop app. The plugin API is early access and
+Claude Code 2.1.330 in the terminal; in the desktop app, on its engine 2.1.330 with 0.13.0, the
+last version looked at there. The plugin API is early access and
 changes between Claude Code releases, so a later version may need a later possum-squad.
 
 More about how it behaves is in [docs/USER-GUIDE.md](docs/USER-GUIDE.md).

@@ -1581,10 +1581,10 @@ draws that part below the header, in the sections' or the empty panel's place.
 - **`terminalGallery`:** the same heading and line, then "States", each state's coloured mark
   and word (`planned` in `inactive`); then "Roles", the part's roles, each name, a dim `·`, then
   its costume name (dim), so the two never run together where dimming does not show.
-- **Its size** (by the desktop's count, in the kit, CLI 2.1.330, at 0.10.1; nothing in the
-  gallery has changed since but the header's row `Box`, about 2 nodes and 37 characters by
-  `tests/size.ts`): the heaviest part is 186,618
-  characters and 145 nodes, 8 deep (prehistoric's first, `auto`); with `off` at most 77,267.
+- **Its size** (by the desktop's count, in the kit, CLI 2.1.330, measured at 1.0.0): the
+  heaviest part is 186,655 characters and 147 nodes, 8 deep (prehistoric's first, `auto`);
+  with `off` at most 77,304. At 0.10.1, before the header's row `Box`, they were 186,618 and
+  145, and 77,267.
   The other sets' heaviest parts with `auto` are 164k to 166k.
 - **Timing** (N-05, in the kit, CLI 2.1.330): building the pane's tree for 20 rows took
   0.21 ms (median of 200, max 1.0 ms) with the sprites cached; the first build, writing its
@@ -1626,9 +1626,9 @@ Within what the desktop draws (0.10.1), in `panel` (`hooks/view/panel.tsx`) and 
   before it in its section, with four limits and the estimate (0.13.0). Its third lines and
   Peek's actions are the longest a row draws at 0.15.0, a web search's query cut, 103
   characters, past a summary cut at 100 and a path named file first. In any set it came to
-  1,845 nodes, 8 deep and at most 232,837 characters at 0.15.0 (horror, measured with
-  `tests/size.test.ts`, which asserts only the bound), 92% and 89% of the bound; the picker's
-  Detect (0.17.0) adds one node and 12 characters by `tests/size.ts`'s count; the same rows unnested draw the same nodes and levels. At 0.14.0, with an
+  1,846 nodes, 8 deep and at most 232,849 characters at 1.0.0 (horror, measured with
+  `tests/size.test.ts`, which asserts only the bound), 92% and 89% of the bound; at 0.15.0,
+  before the picker's Detect, 1,845 and 232,837; the same rows unnested draw the same nodes and levels. At 0.14.0, with an
   activity of 88 characters, it was 227,422. At 0.12.0, without
   nesting, limits or the estimate, it was 225,793; without Peek and its button, 1,613 and
   218,861.
@@ -1707,8 +1707,8 @@ The collapsed view (0.12.0), in `hooks/view/collapsed.tsx`, chosen by `panel`:
     where auto mode's classifier or a hook settles the ask with no prompt shown.
 - **Gone quiet:** a run with no event for T-05 (90 s) and no tool call in flight shows as quiet.
 - **Toasts,** only while the list is out of view: the pane closed, behind another's tab or
-  waiting undrawn (Decision log, 2026-11-23), or the gallery or the collapsed view in the list's
-  place (0.12.0, the plan's choice with the owner's approval). One when a run needs the person,
+  waiting undrawn (Decision log, 2026-11-23), or the gallery in the list's place (0.11.0), or
+  the collapsed view (0.12.0, the plan's choice with the owner's approval). One when a run needs the person,
   and one when a run that ran longer than T-10 (60 s) ends, a waiting run at its real end.
   `prefs.toasts` says which: `all`, `needs` (Needs you only) or `off`. A failed run's toast
   names its reason: an error, a refusal or an empty answer (Decision log, 2026-11-25).
