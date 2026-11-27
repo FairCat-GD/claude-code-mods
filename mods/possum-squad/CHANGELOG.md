@@ -473,6 +473,7 @@ later versions.
   called, and passes every one of them on exactly as it came; watching adds nothing to what
   Claude is sent.
 
+[1.0.0]: https://github.com/FairCat-GD/claude-code-mods/commit/4aa36cf81012c85335f26f4abc8b7caf94173718
 [0.17.0]: https://github.com/FairCat-GD/claude-code-mods/commit/3b0774b739c33be8109d75f10d12e0c915f3a468
 [0.16.0]: https://github.com/FairCat-GD/claude-code-mods/commit/63d7d98a0ab8b57676d9846fde4ad72b81074bfc
 [0.15.0]: https://github.com/FairCat-GD/claude-code-mods/commit/af4109a1b6f924b404985fcb34b4c2fdf3ef7018

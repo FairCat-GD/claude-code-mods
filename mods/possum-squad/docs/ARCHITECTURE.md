@@ -1913,7 +1913,7 @@ and, until round 1 closes, `docs/spec/research/` are in each installed copy.
 
 **Built.** Every version was pushed as it was cut: 0.1.0 to 0.3.0 on 2026-11-17, 0.4.0 and
 0.5.0 on 2026-11-20, 0.6.0 and 0.7.0 on 2026-11-22, 0.8.0 to 0.11.0 on 2026-11-23, 0.12.0 to
-0.15.0 on 2026-11-25, 0.16.0 and 0.17.0 on 2026-11-26. The owner installed each of 0.1.0 to
+0.15.0 on 2026-11-25, 0.16.0 and 0.17.0 on 2026-11-26, 1.0.0 on 2026-11-27. The owner installed each of 0.1.0 to
 0.5.0, and looked at 0.2.0, 0.9.0, 0.10.1, 0.11.0 and 0.13.0 installed in the desktop app. The manifest declares no settings: 0.2.0's throwaway `userConfig` field
 was removed in 0.3.0, and a value the owner set for it stays in their Claude Code settings,
 unread.

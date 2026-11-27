@@ -3102,3 +3102,24 @@ close follow, as the amendment above orders them.
     said five Decided points where it listed six.
   - **Falsified:** nothing: the fixes add no check.
   - **Numbers after the review:** unchanged.
+- **The look from the installed 1.0.0** (2026-11-27, after the push and `claude plugin update
+  possum-squad`, 0.13.0 to 1.0.0, with the owner's OK):
+  - **In the terminal,** by the session: a plain `claude` (CLI 2.1.330, `--permission-mode
+    default`) in `screen -U`, attached in a Terminal-panel tab at 120 columns, the release's
+    stored values read and never changed (no `set`, picker, `collapse` or Finished button).
+    `/possums` docked the pane: Main session `ctx – · 0`, `5h 8% · 7d 10% · 0 tokens · 0:00
+    [ collapse ]`, the empty pane's line. Two agents: a general-purpose one's asked
+    `ping -c 30` moved its row to `Needs you · 1`, naming the call, its time ticking (0:02,
+    0:06, 0:11); an Explore one read Scout, working, then finished, its last call in the past
+    ("Ran grep …"). The prompt was refused, never allowed; the row stayed in Needs you until the
+    agent's next reply, then ended finished as Helper, no rule having fired. The session line
+    reached 0:29 with the main turn, the Lead `ctx 5% · 49k`. `/possums settings` listed the
+    five, `toasts: all (all, needs, off)` last. No `claude` or `screen` was left running. The
+    tab title was not seen: no other pane was open.
+  - **In the desktop app:** not looked at. The owner judged no further check needed; what the
+    desktop has not shown stays in `docs/BACKLOG.md`.
+- **Amendments, after the review:**
+  - **The block's gate and the round's definition of done ask for the owner's check from the
+    installed 1.0.0 in the desktop app and the terminal;** the terminal's was made, the
+    desktop's waived by the owner (2026-11-27). The README's desktop line stays at 0.13.0.
+  - **`CHANGELOG.md`'s 1.0.0 link** points at the release commit, whose sha is final now.
