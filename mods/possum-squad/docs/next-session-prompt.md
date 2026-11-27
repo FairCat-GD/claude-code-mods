@@ -7,20 +7,14 @@ ask what it leaves open, and plan the round in this mod's `docs/spec/`, a Read l
 
 ## State you need that is not in the docs
 
-- **Round 1's close is still under way, in Session 13's chat,** until the commit
-  `docs(possum-squad): close round 1` exists. Before it, this file runs ahead: `docs/spec/` is
-  still there, and what is left is the close. If the chat ended before the close, the next session
-  finishes Session 13 from where `git log` shows it stopped, instead of starting an intake. The
-  close removes this line.
 - **possum-squad 1.0.0 is released.** Round 1 (the agents panel: Sessions 0–13, 7a, 9a and
   12a–12d) is closed. Its spec files are deleted; the last done-note is in `docs/spec/SESSIONS.md`
-  as of the commit before the close (`<sha>`, filled in by the close), read with
-  `git show <sha>:mods/possum-squad/docs/spec/SESSIONS.md`. The design draft, `SPEC.md` and the
+  as of the commit before the close (`849af28a4d041570fad11a53317f5fe5cd3de5f1`), read with
+  `git show 849af28:mods/possum-squad/docs/spec/SESSIONS.md`. The design draft, `SPEC.md` and the
   frozen inputs (`docs/spec/research/`) are in the same commit.
 - **Push status:** pushed on 2026-11-27 with the owner's approval: `origin/main` holds
-  everything through `review(possum-squad): a handoff ahead of the close, and 5 smaller`, with
-  1.0.0's release before it. The commit recording the look from the installed 1.0.0 and the
-  close follow, then the next push. List `origin/main..HEAD` before any push, and name any commit
+  everything through this close (`docs(possum-squad): close round 1`). Nothing waits locally.
+  The tag `possum-squad-v1.0.0` goes on this close, with its own approval. List `origin/main..HEAD` before any push, and name any commit
   that is not this mod's.
 - **The changelog's 1.0.0 link** points at the commit that bumped the manifest to 1.0.0 until the
   tag `possum-squad-v1.0.0` is pushed; then it points at the tag, and `[Unreleased]` compares the

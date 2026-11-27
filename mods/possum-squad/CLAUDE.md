@@ -92,5 +92,3 @@ first line copies it.
   - ctrl+x tab shows the next pane's tab; it does not give a pane the keys. A text read does not
     show which element holds them, so a press by Tab and Enter is a guess: never one that could
     land on a button that writes the store (`collapse`, Finished's `show`).
-- **`docs/spec/research/` is input** for round 1: copy from it, never edit it. Its corpus labels
-  are fixed, and the role table is never tuned on `holdout`.

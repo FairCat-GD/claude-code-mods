@@ -365,7 +365,8 @@ engine 2.1.325 for the 0.2.0 run, 2.1.326 on 2026-11-20, and 2.1.330 at Session 
   (a look's sprite, cached; the empty panel's squad; the collapsed Lead with its joeys; the
   gallery's roles and each costume's name). It uses `config.ts` and the types
   alone; `hooks/config.ts` holds T-01 and T-02 for it;
-- `art/`: the round's frozen `research/art/`, copied, its JSON formatted, then `failed`'s flip
+- `art/`: round 1's frozen inputs (`docs/spec/research/art/`, in git history before round 1's
+  close), copied, its JSON formatted, then `failed`'s flip
   widened and the joey (`extras/joey.png`) redrawn (*Sprites and sets*);
 - `tools/`: `png.ts` (reads and writes 8-bit RGBA PNG), `art.ts` (the converter), their specs
   and `tools/fixtures/art.ts`, a fictional art folder as data;
@@ -394,7 +395,8 @@ engine 2.1.325 for the 0.2.0 run, 2.1.326 on 2026-11-20, and 2.1.330 at Session 
   - `tests/header.test.ts` draws fixture panels with the view's builder, and raises the events
     that feed the Lead and the header; `tests/clock.test.ts` moves a pinned clock and counts
     what the mod's timer asks of the engine, through a plugin beside it;
-  - `tests/roles.test.ts` runs the rules on the corpus and the PDD's worked examples;
+  - `tests/roles.test.ts` runs the rules on the corpus and the worked examples of round 1's
+    design draft;
     `tests/settle.test.ts` raises spawns, steps and ends, and reads each row's role from the
     drawn pane;
   - `tests/compose.test.ts` composes `tests/fixtures/art.ts`, a fictional art;
@@ -1908,8 +1910,8 @@ pushed version only when `plugin.json`'s differs from the installed one, so ever
 for the owner cuts a version. A `claude --plugin-dir mods/possum-squad` terminal session tries an
 unpushed build: it replaces the installed copy for that session and runs as
 `possum-squad@inline`, with its own `$.store`. Installed, the mod runs in every session the owner
-starts; disabling the plugin is its kill switch. Every tracked file ships, so `art/`, `tools/`
-and, until round 1 closes, `docs/spec/research/` are in each installed copy.
+starts; disabling the plugin is its kill switch. Every tracked file ships, so `art/` and `tools/` are in each
+installed copy.
 
 **Built.** Every version was pushed as it was cut: 0.1.0 to 0.3.0 on 2026-11-17, 0.4.0 and
 0.5.0 on 2026-11-20, 0.6.0 and 0.7.0 on 2026-11-22, 0.8.0 to 0.11.0 on 2026-11-23, 0.12.0 to
